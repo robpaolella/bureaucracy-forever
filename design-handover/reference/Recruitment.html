@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bureaucracy — Recruitment</title>
+
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&amp;family=Cinzel:wght@600&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#06080B;color:#E8EDF7;font-family:Archivo,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#A3AFC2;text-decoration:none}
+a:hover{color:#E8EDF7}
+a.accent{color:#6FC8DC}
+a.accent:hover{color:#9BDCEB}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit}
+::placeholder{color:#6F7C90}
+.tr:hover{background:#0E1219}
+</style>
+</helmet>
+
+<div style="width: 1440px; height: 2960px; box-sizing: border-box; display: flex; flex-direction: column; background: #06080B;">
+
+  <header style="display: flex; align-items: center; justify-content: space-between; height: 72px; padding: 0 96px; border-bottom: 1px solid #141922;">
+    <div style="display: flex; align-items: center; gap: 40px;">
+      <img src="./assets/wordmark.png" alt="Bureaucracy" style="height: 22px; width: auto; display: block;">
+      <nav style="display: flex; align-items: center; gap: 26px; font-size: 14px; font-weight: 500;">
+        <a href="About.dc.html">About</a>
+        <a href="Schedule.dc.html">Raid schedule</a>
+        <a href="Recruitment.dc.html" style="color: #E8EDF7; border-bottom: 2px solid #E4C08A; padding-bottom: 4px;">Recruitment</a>
+        <a href="Loot.dc.html">Loot rules</a>
+      </nav>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <button type="button" style="height: 40px; padding: 0 16px; background: transparent; color: #E8EDF7; border: 1px solid #323C4C; border-radius: 4px; font-size: 13px; font-weight: 600;">Log in with Discord</button>
+      <button type="button" style="height: 40px; padding: 0 18px; background: #E4C08A; color: #06080B; border: 0; border-radius: 4px; font-size: 13px; font-weight: 600;">Join Discord</button>
+    </div>
+  </header>
+
+  <section style="padding: 80px 96px 48px; display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 64px; align-items: end;">
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+      <div style="font-family: Cinzel, Georgia, serif; font-size: 12px; font-weight: 600; letter-spacing: 0.32em; text-transform: uppercase; color: #E4C08A;">Recruitment</div>
+      <h1 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 60px; line-height: 1.04; letter-spacing: -0.025em; color: #E8EDF7;">We're filling a raid, not a bench</h1>
+      <p style="margin: 0; max-width: 640px; font-size: 17px; line-height: 1.7; color: #A3AFC2;">Needs below are honest — a closed spec means closed, not "convince us". Apply anyway if you are exceptional; we will say so if you are.</p>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 24px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px;">
+      <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6F7C90;">Right now</span>
+      <span style="font-size: 15px; line-height: 1.6; color: #A3AFC2;">Recruiting for the first WoW Forever lockout. Applications close when the raid is full.</span>
+      <a class="accent" href="#apply" style="font-size: 14px; font-weight: 600; margin-top: 4px;">Jump to the form →</a>
+    </div>
+  </section>
+
+  <!-- needs table -->
+  <section style="padding: 0 96px 72px; display: flex; flex-direction: column; gap: 20px;">
+    <div style="display: flex; align-items: flex-end; justify-content: space-between;">
+      <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 34px; line-height: 1.1; color: #E8EDF7;">Open needs by class and role</h2>
+      <div style="display: flex; align-items: center; gap: 16px; font-size: 12px; color: #6F7C90;">
+        <span style="display: inline-flex; align-items: center; gap: 7px;"><span style="width: 8px; height: 8px; background: #79D0A0; border-radius: 999px;"></span>High need</span>
+        <span style="display: inline-flex; align-items: center; gap: 7px;"><span style="width: 8px; height: 8px; background: #E9B872; border-radius: 999px;"></span>Medium</span>
+        <span style="display: inline-flex; align-items: center; gap: 7px;"><span style="width: 8px; height: 8px; background: #6F7C90; border-radius: 999px;"></span>Closed</span>
+      </div>
+    </div>
+
+    <div style="border: 1px solid #232B38; border-radius: 8px; overflow: hidden; background: #0A0D12;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+        <thead>
+          <tr style="background: #0E1219;">
+            <th scope="col" style="width: 26%; text-align: left; padding: 13px 24px; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6F7C90; border-bottom: 1px solid #232B38;">Class</th>
+            <th scope="col" style="width: 24%; text-align: left; padding: 13px 24px; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6F7C90; border-bottom: 1px solid #232B38;">Spec</th>
+            <th scope="col" style="width: 24%; text-align: left; padding: 13px 24px; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6F7C90; border-bottom: 1px solid #232B38;">Role</th>
+            <th scope="col" style="text-align: right; padding: 13px 24px; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6F7C90; border-bottom: 1px solid #232B38;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="tr"><td style="padding: 14px 24px; border-bottom: 1px solid #141922; font-weight: 600; color: #C79C6E;">Warrior</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Protection</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Tank</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; text-align: right;"><span style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; background: #12251C; border: 1px solid #2E5C44; border-radius: 999px; font-size: 12px; font-weight: 600; color: #79D0A0;"><span style="width: 6px; height: 6px; background: #79D0A0; border-radius: 999px;"></span>High need</span></td></tr>
+          <tr class="tr"><td style="padding: 14px 24px; border-bottom: 1px solid #141922; font-weight: 600; color: #C79C6E;">Warrior</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Fury · Arms</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Melee DPS</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; text-align: right;"><span style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; background: #1B222E; border: 1px solid #323C4C; border-radius: 999px; font-size: 12px; font-weight: 600; color: #8D97A8;"><span style="width: 6px; height: 6px; background: #6F7C90; border-radius: 999px;"></span>Closed</span></td></tr>
+          <tr class="tr"><td style="padding: 14px 24px; border-bottom: 1px solid #141922; font-weight: 600; color: #F2F2F2;">Priest</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Holy · Discipline</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Healer</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; text-align: right;"><span style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; background: #12251C; border: 1px solid #2E5C44; border-radius: 999px; font-size: 12px; font-weight: 600; color: #79D0A0;"><span style="width: 6px; height: 6px; background: #79D0A0; border-radius: 999px;"></span>High need</span></td></tr>
+          <tr class="tr"><td style="padding: 14px 24px; border-bottom: 1px solid #141922; font-weight: 600; color: #F2F2F2;">Priest</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Shadow</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Ranged DPS</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; text-align: right;"><span style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; background: #241E14; border: 1px solid #6B5530; border-radius: 999px; font-size: 12px; font-weight: 600; color: #E9B872;"><span style="width: 6px; height: 6px; background: #E9B872; border-radius: 999px;"></span>Medium</span></td></tr>
+          <tr class="tr"><td style="padding: 14px 24px; border-bottom: 1px solid #141922; font-weight: 600; color: #3A9BE8;">Shaman</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Restoration</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Healer</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; text-align: right;"><span style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; background: #12251C; border: 1px solid #2E5C44; border-radius: 999px; font-size: 12px; font-weight: 600; color: #79D0A0;"><span style="width: 6px; height: 6px; background: #79D0A0; border-radius: 999px;"></span>High need</span></td></tr>
+          <tr class="tr"><td style="padding: 14px 24px; border-bottom: 1px solid #141922; font-weight: 600; color: #3A9BE8;">Shaman</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Elemental</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Ranged DPS</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; text-align: right;"><span style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; background: #241E14; border: 1px solid #6B5530; border-radius: 999px; font-size: 12px; font-weight: 600; color: #E9B872;"><span style="width: 6px; height: 6px; background: #E9B872; border-radius: 999px;"></span>Medium</span></td></tr>
+          <tr class="tr"><td style="padding: 14px 24px; border-bottom: 1px solid #141922; font-weight: 600; color: #FF7D0A;">Druid</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Restoration</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Healer</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; text-align: right;"><span style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; background: #241E14; border: 1px solid #6B5530; border-radius: 999px; font-size: 12px; font-weight: 600; color: #E9B872;"><span style="width: 6px; height: 6px; background: #E9B872; border-radius: 999px;"></span>Medium</span></td></tr>
+          <tr class="tr"><td style="padding: 14px 24px; border-bottom: 1px solid #141922; font-weight: 600; color: #FF7D0A;">Druid</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Feral</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Tank · Melee DPS</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; text-align: right;"><span style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; background: #1B222E; border: 1px solid #323C4C; border-radius: 999px; font-size: 12px; font-weight: 600; color: #8D97A8;"><span style="width: 6px; height: 6px; background: #6F7C90; border-radius: 999px;"></span>Closed</span></td></tr>
+          <tr class="tr"><td style="padding: 14px 24px; border-bottom: 1px solid #141922; font-weight: 600; color: #F58CBA;">Paladin</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Holy</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Healer</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; text-align: right;"><span style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; background: #241E14; border: 1px solid #6B5530; border-radius: 999px; font-size: 12px; font-weight: 600; color: #E9B872;"><span style="width: 6px; height: 6px; background: #E9B872; border-radius: 999px;"></span>Medium</span></td></tr>
+          <tr class="tr"><td style="padding: 14px 24px; border-bottom: 1px solid #141922; font-weight: 600; color: #9C8BD8;">Warlock</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Destruction</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Ranged DPS</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; text-align: right;"><span style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; background: #241E14; border: 1px solid #6B5530; border-radius: 999px; font-size: 12px; font-weight: 600; color: #E9B872;"><span style="width: 6px; height: 6px; background: #E9B872; border-radius: 999px;"></span>Medium</span></td></tr>
+          <tr class="tr"><td style="padding: 14px 24px; border-bottom: 1px solid #141922; font-weight: 600; color: #69CCF0;">Mage</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Frost · Fire</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Ranged DPS</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; text-align: right;"><span style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; background: #1B222E; border: 1px solid #323C4C; border-radius: 999px; font-size: 12px; font-weight: 600; color: #8D97A8;"><span style="width: 6px; height: 6px; background: #6F7C90; border-radius: 999px;"></span>Closed</span></td></tr>
+          <tr class="tr"><td style="padding: 14px 24px; border-bottom: 1px solid #141922; font-weight: 600; color: #ABD473;">Hunter</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Marksmanship</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; color: #A3AFC2;">Ranged DPS</td><td style="padding: 14px 24px; border-bottom: 1px solid #141922; text-align: right;"><span style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; background: #1B222E; border: 1px solid #323C4C; border-radius: 999px; font-size: 12px; font-weight: 600; color: #8D97A8;"><span style="width: 6px; height: 6px; background: #6F7C90; border-radius: 999px;"></span>Closed</span></td></tr>
+          <tr class="tr"><td style="padding: 14px 24px; font-weight: 600; color: #FFF569;">Rogue</td><td style="padding: 14px 24px; color: #A3AFC2;">Combat</td><td style="padding: 14px 24px; color: #A3AFC2;">Melee DPS</td><td style="padding: 14px 24px; text-align: right;"><span style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; background: #1B222E; border: 1px solid #323C4C; border-radius: 999px; font-size: 12px; font-weight: 600; color: #8D97A8;"><span style="width: 6px; height: 6px; background: #6F7C90; border-radius: 999px;"></span>Closed</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin: 0; font-size: 12px; color: #6F7C90;">Officers set each row from the Officers menu. Changing a status here updates the home page strip and the bot's <span style="color: #A3AFC2;">/recruiting</span> reply at the same time.</p>
+  </section>
+
+  <!-- expectations -->
+  <section style="padding: 0 96px 72px; display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 64px;">
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <span style="font-family: Cinzel, Georgia, serif; font-size: 11px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase; color: #E4C08A;">The deal</span>
+      <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 38px; line-height: 1.1; color: #E8EDF7;">What we expect of a raider</h2>
+      <p style="margin: 0; font-size: 15px; line-height: 1.7; color: #6F7C90;">None of this is unusual. All of it is enforced.</p>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+      <div style="padding: 24px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 17px; font-weight: 600; color: #E8EDF7;">Both progression nights</span><span style="font-size: 14px; line-height: 1.65; color: #A3AFC2;">Tuesday and Wednesday, roughly 90% of the tier. Life happens — tell us before the day.</span></div>
+      <div style="padding: 24px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 17px; font-weight: 600; color: #E8EDF7;">Read the fight first</span><span style="font-size: 14px; line-height: 1.65; color: #A3AFC2;">Strategy goes up in Discord before the night. Come knowing your job, not asking what it is.</span></div>
+      <div style="padding: 24px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 17px; font-weight: 600; color: #E8EDF7;">Your own consumables</span><span style="font-size: 14px; line-height: 1.65; color: #A3AFC2;">Flasks, potions, world buffs where they matter. The guild bank covers repairs, not your flasks.</span></div>
+      <div style="padding: 24px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 17px; font-weight: 600; color: #E8EDF7;">Voice and an addon pack</span><span style="font-size: 14px; line-height: 1.65; color: #A3AFC2;">In Discord for every pull. Boss timers and a logging client running — we review the logs, not our memories.</span></div>
+      <div style="padding: 24px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 17px; font-weight: 600; color: #E8EDF7;">Take the call</span><span style="font-size: 14px; line-height: 1.65; color: #A3AFC2;">One person calls during a pull. Disagree between pulls — we would rather hear it than lose the night.</span></div>
+      <div style="padding: 24px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 17px; font-weight: 600; color: #E8EDF7;">Two weeks of trial</span><span style="font-size: 14px; line-height: 1.65; color: #A3AFC2;">Full loot rights from night one. We tell you where you stand at the end, either way.</span></div>
+    </div>
+  </section>
+
+  <!-- form -->
+  <section id="apply" style="padding: 0 96px 80px; display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 40px; align-items: start;">
+    <div style="display: flex; flex-direction: column; gap: 24px; padding: 40px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px;">
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 34px; line-height: 1.1; color: #E8EDF7;">Apply</h2>
+        <p style="margin: 0; font-size: 15px; line-height: 1.65; color: #A3AFC2;">Pick a path. The Raider form asks for logs and a spec; the Social form asks for almost nothing.</p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+        <button type="button" style="display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 18px 20px; background: #0E2830; border: 1px solid #6FC8DC; border-radius: 6px; text-align: left;"><span style="font-size: 16px; font-weight: 600; color: #E8EDF7;">Raider</span><span style="font-size: 13px; line-height: 1.5; color: #A8DCE8;">You want a spot in the 40. Six questions and a logs link.</span></button>
+        <button type="button" style="display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 18px 20px; background: #141922; border: 1px solid #323C4C; border-radius: 6px; text-align: left;"><span style="font-size: 16px; font-weight: 600; color: #E8EDF7;">Social</span><span style="font-size: 13px; line-height: 1.5; color: #A3AFC2;">You want the Discord and the odd alt run. Two questions.</span></button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px;">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label for="r-char" style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #A3AFC2;">Character name</label>
+          <input id="r-char" type="text" placeholder="As it appears in game" style="height: 46px; padding: 0 14px; background: #1B222E; color: #E8EDF7; border: 1px solid #323C4C; border-radius: 4px; font-size: 15px;">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label for="r-discord" style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #A3AFC2;">Discord handle</label>
+          <input id="r-discord" type="text" value="redtape" style="height: 46px; padding: 0 14px; background: #141922; color: #6F7C90; border: 1px solid #232B38; border-radius: 4px; font-size: 15px;">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label for="r-class" style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #A3AFC2;">Class</label>
+          <select id="r-class" style="height: 46px; padding: 0 12px; background: #1B222E; color: #E8EDF7; border: 1px solid #323C4C; border-radius: 4px; font-size: 15px;"><option>Choose a class</option><option>Priest</option><option>Warrior</option></select>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label for="r-spec" style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #A3AFC2;">Main spec</label>
+          <select id="r-spec" style="height: 46px; padding: 0 12px; background: #1B222E; color: #E8EDF7; border: 1px solid #323C4C; border-radius: 4px; font-size: 15px;"><option>Choose a spec</option><option>Holy</option><option>Shadow</option></select>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label for="r-logs" style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #A3AFC2;">Logs</label>
+        <input id="r-logs" type="url" placeholder="https://" style="height: 46px; padding: 0 14px; background: #1B222E; color: #E8EDF7; border: 1px solid #323C4C; border-radius: 4px; font-size: 15px;">
+        <span style="font-size: 12px; color: #6F7C90;">Any recent raid. We care more about deaths avoided than damage done.</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label for="r-avail" style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #A3AFC2;">Can you make Tuesday and Wednesday, 8–11 PM server?</label>
+        <div style="display: flex; gap: 10px;">
+          <label style="display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 16px; background: #1B222E; border: 1px solid #323C4C; border-radius: 4px; font-size: 15px; color: #E8EDF7;"><input type="radio" name="avail" style="accent-color: #6FC8DC; width: 16px; height: 16px;">Both nights</label>
+          <label style="display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 16px; background: #1B222E; border: 1px solid #323C4C; border-radius: 4px; font-size: 15px; color: #E8EDF7;"><input type="radio" name="avail" style="accent-color: #6FC8DC; width: 16px; height: 16px;">One of them</label>
+          <label style="display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 16px; background: #1B222E; border: 1px solid #323C4C; border-radius: 4px; font-size: 15px; color: #E8EDF7;"><input type="radio" name="avail" style="accent-color: #6FC8DC; width: 16px; height: 16px;">Neither</label>
+        </div>
+        <span style="font-size: 12px; color: #6FC8DC;">Your local time: 6–9 PM, America/Los_Angeles.</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label for="r-why" style="font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #A3AFC2;">Tell us about a wipe you caused and what you changed</label>
+        <textarea id="r-why" rows="5" placeholder="Short and honest beats long and polished." style="padding: 12px 14px; background: #1B222E; color: #E8EDF7; border: 1px solid #323C4C; border-radius: 4px; font-size: 15px; line-height: 1.6; resize: vertical;"></textarea>
+      </div>
+
+      <label style="display: flex; align-items: flex-start; gap: 12px; font-size: 14px; line-height: 1.5; color: #A3AFC2;"><input type="checkbox" style="accent-color: #6FC8DC; width: 16px; height: 16px; margin-top: 2px;">I have read the <a class="accent" href="Loot.dc.html">loot rules</a> and the raider expectations above.</label>
+
+      <div style="display: flex; align-items: center; gap: 16px; padding-top: 4px;">
+        <button type="submit" style="height: 52px; padding: 0 30px; background: #E4C08A; color: #06080B; border: 0; border-radius: 4px; font-size: 15px; font-weight: 700;">Submit application</button>
+        <span style="font-size: 13px; color: #6F7C90;">You'll get a Discord DM when an officer picks it up.</span>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="padding: 26px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 16px;">
+        <h3 style="margin: 0; font-size: 17px; font-weight: 600; color: #E8EDF7;">What happens next</h3>
+        <ol style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 12px; font-size: 14px; line-height: 1.6; color: #A3AFC2;">
+          <li><span style="color: #E8EDF7; font-weight: 600;">Within a day</span> — an officer claims it and reads your logs.</li>
+          <li><span style="color: #E8EDF7; font-weight: 600;">A short chat</span> in Discord, usually fifteen minutes.</li>
+          <li><span style="color: #E8EDF7; font-weight: 600;">Two-week trial</span> with full loot rights.</li>
+          <li><span style="color: #E8EDF7; font-weight: 600;">A straight answer</span> at the end of it.</li>
+        </ol>
+      </div>
+      <div style="padding: 26px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;">
+        <h3 style="margin: 0; font-size: 17px; font-weight: 600; color: #E8EDF7;">Not raiding?</h3>
+        <p style="margin: 0; font-size: 14px; line-height: 1.65; color: #A3AFC2;">Social members get the Discord, alt runs and the calendar. No attendance, no trial, no loot rules to memorise.</p>
+      </div>
+      <div style="padding: 26px; background: #0E2830; border: 1px solid #1B4450; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;">
+        <h3 style="margin: 0; font-size: 17px; font-weight: 600; color: #E8EDF7;">Questions first?</h3>
+        <p style="margin: 0; font-size: 14px; line-height: 1.65; color: #A8DCE8;">Join the Discord and ask in #recruitment. Nobody will pressure you into applying.</p>
+        <button type="button" style="height: 44px; margin-top: 4px; background: transparent; color: #E8EDF7; border: 1px solid #2A6B7C; border-radius: 4px; font-size: 14px; font-weight: 600;">Join Discord</button>
+      </div>
+    </div>
+  </section>
+
+  <footer style="margin-top: auto; padding: 36px 96px; border-top: 1px solid #141922; display: flex; align-items: center; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 28px;">
+      <img src="./assets/wordmark.png" alt="Bureaucracy" style="height: 16px; width: auto; display: block; opacity: 0.7;">
+      <div style="display: flex; gap: 18px; font-size: 13px;"><a href="About.dc.html">About</a><a href="Schedule.dc.html">Schedule</a><a href="Recruitment.dc.html">Recruitment</a><a href="Loot.dc.html">Loot rules</a></div>
+    </div>
+    <span style="font-size: 12px; color: #6F7C90;">Bureaucracy · WoW Forever · Not affiliated with Blizzard Entertainment.</span>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

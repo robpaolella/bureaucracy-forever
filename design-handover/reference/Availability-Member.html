@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bureaucracy — My availability</title>
+
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&amp;family=Cinzel:wght@600&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#06080B;color:#E8EDF7;font-family:Archivo,system-ui,sans-serif;-webkit-font-smoothing:antialiased;user-select:none}
+a{color:#A3AFC2;text-decoration:none}
+a:hover{color:#E8EDF7}
+a.accent{color:#6FC8DC}
+a.accent:hover{color:#9BDCEB}
+button{font-family:inherit;cursor:pointer}
+.cell:hover{outline:1px solid #6FC8DC;outline-offset:-1px}
+</style>
+</helmet>
+
+<div style="width: 1440px; height: 1720px; box-sizing: border-box; display: flex; flex-direction: column; background: #06080B;">
+
+  <header style="display: flex; align-items: center; justify-content: space-between; height: 72px; padding: 0 48px; border-bottom: 1px solid #141922;">
+    <div style="display: flex; align-items: center; gap: 36px;">
+      <img src="./assets/wordmark.png" alt="Bureaucracy" style="height: 22px; width: auto; display: block;">
+      <nav style="display: flex; align-items: center; gap: 24px; font-size: 14px; font-weight: 500;">
+        <a href="About.dc.html">About</a>
+        <a href="Schedule.dc.html">Raid schedule</a>
+        <a href="Recruitment.dc.html">Recruitment</a>
+        <a href="Loot.dc.html">Loot rules</a>
+        <button type="button" style="display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 10px; background: #141922; border: 1px solid #323C4C; border-radius: 4px; color: #E8EDF7; font-size: 14px; font-weight: 600;">Members<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#6FC8DC" stroke-width="1.6" stroke-linecap="round"><path d="M2 4l3 3 3-3"></path></svg></button>
+      </nav>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <button type="button" style="height: 40px; padding: 0 16px; background: transparent; color: #E8EDF7; border: 1px solid #323C4C; border-radius: 4px; font-size: 13px; font-weight: 600;">Join Discord</button>
+      <button type="button" style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px 0 6px; background: transparent; border: 1px solid #232B38; border-radius: 999px;">
+        <span style="width: 28px; height: 28px; border-radius: 999px; background: #1B222E; border: 1px solid #323C4C; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #F2F2F2;">RT</span>
+        <span style="font-size: 13px; font-weight: 600; color: #F2F2F2;">Redtape</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- page head -->
+  <section style="padding: 44px 48px 24px; display: flex; align-items: flex-end; justify-content: space-between; gap: 48px;">
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <span style="font-family: Cinzel, Georgia, serif; font-size: 11px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase; color: #E4C08A;">Members</span>
+      <h1 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 44px; line-height: 1.05; letter-spacing: -0.02em; color: #E8EDF7;">When can you raid?</h1>
+      <p style="margin: 0; max-width: 620px; font-size: 15px; line-height: 1.65; color: #A3AFC2;">Click and drag to paint the half-hours you can make. Officers see the whole roster stacked on one grid — this is how the schedule gets set.</p>
+    </div>
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: {{savedColor}};"><span style="width: 7px; height: 7px; border-radius: 999px; background: {{savedColor}};"></span>{{savedLabel}}</span>
+      <button type="button" onClick="{{save}}" style="height: 44px; padding: 0 22px; background: #E4C08A; color: #06080B; border: 0; border-radius: 4px; font-size: 14px; font-weight: 700;">Save</button>
+    </div>
+  </section>
+
+  <!-- controls -->
+  <section style="padding: 0 48px 20px; display: flex; align-items: center; justify-content: space-between; gap: 24px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6F7C90; margin-right: 6px;">Paint</span>
+      <button type="button" onClick="{{setA}}" style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px; background: {{aBg}}; border: 1px solid {{aBorder}}; border-radius: 4px; color: #E8EDF7; font-size: 14px; font-weight: 600;"><span style="width: 14px; height: 14px; border-radius: 2px; background: #2E7B58;"></span>Available</button>
+      <button type="button" onClick="{{setN}}" style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px; background: {{nBg}}; border: 1px solid {{nBorder}}; border-radius: 4px; color: #E8EDF7; font-size: 14px; font-weight: 600;"><span style="width: 14px; height: 14px; border-radius: 2px; background: #6B5530;"></span>If needed</button>
+      <button type="button" onClick="{{setX}}" style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px; background: {{xBg}}; border: 1px solid {{xBorder}}; border-radius: 4px; color: #E8EDF7; font-size: 14px; font-weight: 600;"><span style="width: 14px; height: 14px; border-radius: 2px; background: #10151C; border: 1px solid #323C4C;"></span>Erase</button>
+      <div style="width: 1px; height: 28px; background: #232B38; margin: 0 6px;"></div>
+      <button type="button" onClick="{{clear}}" style="height: 44px; padding: 0 16px; background: transparent; border: 1px solid #232B38; border-radius: 4px; color: #A3AFC2; font-size: 14px; font-weight: 600;">Clear week</button>
+    </div>
+    <div style="display: flex; align-items: center; gap: 28px;">
+      <div style="display: flex; flex-direction: column; gap: 3px; text-align: right;">
+        <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6FC8DC;">Your time</span>
+        <span style="font-size: 14px; font-weight: 600; color: #E8EDF7;">America/Los_Angeles · PDT <span style="color: #6F7C90; font-weight: 400;">detected</span></span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 3px; text-align: right;">
+        <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #E4C08A;">Server</span>
+        <span style="font-size: 14px; font-weight: 600; color: #A3AFC2;">CDT · 2 hours ahead</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- grid -->
+  <section style="padding: 0 48px 24px;">
+    <div style="border: 1px solid #232B38; border-radius: 8px; overflow: hidden; background: #0A0D12;">
+      <div style="display: flex; align-items: stretch; height: 46px; background: #0E1219; border-bottom: 1px solid #232B38;">
+        <div style="width: 92px; display: flex; align-items: center; padding-left: 14px; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6FC8DC;">Yours</div>
+        <sc-for list="{{days}}" as="day" hint-placeholder-count="7">
+          <div style="flex-grow: 1; flex-basis: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding-left: 12px; border-left: 1px solid #141922;">
+            <span style="font-size: 13px; font-weight: 600; color: #E8EDF7;">{{day.name}}</span>
+            <span style="font-size: 11px; color: #6F7C90;">{{day.date}}</span>
+          </div>
+        </sc-for>
+        <div style="width: 92px; display: flex; align-items: center; justify-content: flex-end; padding-right: 14px; border-left: 1px solid #141922; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #E4C08A;">Server</div>
+      </div>
+
+      <sc-for list="{{rows}}" as="row" hint-placeholder-count="48">
+        <div style="display: flex; align-items: stretch; height: 19px;">
+          <div style="width: 92px; display: flex; align-items: center; padding-left: 14px; font-size: 10px; color: {{row.labelColor}}; font-variant-numeric: tabular-nums; border-bottom: 1px solid {{row.line}};">{{row.local}}</div>
+          <sc-for list="{{row.cells}}" as="cell" hint-placeholder-count="7">
+            <button class="cell" type="button" aria-label="{{cell.label}}" onMouseDown="{{cell.down}}" onMouseEnter="{{cell.enter}}" style="flex-grow: 1; flex-basis: 0; padding: 0; background: {{cell.bg}}; border: 0; border-left: 1px solid #141922; border-bottom: 1px solid {{row.line}}; cursor: crosshair;"></button>
+          </sc-for>
+          <div style="width: 92px; display: flex; align-items: center; justify-content: flex-end; padding-right: 14px; font-size: 10px; color: {{row.serverColor}}; font-variant-numeric: tabular-nums; border-left: 1px solid #141922; border-bottom: 1px solid {{row.line}};">{{row.server}}</div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="padding: 0 48px 40px; display: flex; align-items: center; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 24px; font-size: 13px; color: #A3AFC2;">
+      <span style="display: inline-flex; align-items: center; gap: 8px;"><span style="width: 14px; height: 14px; border-radius: 2px; background: #2E7B58;"></span>Available — {{countA}} half-hours</span>
+      <span style="display: inline-flex; align-items: center; gap: 8px;"><span style="width: 14px; height: 14px; border-radius: 2px; background: #6B5530;"></span>If needed — {{countN}} half-hours</span>
+      <span style="display: inline-flex; align-items: center; gap: 8px;"><span style="width: 14px; height: 14px; border-radius: 2px; background: #10151C; border: 1px solid #232B38;"></span>Not available</span>
+    </div>
+    <span style="font-size: 13px; color: #6F7C90;">Bronze rows on the left mark the top of each hour. Only officers see who painted what.</span>
+  </section>
+
+  <footer style="margin-top: auto; padding: 32px 48px; border-top: 1px solid #141922; display: flex; align-items: center; justify-content: space-between;">
+    <img src="./assets/wordmark.png" alt="Bureaucracy" style="height: 16px; width: auto; display: block; opacity: 0.7;">
+    <span style="font-size: 12px; color: #6F7C90;">Bureaucracy · WoW Forever · Not affiliated with Blizzard Entertainment.</span>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1720}}'>
+class Component extends DCLogic {
+  seeded() {
+    if (this._seed) { return this._seed; }
+    var c = {};
+    var add = function (d, a, b, v) { for (var i = a; i < b; i++) { c[d + ':' + i] = v; } };
+    add(0, 38, 46, 'a');
+    add(1, 36, 47, 'a');
+    add(2, 36, 47, 'a');
+    add(3, 40, 45, 'n');
+    add(4, 42, 47, 'n');
+    add(5, 22, 32, 'n');
+    add(6, 34, 44, 'a');
+    this._seed = c;
+    return c;
+  }
+
+  cells() {
+    return (this.state && this.state.cells) ? this.state.cells : this.seeded();
+  }
+
+  mode() {
+    return (this.state && this.state.mode) ? this.state.mode : 'a';
+  }
+
+  componentDidMount() {
+    var self = this;
+    this._up = function () {
+      if (self.state && self.state.painting) { self.setState({ painting: false }); }
+    };
+    window.addEventListener('mouseup', this._up);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('mouseup', this._up);
+  }
+
+  paint(key) {
+    var cur = this.cells();
+    var next = {};
+    for (var k in cur) { next[k] = cur[k]; }
+    var m = this.mode();
+    if (m === 'x') { delete next[key]; } else { next[key] = m; }
+    this.setState({ cells: next, dirty: true });
+  }
+
+  fmt(slot, twelve) {
+    var i = ((slot % 48) + 48) % 48;
+    var h = Math.floor(i / 2);
+    var m = (i % 2) ? '30' : '00';
+    var suffix = h < 12 ? 'AM' : 'PM';
+    var hh = h % 12;
+    if (hh === 0) { hh = 12; }
+    return hh + ':' + m + ' ' + suffix;
+  }
+
+  renderVals() {
+    var self = this;
+    var cells = this.cells();
+    var m = this.mode();
+    var painting = !!(this.state && this.state.painting);
+    var dirty = !!(this.state && this.state.dirty);
+
+    var dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    var dayDates = ['3 Nov', '4 Nov', '5 Nov', '6 Nov', '7 Nov', '8 Nov', '9 Nov'];
+    var days = [];
+    for (var d = 0; d < 7; d++) { days.push({ name: dayNames[d], date: dayDates[d] }); }
+
+    var fills = { a: '#2E7B58', n: '#6B5530' };
+    var rows = [];
+    for (var s = 0; s < 48; s++) {
+      var onHour = (s % 2) === 0;
+      var rowCells = [];
+      for (var dd = 0; dd < 7; dd++) {
+        var key = dd + ':' + s;
+        var v = cells[key];
+        rowCells.push({
+          key: key,
+          bg: v ? fills[v] : '#10151C',
+          label: dayNames[dd] + ' ' + self.fmt(s),
+          down: (function (k) {
+            return function () { self.setState({ painting: true }); self.paint(k); };
+          })(key),
+          enter: (function (k) {
+            return function () { if (self.state && self.state.painting) { self.paint(k); } };
+          })(key)
+        });
+      }
+      rows.push({
+        local: onHour ? self.fmt(s) : '',
+        server: onHour ? self.fmt(s + 4) : '',
+        labelColor: onHour ? '#8D97A8' : '#6F7C90',
+        serverColor: onHour ? '#6F7C90' : '#6F7C90',
+        line: onHour ? '#141922' : '#0D1117',
+        cells: rowCells
+      });
+    }
+
+    var countA = 0, countN = 0;
+    for (var k2 in cells) { if (cells[k2] === 'a') { countA++; } else if (cells[k2] === 'n') { countN++; } }
+
+    var sel = '#0E2830';
+    return {
+      days: days,
+      rows: rows,
+      countA: countA,
+      countN: countN,
+      savedLabel: dirty ? 'Unsaved changes' : 'Last saved 4 minutes ago',
+      savedColor: dirty ? '#E9B872' : '#79D0A0',
+      aBg: m === 'a' ? sel : '#141922',
+      aBorder: m === 'a' ? '#6FC8DC' : '#323C4C',
+      nBg: m === 'n' ? sel : '#141922',
+      nBorder: m === 'n' ? '#6FC8DC' : '#323C4C',
+      xBg: m === 'x' ? sel : '#141922',
+      xBorder: m === 'x' ? '#6FC8DC' : '#323C4C',
+      setA: function () { self.setState({ mode: 'a' }); },
+      setN: function () { self.setState({ mode: 'n' }); },
+      setX: function () { self.setState({ mode: 'x' }); },
+      clear: function () { self.setState({ cells: {}, dirty: true }); },
+      save: function () { self.setState({ dirty: false }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

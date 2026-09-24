@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bureaucracy — Roster availability</title>
+
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&amp;family=Cinzel:wght@600&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#06080B;color:#E8EDF7;font-family:Archivo,system-ui,sans-serif;-webkit-font-smoothing:antialiased;user-select:none}
+a{color:#A3AFC2;text-decoration:none}
+a:hover{color:#E8EDF7}
+button{font-family:inherit;cursor:pointer}
+input{font-family:inherit}
+.hc:hover{outline:1px solid #E8EDF7;outline-offset:-1px}
+</style>
+</helmet>
+
+<div style="width: 1440px; height: 2020px; box-sizing: border-box; display: flex; flex-direction: column; background: #06080B;">
+
+  <header style="display: flex; align-items: center; justify-content: space-between; height: 72px; padding: 0 48px; border-bottom: 1px solid #141922;">
+    <div style="display: flex; align-items: center; gap: 32px;">
+      <img src="./assets/wordmark.png" alt="Bureaucracy" style="height: 22px; width: auto; display: block;">
+      <nav style="display: flex; align-items: center; gap: 20px; font-size: 14px; font-weight: 500;">
+        <a href="About.dc.html">About</a>
+        <a href="Schedule.dc.html">Raid schedule</a>
+        <a href="Recruitment.dc.html">Recruitment</a>
+        <a href="Loot.dc.html">Loot rules</a>
+        <button type="button" style="display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 10px; background: transparent; border: 1px solid #232B38; border-radius: 4px; color: #A3AFC2; font-size: 14px; font-weight: 600;">Members<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#6F7C90" stroke-width="1.6" stroke-linecap="round"><path d="M2 4l3 3 3-3"></path></svg></button>
+        <button type="button" style="display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; background: #241E14; border: 1px solid #8A7350; border-radius: 4px; color: #E4C08A; font-size: 14px; font-weight: 600;">Officers<span style="min-width: 19px; height: 19px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; background: #E4C08A; color: #06080B; border-radius: 999px; font-size: 11px; font-weight: 700;">7</span></button>
+      </nav>
+    </div>
+    <button type="button" style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px 0 6px; background: transparent; border: 1px solid #232B38; border-radius: 999px;">
+      <span style="width: 28px; height: 28px; border-radius: 999px; background: #241E14; border: 1px solid #8A7350; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #C79C6E;">LL</span>
+      <span style="font-size: 13px; font-weight: 600; color: #C79C6E;">Ledgerline</span>
+      <span style="padding: 2px 7px; background: #241E14; border: 1px solid #8A7350; border-radius: 2px; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #E4C08A;">Officer</span>
+    </button>
+  </header>
+
+  <section style="padding: 44px 48px 24px; display: flex; align-items: flex-end; justify-content: space-between; gap: 48px;">
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <span style="font-family: Cinzel, Georgia, serif; font-size: 11px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase; color: #E4C08A;">Officers</span>
+      <h1 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 44px; line-height: 1.05; letter-spacing: -0.02em; color: #E8EDF7;">Roster availability</h1>
+      <p style="margin: 0; max-width: 640px; font-size: 15px; line-height: 1.65; color: #A3AFC2;">Every member's painted week, stacked. Hover a half-hour to see who is free and what the roles look like.</p>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="padding: 12px 18px; background: #0E1219; border: 1px solid #232B38; border-radius: 6px; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6F7C90;">Submitted</span><span style="font-size: 18px; font-weight: 600; color: #E8EDF7; font-variant-numeric: tabular-nums;">32 of 41</span></div>
+      <button type="button" style="height: 44px; padding: 0 18px; background: transparent; color: #E8EDF7; border: 1px solid #323C4C; border-radius: 4px; font-size: 14px; font-weight: 600;">Nudge the rest in Discord</button>
+    </div>
+  </section>
+
+  <section style="padding: 0 48px 48px; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 28px; align-items: start;">
+
+    <!-- HEATMAP -->
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <h2 style="margin: 0; font-size: 17px; font-weight: 600; color: #E8EDF7;">Week of 3 November</h2>
+        <div style="display: flex; align-items: center; gap: 10px; font-size: 12px; color: #6F7C90;">
+          <span>0</span>
+          <span style="display: flex; gap: 3px;"><span style="width: 22px; height: 12px; background: #10151C; border: 1px solid #232B38;"></span><span style="width: 22px; height: 12px; background: #12303A;"></span><span style="width: 22px; height: 12px; background: #17495A;"></span><span style="width: 22px; height: 12px; background: #1E6A80;"></span><span style="width: 22px; height: 12px; background: #2A8FA8;"></span><span style="width: 22px; height: 12px; background: #4FB6CE;"></span></span>
+          <span>41 available</span>
+        </div>
+      </div>
+
+      <div onMouseLeave="{{leave}}" style="position: relative; border: 1px solid #232B38; border-radius: 8px; overflow: visible; background: #0A0D12;">
+        <div style="display: flex; align-items: stretch; height: 44px; background: #0E1219; border-bottom: 1px solid #232B38; border-radius: 8px 8px 0 0;">
+          <div style="width: 72px; display: flex; align-items: center; padding-left: 12px; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6FC8DC;">Yours</div>
+          <sc-for list="{{days}}" as="day" hint-placeholder-count="7">
+            <div style="flex-grow: 1; flex-basis: 0; display: flex; flex-direction: column; justify-content: center; gap: 1px; padding-left: 10px; border-left: 1px solid #141922;">
+              <span style="font-size: 13px; font-weight: 600; color: #E8EDF7;">{{day.name}}</span>
+              <span style="font-size: 10px; color: #6F7C90;">{{day.date}}</span>
+            </div>
+          </sc-for>
+          <div style="width: 72px; display: flex; align-items: center; justify-content: flex-end; padding-right: 12px; border-left: 1px solid #141922; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #E4C08A;">Server</div>
+        </div>
+
+        <sc-for list="{{rows}}" as="row" hint-placeholder-count="48">
+          <div style="display: flex; align-items: stretch; height: 17px;">
+            <div style="width: 72px; display: flex; align-items: center; padding-left: 12px; font-size: 10px; color: #6F7C90; font-variant-numeric: tabular-nums; border-bottom: 1px solid {{row.line}};">{{row.local}}</div>
+            <sc-for list="{{row.cells}}" as="cell" hint-placeholder-count="7">
+              <button class="hc" type="button" aria-label="{{cell.label}}" onMouseEnter="{{cell.enter}}" style="flex-grow: 1; flex-basis: 0; padding: 0; background: {{cell.bg}}; border: 0; border-left: 1px solid #141922; border-bottom: 1px solid {{row.line}}; cursor: default;"></button>
+            </sc-for>
+            <div style="width: 72px; display: flex; align-items: center; justify-content: flex-end; padding-right: 12px; font-size: 10px; color: #6F7C90; font-variant-numeric: tabular-nums; border-left: 1px solid #141922; border-bottom: 1px solid {{row.line}};">{{row.server}}</div>
+          </div>
+        </sc-for>
+
+        <sc-if value="{{tip.on}}" hint-placeholder-val="{{ true }}">
+          <div style="position: absolute; top: {{tip.top}}px; left: {{tip.left}}px; width: 260px; padding: 16px 18px; background: #141922; border: 1px solid #323C4C; border-radius: 8px; box-shadow: 0 24px 48px rgba(0,0,0,0.7); z-index: 5; pointer-events: none; display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+              <span style="font-size: 14px; font-weight: 600; color: #E8EDF7;">{{tip.when}}</span>
+              <span style="font-size: 11px; color: #6F7C90;">{{tip.serverWhen}}</span>
+            </div>
+            <div style="display: flex; align-items: baseline; gap: 8px;"><span style="font-size: 28px; font-weight: 600; color: #6FC8DC; font-variant-numeric: tabular-nums;">{{tip.total}}</span><span style="font-size: 12px; color: #A3AFC2;">of 41 available</span></div>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px;">
+              <span style="font-size: 12px; color: #A3AFC2;">Tanks <span style="color: #E8EDF7; font-weight: 600; font-variant-numeric: tabular-nums;">{{tip.tanks}}</span></span>
+              <span style="font-size: 12px; color: #A3AFC2;">Healers <span style="color: #E8EDF7; font-weight: 600; font-variant-numeric: tabular-nums;">{{tip.healers}}</span></span>
+              <span style="font-size: 12px; color: #A3AFC2;">Melee <span style="color: #E8EDF7; font-weight: 600; font-variant-numeric: tabular-nums;">{{tip.melee}}</span></span>
+              <span style="font-size: 12px; color: #A3AFC2;">Ranged <span style="color: #E8EDF7; font-weight: 600; font-variant-numeric: tabular-nums;">{{tip.ranged}}</span></span>
+            </div>
+            <div style="height: 1px; background: #232B38;"></div>
+            <div style="display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px;">
+              <span style="color: #C79C6E;">Ledgerline</span><span style="color: #F2F2F2;">Redtape</span><span style="color: #9C8BD8;">Subclause</span><span style="color: #ABD473;">Formfiller</span><span style="color: #69CCF0;">Memoranda</span><span style="color: #6F7C90;">{{tip.more}}</span>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+
+    <!-- FIND WINDOWS -->
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="padding: 24px; background: #0E1219; border: 1px solid #8A7350; border-radius: 8px; display: flex; flex-direction: column; gap: 20px;">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 24px; color: #E8EDF7;">Find raid windows</h2>
+          <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #A3AFC2;">Set what a raid needs. We rank every start time that holds those numbers for the whole run.</p>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6F7C90;">Raid length</span>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" onClick="{{len2}}" style="flex-grow: 1; height: 44px; background: {{l2bg}}; border: 1px solid {{l2bd}}; border-radius: 4px; color: #E8EDF7; font-size: 14px; font-weight: 600;">2 h</button>
+            <button type="button" onClick="{{len3}}" style="flex-grow: 1; height: 44px; background: {{l3bg}}; border: 1px solid {{l3bd}}; border-radius: 4px; color: #E8EDF7; font-size: 14px; font-weight: 600;">3 h</button>
+            <button type="button" onClick="{{len4}}" style="flex-grow: 1; height: 44px; background: {{l4bg}}; border: 1px solid {{l4bd}}; border-radius: 4px; color: #E8EDF7; font-size: 14px; font-weight: 600;">4 h</button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+          <div style="display: flex; flex-direction: column; gap: 6px;"><label for="w-t" style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6F7C90;">Min tanks</label><input id="w-t" type="number" value="{{minT}}" onChange="{{setT}}" style="height: 44px; padding: 0 12px; background: #1B222E; color: #E8EDF7; border: 1px solid #323C4C; border-radius: 4px; font-size: 15px; font-variant-numeric: tabular-nums;"></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><label for="w-h" style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6F7C90;">Min healers</label><input id="w-h" type="number" value="{{minH}}" onChange="{{setH}}" style="height: 44px; padding: 0 12px; background: #1B222E; color: #E8EDF7; border: 1px solid #323C4C; border-radius: 4px; font-size: 15px; font-variant-numeric: tabular-nums;"></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><label for="w-m" style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6F7C90;">Min melee</label><input id="w-m" type="number" value="{{minM}}" onChange="{{setM}}" style="height: 44px; padding: 0 12px; background: #1B222E; color: #E8EDF7; border: 1px solid #323C4C; border-radius: 4px; font-size: 15px; font-variant-numeric: tabular-nums;"></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><label for="w-r" style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6F7C90;">Min ranged</label><input id="w-r" type="number" value="{{minR}}" onChange="{{setR}}" style="height: 44px; padding: 0 12px; background: #1B222E; color: #E8EDF7; border: 1px solid #323C4C; border-radius: 4px; font-size: 15px; font-variant-numeric: tabular-nums;"></div>
+        </div>
+
+        <div style="height: 1px; background: #232B38;"></div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; align-items: baseline; justify-content: space-between;">
+            <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6F7C90;">Windows that work</span>
+            <span style="font-size: 12px; color: #A3AFC2; font-variant-numeric: tabular-nums;">{{windowCount}} found</span>
+          </div>
+          <sc-for list="{{windows}}" as="w" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: #141922; border: 1px solid #323C4C; border-radius: 6px;">
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <span style="font-size: 15px; font-weight: 600; color: #E8EDF7; font-variant-numeric: tabular-nums;">{{w.title}}</span>
+                <span style="font-size: 11px; color: #6F7C90; font-variant-numeric: tabular-nums;">{{w.sub}}</span>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 3px;">
+                <span style="font-size: 16px; font-weight: 700; color: #79D0A0; font-variant-numeric: tabular-nums;">{{w.total}}</span>
+                <span style="font-size: 11px; color: #A3AFC2; font-variant-numeric: tabular-nums;">{{w.roles}}</span>
+              </div>
+            </div>
+          </sc-for>
+          <sc-if value="{{none}}" hint-placeholder-val="{{ false }}">
+            <div style="padding: 24px 16px; border: 1px dashed #323C4C; border-radius: 6px; text-align: center; font-size: 13px; line-height: 1.6; color: #A3AFC2;">Nothing in the week holds those numbers for the full length. Lower a minimum or shorten the raid.</div>
+          </sc-if>
+        </div>
+      </div>
+
+      <div style="padding: 24px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; align-items: baseline; justify-content: space-between;">
+          <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #E8EDF7;">Hasn't submitted</h3>
+          <span style="padding: 3px 9px; background: #241E14; border: 1px solid #6B5530; border-radius: 999px; font-size: 11px; font-weight: 700; color: #E9B872; font-variant-numeric: tabular-nums;">9</span>
+        </div>
+        <div style="display: flex; flex-direction: column;">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #141922;"><span style="font-size: 14px; font-weight: 600; color: #FFF569;">Paperclip</span><span style="font-size: 12px; color: #6F7C90;">Rogue · Melee</span></div>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #141922;"><span style="font-size: 14px; font-weight: 600; color: #FF7D0A;">Rubberstamp</span><span style="font-size: 12px; color: #6F7C90;">Druid · Healer</span></div>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #141922;"><span style="font-size: 14px; font-weight: 600; color: #3A9BE8;">Triplicate</span><span style="font-size: 12px; color: #6F7C90;">Shaman · Healer</span></div>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #141922;"><span style="font-size: 14px; font-weight: 600; color: #C79C6E;">Quorum</span><span style="font-size: 12px; color: #6F7C90;">Warrior · Tank</span></div>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 9px 0;"><span style="font-size: 14px; font-weight: 600; color: #69CCF0;">Addendum</span><span style="font-size: 12px; color: #6F7C90;">Mage · Ranged</span></div>
+        </div>
+        <button type="button" style="height: 44px; background: transparent; color: #E8EDF7; border: 1px solid #323C4C; border-radius: 4px; font-size: 13px; font-weight: 600;">Show all nine</button>
+      </div>
+    </div>
+  </section>
+
+  <footer style="margin-top: auto; padding: 32px 48px; border-top: 1px solid #141922; display: flex; align-items: center; justify-content: space-between;">
+    <img src="./assets/wordmark.png" alt="Bureaucracy" style="height: 16px; width: auto; display: block; opacity: 0.7;">
+    <span style="font-size: 12px; color: #6F7C90;">Bureaucracy · WoW Forever · Not affiliated with Blizzard Entertainment.</span>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2020}}'>
+class Component extends DCLogic {
+  total(d, s) {
+    var peak = 1 - Math.abs(s - 41) / 10;
+    if (peak < 0) { peak = 0; }
+    var dayFactor = [0.82, 1, 1, 0.78, 0.58, 0.54, 0.88][d];
+    var j = ((d * 37 + s * 17) % 11) / 32;
+    var v = Math.round(41 * peak * dayFactor * (0.86 + j));
+    if (v < 0) { v = 0; }
+    if (v > 41) { v = 41; }
+    return v;
+  }
+
+  roles(v) {
+    var t = Math.round(v * 0.1);
+    var h = Math.round(v * 0.22);
+    var m = Math.round(v * 0.3);
+    var r = v - t - h - m;
+    if (r < 0) { r = 0; }
+    return { t: t, h: h, m: m, r: r };
+  }
+
+  fmt(slot) {
+    var i = ((slot % 48) + 48) % 48;
+    var hr = Math.floor(i / 2);
+    var mn = (i % 2) ? '30' : '00';
+    var suffix = hr < 12 ? 'AM' : 'PM';
+    var hh = hr % 12;
+    if (hh === 0) { hh = 12; }
+    return hh + ':' + mn + ' ' + suffix;
+  }
+
+  num(v, fallback) {
+    var n = parseInt(v, 10);
+    if (isNaN(n) || n < 0) { return fallback; }
+    return n;
+  }
+
+  renderVals() {
+    var self = this;
+    var st = this.state || {};
+    var lenSlots = st.len ? st.len : 6;
+    var minT = (st.minT === undefined) ? 2 : st.minT;
+    var minH = (st.minH === undefined) ? 8 : st.minH;
+    var minM = (st.minM === undefined) ? 9 : st.minM;
+    var minR = (st.minR === undefined) ? 11 : st.minR;
+
+    var dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    var dayDates = ['3 Nov', '4 Nov', '5 Nov', '6 Nov', '7 Nov', '8 Nov', '9 Nov'];
+    var days = [];
+    for (var d0 = 0; d0 < 7; d0++) { days.push({ name: dayNames[d0], date: dayDates[d0] }); }
+
+    var ramp = function (v) {
+      if (v === 0) { return '#10151C'; }
+      if (v <= 8) { return '#12303A'; }
+      if (v <= 16) { return '#17495A'; }
+      if (v <= 24) { return '#1E6A80'; }
+      if (v <= 32) { return '#2A8FA8'; }
+      return '#4FB6CE';
+    };
+
+    var rows = [];
+    for (var s = 0; s < 48; s++) {
+      var onHour = (s % 2) === 0;
+      var cells = [];
+      for (var d = 0; d < 7; d++) {
+        var v = self.total(d, s);
+        cells.push({
+          bg: ramp(v),
+          label: dayNames[d] + ' ' + self.fmt(s) + ', ' + v + ' available',
+          enter: (function (dd, ss) {
+            return function () { self.setState({ hd: dd, hs: ss }); };
+          })(d, s)
+        });
+      }
+      rows.push({
+        local: onHour ? self.fmt(s) : '',
+        server: onHour ? self.fmt(s + 4) : '',
+        line: onHour ? '#141922' : '#0D1117',
+        cells: cells
+      });
+    }
+
+    var tip = { on: false, top: 0, left: 0 };
+    if (st.hd !== undefined && st.hd !== null) {
+      var tv = self.total(st.hd, st.hs);
+      var tr = self.roles(tv);
+      var colW = (940 - 144) / 7;
+      var left = 72 + st.hd * colW + colW + 10;
+      if (left > 560) { left = left - colW - 280; }
+      var top = 44 + st.hs * 17 - 60;
+      if (top < 4) { top = 4; }
+      if (top > 660) { top = 660; }
+      tip = {
+        on: true,
+        top: top,
+        left: left,
+        when: dayNames[st.hd] + ' ' + self.fmt(st.hs) + ' — your time',
+        serverWhen: self.fmt(st.hs + 4) + ' server',
+        total: tv,
+        tanks: tr.t,
+        healers: tr.h,
+        melee: tr.m,
+        ranged: tr.r,
+        more: '+' + (tv > 5 ? tv - 5 : 0) + ' more'
+      };
+    }
+
+    var windows = [];
+    for (var wd = 0; wd < 7; wd++) {
+      for (var ws = 0; ws + lenSlots <= 48; ws++) {
+        var okT = 99, okH = 99, okM = 99, okR = 99, okTotal = 99;
+        for (var k = 0; k < lenSlots; k++) {
+          var vv = self.total(wd, ws + k);
+          var rr = self.roles(vv);
+          if (rr.t < okT) { okT = rr.t; }
+          if (rr.h < okH) { okH = rr.h; }
+          if (rr.m < okM) { okM = rr.m; }
+          if (rr.r < okR) { okR = rr.r; }
+          if (vv < okTotal) { okTotal = vv; }
+        }
+        if (okT >= minT && okH >= minH && okM >= minM && okR >= minR) {
+          windows.push({
+            score: okTotal,
+            day: wd,
+            start: ws,
+            title: dayNames[wd] + ' ' + self.fmt(ws) + ' – ' + self.fmt(ws + lenSlots),
+            sub: self.fmt(ws + 4) + ' – ' + self.fmt(ws + lenSlots + 4) + ' server',
+            total: okTotal,
+            roles: okT + 'T · ' + okH + 'H · ' + okM + 'M · ' + okR + 'R'
+          });
+        }
+      }
+    }
+    windows.sort(function (a, b) { return b.score - a.score || a.day - b.day || a.start - b.start; });
+    var seen = {};
+    var top5 = [];
+    for (var i2 = 0; i2 < windows.length && top5.length < 5; i2++) {
+      if (!seen[windows[i2].day]) { seen[windows[i2].day] = true; top5.push(windows[i2]); }
+    }
+
+    var selBg = '#0E2830';
+    return {
+      days: days,
+      rows: rows,
+      tip: tip,
+      leave: function () { self.setState({ hd: null }); },
+      minT: minT, minH: minH, minM: minM, minR: minR,
+      setT: function (e) { self.setState({ minT: self.num(e.target.value, 0) }); },
+      setH: function (e) { self.setState({ minH: self.num(e.target.value, 0) }); },
+      setM: function (e) { self.setState({ minM: self.num(e.target.value, 0) }); },
+      setR: function (e) { self.setState({ minR: self.num(e.target.value, 0) }); },
+      len2: function () { self.setState({ len: 4 }); },
+      len3: function () { self.setState({ len: 6 }); },
+      len4: function () { self.setState({ len: 8 }); },
+      l2bg: lenSlots === 4 ? selBg : '#1B222E',
+      l2bd: lenSlots === 4 ? '#6FC8DC' : '#323C4C',
+      l3bg: lenSlots === 6 ? selBg : '#1B222E',
+      l3bd: lenSlots === 6 ? '#6FC8DC' : '#323C4C',
+      l4bg: lenSlots === 8 ? selBg : '#1B222E',
+      l4bd: lenSlots === 8 ? '#6FC8DC' : '#323C4C',
+      windows: top5,
+      windowCount: windows.length,
+      none: windows.length === 0
+    };
+  }
+}
+</script>
+</body>
+</html>

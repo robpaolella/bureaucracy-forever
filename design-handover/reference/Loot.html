@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bureaucracy — Loot rules</title>
+
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&amp;family=Cinzel:wght@600&amp;family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#06080B;color:#E8EDF7;font-family:Archivo,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#A3AFC2;text-decoration:none}
+a:hover{color:#E8EDF7}
+a.accent{color:#6FC8DC}
+a.accent:hover{color:#9BDCEB}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+
+<div style="width: 1440px; height: 2480px; box-sizing: border-box; display: flex; flex-direction: column; background: #06080B;">
+
+  <header style="display: flex; align-items: center; justify-content: space-between; height: 72px; padding: 0 96px; border-bottom: 1px solid #141922;">
+    <div style="display: flex; align-items: center; gap: 40px;">
+      <img src="./assets/wordmark.png" alt="Bureaucracy" style="height: 22px; width: auto; display: block;">
+      <nav style="display: flex; align-items: center; gap: 26px; font-size: 14px; font-weight: 500;">
+        <a href="About.dc.html">About</a>
+        <a href="Schedule.dc.html">Raid schedule</a>
+        <a href="Recruitment.dc.html">Recruitment</a>
+        <a href="Loot.dc.html" style="color: #E8EDF7; border-bottom: 2px solid #E4C08A; padding-bottom: 4px;">Loot rules</a>
+      </nav>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <button type="button" style="height: 40px; padding: 0 16px; background: transparent; color: #E8EDF7; border: 1px solid #323C4C; border-radius: 4px; font-size: 13px; font-weight: 600;">Log in with Discord</button>
+      <button type="button" style="height: 40px; padding: 0 18px; background: #E4C08A; color: #06080B; border: 0; border-radius: 4px; font-size: 13px; font-weight: 600;">Join Discord</button>
+    </div>
+  </header>
+
+  <section style="padding: 80px 96px 48px; display: flex; flex-direction: column; gap: 22px;">
+    <div style="font-family: Cinzel, Georgia, serif; font-size: 12px; font-weight: 600; letter-spacing: 0.32em; text-transform: uppercase; color: #E4C08A;">Policy</div>
+    <h1 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 60px; line-height: 1.04; letter-spacing: -0.025em; color: #E8EDF7;">Loot rules</h1>
+    <p style="margin: 0; max-width: 680px; font-size: 17px; line-height: 1.7; color: #A3AFC2;">Loot exists to make the next boss die faster. Everything below follows from that one sentence, and an officer will say it out loud if a call ever looks strange.</p>
+  </section>
+
+  <section style="padding: 0 96px 72px; display: grid; grid-template-columns: 260px minmax(0, 760px) minmax(0, 1fr); gap: 56px; align-items: start;">
+
+    <!-- TOC -->
+    <nav style="display: flex; flex-direction: column; gap: 4px; padding: 22px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px;">
+      <span style="padding: 0 10px 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6F7C90;">On this page</span>
+      <a href="#summary" style="padding: 9px 10px; border-radius: 4px; font-size: 14px; color: #E8EDF7; background: #141922;">In short</a>
+      <a href="#who" style="padding: 9px 10px; border-radius: 4px; font-size: 14px;">Who decides</a>
+      <a href="#weigh" style="padding: 9px 10px; border-radius: 4px; font-size: 14px;">How we weigh a drop</a>
+      <a href="#trials" style="padding: 9px 10px; border-radius: 4px; font-size: 14px;">Trials and off-spec</a>
+      <a href="#faq" style="padding: 9px 10px; border-radius: 4px; font-size: 14px;">Questions we get</a>
+    </nav>
+
+    <!-- BODY -->
+    <div style="display: flex; flex-direction: column; gap: 56px;">
+
+      <div id="summary" style="display: flex; flex-direction: column; gap: 18px; padding: 32px; background: #0E1219; border: 1px solid #8A7350; border-radius: 8px;">
+        <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 28px; color: #E8EDF7;">In short</h2>
+        <ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 12px; font-size: 16px; line-height: 1.7; color: #A3AFC2;">
+          <li><span style="color: #E8EDF7; font-weight: 600;">Loot council</span> <span style="color: #6F7C90;">[confirm this is still your system]</span> — three officers, decided in under a minute, announced with a reason.</li>
+          <li><span style="color: #E8EDF7; font-weight: 600;">Biggest raid gain wins</span>, not longest wait and not highest attendance.</li>
+          <li><span style="color: #E8EDF7; font-weight: 600;">Trials receive loot from night one</span> — on the same terms as everyone else.</li>
+          <li><span style="color: #E8EDF7; font-weight: 600;">Nothing is owed to anyone.</span> There is no points balance to spend and nothing to hoard.</li>
+        </ul>
+      </div>
+
+      <section id="who" style="display: flex; flex-direction: column; gap: 16px;">
+        <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 34px; line-height: 1.15; color: #E8EDF7;">Who decides</h2>
+        <p style="margin: 0; font-size: 16px; line-height: 1.75; color: #A3AFC2;">Three officers sit on council for a tier: the raid lead, the healing officer and one rotating raider seat. The rotating seat changes each tier and is announced in Discord — it exists so the council is never only officers.</p>
+        <p style="margin: 0; font-size: 16px; line-height: 1.75; color: #A3AFC2;">Calls are made between pulls, not during them. If a decision needs more than a minute, the item is held and awarded at the break with the reasoning posted.</p>
+      </section>
+
+      <section id="weigh" style="display: flex; flex-direction: column; gap: 20px;">
+        <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 34px; line-height: 1.15; color: #E8EDF7;">How we weigh a drop</h2>
+        <p style="margin: 0; font-size: 16px; line-height: 1.75; color: #A3AFC2;">In this order, and out loud when it is close:</p>
+        <div style="border: 1px solid #232B38; border-radius: 8px; overflow: hidden;">
+          <div style="display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 20px; padding: 20px 24px; border-bottom: 1px solid #141922; background: #0E1219;"><span style="font-family: Newsreader, Georgia, serif; font-size: 26px; color: #E4C08A;">1</span><div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 16px; font-weight: 600; color: #E8EDF7;">Raid-wide gain</span><span style="font-size: 15px; line-height: 1.65; color: #A3AFC2;">A tank's survivability and a healer's mana beat a DPS upgrade of the same size.</span></div></div>
+          <div style="display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 20px; padding: 20px 24px; border-bottom: 1px solid #141922;"><span style="font-family: Newsreader, Georgia, serif; font-size: 26px; color: #E4C08A;">2</span><div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 16px; font-weight: 600; color: #E8EDF7;">Size of the upgrade</span><span style="font-size: 15px; line-height: 1.65; color: #A3AFC2;">Measured against what you are actually wearing, not against your best-in-slot list.</span></div></div>
+          <div style="display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 20px; padding: 20px 24px; border-bottom: 1px solid #141922; background: #0E1219;"><span style="font-family: Newsreader, Georgia, serif; font-size: 26px; color: #E4C08A;">3</span><div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 16px; font-weight: 600; color: #E8EDF7;">Attendance and preparation</span><span style="font-size: 15px; line-height: 1.65; color: #A3AFC2;">The tiebreaker, not the rule. Showing up buys you the coin flip, not the item.</span></div></div>
+          <div style="display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 20px; padding: 20px 24px;"><span style="font-family: Newsreader, Georgia, serif; font-size: 26px; color: #E4C08A;">4</span><div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 16px; font-weight: 600; color: #E8EDF7;">Recent loot</span><span style="font-size: 15px; line-height: 1.65; color: #A3AFC2;">If two cases are genuinely level, the person who received less this tier takes it.</span></div></div>
+        </div>
+      </section>
+
+      <section id="trials" style="display: flex; flex-direction: column; gap: 16px;">
+        <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 34px; line-height: 1.15; color: #E8EDF7;">Trials and off-spec</h2>
+        <p style="margin: 0; font-size: 16px; line-height: 1.75; color: #A3AFC2;">Trials compete for loot on equal terms from their first night. A guild that makes trials wait is a guild that benches them the moment it matters, and we would rather find out early whether someone is worth gearing.</p>
+        <p style="margin: 0; font-size: 16px; line-height: 1.75; color: #A3AFC2;">Off-spec pieces go after every main-spec need is met. An off-spec set the raid genuinely relies on — an off-tank's threat gear, a healer's damage set for a specific fight — is treated as main spec for that fight, and the council says so before the boss, not after the drop.</p>
+      </section>
+
+      <section id="faq" style="display: flex; flex-direction: column; gap: 20px;">
+        <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 34px; line-height: 1.15; color: #E8EDF7;">Questions we get</h2>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <details open="open" style="padding: 20px 24px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px;">
+            <summary style="cursor: pointer; font-size: 16px; font-weight: 600; color: #E8EDF7; list-style: none;">Can I reserve an item before the raid?</summary>
+            <p style="margin: 12px 0 0; font-size: 15px; line-height: 1.7; color: #A3AFC2;">No. You can tell the council an item matters to you and why, in the raid channel, before the pull — that is heard and weighed. Nothing is held for anyone.</p>
+          </details>
+          <details style="padding: 20px 24px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px;">
+            <summary style="cursor: pointer; font-size: 16px; font-weight: 600; color: #E8EDF7; list-style: none;">What happens to bind-on-equip drops and patterns?</summary>
+            <p style="margin: 12px 0 0; font-size: 15px; line-height: 1.7; color: #A3AFC2;">They go to the guild bank and fund repairs, world-buff logistics and the consumables the guild does supply. Patterns go to a crafter who agrees to craft for the guild at cost.</p>
+          </details>
+          <details style="padding: 20px 24px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px;">
+            <summary style="cursor: pointer; font-size: 16px; font-weight: 600; color: #E8EDF7; list-style: none;">I disagree with a call. What now?</summary>
+            <p style="margin: 12px 0 0; font-size: 15px; line-height: 1.7; color: #A3AFC2;">Say so after the raid, in a DM to any officer or in #loot. Not mid-pull, and not in raid chat. Calls are occasionally reversed; saying it the right way is what makes that possible.</p>
+          </details>
+          <details style="padding: 20px 24px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px;">
+            <summary style="cursor: pointer; font-size: 16px; font-weight: 600; color: #E8EDF7; list-style: none;">Does missing raids cost me loot?</summary>
+            <p style="margin: 12px 0 0; font-size: 15px; line-height: 1.7; color: #A3AFC2;">Not directly — there is no balance to lose. Attendance is a tiebreaker, so over a tier it shows up. Tell us in advance and it counts for far more than you would expect.</p>
+          </details>
+          <details style="padding: 20px 24px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px;">
+            <summary style="cursor: pointer; font-size: 16px; font-weight: 600; color: #E8EDF7; list-style: none;">Do officers get priority?</summary>
+            <p style="margin: 12px 0 0; font-size: 15px; line-height: 1.7; color: #A3AFC2;">No, and an officer on council steps out of the discussion for an item they are in the running for.</p>
+          </details>
+        </div>
+      </section>
+    </div>
+
+    <!-- aside -->
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="padding: 24px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;">
+        <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6F7C90;">Last updated</span>
+        <span style="font-size: 15px; font-weight: 600; color: #E8EDF7;">By Ledgerline · before the Forever launch</span>
+        <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #A3AFC2;">Changes are posted in #announcements and the page shows who changed what.</p>
+      </div>
+      <div style="padding: 24px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;">
+        <span style="font-size: 15px; font-weight: 600; color: #E8EDF7;">Applying?</span>
+        <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #A3AFC2;">The application asks you to confirm you've read this page. Nobody checks — but the council assumes you have.</p>
+        <a class="accent" href="Recruitment.dc.html" style="font-size: 14px; font-weight: 600;">Open the form →</a>
+      </div>
+    </div>
+  </section>
+
+  <footer style="margin-top: auto; padding: 36px 96px; border-top: 1px solid #141922; display: flex; align-items: center; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 28px;">
+      <img src="./assets/wordmark.png" alt="Bureaucracy" style="height: 16px; width: auto; display: block; opacity: 0.7;">
+      <div style="display: flex; gap: 18px; font-size: 13px;"><a href="About.dc.html">About</a><a href="Schedule.dc.html">Schedule</a><a href="Recruitment.dc.html">Recruitment</a><a href="Loot.dc.html">Loot rules</a></div>
+    </div>
+    <span style="font-size: 12px; color: #6F7C90;">Bureaucracy · WoW Forever · Not affiliated with Blizzard Entertainment.</span>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2480}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

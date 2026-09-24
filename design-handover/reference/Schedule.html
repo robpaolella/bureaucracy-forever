@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bureaucracy — Raid schedule</title>
+
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&amp;family=Cinzel:wght@600&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#06080B;color:#E8EDF7;font-family:Archivo,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#A3AFC2;text-decoration:none}
+a:hover{color:#E8EDF7}
+a.accent{color:#6FC8DC}
+a.accent:hover{color:#9BDCEB}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+
+<div style="width: 1440px; height: 1760px; box-sizing: border-box; display: flex; flex-direction: column; background: #06080B;">
+
+  <header style="display: flex; align-items: center; justify-content: space-between; height: 72px; padding: 0 96px; border-bottom: 1px solid #141922;">
+    <div style="display: flex; align-items: center; gap: 40px;">
+      <img src="./assets/wordmark.png" alt="Bureaucracy" style="height: 22px; width: auto; display: block;">
+      <nav style="display: flex; align-items: center; gap: 26px; font-size: 14px; font-weight: 500;">
+        <a href="About.dc.html">About</a>
+        <a href="Schedule.dc.html" style="color: #E8EDF7; border-bottom: 2px solid #E4C08A; padding-bottom: 4px;">Raid schedule</a>
+        <a href="Recruitment.dc.html">Recruitment</a>
+        <a href="Loot.dc.html">Loot rules</a>
+      </nav>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <button type="button" style="height: 40px; padding: 0 16px; background: transparent; color: #E8EDF7; border: 1px solid #323C4C; border-radius: 4px; font-size: 13px; font-weight: 600;">Log in with Discord</button>
+      <button type="button" style="height: 40px; padding: 0 18px; background: #E4C08A; color: #06080B; border: 0; border-radius: 4px; font-size: 13px; font-weight: 600;">Join Discord</button>
+    </div>
+  </header>
+
+  <section style="padding: 80px 96px 44px; display: flex; flex-direction: column; gap: 24px;">
+    <div style="font-family: Cinzel, Georgia, serif; font-size: 12px; font-weight: 600; letter-spacing: 0.32em; text-transform: uppercase; color: #E4C08A;">Raid schedule</div>
+    <h1 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 60px; line-height: 1.04; letter-spacing: -0.025em; color: #E8EDF7;">Three nights, nine hours, no overtime</h1>
+    <p style="margin: 0; max-width: 640px; font-size: 17px; line-height: 1.7; color: #A3AFC2;">Every time on this page is written twice: realm time, and the time on your own clock. Neither is ever the one you have to convert.</p>
+  </section>
+
+  <!-- timezone bar -->
+  <section style="padding: 0 96px 44px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 20px 26px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px;">
+      <div style="display: flex; align-items: center; gap: 48px;">
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #E4C08A;">Server time</span>
+          <span style="font-size: 16px; font-weight: 600; color: #E8EDF7; font-variant-numeric: tabular-nums;">Realm · CDT (UTC−5)</span>
+        </div>
+        <div style="width: 1px; height: 38px; background: #232B38;"></div>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6FC8DC;">Your time</span>
+          <span style="font-size: 16px; font-weight: 600; color: #E8EDF7; font-variant-numeric: tabular-nums;">America/Los_Angeles · PDT (UTC−7)</span>
+        </div>
+        <span style="padding: 5px 10px; background: #0E2830; border: 1px solid #2A6B7C; border-radius: 2px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #6FC8DC;">Detected</span>
+      </div>
+      <button type="button" style="height: 44px; padding: 0 18px; background: transparent; color: #E8EDF7; border: 1px solid #323C4C; border-radius: 4px; font-size: 13px; font-weight: 600;">Use a different timezone</button>
+    </div>
+  </section>
+
+  <!-- week strip -->
+  <section style="padding: 0 96px 56px; display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px;">
+      <div style="padding: 26px 20px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; min-height: 176px;"><span style="font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #6F7C90;">Mon</span><span style="font-size: 14px; color: #6F7C90;">Off</span></div>
+      <div style="padding: 26px 20px; background: #141922; border: 1px solid #8A7350; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; min-height: 176px;">
+        <span style="font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #E4C08A;">Tue</span>
+        <span style="font-size: 16px; font-weight: 600; color: #E8EDF7;">Progression</span>
+        <div style="display: flex; flex-direction: column; gap: 4px; margin-top: auto;"><span style="font-size: 15px; font-weight: 600; color: #E8EDF7; font-variant-numeric: tabular-nums;">8 – 11 PM</span><span style="font-size: 12px; color: #6F7C90;">server</span><span style="font-size: 14px; color: #6FC8DC; font-variant-numeric: tabular-nums;">6 – 9 PM yours</span></div>
+      </div>
+      <div style="padding: 26px 20px; background: #141922; border: 1px solid #8A7350; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; min-height: 176px;">
+        <span style="font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #E4C08A;">Wed</span>
+        <span style="font-size: 16px; font-weight: 600; color: #E8EDF7;">Progression</span>
+        <div style="display: flex; flex-direction: column; gap: 4px; margin-top: auto;"><span style="font-size: 15px; font-weight: 600; color: #E8EDF7; font-variant-numeric: tabular-nums;">8 – 11 PM</span><span style="font-size: 12px; color: #6F7C90;">server</span><span style="font-size: 14px; color: #6FC8DC; font-variant-numeric: tabular-nums;">6 – 9 PM yours</span></div>
+      </div>
+      <div style="padding: 26px 20px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; min-height: 176px;"><span style="font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #6F7C90;">Thu</span><span style="font-size: 14px; color: #6F7C90;">Off</span></div>
+      <div style="padding: 26px 20px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; min-height: 176px;"><span style="font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #6F7C90;">Fri</span><span style="font-size: 14px; color: #6F7C90;">Off</span></div>
+      <div style="padding: 26px 20px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; min-height: 176px;"><span style="font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #6F7C90;">Sat</span><span style="font-size: 14px; color: #6F7C90;">Off</span></div>
+      <div style="padding: 26px 20px; background: #0E1219; border: 1px solid #323C4C; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; min-height: 176px;">
+        <span style="font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #A3AFC2;">Sun</span>
+        <span style="font-size: 16px; font-weight: 600; color: #E8EDF7;">Clear night</span>
+        <span style="align-self: flex-start; padding: 3px 8px; background: #1B222E; border: 1px solid #323C4C; border-radius: 2px; font-size: 11px; font-weight: 600; color: #A3AFC2;">Optional</span>
+        <div style="display: flex; flex-direction: column; gap: 4px; margin-top: auto;"><span style="font-size: 15px; font-weight: 600; color: #E8EDF7; font-variant-numeric: tabular-nums;">7 – 10 PM</span><span style="font-size: 12px; color: #6F7C90;">server</span><span style="font-size: 14px; color: #6FC8DC; font-variant-numeric: tabular-nums;">5 – 8 PM yours</span></div>
+      </div>
+    </div>
+    <p style="margin: 0; font-size: 13px; color: #6F7C90;">Raid nights are shown in bronze. Lockouts reset Tuesday 8:00 AM server — 6:00 AM your time.</p>
+  </section>
+
+  <!-- run of a night -->
+  <section style="padding: 0 96px 80px; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 40px; align-items: start;">
+    <div style="display: flex; flex-direction: column; gap: 22px;">
+      <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 34px; line-height: 1.1; color: #E8EDF7;">How a night runs</h2>
+      <div style="border: 1px solid #232B38; border-radius: 8px; overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+          <thead>
+            <tr style="background: #0E1219;">
+              <th scope="col" style="text-align: left; padding: 12px 22px; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #E4C08A; border-bottom: 1px solid #232B38;">Server</th>
+              <th scope="col" style="text-align: left; padding: 12px 22px; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6FC8DC; border-bottom: 1px solid #232B38;">Your time</th>
+              <th scope="col" style="text-align: left; padding: 12px 22px; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6F7C90; border-bottom: 1px solid #232B38;">What happens</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding: 16px 22px; border-bottom: 1px solid #141922; font-weight: 600; color: #E8EDF7; font-variant-numeric: tabular-nums;">7:50 PM</td><td style="padding: 16px 22px; border-bottom: 1px solid #141922; color: #A3AFC2; font-variant-numeric: tabular-nums;">5:50 PM</td><td style="padding: 16px 22px; border-bottom: 1px solid #141922; color: #A3AFC2;">Invites go out. Be summoned, buffed and repaired.</td></tr>
+            <tr style="background: #0E1219;"><td style="padding: 16px 22px; border-bottom: 1px solid #141922; font-weight: 600; color: #E8EDF7; font-variant-numeric: tabular-nums;">8:00 PM</td><td style="padding: 16px 22px; border-bottom: 1px solid #141922; color: #A3AFC2; font-variant-numeric: tabular-nums;">6:00 PM</td><td style="padding: 16px 22px; border-bottom: 1px solid #141922; color: #A3AFC2;">First pull. Not "first explanation".</td></tr>
+            <tr><td style="padding: 16px 22px; border-bottom: 1px solid #141922; font-weight: 600; color: #E8EDF7; font-variant-numeric: tabular-nums;">9:25 PM</td><td style="padding: 16px 22px; border-bottom: 1px solid #141922; color: #A3AFC2; font-variant-numeric: tabular-nums;">7:25 PM</td><td style="padding: 16px 22px; border-bottom: 1px solid #141922; color: #A3AFC2;">Five-minute break. Restock, then back in voice.</td></tr>
+            <tr style="background: #0E1219;"><td style="padding: 16px 22px; font-weight: 600; color: #E8EDF7; font-variant-numeric: tabular-nums;">11:00 PM</td><td style="padding: 16px 22px; color: #A3AFC2; font-variant-numeric: tabular-nums;">9:00 PM</td><td style="padding: 16px 22px; color: #A3AFC2;">Out, whatever the boss is at. We come back Wednesday.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="padding: 26px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 12px;">
+        <h3 style="margin: 0; font-size: 17px; font-weight: 600; color: #E8EDF7;">Attendance</h3>
+        <p style="margin: 0; font-size: 14px; line-height: 1.65; color: #A3AFC2;">Raiders are expected on both progression nights. Miss one, post in Discord before the day — that's the whole rule.</p>
+      </div>
+      <div style="padding: 26px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; display: flex; flex-direction: column; gap: 12px;">
+        <h3 style="margin: 0; font-size: 17px; font-weight: 600; color: #E8EDF7;">Sign-ups</h3>
+        <p style="margin: 0; font-size: 14px; line-height: 1.65; color: #A3AFC2;">Accept, Tentative or Absent — on the calendar here or with the bot in Discord. Both write to the same place.</p>
+        <a class="accent" href="Calendar.dc.html" style="font-size: 14px; font-weight: 600;">Open the calendar →</a>
+      </div>
+      <div style="padding: 26px; background: #0E2830; border: 1px solid #1B4450; border-radius: 8px; display: flex; flex-direction: column; gap: 12px;">
+        <h3 style="margin: 0; font-size: 17px; font-weight: 600; color: #E8EDF7;">Can't make these hours?</h3>
+        <p style="margin: 0; font-size: 14px; line-height: 1.65; color: #A8DCE8;">Paint your week on the availability page after you log in. Officers schedule around what the roster actually has.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer style="margin-top: auto; padding: 36px 96px; border-top: 1px solid #141922; display: flex; align-items: center; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 28px;">
+      <img src="./assets/wordmark.png" alt="Bureaucracy" style="height: 16px; width: auto; display: block; opacity: 0.7;">
+      <div style="display: flex; gap: 18px; font-size: 13px;"><a href="About.dc.html">About</a><a href="Schedule.dc.html">Schedule</a><a href="Recruitment.dc.html">Recruitment</a><a href="Loot.dc.html">Loot rules</a></div>
+    </div>
+    <span style="font-size: 12px; color: #6F7C90;">Bureaucracy · WoW Forever · Not affiliated with Blizzard Entertainment.</span>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

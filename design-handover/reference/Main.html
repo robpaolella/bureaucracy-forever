@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bureaucracy — Foundations</title>
+
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&amp;family=Cinzel:wght@600&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#06080B;color:#E8EDF7;font-family:Archivo,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#6FC8DC;text-decoration:none}
+a:hover{color:#9BDCEB}
+</style>
+</helmet>
+
+<div style="width: 1440px; height: 2260px; box-sizing: border-box; padding: 80px 96px 96px; display: flex; flex-direction: column; gap: 72px; background: #06080B;">
+
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 1px solid #232B38; padding-bottom: 32px;">
+    <div style="display: flex; flex-direction: column; gap: 18px;">
+      <div style="font-family: Cinzel, Georgia, serif; font-size: 12px; font-weight: 600; letter-spacing: 0.3em; text-transform: uppercase; color: #E4C08A;">Foundations</div>
+      <h1 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 56px; line-height: 1.04; letter-spacing: -0.02em; color: #E8EDF7;">The Bureaucracy system</h1>
+      <p style="margin: 0; max-width: 620px; font-size: 16px; line-height: 1.65; color: #A3AFC2;">One dark-first palette, three typefaces and a small set of primitives. Every page in this canvas is drawn from these tokens — nothing is styled twice.</p>
+    </div>
+    <img src="./assets/wordmark.png" alt="Bureaucracy" style="height: 30px; width: auto; display: block; opacity: 0.9;">
+  </div>
+
+  <!-- BRAND -->
+  <section style="display: flex; flex-direction: column; gap: 24px;">
+    <div style="display: flex; align-items: baseline; gap: 16px;">
+      <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 30px; color: #E8EDF7;">Mark</h2>
+      <span style="font-size: 13px; color: #6F7C90;">Three lockups. The column never sits on a fill lighter than #141922.</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px;">
+      <div style="display: flex; flex-direction: column; gap: 16px; padding: 32px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px;">
+        <div style="display: flex; align-items: center; justify-content: center; height: 120px;">
+          <img src="./assets/wordmark.png" alt="Bureaucracy horizontal lockup" style="width: 260px; height: auto; display: block;">
+        </div>
+        <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6F7C90;">Horizontal · header, footer</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 16px; padding: 32px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px;">
+        <div style="display: flex; align-items: center; justify-content: center; height: 120px;">
+          <img src="./assets/mark.png" alt="Bureaucracy column mark" style="height: 92px; width: auto; display: block;">
+        </div>
+        <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6F7C90;">Mark only · mobile, avatars</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 16px; padding: 32px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px;">
+        <div style="display: flex; align-items: center; justify-content: center; height: 120px;">
+          <img src="./assets/tile.png" alt="Bureaucracy app tile" style="height: 92px; width: 92px; border-radius: 18px; display: block;">
+        </div>
+        <div style="font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6F7C90;">Tile · favicon, Discord, OG card</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COLOR -->
+  <section style="display: flex; flex-direction: column; gap: 28px;">
+    <div style="display: flex; align-items: baseline; gap: 16px;">
+      <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 30px; color: #E8EDF7;">Color</h2>
+      <span style="font-size: 13px; color: #6F7C90;">Ink ground, ice text, two accents. Sand carries achievement; teal carries interaction.</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px;">
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 76px; background: #06080B; border: 1px solid #232B38; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #E8EDF7;">ink-950</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#06080B · page</div></div>
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 76px; background: #0A0D12; border: 1px solid #232B38; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #E8EDF7;">ink-900</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#0A0D12 · bar</div></div>
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 76px; background: #0E1219; border: 1px solid #232B38; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #E8EDF7;">ink-850</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#0E1219 · card</div></div>
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 76px; background: #141922; border: 1px solid #232B38; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #E8EDF7;">ink-800</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#141922 · hover</div></div>
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 76px; background: #1B222E; border: 1px solid #232B38; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #E8EDF7;">ink-700</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#1B222E · input</div></div>
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 76px; background: #232B38; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #E8EDF7;">line</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#232B38 · hairline</div></div>
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 76px; background: #323C4C; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #E8EDF7;">line-strong</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#323C4C · divider</div></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px;">
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 76px; background: #E8EDF7; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #E8EDF7;">fg</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#E8EDF7 · body</div></div>
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 76px; background: #A3AFC2; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #E8EDF7;">fg-2</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#A3AFC2 · secondary</div></div>
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 76px; background: #6F7C90; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #E8EDF7;">fg-3</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#6F7C90 · caption</div></div>
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 76px; background: #E4C08A; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #E4C08A;">sand</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#E4C08A · accolade</div></div>
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 76px; background: #6FC8DC; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #6FC8DC;">teal</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#6FC8DC · link, focus</div></div>
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 76px; background: #0E2830; border: 1px solid #2A6B7C; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #E8EDF7;">teal-wash</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#0E2830 · selected</div></div>
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 76px; background: #241E14; border: 1px solid #8A7350; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #E8EDF7;">sand-wash</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#241E14 · accolade bg</div></div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px;">
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 56px; background: #79D0A0; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #79D0A0;">ok</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#79D0A0 · open, accepted</div></div>
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 56px; background: #E9B872; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #E9B872;">warn</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#E9B872 · medium, tentative</div></div>
+      <div style="display: flex; flex-direction: column; gap: 10px;"><div style="height: 56px; background: #E08A8A; border-radius: 4px;"></div><div style="font-size: 12px; font-weight: 600; color: #E08A8A;">stop</div><div style="font-size: 12px; color: #6F7C90; font-variant-numeric: tabular-nums;">#E08A8A · closed, declined</div></div>
+      <div style="grid-column: span 4; display: flex; align-items: center; padding: 16px 20px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px; font-size: 13px; line-height: 1.6; color: #A3AFC2;">Status colors never appear alone — every status pill carries a word as well as a fill, so the table still reads in greyscale and for colour-blind raiders.</div>
+    </div>
+  </section>
+
+  <!-- CLASS COLORS -->
+  <section style="display: flex; flex-direction: column; gap: 24px;">
+    <div style="display: flex; align-items: baseline; gap: 16px;">
+      <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 30px; color: #E8EDF7;">Class colors</h2>
+      <span style="font-size: 13px; color: #6F7C90;">The one game convention we borrow. Used only on character names and role counts — never as a background fill.</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 12px;">
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px 14px; background: #0E1219; border: 1px solid #232B38; border-radius: 6px;"><span style="font-size: 17px; font-weight: 600; color: #C79C6E;">Warrior</span><span style="font-size: 11px; color: #6F7C90; font-variant-numeric: tabular-nums;">#C79C6E</span></div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px 14px; background: #0E1219; border: 1px solid #232B38; border-radius: 6px;"><span style="font-size: 17px; font-weight: 600; color: #F58CBA;">Paladin</span><span style="font-size: 11px; color: #6F7C90; font-variant-numeric: tabular-nums;">#F58CBA</span></div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px 14px; background: #0E1219; border: 1px solid #232B38; border-radius: 6px;"><span style="font-size: 17px; font-weight: 600; color: #ABD473;">Hunter</span><span style="font-size: 11px; color: #6F7C90; font-variant-numeric: tabular-nums;">#ABD473</span></div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px 14px; background: #0E1219; border: 1px solid #232B38; border-radius: 6px;"><span style="font-size: 17px; font-weight: 600; color: #FFF569;">Rogue</span><span style="font-size: 11px; color: #6F7C90; font-variant-numeric: tabular-nums;">#FFF569</span></div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px 14px; background: #0E1219; border: 1px solid #232B38; border-radius: 6px;"><span style="font-size: 17px; font-weight: 600; color: #F2F2F2;">Priest</span><span style="font-size: 11px; color: #6F7C90; font-variant-numeric: tabular-nums;">#F2F2F2</span></div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px 14px; background: #0E1219; border: 1px solid #232B38; border-radius: 6px;"><span style="font-size: 17px; font-weight: 600; color: #3A9BE8;">Shaman</span><span style="font-size: 11px; color: #6F7C90; font-variant-numeric: tabular-nums;">#3A9BE8 *</span></div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px 14px; background: #0E1219; border: 1px solid #232B38; border-radius: 6px;"><span style="font-size: 17px; font-weight: 600; color: #69CCF0;">Mage</span><span style="font-size: 11px; color: #6F7C90; font-variant-numeric: tabular-nums;">#69CCF0</span></div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px 14px; background: #0E1219; border: 1px solid #232B38; border-radius: 6px;"><span style="font-size: 17px; font-weight: 600; color: #9C8BD8;">Warlock</span><span style="font-size: 11px; color: #6F7C90; font-variant-numeric: tabular-nums;">#9C8BD8 *</span></div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px 14px; background: #0E1219; border: 1px solid #232B38; border-radius: 6px;"><span style="font-size: 17px; font-weight: 600; color: #FF7D0A;">Druid</span><span style="font-size: 11px; color: #6F7C90; font-variant-numeric: tabular-nums;">#FF7D0A</span></div>
+    </div>
+    <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #6F7C90;">* Shaman and Warlock are lifted from the in-game values (#0070DE, #9482C9), which fall under 4.5:1 on ink. Store both: <span style="color: #A3AFC2;">canonical</span> for exports and addon parity, <span style="color: #A3AFC2;">onInk</span> for the web.</p>
+  </section>
+
+  <!-- TYPE -->
+  <section style="display: flex; flex-direction: column; gap: 28px;">
+    <div style="display: flex; align-items: baseline; gap: 16px;">
+      <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 30px; color: #E8EDF7;">Typography</h2>
+      <span style="font-size: 13px; color: #6F7C90;">Cinzel for the one-word eyebrow. Newsreader for anything that makes a claim. Archivo for everything you operate.</span>
+    </div>
+    <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 0 48px; align-items: baseline;">
+      <div style="padding: 18px 0; border-top: 1px solid #232B38; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6F7C90;">Eyebrow · Cinzel 600 · 12/0.3em</div>
+      <div style="padding: 18px 0; border-top: 1px solid #232B38; font-family: Cinzel, Georgia, serif; font-size: 12px; font-weight: 600; letter-spacing: 0.3em; text-transform: uppercase; color: #E4C08A;">Server First</div>
+
+      <div style="padding: 18px 0; border-top: 1px solid #232B38; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6F7C90;">Display XL · Newsreader 500 · 64/1.04</div>
+      <div style="padding: 18px 0; border-top: 1px solid #232B38; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 64px; line-height: 1.04; letter-spacing: -0.02em; color: #E8EDF7;">Prepared, on time, first down</div>
+
+      <div style="padding: 18px 0; border-top: 1px solid #232B38; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6F7C90;">Display L · Newsreader 500 · 44/1.1</div>
+      <div style="padding: 18px 0; border-top: 1px solid #232B38; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 44px; line-height: 1.1; letter-spacing: -0.015em; color: #E8EDF7;">Forty people, one pull</div>
+
+      <div style="padding: 18px 0; border-top: 1px solid #232B38; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6F7C90;">Display M · Newsreader 500 · 30/1.2</div>
+      <div style="padding: 18px 0; border-top: 1px solid #232B38; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 30px; line-height: 1.2; color: #E8EDF7;">What we expect of a raider</div>
+
+      <div style="padding: 18px 0; border-top: 1px solid #232B38; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6F7C90;">Title · Archivo 600 · 20/1.3</div>
+      <div style="padding: 18px 0; border-top: 1px solid #232B38; font-size: 20px; font-weight: 600; line-height: 1.3; color: #E8EDF7;">Tuesday, 8:00 PM server</div>
+
+      <div style="padding: 18px 0; border-top: 1px solid #232B38; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6F7C90;">Body · Archivo 400 · 16/1.65</div>
+      <div style="padding: 18px 0; border-top: 1px solid #232B38; font-size: 16px; line-height: 1.65; color: #A3AFC2; max-width: 640px;">We raid three nights a week and we finish on time. Consumables are your own, the strategy is the officers' and the loot is the guild's.</div>
+
+      <div style="padding: 18px 0; border-top: 1px solid #232B38; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6F7C90;">Small · Archivo 400 · 13/1.55</div>
+      <div style="padding: 18px 0; border-top: 1px solid #232B38; font-size: 13px; line-height: 1.55; color: #A3AFC2;">Last saved 2 minutes ago · detected timezone America/Los_Angeles</div>
+
+      <div style="padding: 18px 0; border-top: 1px solid #232B38; border-bottom: 1px solid #232B38; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6F7C90;">Label · Archivo 600 · 11/0.14em</div>
+      <div style="padding: 18px 0; border-top: 1px solid #232B38; border-bottom: 1px solid #232B38; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #6F7C90;">Ranged DPS</div>
+    </div>
+  </section>
+
+  <!-- SPACE / RADIUS / ELEVATION -->
+  <section style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px;">
+    <div style="display: flex; flex-direction: column; gap: 20px; padding: 28px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px;">
+      <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #E8EDF7;">Spacing — 4px base</h3>
+      <div style="display: flex; align-items: flex-end; gap: 10px;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div style="width: 4px; height: 4px; background: #6FC8DC;"></div><span style="font-size: 11px; color: #6F7C90;">4</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div style="width: 8px; height: 8px; background: #6FC8DC;"></div><span style="font-size: 11px; color: #6F7C90;">8</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div style="width: 12px; height: 12px; background: #6FC8DC;"></div><span style="font-size: 11px; color: #6F7C90;">12</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div style="width: 16px; height: 16px; background: #6FC8DC;"></div><span style="font-size: 11px; color: #6F7C90;">16</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div style="width: 24px; height: 24px; background: #6FC8DC;"></div><span style="font-size: 11px; color: #6F7C90;">24</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div style="width: 32px; height: 32px; background: #6FC8DC;"></div><span style="font-size: 11px; color: #6F7C90;">32</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div style="width: 48px; height: 48px; background: #6FC8DC;"></div><span style="font-size: 11px; color: #6F7C90;">48</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;"><div style="width: 64px; height: 64px; background: #6FC8DC;"></div><span style="font-size: 11px; color: #6F7C90;">64</span></div>
+      </div>
+      <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #A3AFC2;">Page gutter 96 · section gap 72 · card padding 28 · control gap 12. Nothing lands off the 4px step.</p>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 20px; padding: 28px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px;">
+      <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #E8EDF7;">Radius — restrained</h3>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="width: 64px; height: 64px; background: #1B222E; border: 1px solid #323C4C; border-radius: 2px;"></div>
+        <div style="width: 64px; height: 64px; background: #1B222E; border: 1px solid #323C4C; border-radius: 4px;"></div>
+        <div style="width: 64px; height: 64px; background: #1B222E; border: 1px solid #323C4C; border-radius: 8px;"></div>
+        <div style="width: 64px; height: 64px; background: #1B222E; border: 1px solid #323C4C; border-radius: 14px;"></div>
+        <div style="width: 64px; height: 64px; background: #1B222E; border: 1px solid #323C4C; border-radius: 999px;"></div>
+      </div>
+      <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #A3AFC2;">2 tag · 4 button and input · 8 card · 14 modal · full avatar. The column mark is square-cut; the UI stays close to it.</p>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 20px; padding: 28px; background: #0E1219; border: 1px solid #232B38; border-radius: 8px;">
+      <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #E8EDF7;">Depth — borders, not shadows</h3>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="padding: 14px 16px; background: #0E1219; border: 1px solid #232B38; border-radius: 6px; font-size: 13px; color: #A3AFC2;">Level 1 — card on page</div>
+        <div style="padding: 14px 16px; background: #141922; border: 1px solid #323C4C; border-radius: 6px; font-size: 13px; color: #A3AFC2;">Level 2 — hover, popover</div>
+        <div style="padding: 14px 16px; background: #141922; border: 1px solid #323C4C; border-radius: 6px; box-shadow: 0 24px 48px rgba(0,0,0,0.6); font-size: 13px; color: #A3AFC2;">Level 3 — modal only</div>
+      </div>
+      <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #A3AFC2;">On ink, a 1px hairline separates better than a shadow. Shadow is reserved for things that float over a scrim.</p>
+    </div>
+  </section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2260}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
