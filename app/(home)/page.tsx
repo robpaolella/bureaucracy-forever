@@ -1,7 +1,7 @@
 import Image from 'next/image';
-import Link from 'next/link';
 import type { Metadata } from 'next';
 import { HeroContours } from '@/components/home/HeroContours';
+import { AccentLink, SectionHead } from '@/components/site/SectionHead';
 import { NightTimes } from '@/components/time/NightTimes';
 import { ButtonLink, Card, StatusPill } from '@/components/ui';
 import { CLOSING, HERO, PEDIGREE, PROGRESSION, PROGRESSION_NOTE, WEEK_NOTE, type ProgressionRow } from '@/content/home';
@@ -17,25 +17,6 @@ export const metadata: Metadata = {
 };
 
 const SECTION = 'border-b border-line-faint px-4 md:px-gutter';
-const EYEBROW = 'font-eyebrow text-label font-semibold uppercase tracking-[0.28em] text-sand';
-const H2 = 'font-display text-[30px] font-medium leading-[1.1] md:text-[38px]';
-const ACCENT_LINK = 'flex min-h-11 items-center text-sm font-semibold text-teal transition-[filter] duration-[120ms] hover:brightness-110';
-
-function SectionHead({ eyebrow, title, link }: { eyebrow: string; title: string; link?: { href: string; label: string } }) {
-  return (
-    <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-      <div className="flex flex-col gap-2.5">
-        <span className={EYEBROW}>{eyebrow}</span>
-        <h2 className={H2}>{title}</h2>
-      </div>
-      {link && (
-        <Link href={link.href} className={ACCENT_LINK}>
-          {link.label}
-        </Link>
-      )}
-    </div>
-  );
-}
 
 function Hero() {
   return (
@@ -164,9 +145,9 @@ function TheWeek() {
         ))}
       </div>
       <div className="rounded-card border border-teal-line bg-teal-wash px-5 py-[18px] text-[13px] leading-[1.6] text-teal-text">{WEEK_NOTE}</div>
-      <Link href="/schedule" className={cn(ACCENT_LINK, 'self-start')}>
+      <AccentLink href="/schedule" className="self-start">
         Full schedule →
-      </Link>
+      </AccentLink>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useId, useRef } from 'react';
 import { cn } from '@/lib/cn';
 import { LOGOUT_URL } from '@/lib/config';
 import { CLASS_COLORS, type WowClass } from '@/lib/design/class-colors';
+import { initials } from '@/lib/format';
 import { Chevron } from './NavGroup';
 import { useDisclosure } from './useDismiss';
 
@@ -13,10 +14,6 @@ type AvatarPillProps = {
   wowClass: WowClass;
   officer: boolean;
 };
-
-export function initials(name: string): string {
-  return name.slice(0, 2).toUpperCase();
-}
 
 /**
  * 28px circle with initials in the member's class color, name beside it, inside a
