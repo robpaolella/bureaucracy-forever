@@ -28,6 +28,7 @@ export default {
           DEFAULT: 'var(--fg)',
           2: 'var(--fg-2)',
           3: 'var(--fg-3)',
+          muted: 'var(--fg-muted)', // added: see globals.css
         },
         sand: {
           DEFAULT: 'var(--sand)',
