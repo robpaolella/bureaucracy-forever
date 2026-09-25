@@ -92,7 +92,7 @@ async function main() {
 
   // Class needs: the recruitment table, one row per spec.
   for (const n of buildClassNeeds()) {
-    await db.classNeed.create({ data: { class: CLASS[n.wowClass], spec: n.spec, role: RAID_ROLE[n.role], status: n.status } });
+    await db.classNeed.create({ data: { class: CLASS[n.wowClass], spec: n.spec, roles: n.roles.map((r) => RAID_ROLE[r]), status: n.status } });
   }
 
   // Applications, with officer notes on the read ones.

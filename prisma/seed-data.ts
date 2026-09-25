@@ -191,12 +191,14 @@ export function buildRaids(from = new Date()): SeedRaid[] {
   return raids.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 }
 
-/** Class needs expanded to one row per spec, matching the schema's unique [class, spec]. */
-export function buildClassNeeds(): Array<{ wowClass: WowClassKey; spec: string; role: RaidRoleKey; status: 'HIGH' | 'MEDIUM' | 'CLOSED' }> {
-  const rows: Array<{ wowClass: WowClassKey; spec: string; role: RaidRoleKey; status: 'HIGH' | 'MEDIUM' | 'CLOSED' }> = [];
+export type SeedNeed = { wowClass: WowClassKey; spec: string; roles: RaidRoleKey[]; status: 'HIGH' | 'MEDIUM' | 'CLOSED' };
+
+/** Class needs expanded to one row per spec, matching the schema's unique [class, spec]. All roles kept. */
+export function buildClassNeeds(): SeedNeed[] {
+  const rows: SeedNeed[] = [];
   for (const n of CLASS_NEEDS) {
     for (const spec of n.specs) {
-      rows.push({ wowClass: n.wowClass, spec, role: n.roles[0], status: n.status.toUpperCase() as 'HIGH' | 'MEDIUM' | 'CLOSED' });
+      rows.push({ wowClass: n.wowClass, spec, roles: [...n.roles], status: n.status.toUpperCase() as SeedNeed['status'] });
     }
   }
   return rows;

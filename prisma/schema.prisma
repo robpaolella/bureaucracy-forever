@@ -91,6 +91,10 @@ model User {
   availability Availability?
   signups      Signup[]
   notes        OfficerNote[] @relation("noteAuthor")
+  /// Sign-ups this officer answered on someone's behalf.
+  signupsSet   Signup[]      @relation("signupSetBy")
+  /// Applications this officer accepted or declined.
+  decisions    Application[] @relation("applicationDecidedBy")
   createdAt    DateTime      @default(now())
 }
 
@@ -149,8 +153,9 @@ model Signup {
   source      Source
   /// Optional, for ABSENT.
   reason      String?
-  /// An officer answering on someone's behalf.
+  /// An officer answering on someone's behalf. Nulled if that account is removed.
   setByUserId String?
+  setBy       User?    @relation("signupSetBy", fields: [setByUserId], references: [id], onDelete: SetNull)
   updatedAt   DateTime @updatedAt
 
   @@unique([raidId, userId])
@@ -172,6 +177,7 @@ model Application {
   readAt          DateTime?
   decidedAt       DateTime?
   decidedByUserId String?
+  decidedBy       User?         @relation("applicationDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
   notes           OfficerNote[]
   createdAt       DateTime      @default(now())
 
@@ -192,12 +198,13 @@ model OfficerNote {
 }
 
 /// One row per class+spec. Drives the recruitment table, the home teaser and the bot's
-/// /recruiting reply. All three read this; none duplicate it.
+/// /recruiting reply. All three read this; none duplicate it. `roles` is a list because a
+/// spec can fill two seats (Feral: tank and melee).
 model ClassNeed {
   id        String     @id @default(cuid())
   class     WowClass
   spec      String
-  role      RaidRole
+  roles     RaidRole[]
   status    NeedStatus @default(CLOSED)
   updatedAt DateTime   @updatedAt
 
