@@ -40,6 +40,7 @@ export default {
           dim: 'var(--teal-dim)',
           wash: 'var(--teal-wash)',
           line: 'var(--teal-line)',
+          text: 'var(--teal-text)', // added: see globals.css
         },
         ok:   { DEFAULT: 'var(--ok)',   wash: 'var(--ok-wash)',   line: 'var(--ok-line)' },
         warn: { DEFAULT: 'var(--warn)', wash: 'var(--warn-wash)', line: 'var(--warn-line)' },

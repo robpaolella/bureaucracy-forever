@@ -16,6 +16,10 @@
      Availability) for "off" text: closed pills, the web source badge, muted counts.
      It sits between fg-2 and fg-3 and is 5.9:1 on ink-950. */
   --fg-muted: #8D97A8;
+
+  /* Added token. Readable teal for body text on teal-wash (announcement bar, the
+     timezone note). Home.html and Schedule.html use it; teal itself is for links. */
+  --teal-text: #A8DCE8;
 }
 
 @layer components {
