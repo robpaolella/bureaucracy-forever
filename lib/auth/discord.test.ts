@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { displayName, fetchGuildMember, type GuildMember } from './discord';
+import { displayName, lookupGuildMember } from './discord';
 import { roleFromDiscordRoles } from './roles';
 
 const ENV = { DISCORD_BOT_TOKEN: 'bot-token', DISCORD_GUILD_ID: '111' };
@@ -15,28 +15,31 @@ function fakeFetch(status: number, body: unknown, capture?: { url?: string; auth
   }) as typeof fetch;
 }
 
-describe('fetchGuildMember', () => {
-  it('reads roles, nick and avatar and nothing else', async () => {
+describe('lookupGuildMember', () => {
+  it('reads roles and nick and nothing else', async () => {
     const capture: { url?: string; auth?: string } = {};
-    const member = await fetchGuildMember(
+    const r = await lookupGuildMember(
       '123456789',
       ENV,
-      fakeFetch(200, { roles: ['r-member', 'r-admin'], nick: 'Redtape', avatar: null, permissions: '8', user: { id: '123456789' } }, capture),
+      fakeFetch(200, { roles: ['r-member', 'r-admin'], nick: 'Redtape', avatar: 'abc', permissions: '8', user: { id: '123456789' } }, capture),
     );
-    expect(member).toEqual({ roles: ['r-member', 'r-admin'], nick: 'Redtape', avatar: null });
+    expect(r).toEqual({ kind: 'member', member: { roles: ['r-member', 'r-admin'], nick: 'Redtape' } });
     expect(capture.url).toBe('https://discord.com/api/v10/guilds/111/members/123456789');
     expect(capture.auth).toBe('Bot bot-token');
   });
 
-  it('returns null when the user is not in the guild', async () => {
-    expect(await fetchGuildMember('123456789', ENV, fakeFetch(404, { message: 'Unknown Member' }))).toBeNull();
+  it('is a definite "absent" when Discord says 404', async () => {
+    expect(await lookupGuildMember('123456789', ENV, fakeFetch(404, { message: 'Unknown Member' }))).toEqual({ kind: 'absent' });
   });
 
-  it('returns null on a network failure rather than throwing', async () => {
+  it('is an error, not an absence, on rate limits, outages, bad tokens and network failures', async () => {
+    expect(await lookupGuildMember('123456789', ENV, fakeFetch(429, {}))).toEqual({ kind: 'error', status: 429 });
+    expect(await lookupGuildMember('123456789', ENV, fakeFetch(503, {}))).toEqual({ kind: 'error', status: 503 });
+    expect(await lookupGuildMember('123456789', ENV, fakeFetch(401, {}))).toEqual({ kind: 'error', status: 401 });
     const failing = (async () => {
       throw new Error('offline');
     }) as unknown as typeof fetch;
-    expect(await fetchGuildMember('123456789', ENV, failing)).toBeNull();
+    expect(await lookupGuildMember('123456789', ENV, failing)).toEqual({ kind: 'error' });
   });
 
   it('rejects ids that are not Discord snowflakes without calling the API', async () => {
@@ -45,37 +48,32 @@ describe('fetchGuildMember', () => {
       called = true;
       return new Response('{}');
     }) as unknown as typeof fetch;
-    expect(await fetchGuildMember('../guilds/x', ENV, spy)).toBeNull();
+    expect(await lookupGuildMember('../guilds/x', ENV, spy)).toEqual({ kind: 'absent' });
     expect(called).toBe(false);
   });
 
   it('throws when the bot token or guild id is missing', async () => {
-    await expect(fetchGuildMember('123456789', { DISCORD_GUILD_ID: '111' }, fakeFetch(200, {}))).rejects.toThrow();
+    await expect(lookupGuildMember('123456789', { DISCORD_GUILD_ID: '111' }, fakeFetch(200, {}))).rejects.toThrow();
   });
 });
 
-describe('role derivation from a fetched member', () => {
+describe('role derivation from a lookup', () => {
   it('an Administrator who is not Officer or Guild Member is social', async () => {
-    const member = await fetchGuildMember('123456789', ENV, fakeFetch(200, { roles: ['r-admin'], permissions: '8' }));
-    expect(roleFromDiscordRoles(member!.roles, IDS)).toBe('social');
-  });
-
-  it('someone not in the guild is social', () => {
-    const notInGuild = (): GuildMember | null => null;
-    const member = notInGuild();
-    expect(roleFromDiscordRoles(member?.roles ?? [], IDS)).toBe('social');
+    const r = await lookupGuildMember('123456789', ENV, fakeFetch(200, { roles: ['r-admin'], permissions: '8' }));
+    expect(r.kind).toBe('member');
+    expect(roleFromDiscordRoles(r.kind === 'member' ? r.member.roles : [], IDS)).toBe('social');
   });
 
   it('Officer role grants officer', async () => {
-    const member = await fetchGuildMember('123456789', ENV, fakeFetch(200, { roles: ['r-officer'] }));
-    expect(roleFromDiscordRoles(member!.roles, IDS)).toBe('officer');
+    const r = await lookupGuildMember('123456789', ENV, fakeFetch(200, { roles: ['r-officer'] }));
+    expect(roleFromDiscordRoles(r.kind === 'member' ? r.member.roles : [], IDS)).toBe('officer');
   });
 });
 
 describe('displayName', () => {
   it('prefers the guild nickname, then the display name, then the username', () => {
-    expect(displayName({ roles: [], nick: 'Redtape', avatar: null }, { global_name: 'Red', username: 'red_tape' })).toBe('Redtape');
-    expect(displayName({ roles: [], nick: null, avatar: null }, { global_name: 'Red', username: 'red_tape' })).toBe('Red');
+    expect(displayName({ roles: [], nick: 'Redtape' }, { global_name: 'Red', username: 'red_tape' })).toBe('Redtape');
+    expect(displayName({ roles: [], nick: null }, { global_name: 'Red', username: 'red_tape' })).toBe('Red');
     expect(displayName(null, { global_name: null, username: 'red_tape' })).toBe('red_tape');
     expect(displayName(null, {})).toBe('Member');
   });

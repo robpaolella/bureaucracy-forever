@@ -21,7 +21,9 @@ export default auth((req) => {
     decision.kind === 'redirect'
       ? NextResponse.redirect(new URL(decision.to, req.url))
       : decision.kind === 'notFound'
-        ? NextResponse.rewrite(new URL('/__not-found', req.url), { status: 404 })
+        ? // Rewriting to a path no route serves renders the app's not-found page with a
+          // real 404 status; the status comes from the missing route, not from here.
+          NextResponse.rewrite(new URL('/__not-found', req.url))
         : NextResponse.next();
 
   // Every response for these areas is noindex, the login redirect included.
