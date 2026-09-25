@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Stop `next dev` appending its agent-rules block to the root CLAUDE.md.
+  agentRules: false,
 };
 
 export default nextConfig;
