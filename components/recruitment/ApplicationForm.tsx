@@ -2,27 +2,36 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useActionState, useState } from 'react';
+import { useActionState, useId, useState } from 'react';
 import { submitApplication } from '@/app/(site)/recruitment/actions';
 import { INITIAL_STATE, type ApplicationPath } from '@/components/recruitment/form-state';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
-import { Button, Choice, Field, FIELD_LABEL, Input, Select, Textarea } from '@/components/ui';
+import { Button, Choice, ChoiceGroup, Field, Input, Select, Textarea } from '@/components/ui';
 import { FORM } from '@/content/recruitment';
 import { RAID_NIGHTS } from '@/content/schedule';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS, CLASSES, SPECS, type WowClass } from '@/lib/design/class-colors';
-import { formatRangeShort, minutesBetween, nextOccurrence } from '@/lib/time';
+import { formatRangeShort, formatRealmRangeShort, minutesBetween, nextOccurrence, WEEKDAY_NAMES } from '@/lib/time';
 
 type Props = {
   /** From the session when logged in; the field is then read-only. */
   discordHandle?: string;
 };
 
+/** The progression nights, derived from the schedule so the question tracks the real times. */
+const PROGRESSION = RAID_NIGHTS.filter((n) => !n.optional);
+const AVAILABILITY_QUESTION = `Can you make ${PROGRESSION.map((n) => WEEKDAY_NAMES[n.day]).join(' and ')}, ${formatRealmRangeShort(
+  PROGRESSION[0].start,
+  PROGRESSION[0].end,
+)} server?`;
+
 function PathCard({ value, title, text, checked, onChange }: { value: ApplicationPath; title: string; text: string; checked: boolean; onChange: () => void }) {
   return (
     <label
       className={cn(
         'flex cursor-pointer flex-col items-start gap-1.5 rounded-md border px-5 py-[18px] text-left transition-colors duration-[120ms]',
+        // The radio is visually hidden, so the card carries its focus ring.
+        'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-teal has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-ink-850',
         checked ? 'border-teal bg-teal-wash' : 'border-line-strong bg-ink-800 hover:bg-ink-700',
       )}
     >
@@ -35,12 +44,12 @@ function PathCard({ value, title, text, checked, onChange }: { value: Applicatio
 
 function LocalNightsLine() {
   const viewer = useViewerTimeZone();
-  if (!viewer) return <span className="text-xs text-teal">&nbsp;</span>;
-  const night = RAID_NIGHTS[0];
+  if (!viewer) return <span className="text-teal">&nbsp;</span>;
+  const night = PROGRESSION[0];
   const start = nextOccurrence(night.day, night.start);
   const end = new Date(start.getTime() + minutesBetween(night.start, night.end) * 60_000);
   return (
-    <span className="text-xs text-teal">
+    <span className="text-teal">
       Your local time: <span className="tabular">{formatRangeShort(start, end, viewer.zone)}</span>, {viewer.zone}.
     </span>
   );
@@ -51,6 +60,7 @@ export function ApplicationForm({ discordHandle }: Props) {
   const [path, setPath] = useState<ApplicationPath>(params.get('path') === 'social' ? 'social' : 'raider');
   const [wowClass, setWowClass] = useState<WowClass | ''>('');
   const [state, formAction, pending] = useActionState(submitApplication, INITIAL_STATE);
+  const agreeErrorId = useId();
   const e = state.errors;
 
   const classOptions = [{ value: '', label: 'Choose a class' }, ...CLASSES.map((c) => ({ value: c, label: CLASS_COLORS[c].label }))];
@@ -85,8 +95,16 @@ export function ApplicationForm({ discordHandle }: Props) {
         </Field>
         {path === 'raider' && (
           <>
-            <Select label="Class" name="class" options={classOptions} value={wowClass} onChange={(ev) => setWowClass(ev.target.value as WowClass | '')} error={e.class} />
-            <Select label="Main spec" name="spec" options={specOptions} error={e.spec} key={wowClass} />
+            <Select
+              label="Class"
+              name="class"
+              options={classOptions}
+              value={wowClass}
+              onChange={(ev) => setWowClass(ev.target.value as WowClass | '')}
+              error={e.class}
+              required
+            />
+            <Select label="Main spec" name="spec" options={specOptions} error={e.spec} key={wowClass} required />
           </>
         )}
       </div>
@@ -94,27 +112,26 @@ export function ApplicationForm({ discordHandle }: Props) {
       {path === 'raider' ? (
         <>
           <Field label="Logs" hint={FORM.logsHint} error={e.logs}>
-            <Input name="logs" type="url" placeholder="https://" inputMode="url" />
+            <Input name="logs" type="url" placeholder="https://" inputMode="url" required />
           </Field>
 
-          <fieldset className="flex flex-col gap-2">
-            <legend className={cn(FIELD_LABEL, 'mb-2')}>{FORM.availabilityQuestion}</legend>
-            <div className="flex flex-wrap gap-2.5">
-              {FORM.availabilityOptions.map((opt) => (
-                <Choice key={opt} card type="radio" name="availability" value={opt} label={opt} className="h-[46px] w-auto px-4" />
-              ))}
-            </div>
-            {e.availability ? <span className="text-xs text-stop">{e.availability}</span> : <LocalNightsLine />}
-          </fieldset>
+          <ChoiceGroup legend={AVAILABILITY_QUESTION} row error={e.availability} hint={<LocalNightsLine />}>
+            {FORM.availabilityOptions.map((opt) => (
+              <Choice key={opt} card type="radio" name="availability" value={opt} label={opt} className="w-auto px-4" required />
+            ))}
+          </ChoiceGroup>
 
           <Field label={FORM.wipeQuestion} error={e.wipe}>
-            <Textarea name="wipe" rows={5} placeholder={FORM.wipePlaceholder} />
+            <Textarea name="wipe" rows={5} placeholder={FORM.wipePlaceholder} required />
           </Field>
 
           <div className="flex flex-col gap-1.5">
             <Choice
               type="checkbox"
               name="agree"
+              required
+              aria-describedby={e.agree ? agreeErrorId : undefined}
+              aria-invalid={e.agree ? true : undefined}
               label={
                 <>
                   I have read the{' '}
@@ -125,7 +142,11 @@ export function ApplicationForm({ discordHandle }: Props) {
                 </>
               }
             />
-            {e.agree && <span className="text-xs text-stop">{e.agree}</span>}
+            {e.agree && (
+              <span id={agreeErrorId} className="text-xs text-stop">
+                {e.agree}
+              </span>
+            )}
           </div>
         </>
       ) : (

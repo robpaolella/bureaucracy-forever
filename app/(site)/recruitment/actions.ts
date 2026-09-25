@@ -4,7 +4,8 @@ import type { ApplicationPath, ApplicationState } from '@/components/recruitment
 import { FORM } from '@/content/recruitment';
 import { CLASSES, SPECS, type WowClass } from '@/lib/design/class-colors';
 
-const CHARACTER = /^[A-Za-zÀ-ÿ]{2,12}$/;
+// Letters only, any script; the Latin-1 range would let × and ÷ through.
+const CHARACTER = /^\p{L}{2,12}$/u;
 
 function text(data: FormData, key: string): string {
   const v = data.get(key);

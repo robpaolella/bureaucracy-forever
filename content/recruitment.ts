@@ -102,7 +102,7 @@ export const FORM = {
     social: { title: 'Social', text: 'You want the Discord and the odd alt run. Two questions.' },
   },
   logsHint: 'Any recent raid. We care more about deaths avoided than damage done.',
-  availabilityQuestion: 'Can you make Tuesday and Wednesday, 8–11 PM server?',
+  /** The question itself is derived from content/schedule.ts in the form. */
   availabilityOptions: ['Both nights', 'One of them', 'Neither'] as const,
   wipeQuestion: 'Tell us about a wipe you caused and what you changed',
   wipePlaceholder: 'Short and honest beats long and polished.',

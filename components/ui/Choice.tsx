@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode } from 'react';
+import { useId, type InputHTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { FIELD_LABEL } from './Field';
 
@@ -28,20 +28,30 @@ export function Choice({ type, label, card = false, className, ...rest }: Choice
   );
 }
 
-/** A fieldset with the field-label treatment on its legend. */
-export function ChoiceGroup({
-  legend,
-  children,
-  className,
-}: {
-  legend: string;
+type ChoiceGroupProps = {
+  legend: ReactNode;
   children: ReactNode;
+  /** Help text under the choices. The hint slot is the error slot; they never both show. */
+  hint?: ReactNode;
+  error?: ReactNode;
   className?: string;
-}) {
+  /** Lays the choices out; default is a column. */
+  row?: boolean;
+};
+
+/** A fieldset with the field-label treatment on its legend and an announced hint or error. */
+export function ChoiceGroup({ legend, children, hint, error, className, row = false }: ChoiceGroupProps) {
+  const noteId = useId();
+  const note = error ?? hint;
   return (
-    <fieldset className={cn('flex flex-col gap-2.5', className)}>
+    <fieldset className={cn('flex flex-col gap-2.5', className)} aria-describedby={note ? noteId : undefined} aria-invalid={error ? true : undefined}>
       <legend className={cn(FIELD_LABEL, 'mb-2.5')}>{legend}</legend>
-      {children}
+      <div className={cn('flex gap-2.5', row ? 'flex-wrap' : 'flex-col')}>{children}</div>
+      {note && (
+        <span id={noteId} className={cn('text-xs', error ? 'text-stop' : 'text-fg-3')}>
+          {note}
+        </span>
+      )}
     </fieldset>
   );
 }
