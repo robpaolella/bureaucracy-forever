@@ -1,3 +1,5 @@
+import 'server-only';
+
 /**
  * Discord guild lookups done server-side with the bot token, so a sign-in only needs the
  * `identify` scope and roles can be re-read later without the user's token.
