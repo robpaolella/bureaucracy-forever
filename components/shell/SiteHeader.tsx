@@ -1,18 +1,22 @@
+'use client';
+
 import { ButtonLink, CountBadge } from '@/components/ui';
 import { DISCORD_INVITE_URL, LOGIN_URL } from '@/lib/config';
 import { MEMBER_LINKS, OFFICER_LINKS, PUBLIC_LINKS } from '@/lib/nav';
-import type { Session } from '@/lib/session';
 import { AvatarPill } from './AvatarPill';
 import { MobileNav } from './MobileNav';
 import { NavGroup } from './NavGroup';
 import { NavLink } from './NavLink';
+import { useSiteSession } from './SiteSessionProvider';
 import { Wordmark } from './Wordmark';
 
 /**
  * One header, three sessions. Public links never move; signing in adds a Members
  * group, officer rank adds an Officers group with the pending-application count.
+ * Session state comes from the client provider so public pages can prerender.
  */
-export function SiteHeader({ session }: { session: Session | null }) {
+export function SiteHeader() {
+  const { session } = useSiteSession();
   const officer = session?.role === 'officer';
 
   return (
@@ -90,7 +94,7 @@ export function SiteHeader({ session }: { session: Session | null }) {
       {/* Mobile */}
       <div className="flex h-[60px] items-center justify-between px-4 md:hidden">
         <Wordmark size="mobile" />
-        <MobileNav session={session} />
+        <MobileNav />
       </div>
     </header>
   );

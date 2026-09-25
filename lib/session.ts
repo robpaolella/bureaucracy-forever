@@ -28,14 +28,22 @@ const RANK_FOR_ROLE: Record<Role, Rank> = { officer: 'officer', member: 'raider'
 export { DEV_SESSION_COOKIE, DEV_SESSION_STATES, isDevSessionState } from '@/lib/dev-session';
 
 /**
+ * Development only: the dev-session stub, or `undefined` when no cookie is set. Never
+ * touches cookies in production, so layouts that call it stay static there.
+ */
+export async function getDevStubSession(): Promise<Session | null | undefined> {
+  if (process.env.NODE_ENV === 'production') return undefined;
+  return devSessionFromCookie((await cookies()).get(DEV_SESSION_COOKIE)?.value);
+}
+
+/**
  * The current viewer. In development a `dev-session` cookie can stand in for Auth.js;
  * otherwise this reads the Auth.js session (Discord login, roles from the guild).
+ * Reads cookies, so a page that calls it renders dynamically.
  */
 export async function getSession(): Promise<Session | null> {
-  if (process.env.NODE_ENV !== 'production') {
-    const stub = devSessionFromCookie((await cookies()).get(DEV_SESSION_COOKIE)?.value);
-    if (stub !== undefined) return stub;
-  }
+  const stub = await getDevStubSession();
+  if (stub !== undefined) return stub;
 
   const session = await auth();
   if (!session?.user?.id) return null;

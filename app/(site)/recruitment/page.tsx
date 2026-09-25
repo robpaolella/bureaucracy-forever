@@ -6,7 +6,6 @@ import { AccentLink, EYEBROW } from '@/components/site/SectionHead';
 import { ButtonLink, Card } from '@/components/ui';
 import { EXPECTATIONS, NEED_LABEL, NEEDS_SECTION, NEXT_STEPS, RECRUITMENT_HEAD } from '@/content/recruitment';
 import { DISCORD_INVITE_URL } from '@/lib/config';
-import { getSession } from '@/lib/session';
 
 export const metadata: Metadata = {
   title: 'Recruitment — Bureaucracy',
@@ -21,9 +20,7 @@ const LEGEND = [
   { status: 'closed', dot: 'bg-fg-3' },
 ] as const;
 
-export default async function RecruitmentPage() {
-  const session = await getSession();
-
+export default function RecruitmentPage() {
   return (
     <>
       <section className={`${GUTTER} grid grid-cols-1 items-end gap-8 pb-12 pt-16 md:pt-20 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16`}>
@@ -75,7 +72,7 @@ export default async function RecruitmentPage() {
 
       <section id="apply" className={`${GUTTER} grid grid-cols-1 items-start gap-10 pb-20 lg:grid-cols-[minmax(0,1fr)_380px]`}>
         <Suspense fallback={null}>
-          <ApplicationForm discordHandle={session?.name.toLowerCase()} />
+          <ApplicationForm />
         </Suspense>
         <div className="flex flex-col gap-4">
           <Card className="flex flex-col gap-4 p-[26px]">
