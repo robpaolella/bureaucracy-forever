@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatClock,
+  formatClockShort,
   formatRange,
+  formatRangeShort,
   formatRealmRange,
+  formatRealmRangeShort,
+  formatUtcOffset,
+  minutesBetween,
   nextOccurrence,
   parseHHMM,
   tzOffsetMs,
@@ -101,6 +106,36 @@ describe('formatting', () => {
   it('formats realm wall times without a date', () => {
     expect(formatRealmRange('20:00', '23:00')).toBe('8:00 – 11:00 PM');
     expect(formatRealmRange('19:00', '22:00')).toBe('7:00 – 10:00 PM');
+  });
+
+  it('drops :00 in short ranges but keeps other minutes', () => {
+    const s = zonedTimeToUtc(2026, 9, 29, 20, 0, CHI);
+    const e = zonedTimeToUtc(2026, 9, 29, 23, 0, CHI);
+    expect(formatRangeShort(s, e, CHI)).toBe('8 – 11 PM');
+    expect(formatRangeShort(s, e, LA)).toBe('6 – 9 PM');
+    expect(formatClockShort(zonedTimeToUtc(2026, 9, 29, 19, 50, CHI), CHI)).toBe('7:50 PM');
+    expect(formatRealmRangeShort('20:00', '23:00')).toBe('8 – 11 PM');
+    expect(formatRealmRangeShort('19:30', '22:00')).toBe('7:30 – 10 PM');
+  });
+
+  it('formats UTC offsets with a real minus sign', () => {
+    const summer = new Date('2026-07-01T12:00:00Z');
+    expect(formatUtcOffset(summer, CHI)).toBe('UTC−5');
+    expect(formatUtcOffset(summer, LON)).toBe('UTC+1');
+    expect(formatUtcOffset(summer, 'Asia/Kolkata')).toBe('UTC+5:30');
+    expect(formatUtcOffset(summer, 'UTC')).toBe('UTC+0');
+  });
+
+  it('measures a night in minutes, wrapping past midnight', () => {
+    expect(minutesBetween('20:00', '23:00')).toBe(180);
+    expect(minutesBetween('19:00', '22:00')).toBe(180);
+    expect(minutesBetween('23:00', '01:00')).toBe(120);
+    expect(minutesBetween('22:30', '00:15')).toBe(105);
+  });
+
+  it('keeps both periods in a short realm range across noon or midnight', () => {
+    expect(formatRealmRangeShort('11:00', '13:00')).toBe('11 AM – 1 PM');
+    expect(formatRealmRangeShort('23:00', '01:00')).toBe('11 PM – 1 AM');
   });
 
   it('names zones', () => {

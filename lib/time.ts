@@ -133,6 +133,46 @@ export function formatRealmRange(startHHMM: string, endHHMM: string): string {
   return `${formatRealmClock(startHHMM, !same)} – ${formatRealmClock(endHHMM)}`;
 }
 
+/** "8 PM" / "8:30 PM": like formatClock but drops ":00". Week-strip cells use this. */
+export function formatClockShort(date: Date, zone: string, withPeriod = true): string {
+  return formatClock(date, zone, withPeriod).replace(/:00(?=\s|$)/, '');
+}
+
+/** "8 – 11 PM", or "11 AM – 1 PM" across noon. */
+export function formatRangeShort(start: Date, end: Date, zone: string): string {
+  const same = periodOf(start, zone) === periodOf(end, zone);
+  return `${formatClockShort(start, zone, !same)} – ${formatClockShort(end, zone)}`;
+}
+
+export function formatRealmRangeShort(startHHMM: string, endHHMM: string): string {
+  const s = parseHHMM(startHHMM);
+  const e = parseHHMM(endHHMM);
+  const same = s.hour < 12 === e.hour < 12;
+  const short = (clock: string) => clock.replace(/:00(?=\s|$)/, '');
+  return `${short(formatRealmClock(startHHMM, !same))} – ${short(formatRealmClock(endHHMM))}`;
+}
+
+/**
+ * Minutes from one realm wall time to the next occurrence of another, e.g. "20:00" →
+ * "23:00" = 180. A range that crosses midnight ("23:00" → "01:00") is 120, not negative.
+ */
+export function minutesBetween(startHHMM: string, endHHMM: string): number {
+  const s = parseHHMM(startHHMM);
+  const e = parseHHMM(endHHMM);
+  const diff = e.hour * 60 + e.minute - (s.hour * 60 + s.minute);
+  return diff < 0 ? diff + 24 * 60 : diff;
+}
+
+/** "UTC−5", "UTC+1", "UTC+5:30", "UTC+0" for `zone` at `date`. Uses a real minus sign. */
+export function formatUtcOffset(date: Date, zone: string): string {
+  const minutes = Math.round(tzOffsetMs(date, zone) / 60_000);
+  const sign = minutes < 0 ? '−' : '+';
+  const abs = Math.abs(minutes);
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  return `UTC${sign}${h}${m ? `:${String(m).padStart(2, '0')}` : ''}`;
+}
+
 /** "CDT", "PDT", "GMT+1" for `zone` at `date`. */
 export function zoneAbbreviation(date: Date, zone: string): string {
   const part = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'short' })
