@@ -126,9 +126,16 @@ describe('formatting', () => {
     expect(formatUtcOffset(summer, 'UTC')).toBe('UTC+0');
   });
 
-  it('measures a night in minutes', () => {
+  it('measures a night in minutes, wrapping past midnight', () => {
     expect(minutesBetween('20:00', '23:00')).toBe(180);
     expect(minutesBetween('19:00', '22:00')).toBe(180);
+    expect(minutesBetween('23:00', '01:00')).toBe(120);
+    expect(minutesBetween('22:30', '00:15')).toBe(105);
+  });
+
+  it('keeps both periods in a short realm range across noon or midnight', () => {
+    expect(formatRealmRangeShort('11:00', '13:00')).toBe('11 AM – 1 PM');
+    expect(formatRealmRangeShort('23:00', '01:00')).toBe('11 PM – 1 AM');
   });
 
   it('names zones', () => {

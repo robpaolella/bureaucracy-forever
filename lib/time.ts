@@ -145,14 +145,22 @@ export function formatRangeShort(start: Date, end: Date, zone: string): string {
 }
 
 export function formatRealmRangeShort(startHHMM: string, endHHMM: string): string {
-  return formatRealmRange(startHHMM, endHHMM).replace(/:00(?=\s|$| –)/g, '');
+  const s = parseHHMM(startHHMM);
+  const e = parseHHMM(endHHMM);
+  const same = s.hour < 12 === e.hour < 12;
+  const short = (clock: string) => clock.replace(/:00(?=\s|$)/, '');
+  return `${short(formatRealmClock(startHHMM, !same))} – ${short(formatRealmClock(endHHMM))}`;
 }
 
-/** Minutes between two realm wall times on the same night, e.g. "20:00" → "23:00" = 180. */
+/**
+ * Minutes from one realm wall time to the next occurrence of another, e.g. "20:00" →
+ * "23:00" = 180. A range that crosses midnight ("23:00" → "01:00") is 120, not negative.
+ */
 export function minutesBetween(startHHMM: string, endHHMM: string): number {
   const s = parseHHMM(startHHMM);
   const e = parseHHMM(endHHMM);
-  return e.hour * 60 + e.minute - (s.hour * 60 + s.minute);
+  const diff = e.hour * 60 + e.minute - (s.hour * 60 + s.minute);
+  return diff < 0 ? diff + 24 * 60 : diff;
 }
 
 /** "UTC−5", "UTC+1", "UTC+5:30", "UTC+0" for `zone` at `date`. Uses a real minus sign. */

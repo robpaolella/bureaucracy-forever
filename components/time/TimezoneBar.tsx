@@ -25,6 +25,9 @@ export function TimezoneBar() {
   const viewer = useViewerTimeZone();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
+  // The instant the abbreviations and offsets are read at. Frozen for the component's
+  // life: a page left open across a DST change shows the old offset until reload, which
+  // is a deliberate trade against re-rendering every tick.
   const now = useMemo(() => new Date(), []);
   const options = useMemo(() => zoneOptions(), []);
 
