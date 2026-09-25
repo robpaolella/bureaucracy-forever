@@ -58,19 +58,33 @@ export function tzOffsetMs(date: Date, zone: string): number {
   return wall - utc;
 }
 
-/** The instant at which `zone`'s clocks read the given wall time. */
+/**
+ * The instant at which `zone`'s clocks read the given wall time.
+ *
+ * DST edges: a wall time that does not exist (the spring-forward gap) is moved forward
+ * past the gap, so 02:30 on a day the clocks jump 02:00→03:00 becomes 03:30. A wall time
+ * that occurs twice (the fall-back hour) resolves to the earlier instant.
+ */
 export function zonedTimeToUtc(year: number, month: number, day: number, hour: number, minute: number, zone: string): Date {
   const guess = Date.UTC(year, month - 1, day, hour, minute);
   // Two passes handle a DST boundary between the guess and the answer.
   let utc = guess - tzOffsetMs(new Date(guess), zone);
   utc = guess - tzOffsetMs(new Date(utc), zone);
+  // In a gap the clocks never read the requested time; the result lands before the gap.
+  // Add the shortfall so it lands after it instead.
+  const back = zonedParts(new Date(utc), zone);
+  const got = Date.UTC(back.year, back.month - 1, back.day, back.hour, back.minute);
+  if (got !== guess) utc += guess - got;
   return new Date(utc);
 }
 
 export function parseHHMM(hhmm: string): { hour: number; minute: number } {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
   if (!m) throw new Error(`Bad time "${hhmm}", expected HH:MM`);
-  return { hour: Number(m[1]), minute: Number(m[2]) };
+  const hour = Number(m[1]);
+  const minute = Number(m[2]);
+  if (hour > 23 || minute > 59) throw new Error(`Bad time "${hhmm}", hour must be 0–23 and minute 0–59`);
+  return { hour, minute };
 }
 
 /**

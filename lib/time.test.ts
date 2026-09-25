@@ -4,6 +4,7 @@ import {
   formatRange,
   formatRealmRange,
   nextOccurrence,
+  parseHHMM,
   tzOffsetMs,
   zoneAbbreviation,
   zonedTimeToUtc,
@@ -28,6 +29,27 @@ describe('zonedTimeToUtc', () => {
     expect(formatClock(before, LON)).toBe('2:00 AM');
     expect(formatClock(between, LON)).toBe('1:00 AM');
     expect(formatClock(after, LON)).toBe('2:00 AM');
+  });
+
+  it('moves a nonexistent spring-forward time past the gap', () => {
+    // Chicago jumps 02:00 → 03:00 on 8 March 2026; 02:30 never happens.
+    const t = zonedTimeToUtc(2026, 3, 8, 2, 30, CHI);
+    expect(formatClock(t, CHI)).toBe('3:30 AM');
+    expect(t.toISOString()).toBe('2026-03-08T08:30:00.000Z');
+  });
+
+  it('resolves an ambiguous fall-back time to the earlier instant', () => {
+    // Chicago repeats 01:00–02:00 on 1 November 2026.
+    const t = zonedTimeToUtc(2026, 11, 1, 1, 30, CHI);
+    expect(t.toISOString()).toBe('2026-11-01T06:30:00.000Z'); // CDT, the first pass
+    expect(formatClock(t, CHI)).toBe('1:30 AM');
+  });
+
+  it('rejects out-of-range wall times', () => {
+    expect(() => parseHHMM('24:00')).toThrow();
+    expect(() => parseHHMM('12:60')).toThrow();
+    expect(() => parseHHMM('8pm')).toThrow();
+    expect(parseHHMM('23:59')).toEqual({ hour: 23, minute: 59 });
   });
 
   it('reports offsets with the right sign', () => {
