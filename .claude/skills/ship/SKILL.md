@@ -56,4 +56,6 @@ ahead.
    widths), and **Risks / follow-ups**.
 
 7. **Report back** with the PR URL, what the checks said, and anything you left
-   for me to decide. Do not merge — that is mine.
+   for me to decide. If the checks are green and nothing blocking remains, merge it
+   yourself (`gh pr merge --squash --delete-branch`), then `git switch main && git pull`.
+   Stop and ask only when a real decision is open.

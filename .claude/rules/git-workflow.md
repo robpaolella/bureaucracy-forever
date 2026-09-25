@@ -65,7 +65,8 @@ findings before asking me to look.
 
 ## Pull requests
 
-- Open with `gh pr create`. Never merge your own work without review.
+- Open with `gh pr create`. Never merge without the `code-reviewer` pass and green
+  checks. With both, merge it yourself — Robert does not operate git day to day.
 - Title: same Conventional Commit format as the commit subject.
 - Body must cover:
   - **What** changed, in one or two sentences.

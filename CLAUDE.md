@@ -13,7 +13,9 @@ The short version:
 - Never commit to `main`. Branch as `<type>/<short-kebab-description>`.
 - Conventional Commits. One logical change per commit. Every commit builds.
 - Before a PR: lint, typecheck, test, build — then the `code-reviewer` subagent.
-- Open PRs with `gh pr create`. I merge, not you.
+- Open PRs with `gh pr create`. Once checks are green and the `code-reviewer` finds
+  nothing blocking, squash-merge it yourself, delete the branch, and pull `main`.
+  Bring me decisions in plain language, not git.
 
 Two skills drive this: `/start-work` at the beginning of a task and `/ship` at
 the end. Use them rather than improvising the sequence.
