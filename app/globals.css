@@ -1,0 +1,14 @@
+/* Design tokens first, so Tailwind utilities resolve against them. */
+@import './tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* next/font loads the three families and exposes them as CSS variables on <html>.
+   Point the token families at those so tokens.css stays a verbatim copy of the handover. */
+:root {
+  --font-display: var(--font-newsreader), Georgia, 'Times New Roman', serif;
+  --font-eyebrow: var(--font-cinzel), Georgia, serif;
+  --font-ui: var(--font-archivo), system-ui, -apple-system, sans-serif;
+}
