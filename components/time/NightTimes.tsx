@@ -11,8 +11,8 @@ import { useViewerTimeZone } from './useViewerTimeZone';
  * Layout from Home.html; the Schedule page's timezone bar is a separate component.
  */
 export function NightTimes({ night }: { night: RaidNight }) {
-  const zone = useViewerTimeZone();
-  const local = zone ? formatClock(nextOccurrence(night.day, night.start), zone) : null;
+  const viewer = useViewerTimeZone();
+  const local = viewer ? formatClock(nextOccurrence(night.day, night.start), viewer.zone) : null;
 
   return (
     <div className="flex flex-col gap-1 text-right">
