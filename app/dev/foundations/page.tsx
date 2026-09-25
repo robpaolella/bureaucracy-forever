@@ -82,6 +82,7 @@ export default function FoundationsPage() {
       <header className="flex flex-col gap-6 border-b border-line pb-8 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex flex-col gap-[18px]">
           <p className="font-eyebrow text-eyebrow font-semibold uppercase text-sand">Foundations</p>
+          {/* 56px is the artboard's one-off masthead size; the scale has no token between display-l (44) and display-xl (64). */}
           <h1 className="font-display text-[3.5rem] font-medium leading-[1.04] tracking-[-0.02em]">
             The Bureaucracy system
           </h1>
@@ -152,7 +153,7 @@ export default function FoundationsPage() {
             const lifted = c.onInk !== c.canonical;
             return (
               <div key={cls} className="flex flex-col gap-2 rounded-md border border-line bg-ink-850 px-3.5 py-4">
-                <span className="text-[17px] font-semibold" style={{ color: c.onInk }}>
+                <span className="text-body-l font-semibold" style={{ color: c.onInk }}>
                   {c.label}
                 </span>
                 <span className="tabular text-label text-fg-3">
