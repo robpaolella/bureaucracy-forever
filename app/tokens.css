@@ -1,0 +1,78 @@
+/* Bureaucracy design tokens — dark theme only.
+   Import once in app/globals.css, above Tailwind's directives. */
+
+:root {
+  /* ── Ground ─────────────────────────────────────────────── */
+  --ink-950: #06080B;   /* page background */
+  --ink-900: #0A0D12;   /* header bar, table body */
+  --ink-850: #0E1219;   /* card surface */
+  --ink-800: #141922;   /* raised surface, row hover, popover, modal */
+  --ink-700: #1B222E;   /* input fill, small button fill */
+  --line:        #232B38;  /* hairline border */
+  --line-strong: #323C4C;  /* divider, button border, popover border */
+  --line-faint:  #141922;  /* table row separator */
+
+  /* ── Text ───────────────────────────────────────────────── */
+  --fg:   #E8EDF7;   /* primary — matches the wordmark ice */
+  --fg-2: #A3AFC2;   /* secondary, body copy on cards */
+  --fg-3: #6F7C90;   /* captions, labels — 4.7:1 on --ink-950, do not go lighter-ground */
+
+  /* ── Accents. Sand = accolade. Teal = interaction. ──────── */
+  --sand:       #E4C08A;
+  --sand-dim:   #8A7350;   /* borders on sand-tinted surfaces */
+  --sand-wash:  #241E14;   /* accolade / officer fill */
+  --teal:       #6FC8DC;
+  --teal-dim:   #2A6B7C;
+  --teal-wash:  #0E2830;   /* selected state, informational panel */
+  --teal-line:  #1B4450;
+
+  /* ── Status. Always paired with a word, never color alone. ─ */
+  --ok:        #79D0A0;  --ok-wash:   #12251C;  --ok-line:   #2E5C44;
+  --warn:      #E9B872;  --warn-wash: #241E14;  --warn-line: #6B5530;
+  --stop:      #E08A8A;  --stop-wash: #241416;  --stop-line: #5A3434;
+
+  /* ── Availability grid ──────────────────────────────────── */
+  --slot-empty:      #10151C;
+  --slot-available:  #2E7B58;
+  --slot-if-needed:  #6B5530;
+
+  /* Officer heatmap ramp, 0 → 41 members. Sequential, single hue. */
+  --heat-0: #10151C;
+  --heat-1: #12303A;   /* 1–8   */
+  --heat-2: #17495A;   /* 9–16  */
+  --heat-3: #1E6A80;   /* 17–24 */
+  --heat-4: #2A8FA8;   /* 25–32 */
+  --heat-5: #4FB6CE;   /* 33+   */
+
+  /* ── Type ───────────────────────────────────────────────── */
+  --font-display: Newsreader, Georgia, "Times New Roman", serif;
+  --font-eyebrow: Cinzel, Georgia, serif;
+  --font-ui:      Archivo, system-ui, -apple-system, sans-serif;
+
+  /* ── Radius ─────────────────────────────────────────────── */
+  --r-tag: 2px;
+  --r-control: 4px;   /* button, input, select */
+  --r-card: 8px;
+  --r-modal: 14px;
+  --r-full: 999px;
+
+  /* ── Depth. Borders do the work; shadow is modal-only. ──── */
+  --shadow-pop: 0 24px 48px rgba(0, 0, 0, 0.6);
+  --shadow-modal: 0 24px 48px rgba(0, 0, 0, 0.7);
+}
+
+html, body {
+  background: var(--ink-950);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Focus is teal and always visible — this is the only place teal is mandatory. */
+:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+/* Every number in a table, time, count or stat. */
+.tabular { font-variant-numeric: tabular-nums; }
