@@ -5,8 +5,8 @@ import { Button, ButtonLink, CountBadge } from '@/components/ui';
 import { signOutAction } from '@/app/actions/auth';
 import { DISCORD_INVITE_URL, LOGIN_URL } from '@/lib/config';
 import { MEMBER_LINKS, OFFICER_LINKS, PUBLIC_LINKS } from '@/lib/nav';
-import type { Session } from '@/lib/session';
 import { NavLink } from './NavLink';
+import { useSiteSession } from './SiteSessionProvider';
 import { Wordmark } from './Wordmark';
 
 const HEADING = 'px-3 py-1.5 text-label font-semibold uppercase';
@@ -19,7 +19,8 @@ function Divider() {
  * Mobile header controls and the full-screen drawer. The drawer is a native <dialog>
  * so it traps focus and closes on Escape; navigation closes it too.
  */
-export function MobileNav({ session }: { session: Session | null }) {
+export function MobileNav() {
+  const { session } = useSiteSession();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDialogElement>(null);
   const close = useCallback(() => setOpen(false), []);

@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useActionState, useId, useState } from 'react';
 import { submitApplication } from '@/app/(site)/recruitment/actions';
 import { INITIAL_STATE, type ApplicationPath } from '@/components/recruitment/form-state';
+import { useSiteSession } from '@/components/shell/SiteSessionProvider';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { Button, Choice, ChoiceGroup, Field, Input, Select, Textarea } from '@/components/ui';
 import { FORM } from '@/content/recruitment';
@@ -12,11 +13,6 @@ import { RAID_NIGHTS } from '@/content/schedule';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS, CLASSES, SPECS, type WowClass } from '@/lib/design/class-colors';
 import { formatRangeShort, formatRealmRangeShort, minutesBetween, nextOccurrence, WEEKDAY_NAMES } from '@/lib/time';
-
-type Props = {
-  /** From the session when logged in; the field is then read-only. */
-  discordHandle?: string;
-};
 
 /** The progression nights, derived from the schedule so the question tracks the real times. */
 const PROGRESSION = RAID_NIGHTS.filter((n) => !n.optional);
@@ -55,8 +51,11 @@ function LocalNightsLine() {
   );
 }
 
-export function ApplicationForm({ discordHandle }: Props) {
+export function ApplicationForm() {
   const params = useSearchParams();
+  // From the session when logged in; the field is then read-only. Read on the client so
+  // the page stays static.
+  const discordHandle = useSiteSession().session?.name.toLowerCase();
   const [path, setPath] = useState<ApplicationPath>(params.get('path') === 'social' ? 'social' : 'raider');
   const [wowClass, setWowClass] = useState<WowClass | ''>('');
   const [state, formAction, pending] = useActionState(submitApplication, INITIAL_STATE);
@@ -91,7 +90,7 @@ export function ApplicationForm({ discordHandle }: Props) {
           hint={discordHandle ? 'From your Discord login.' : 'Log in with Discord to fill this in automatically.'}
           error={e.discord}
         >
-          <Input name="discord" defaultValue={discordHandle} readOnly={Boolean(discordHandle)} placeholder="yourhandle" autoComplete="off" />
+          <Input key={discordHandle ?? 'anon'} name="discord" defaultValue={discordHandle} readOnly={Boolean(discordHandle)} placeholder="yourhandle" autoComplete="off" />
         </Field>
         {path === 'raider' && (
           <>
