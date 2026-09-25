@@ -15,9 +15,12 @@ import { cn } from '@/lib/cn';
  */
 export const FIELD_LABEL = 'text-xs font-semibold uppercase tracking-[0.08em] text-fg-2';
 
-/** Shared control surface: ink-700 fill, line-strong border, 15px text. */
+/**
+ * Shared control surface: ink-700 fill, line-strong border, 15px text. Error state via
+ * the arbitrary aria variant: Tailwind 3.4 ships no `aria-invalid:` shorthand.
+ */
 export const CONTROL =
-  'w-full rounded-control border border-line-strong bg-ink-700 text-[15px] text-fg placeholder:text-fg-3 aria-invalid:border-stop-line';
+  'w-full rounded-control border border-line-strong bg-ink-700 text-[15px] text-fg placeholder:text-fg-3 aria-[invalid=true]:border-stop-line';
 
 /**
  * A field pre-filled from Discord and not editable. Applied only to Input: the CSS

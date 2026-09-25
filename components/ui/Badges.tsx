@@ -1,6 +1,10 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
+// `text-label` bakes in 0.14em letter-spacing; the badges below override it with an
+// explicit `tracking-[…]`. That works because Tailwind emits letter-spacing utilities
+// after the font-size scale, not because of class order in the string.
+
 type SpanProps = HTMLAttributes<HTMLSpanElement> & { children: ReactNode };
 
 /** Neutral label chip: ink-700, line-strong, radius tag. Roles, specs, plain facts. */

@@ -11,19 +11,23 @@ type ToggleProps = {
   className?: string;
 };
 
-/** A real switch: `<button role="switch">`, 44px hit box around a 44×24 track. */
+/**
+ * A real switch: `<button role="switch">` with a 44px hit box around a 44×24 track.
+ * A <button> is a labelable element, so the text is a real <label> and clicking it
+ * toggles too, matching the whole-row affordance of Choice.
+ */
 export function Toggle({ label, checked, onChange, disabled, className }: ToggleProps) {
-  const labelId = useId();
+  const id = useId();
   return (
     <div className={cn('flex items-center justify-between gap-4', className)}>
-      <span id={labelId} className="text-sm text-fg-2">
+      <label htmlFor={id} className="min-h-11 flex items-center text-sm text-fg-2">
         {label}
-      </span>
+      </label>
       <button
+        id={id}
         type="button"
         role="switch"
         aria-checked={checked}
-        aria-labelledby={labelId}
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className="flex h-11 w-11 items-center rounded-control disabled:cursor-not-allowed disabled:opacity-50"
