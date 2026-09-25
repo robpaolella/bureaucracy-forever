@@ -9,26 +9,28 @@ import type { Session } from '@/lib/session';
  * /api/session after hydration. Development passes the dev-stub session in directly.
  * Member and officer pages read getSession() on the server as usual.
  */
-type Value = { session: Session | null; loading: boolean };
-
-const Ctx = createContext<Value>({ session: null, loading: true });
+const Ctx = createContext<Session | null>(null);
 
 export function SiteSessionProvider({ initial, children }: { initial: Session | null | undefined; children: ReactNode }) {
-  const [value, setValue] = useState<Value>(() => ({ session: initial ?? null, loading: initial === undefined }));
+  const [session, setSession] = useState<Session | null>(initial ?? null);
 
   useEffect(() => {
     if (initial !== undefined) return;
     const controller = new AbortController();
     fetch('/api/session', { signal: controller.signal, credentials: 'same-origin' })
       .then((r) => (r.ok ? (r.json() as Promise<Session | null>) : null))
-      .then((session) => setValue({ session, loading: false }))
-      .catch(() => setValue({ session: null, loading: false }));
+      .then((s) => {
+        if (!controller.signal.aborted) setSession(s);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setSession(null);
+      });
     return () => controller.abort();
   }, [initial]);
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={session}>{children}</Ctx.Provider>;
 }
 
-export function useSiteSession(): Value {
-  return useContext(Ctx);
+export function useSiteSession(): { session: Session | null } {
+  return { session: useContext(Ctx) };
 }
