@@ -1,4 +1,4 @@
-export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button';
+export { Button, ButtonLink, buttonClassName, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button';
 export { TextLink } from './TextLink';
 export { Field, Input, Textarea, CONTROL, FIELD_LABEL } from './Field';
 export { Select, type SelectOption } from './Select';
