@@ -11,4 +11,25 @@
   --font-display: var(--font-newsreader), Georgia, 'Times New Roman', serif;
   --font-eyebrow: var(--font-cinzel), Georgia, serif;
   --font-ui: var(--font-archivo), system-ui, -apple-system, sans-serif;
+
+  /* Added token. The artboards use this grey eight times (Components, Recruitment,
+     Availability) for "off" text: closed pills, the web source badge, muted counts.
+     It sits between fg-2 and fg-3 and is 5.9:1 on ink-950. */
+  --fg-muted: #8D97A8;
+}
+
+@layer components {
+  /* Modal scrim: ink-950 at 72%. Lives here because Tailwind cannot alpha a var() color. */
+  dialog::backdrop {
+    background: rgb(6 8 11 / 0.72);
+  }
+
+  /* The one moving thing on the site besides hover: the loading skeleton. */
+  .skeleton {
+    animation: skeleton-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes skeleton-pulse {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 0.7; }
+  }
 }
