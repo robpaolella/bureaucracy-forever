@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, ButtonLink, CountBadge } from '@/components/ui';
-import { DISCORD_INVITE_URL, LOGIN_URL, LOGOUT_URL } from '@/lib/config';
+import { signOutAction } from '@/app/actions/auth';
+import { DISCORD_INVITE_URL, LOGIN_URL } from '@/lib/config';
 import { MEMBER_LINKS, OFFICER_LINKS, PUBLIC_LINKS } from '@/lib/nav';
 import type { Session } from '@/lib/session';
 import { NavLink } from './NavLink';
@@ -115,9 +116,11 @@ export function MobileNav({ session }: { session: Session | null }) {
           <Divider />
           <div className="flex flex-col gap-2.5 px-3 pt-1">
             {session ? (
-              <ButtonLink href={LOGOUT_URL} variant="secondary" size="sm" onClick={close}>
-                Log out
-              </ButtonLink>
+              <form action={signOutAction} className="flex">
+                <Button type="submit" variant="secondary" size="sm" className="flex-1">
+                  Log out
+                </Button>
+              </form>
             ) : (
               <>
                 <ButtonLink href={LOGIN_URL} variant="secondary" size="sm" onClick={close}>

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { Card } from '@/components/ui';
-import { DEV_SESSION_COOKIE, DEV_SESSION_STATES, isDevSessionState } from '@/lib/session';
+import { DEV_SESSION_COOKIE, DEV_SESSION_STATES, isDevSessionState } from '@/lib/dev-session';
 
 const DESCRIPTIONS: Record<(typeof DEV_SESSION_STATES)[number], string> = {
   out: 'Logged out. Both Discord buttons, no groups.',

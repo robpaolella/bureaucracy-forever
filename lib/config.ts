@@ -6,9 +6,8 @@ export const REALM_TIMEZONE = 'America/Chicago';
 /** Public Discord invite. Placeholder until the guild supplies the real link. */
 export const DISCORD_INVITE_URL = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? 'https://discord.gg/bureaucracy';
 
-/** Auth.js sign-in entry point (Discord provider). Wired in a later step. */
-export const LOGIN_URL = '/api/auth/signin';
-export const LOGOUT_URL = '/api/auth/signout';
+/** Sends the visitor straight to Discord; app/login/route.ts. Logging out is a server action. */
+export const LOGIN_URL = '/login';
 
 export const SITE_NAME = 'Bureaucracy';
 /** Ships on every page (docs/02 § Footer). */
