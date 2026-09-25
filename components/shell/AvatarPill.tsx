@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useId, useRef, useState } from 'react';
+import { useId, useRef } from 'react';
 import { cn } from '@/lib/cn';
 import { LOGOUT_URL } from '@/lib/config';
 import { CLASS_COLORS, type WowClass } from '@/lib/design/class-colors';
 import { Chevron } from './NavGroup';
-import { useDismiss } from './useDismiss';
+import { useDisclosure } from './useDismiss';
 
 type AvatarPillProps = {
   name: string;
@@ -23,21 +23,21 @@ export function initials(name: string): string {
  * full-radius pill. Officers carry a compact Officer badge instead of the chevron.
  */
 export function AvatarPill({ name, wowClass, officer }: AvatarPillProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const { open, toggle } = useDisclosure(containerRef, triggerRef);
   const id = useId();
-  const close = useCallback(() => setOpen(false), []);
-  useDismiss(ref, open, close);
   const color = CLASS_COLORS[wowClass].onInk;
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={containerRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         aria-expanded={open}
         aria-controls={id}
         aria-label={`${name}, account menu`}
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className="flex h-11 items-center gap-2.5 rounded-full border border-line pl-1.5 pr-3 transition-colors duration-[120ms] hover:bg-ink-850"
       >
         <span

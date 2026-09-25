@@ -1,6 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { DEV_SESSION_COOKIE, isDevSessionState } from '@/lib/session';
 
+/** Only same-origin, path-absolute targets. Rejects `//host` and backslash tricks. */
+function safeBack(raw: string | null, requestUrl: string): URL {
+  const fallback = new URL('/dev/shell', requestUrl);
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\')) return fallback;
+  const target = new URL(raw, requestUrl);
+  return target.origin === fallback.origin ? target : fallback;
+}
+
 /**
  * Dev-only session switcher: /dev/session?as=out|member|member-unsubmitted|officer&back=/
  * Sets the stub cookie and bounces back. Returns 404 in production.
@@ -13,8 +21,7 @@ export function GET(request: NextRequest) {
   if (!isDevSessionState(as)) {
     return NextResponse.json({ error: 'as must be one of out, member, member-unsubmitted, officer' }, { status: 400 });
   }
-  const back = request.nextUrl.searchParams.get('back') ?? '/dev/shell';
-  const response = NextResponse.redirect(new URL(back.startsWith('/') ? back : '/dev/shell', request.url));
-  response.cookies.set(DEV_SESSION_COOKIE, as, { path: '/', sameSite: 'lax' });
+  const response = NextResponse.redirect(safeBack(request.nextUrl.searchParams.get('back'), request.url));
+  response.cookies.set(DEV_SESSION_COOKIE, as, { path: '/', sameSite: 'lax', httpOnly: true });
   return response;
 }

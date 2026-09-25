@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useId, useRef, useState, type ReactNode } from 'react';
+import { useId, useRef, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
-import { useDismiss } from './useDismiss';
+import { useDisclosure } from './useDismiss';
 
 type NavGroupProps = {
   label: string;
@@ -24,24 +24,17 @@ export function Chevron({ className }: { className?: string }) {
 
 /**
  * A disclosure: 44px hit box around a 32px chip, opening a popover of links on ink-800.
- * Closes on Escape, outside click, or navigation.
+ * Closes on Escape, outside click, or navigation; Escape returns focus to the chip.
  */
 export function NavGroup({ label, tone = 'neutral', badge, width = 260, children }: NavGroupProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const { open, close, toggle } = useDisclosure(containerRef, triggerRef);
   const id = useId();
-  const close = useCallback(() => setOpen(false), []);
-  useDismiss(ref, open, close);
 
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={() => setOpen((v) => !v)}
-        className="flex h-11 items-center"
-      >
+    <div ref={containerRef} className="relative">
+      <button ref={triggerRef} type="button" aria-expanded={open} aria-controls={id} onClick={toggle} className="flex h-11 items-center">
         <span
           className={cn(
             'flex h-8 items-center gap-[7px] rounded-control border px-2.5 text-sm font-semibold transition-colors duration-[120ms]',

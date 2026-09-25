@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
+import { isActive } from '@/lib/nav';
 
 type NavLinkProps = {
   href: string;
@@ -13,11 +14,6 @@ type NavLinkProps = {
   className?: string;
   onNavigate?: () => void;
 };
-
-export function isActive(pathname: string, href: string): boolean {
-  const path = href.split(/[?#]/)[0];
-  return pathname === path || (path !== '/' && pathname.startsWith(`${path}/`));
-}
 
 export function NavLink({ href, children, variant = 'header', className, onNavigate }: NavLinkProps) {
   const pathname = usePathname();

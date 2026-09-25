@@ -12,7 +12,7 @@ const SIZES = {
 export function Wordmark({ size, className }: { size: keyof typeof SIZES; className?: string }) {
   const { height, width } = SIZES[size];
   return (
-    <Link href="/" className={cn('flex shrink-0 items-center', className)} aria-label="Bureaucracy home">
+    <Link href="/" className={cn('flex min-h-11 shrink-0 items-center', className)} aria-label="Bureaucracy home">
       <Image src="/brand/wordmark.png" alt="Bureaucracy" width={width} height={height} priority={size !== 'footer'} />
     </Link>
   );

@@ -2,6 +2,15 @@
 
 export type NavItem = { href: string; label: string };
 
+/**
+ * Is `href` the current page? Nested routes count (/members/calendar/123 lights up
+ * Raid calendar). An href with a query or hash is an action, never "current".
+ */
+export function isActive(pathname: string, href: string): boolean {
+  if (href.includes('?') || href.includes('#')) return false;
+  return pathname === href || (href !== '/' && pathname.startsWith(`${href}/`));
+}
+
 /** Public links never move between session states. */
 export const PUBLIC_LINKS: NavItem[] = [
   { href: '/about', label: 'About' },

@@ -10,7 +10,7 @@ const DESCRIPTIONS: Record<(typeof DEV_SESSION_STATES)[number], string> = {
   officer: 'Officer (Ledgerline, Warrior). Members and Officers groups, 7 pending applications.',
 };
 
-/** Build-order step 3: switch the stubbed session so the header can be reviewed. */
+/** Build-order step 3: switch the stubbed session so the header can be reviewed. Gated by app/dev/layout.tsx. */
 export default async function ShellDevPage() {
   const raw = (await cookies()).get(DEV_SESSION_COOKIE)?.value;
   const current = isDevSessionState(raw) ? raw : 'out';

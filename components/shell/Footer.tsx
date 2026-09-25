@@ -9,9 +9,10 @@ export function Footer() {
     <footer className="mt-auto flex flex-col gap-3.5 border-t border-line-faint px-4 py-9 md:flex-row md:items-center md:justify-between md:px-gutter">
       <div className="flex flex-col gap-3.5 md:flex-row md:items-center md:gap-7">
         <Wordmark size="footer" className="opacity-70" />
-        <nav className="flex flex-wrap gap-x-[18px] gap-y-2 text-[13px]" aria-label="Footer">
+        {/* 44px hit targets on 13px text: the anchors carry the height, not the type. */}
+        <nav className="flex flex-wrap gap-x-[18px] text-[13px]" aria-label="Footer">
           {FOOTER_LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className="text-fg-2 transition-colors duration-[120ms] hover:text-fg">
+            <Link key={l.href} href={l.href} className="flex min-h-11 items-center text-fg-2 transition-colors duration-[120ms] hover:text-fg">
               {l.label}
             </Link>
           ))}
