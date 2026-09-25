@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // The design handover is reference material, copied into the app deliberately.
     "design-handover/**",
+    // Generated Prisma client.
+    "lib/generated/**",
   ]),
 ]);
 
