@@ -29,9 +29,16 @@ describe('gateDecision', () => {
     expect(gateDecision('/officers', '', 'social')).toEqual({ kind: 'notFound' });
   });
 
-  it('lets members and socials into the member area', () => {
-    expect(gateDecision('/members/roster', '', 'member')).toEqual({ kind: 'next' });
-    expect(gateDecision('/members/calendar', '', 'social')).toEqual({ kind: 'next' });
+  it('lets socials into roster and calendar but not availability (docs/03 § Roles)', () => {
+    expect(gateDecision('/members/roster', '', 'social')).toEqual({ kind: 'next' });
+    expect(gateDecision('/members/calendar/abc', '', 'social')).toEqual({ kind: 'next' });
+    expect(gateDecision('/members/availability', '', 'social')).toEqual({ kind: 'notFound' });
+    expect(gateDecision('/members/availability/anything', '', 'social')).toEqual({ kind: 'notFound' });
+  });
+
+  it('lets members into the whole member area', () => {
+    expect(gateDecision('/members/availability', '', 'member')).toEqual({ kind: 'next' });
+    expect(gateDecision('/members/calendar', '', 'member')).toEqual({ kind: 'next' });
   });
 
   it('lets officers everywhere', () => {
@@ -39,7 +46,8 @@ describe('gateDecision', () => {
     expect(gateDecision('/members/availability', '', 'officer')).toEqual({ kind: 'next' });
   });
 
-  it('does not treat look-alike paths as the officer area', () => {
+  it('does not treat look-alike paths as gated sub-areas', () => {
     expect(gateDecision('/members/officers-notes', '', 'member')).toEqual({ kind: 'next' });
+    expect(gateDecision('/members/availability-history', '', 'social')).toEqual({ kind: 'next' });
   });
 });
