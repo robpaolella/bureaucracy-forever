@@ -1,9 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { useId, useRef } from 'react';
+import { signOutAction } from '@/app/actions/auth';
 import { cn } from '@/lib/cn';
-import { LOGOUT_URL } from '@/lib/config';
 import { CLASS_COLORS, type WowClass } from '@/lib/design/class-colors';
 import { initials } from '@/lib/format';
 import { Chevron } from './NavGroup';
@@ -11,7 +10,8 @@ import { useDisclosure } from './useDismiss';
 
 type AvatarPillProps = {
   name: string;
-  wowClass: WowClass;
+  /** Class colour once the roster knows the member's main; ice text until then. */
+  wowClass?: WowClass;
   officer: boolean;
 };
 
@@ -24,7 +24,7 @@ export function AvatarPill({ name, wowClass, officer }: AvatarPillProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const { open, toggle } = useDisclosure(containerRef, triggerRef);
   const id = useId();
-  const color = CLASS_COLORS[wowClass].onInk;
+  const color = wowClass ? CLASS_COLORS[wowClass].onInk : undefined;
 
   return (
     <div ref={containerRef} className="relative">
@@ -64,12 +64,14 @@ export function AvatarPill({ name, wowClass, officer }: AvatarPillProps) {
           open ? 'flex' : 'hidden',
         )}
       >
-        <Link
-          href={LOGOUT_URL}
-          className="flex items-center rounded-control px-3 py-[11px] text-sm text-fg-2 transition-colors duration-[120ms] hover:bg-ink-700 hover:text-fg"
-        >
-          Log out
-        </Link>
+        <form action={signOutAction}>
+          <button
+            type="submit"
+            className="flex w-full items-center rounded-control px-3 py-[11px] text-left text-sm text-fg-2 transition-colors duration-[120ms] hover:bg-ink-700 hover:text-fg"
+          >
+            Log out
+          </button>
+        </form>
       </div>
     </div>
   );
