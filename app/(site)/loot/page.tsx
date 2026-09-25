@@ -27,8 +27,8 @@ export default function LootPage() {
         <LootToc sections={LOOT_TOC} />
 
         <div className="flex flex-col gap-12 md:gap-14">
-          <Card id="summary" accolade padding="lg" className="flex scroll-mt-24 flex-col gap-[18px]">
-            <h2 className="font-display text-[28px] font-medium">{LOOT_SUMMARY.title}</h2>
+          <Card id="summary" accolade padding="lg" className="flex scroll-mt-24 flex-col gap-[18px]" role="region" aria-labelledby="summary-title">
+            <h2 id="summary-title" className="font-display text-[28px] font-medium">{LOOT_SUMMARY.title}</h2>
             <ul className="flex list-disc flex-col gap-3 pl-5 text-base leading-[1.7] text-fg-2">
               {LOOT_SUMMARY.bullets.map((b, i) => (
                 <li key={i}>

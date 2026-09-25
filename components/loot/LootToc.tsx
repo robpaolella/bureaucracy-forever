@@ -24,6 +24,9 @@ export function LootToc({ sections }: { sections: LootSection[] }) {
         const el = document.getElementById(s.id);
         if (el && el.getBoundingClientRect().top <= ACTIVATE_AT) current = s.id;
       }
+      // At the very bottom the last heading may never reach the line; it is current anyway.
+      const doc = document.documentElement;
+      if (window.scrollY + window.innerHeight >= doc.scrollHeight - 1) current = sections[sections.length - 1]?.id ?? current;
       setActive(current);
     };
     const onScroll = () => {
@@ -42,7 +45,8 @@ export function LootToc({ sections }: { sections: LootSection[] }) {
   return (
     <nav
       aria-label="On this page"
-      className="sticky top-0 z-10 -mx-4 bg-ink-950 px-4 py-3 lg:top-6 lg:mx-0 lg:bg-transparent lg:p-0"
+      // The bleed must cancel the page gutter at every width: 16px below md, 96px from md.
+      className="sticky top-0 z-10 -mx-4 bg-ink-950 px-4 py-3 md:-mx-gutter md:px-gutter lg:top-6 lg:mx-0 lg:bg-transparent lg:p-0"
     >
       {/* Mobile chip row */}
       <ol className="flex gap-2 overflow-x-auto pb-1 lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
