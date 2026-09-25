@@ -55,7 +55,17 @@ ahead.
    The body covers **What**, **Why**, **How to verify** (exact routes and
    widths), and **Risks / follow-ups**.
 
-7. **Report back** with the PR URL, what the checks said, and anything you left
-   for me to decide. If the checks are green and nothing blocking remains, merge it
-   yourself (`gh pr merge --squash --delete-branch`), then `git switch main && git pull`.
-   Stop and ask only when a real decision is open.
+7. **Merge.** Only if step 2 was green, step 5 left nothing blocking, and no
+   real decision is open. If the PR has remote checks, wait for them:
+   `gh pr checks --watch` must end with every check passing. Then:
+
+   ```
+   gh pr merge --squash --delete-branch --subject "<PR title>"
+   git switch main && git pull --ff-only
+   ```
+
+   If anything above is not true, leave the PR open and go to step 8.
+
+8. **Report back** with what actually happened: merged (commit on `main`) or
+   left open and why, what the checks said, and any decision you need from me,
+   in plain language.
