@@ -40,6 +40,8 @@ export const OFFICER_ACTIONS = {
   cancelConfirm: 'Cancel the raid',
   keep: 'Keep it',
   postPending: 'Arrives with the Discord sync.',
+  finished: 'This raid has finished.',
+  restoreFirst: 'Restore the raid to edit it.',
   onBehalf: 'Answer for a member',
   member: 'Member',
   response: 'Response',

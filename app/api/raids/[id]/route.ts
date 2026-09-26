@@ -30,6 +30,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ id: updated.id, cancelled: updated.cancelledAt !== null }, { headers: NO_STORE });
   }
 
+  // Restore first, then edit: the page disables Edit on a cancelled raid, and the route agrees.
+  if (raid.cancelledAt) return NextResponse.json({ error: 'Restore the raid before editing it.' }, { status: 409, headers: NO_STORE });
   const parsed = parseRaidInput(b);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400, headers: NO_STORE });
   if (parsed.startsAt.getTime() + parsed.value.durationMin * 60_000 < Date.now()) {

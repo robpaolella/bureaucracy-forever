@@ -23,6 +23,13 @@ async function patchRaid(id: string, body: unknown): Promise<Response> {
   return fetch(`/api/raids/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' });
 }
 
+/** The route's own message for a 400 or 409 (a finished raid, a cancelled one); the generic line otherwise. */
+async function failureMessage(res: Response): Promise<string> {
+  if (res.status !== 400 && res.status !== 409) return SAVE_FAILED;
+  const body = (await res.json().catch(() => null)) as { error?: string } | null;
+  return body?.error ?? SAVE_FAILED;
+}
+
 /**
  * The officer row at the top of the sign-up column (docs/04 § Raid detail): Edit raid,
  * Post to Discord, Cancel raid, and answering on a member's behalf, which the route
@@ -42,8 +49,7 @@ export function OfficerActions({ raid, members, past }: Props) {
   async function saveEdit(input: RaidInput): Promise<string | null> {
     try {
       const res = await patchRaid(raid.id, input);
-      if (res.status === 400) return ((await res.json()) as { error?: string }).error ?? SAVE_FAILED;
-      if (!res.ok) return SAVE_FAILED;
+      if (!res.ok) return failureMessage(res);
       setEditing(false);
       setToast({ tone: 'ok', title: RAID_TOASTS.edited(input.name) });
       router.refresh();
@@ -58,7 +64,11 @@ export function OfficerActions({ raid, members, past }: Props) {
     setBusy(true);
     try {
       const res = await patchRaid(raid.id, { cancelled });
-      if (!res.ok) throw new Error(String(res.status));
+      if (!res.ok) {
+        setConfirming(false);
+        setToast({ tone: 'stop', title: await failureMessage(res) });
+        return;
+      }
       setConfirming(false);
       setOpen(false);
       setToast({ tone: 'ok', title: cancelled ? RAID_TOASTS.cancelled(raid.name) : RAID_TOASTS.restored(raid.name) });
@@ -77,6 +87,7 @@ export function OfficerActions({ raid, members, past }: Props) {
           variant="secondary"
           size="sm"
           disabled={past || raid.cancelled}
+          title={past ? OFFICER_ACTIONS.finished : raid.cancelled ? OFFICER_ACTIONS.restoreFirst : undefined}
           onClick={() => {
             setOpen(false);
             setEditing(true);
@@ -88,7 +99,7 @@ export function OfficerActions({ raid, members, past }: Props) {
           {OFFICER_ACTIONS.post}
         </Button>
         {raid.cancelled ? (
-          <Button variant="secondary" size="sm" disabled={past} loading={busy} onClick={() => setCancelled(false)}>
+          <Button variant="secondary" size="sm" disabled={past} title={past ? OFFICER_ACTIONS.finished : undefined} loading={busy} onClick={() => setCancelled(false)}>
             {OFFICER_ACTIONS.restore}
           </Button>
         ) : (
@@ -96,6 +107,7 @@ export function OfficerActions({ raid, members, past }: Props) {
             variant="danger"
             size="sm"
             disabled={past}
+            title={past ? OFFICER_ACTIONS.finished : undefined}
             onClick={() => {
               setOpen(false);
               setConfirming(true);
