@@ -2,48 +2,110 @@
 
 import { useRouter } from 'next/navigation';
 import { useId, useState, type FormEvent } from 'react';
-import { Button, Select, Sheet, Toast, type ToastData } from '@/components/ui';
-import { RESPONSES, type RaidResponse } from '@/lib/raids';
+import { Button, Modal, Select, Sheet, Toast, type ToastData } from '@/components/ui';
+import { raidToInput, RESPONSES, type RaidCard, type RaidInput, type RaidResponse } from '@/lib/raids';
 import { SAVE_FAILED } from '@/content/calendar';
-import { OFFICER_ACTIONS, onBehalfToast } from '@/content/raid';
+import { OFFICER_ACTIONS, onBehalfToast, RAID_TOASTS } from '@/content/raid';
+import { RaidForm } from './RaidForm';
 
 export type MemberOption = { id: string; label: string };
 
 type Props = {
-  raidId: string;
+  raid: RaidCard;
   members: MemberOption[];
-  /** Editing, cancelling and answering for others stop once the raid is over or cancelled. */
-  closed: boolean;
+  /** A finished raid is history: nothing here changes it. */
+  past: boolean;
 };
 
 const RESPONSE_LABEL: Record<RaidResponse, string> = { accept: 'Accept', tentative: 'Tentative', absent: 'Absent' };
 
+async function patchRaid(id: string, body: unknown): Promise<Response> {
+  return fetch(`/api/raids/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' });
+}
+
 /**
  * The officer row at the top of the sign-up column (docs/04 § Raid detail): Edit raid,
  * Post to Discord, Cancel raid, and answering on a member's behalf, which the route
- * records as `setBy`. Edit / Cancel arrive with the schedule form and Post with the bot
- * sync, so they render disabled with a reason. On phones the row collapses into one
- * button that opens a sheet.
+ * records as `setBy`. Edit opens the schedule form prefilled; Cancel asks first and can
+ * be undone with Restore. Post arrives with the bot sync, so it renders disabled with a
+ * reason. On phones the row collapses into one button that opens a sheet.
  */
-export function OfficerActions({ raidId, members, closed }: Props) {
+export function OfficerActions({ raid, members, past }: Props) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<ToastData | null>(null);
   const sheetId = useId();
+
+  async function saveEdit(input: RaidInput): Promise<string | null> {
+    try {
+      const res = await patchRaid(raid.id, input);
+      if (res.status === 400) return ((await res.json()) as { error?: string }).error ?? SAVE_FAILED;
+      if (!res.ok) return SAVE_FAILED;
+      setEditing(false);
+      setToast({ tone: 'ok', title: RAID_TOASTS.edited(input.name) });
+      router.refresh();
+      return null;
+    } catch {
+      return SAVE_FAILED;
+    }
+  }
+
+  async function setCancelled(cancelled: boolean) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await patchRaid(raid.id, { cancelled });
+      if (!res.ok) throw new Error(String(res.status));
+      setConfirming(false);
+      setOpen(false);
+      setToast({ tone: 'ok', title: cancelled ? RAID_TOASTS.cancelled(raid.name) : RAID_TOASTS.restored(raid.name) });
+      router.refresh();
+    } catch {
+      setToast({ tone: 'stop', title: SAVE_FAILED });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const content = (
     <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end md:justify-between">
       <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" size="sm" disabled title={OFFICER_ACTIONS.pending}>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={past || raid.cancelled}
+          onClick={() => {
+            setOpen(false);
+            setEditing(true);
+          }}
+        >
           {OFFICER_ACTIONS.edit}
         </Button>
         <Button variant="secondary" size="sm" disabled title={OFFICER_ACTIONS.postPending}>
           {OFFICER_ACTIONS.post}
         </Button>
-        <Button variant="danger" size="sm" disabled title={OFFICER_ACTIONS.pending}>
-          {OFFICER_ACTIONS.cancel}
-        </Button>
+        {raid.cancelled ? (
+          <Button variant="secondary" size="sm" disabled={past} loading={busy} onClick={() => setCancelled(false)}>
+            {OFFICER_ACTIONS.restore}
+          </Button>
+        ) : (
+          <Button
+            variant="danger"
+            size="sm"
+            disabled={past}
+            onClick={() => {
+              setOpen(false);
+              setConfirming(true);
+            }}
+          >
+            {OFFICER_ACTIONS.cancel}
+          </Button>
+        )}
       </div>
-      {!closed && <OnBehalfForm raidId={raidId} members={members} onToast={setToast} onDone={() => setOpen(false)} />}
+      {!past && !raid.cancelled && <OnBehalfForm raidId={raid.id} members={members} onToast={setToast} onDone={() => setOpen(false)} />}
     </div>
   );
 
@@ -58,6 +120,29 @@ export function OfficerActions({ raidId, members, closed }: Props) {
           {content}
         </Sheet>
       </div>
+
+      <Modal open={editing} onClose={() => setEditing(false)} title={OFFICER_ACTIONS.editTitle}>
+        {editing && <RaidForm initial={raidToInput(raid)} submitLabel={OFFICER_ACTIONS.save} onSubmit={saveEdit} onCancel={() => setEditing(false)} />}
+      </Modal>
+
+      <Modal
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        title={OFFICER_ACTIONS.cancelTitle}
+        actions={
+          <>
+            <Button variant="ghost" onClick={() => setConfirming(false)}>
+              {OFFICER_ACTIONS.keep}
+            </Button>
+            <Button variant="danger" loading={busy} onClick={() => setCancelled(true)}>
+              {OFFICER_ACTIONS.cancelConfirm}
+            </Button>
+          </>
+        }
+      >
+        {OFFICER_ACTIONS.cancelBody}
+      </Modal>
+
       <Toast toast={toast} onDismiss={() => setToast(null)} />
     </section>
   );

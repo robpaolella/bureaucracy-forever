@@ -114,7 +114,7 @@ export default async function RaidDetailPage({ params }: Params) {
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_380px] md:items-start">
         <div className="order-2 flex flex-col gap-6 md:order-1">
-          {session.role === 'officer' && <OfficerActions raidId={raid.id} members={memberOptions} closed={past || card.cancelled} />}
+          {session.role === 'officer' && <OfficerActions raid={card} members={memberOptions} past={past} />}
           <SignupList sections={groupSignups(rows)} now={now.toISOString()} />
         </div>
         <div className="order-1 md:order-2">
