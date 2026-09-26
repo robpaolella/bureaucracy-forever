@@ -1,6 +1,8 @@
+import { revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { isValidTimeZone, isWeek, normalizeWeek } from '@/lib/availability';
 import { db } from '@/lib/db';
+import { HEATMAP_TAG } from '@/lib/roster-availability';
 import { getSession } from '@/lib/session';
 
 /**
@@ -49,5 +51,7 @@ export async function PUT(request: Request) {
     create: { userId: user.id, timezone, slots },
     update: { timezone, slots },
   });
+  // The officer heatmap reads a cached roster; every write expires it (docs/06 § API routes).
+  revalidateTag(HEATMAP_TAG, 'max');
   return NextResponse.json({ timezone: row.timezone, slots: normalizeWeek(row.slots), updatedAt: row.updatedAt.toISOString() }, { headers: NO_STORE });
 }
