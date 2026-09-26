@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_MINIMA, findWindows, formatRoleMinima, topWindows, type WindowCell } from './windows';
+import { DEFAULT_MINIMA, findWindows, formatRoleMinima, scheduleHref, topWindows, type WindowCell } from './windows';
 
 const zero = (): WindowCell => ({ total: 0, roles: { tank: 0, healer: 0, melee: 0, ranged: 0 } });
 const grid = (): WindowCell[][] => Array.from({ length: 7 }, () => Array.from({ length: 48 }, zero));
@@ -56,4 +56,16 @@ describe('topWindows', () => {
 
 it('formats role minima the way the artboard does', () => {
   expect(formatRoleMinima(DEFAULT_MINIMA)).toBe('2T · 8H · 9M · 11R');
+});
+
+describe('scheduleHref', () => {
+  it('shifts a viewer-local window to a guild-time weekday and start', () => {
+    // Monday (day 0) 8:00 PM Chicago, 3 hours; guild time is 2 hours earlier.
+    expect(scheduleHref(0, 40, 6, -4)).toBe('/members/calendar?new=1&day=1&time=18:00&length=180');
+    // Sunday (day 6) 1:00 AM London is Saturday 5:00 PM guild time: crosses midnight backwards.
+    expect(scheduleHref(6, 2, 4, -16)).toBe('/members/calendar?new=1&day=6&time=17:00&length=120');
+    // Saturday 11:30 PM Kolkata is Saturday 10:00 AM guild; Sunday 11:00 PM Hawaii is Monday 1:00 AM guild.
+    expect(scheduleHref(5, 47, 4, -27)).toBe('/members/calendar?new=1&day=6&time=10:00&length=120');
+    expect(scheduleHref(6, 46, 4, 4)).toBe('/members/calendar?new=1&day=1&time=01:00&length=120');
+  });
 });

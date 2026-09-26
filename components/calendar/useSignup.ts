@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Role } from '@/lib/design/class-colors';
-import { applyResponse, type RaidCard, type RaidResponse, type RoleCounts } from '@/lib/raids';
+import { applyResponse, mergeLocal, type LocalAnswer, type RaidCard, type RaidResponse, type RoleCounts } from '@/lib/raids';
 
 type Result = { raidId: string; userId: string; response: RaidResponse | null; counts: RoleCounts };
 
@@ -14,7 +14,12 @@ type Result = { raidId: string; userId: string; response: RaidResponse | null; c
  * by ignoring its reply.
  */
 export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult: (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void) => void) {
-  const [raids, setRaids] = useState(initial);
+  // The server's cards stay the base and only the viewer's answers ride on top, so a
+  // refreshed page (a raid scheduled, another member's answer) shows up without losing
+  // the optimistic state.
+  const [local, setLocal] = useState(new Map<string, LocalAnswer>());
+  const raids = useMemo(() => mergeLocal(initial, local), [initial, local]);
+  const setRaid = useCallback((id: string, value: LocalAnswer) => setLocal((m) => new Map(m).set(id, value)), []);
   const previous = useRef(new Map<string, RaidResponse | null>());
   const inflight = useRef(new Map<string, number>());
   /** Per-raid promise chain so writes reach the server in click order. */
@@ -36,7 +41,7 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
       if (!before || before.mine === response) return;
       if (remember) previous.current.set(id, before.mine);
 
-      setRaids((list) => list.map((r) => (r.id === id ? { ...r, mine: response, counts: applyResponse(r.counts, viewerRole, r.mine, response) } : r)));
+      setRaid(id, { mine: response, counts: applyResponse(before.counts, viewerRole, before.mine, response) });
 
       const seq = (inflight.current.get(id) ?? 0) + 1;
       inflight.current.set(id, seq);
@@ -54,17 +59,17 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
         .then((res) => (res.ok ? (res.json() as Promise<Result>) : Promise.reject(new Error(String(res.status)))))
         .then((result) => {
           if (inflight.current.get(id) !== seq) return;
-          setRaids((list) => list.map((r) => (r.id === id ? { ...r, mine: result.response, counts: result.counts } : r)));
+          setRaid(id, { mine: result.response, counts: result.counts });
           onResult(true, before, response, () => undo(id));
         })
         .catch(() => {
           if (inflight.current.get(id) !== seq) return;
-          setRaids((list) => list.map((r) => (r.id === id ? { ...r, mine: before.mine, counts: before.counts } : r)));
+          setRaid(id, { mine: before.mine, counts: before.counts });
           onResult(false, before, response, () => undo(id));
         });
       queue.current.set(id, run);
     },
-    [raids, viewerRole, onResult, undo],
+    [raids, viewerRole, onResult, undo, setRaid],
   );
 
   useEffect(() => {

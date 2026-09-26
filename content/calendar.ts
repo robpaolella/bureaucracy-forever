@@ -17,5 +17,28 @@ export const CALENDAR_PAST_EMPTY = 'No raids have happened yet.';
 export const AVAILABILITY_PROMPT = 'You have not painted your availability yet. Officers use it to pick raid nights.';
 
 export const SCHEDULE_RAID = 'Schedule a raid';
-export const SCHEDULE_RAID_PENDING = 'Arrives with the raid detail page.';
+
+/** The schedule form (docs/04 § Raid calendar head; docs/03 § Officer nav "Schedule a raid"). */
+export const SCHEDULE_FORM = {
+  title: 'Schedule a raid',
+  name: 'Raid',
+  namePlaceholder: 'Blackwing Lair',
+  date: 'Date',
+  time: 'Start',
+  guildHint: 'Guild time. Members see it in their own zone too.',
+  duration: 'Length',
+  requirements: 'Needed',
+  notes: 'Notes',
+  notesHint: 'Optional. Shown on the raid page.',
+  submit: 'Schedule',
+  cancel: 'Cancel',
+  preview: 'Members will see',
+};
+
+export function scheduledToast(name: string, weekday: string): string {
+  return `Scheduled ${weekday} — ${name}`;
+}
+
+/** Heatmap window rows link here so a window becomes a raid in one step. */
+export const SCHEDULE_FROM_WINDOW = 'Schedule';
 export const SAVE_FAILED = "Couldn't save that — try again.";

@@ -59,3 +59,16 @@ export function topWindows(windows: RaidWindow[], limit = 5): RaidWindow[] {
 export function formatRoleMinima(roles: RoleCounts): string {
   return `${roles.tank}T · ${roles.healer}H · ${roles.melee}M · ${roles.ranged}R`;
 }
+
+/**
+ * The schedule link for a window: the guild-time weekday (0 = Sunday), start and length.
+ * Shifting to guild time can cross midnight, which moves the weekday.
+ */
+export function scheduleHref(day: number, startSlot: number, lengthSlots: number, offsetSlots: number): string {
+  const shifted = startSlot + offsetSlots;
+  const dayShift = Math.floor(shifted / 48);
+  const slot = shifted - dayShift * 48;
+  const weekday = (((day + 1 + dayShift) % 7) + 7) % 7;
+  const time = `${String(Math.floor(slot / 2)).padStart(2, '0')}:${slot % 2 ? '30' : '00'}`;
+  return `/members/calendar?new=1&day=${weekday}&time=${time}&length=${lengthSlots * 30}`;
+}
