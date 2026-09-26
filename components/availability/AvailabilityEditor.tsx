@@ -76,6 +76,8 @@ export function AvailabilityEditor({ initial }: Props) {
   const [zonePromptDismissed, setZonePromptDismissed] = useState(false);
   const version = useRef(0);
   const saveRef = useRef<(announce: boolean) => Promise<void>>(async () => {});
+  // Mirrors `saving` for the unload flush, which runs outside React's render cycle.
+  const savingRef = useRef(false);
 
   // The relative "Last saved" label re-renders on a 30s interval.
   useEffect(() => {
@@ -126,11 +128,14 @@ export function AvailabilityEditor({ initial }: Props) {
       if (!zone) return;
       const at = version.current;
       setSaving(true);
+      savingRef.current = true;
       try {
+        // keepalive: a save that is in flight when the tab closes still completes.
         const res = await fetch('/api/availability', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ timezone: zone, slots: week }),
+          keepalive: true,
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const saved = (await res.json()) as StoredAvailability;
@@ -141,6 +146,7 @@ export function AvailabilityEditor({ initial }: Props) {
       } catch {
         setToast({ tone: 'stop', title: "Couldn't save that — try again.", action: { label: 'Retry', onClick: () => void saveRef.current(true) } });
       } finally {
+        savingRef.current = false;
         setSaving(false);
       }
     },
@@ -158,10 +164,14 @@ export function AvailabilityEditor({ initial }: Props) {
   }, [dirty, saving, week, zone, save]);
 
   // Leaving inside the debounce: warn, and push the week with a keepalive request so a
-  // paint made a second before closing the tab is not lost silently.
+  // paint made a second before closing the tab is not lost silently. Never while a save
+  // is in flight: two overlapping PUTs could land out of order and persist the older
+  // week. The in-flight save is itself keepalive, and if it leaves the week dirty the
+  // autosave effect reschedules once it settles.
   useEffect(() => {
     if (!dirty || !zone) return;
     const flush = () => {
+      if (savingRef.current) return;
       void fetch('/api/availability', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
