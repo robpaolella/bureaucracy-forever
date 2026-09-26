@@ -74,6 +74,9 @@ export function WeekGrid({ week, days, offsetSlots, paintCell, onOpenDay }: Prop
                   type="button"
                   data-key={key}
                   role="gridcell"
+                  // Pointer surface only: the day header opens the keyboard path, so the
+                  // 336 cells stay out of the tab order instead of being inert stops.
+                  tabIndex={-1}
                   aria-label={cellLabel(d.day, slot)}
                   aria-selected={state ? true : false}
                   title={state === 'available' ? 'Available' : state === 'if-needed' ? 'If needed' : undefined}

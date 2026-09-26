@@ -203,6 +203,7 @@ export function DayColumn({ week, days, offsetSlots, mode, onWeek, onOpenDay }: 
               <button
                 type="button"
                 data-key={key}
+                tabIndex={-1}
                 aria-label={`${day.name} ${fmtSlot(slot)}`}
                 aria-pressed={state ? true : false}
                 title={state === 'available' ? 'Available' : state === 'if-needed' ? 'If needed' : undefined}
