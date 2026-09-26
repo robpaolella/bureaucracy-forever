@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import { CalendarList } from '@/components/calendar/CalendarList';
 import { db } from '@/lib/db';
 import type { Role } from '@/lib/design/class-colors';
-import { countAccepted, parseRequirements, pastWindowStart, type RaidCard, type RaidResponse } from '@/lib/raids';
+import { loadRaidCards } from '@/lib/raid-cards';
+import { pastWindowStart } from '@/lib/raids';
 import { getSession } from '@/lib/session';
 import { CALENDAR_HEAD } from '@/content/calendar';
 
@@ -21,43 +22,10 @@ export default async function CalendarPage() {
   const session = await getSession();
   if (!session) notFound();
 
-  const since = pastWindowStart();
-  const [raids, me] = await Promise.all([
-    db.raid.findMany({
-      where: { startsAt: { gte: since } },
-      orderBy: { startsAt: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        startsAt: true,
-        durationMin: true,
-        notes: true,
-        cancelledAt: true,
-        requirements: true,
-        signups: { select: { response: true, user: { select: { discordId: true, characters: { where: { isMain: true }, take: 1, select: { raidRole: true } } } } } },
-      },
-    }),
+  const [cards, me] = await Promise.all([
+    loadRaidCards(pastWindowStart(), session.discordId),
     db.user.findUnique({ where: { discordId: session.discordId }, select: { characters: { where: { isMain: true }, take: 1, select: { raidRole: true } } } }),
   ]);
-
-  const cards: RaidCard[] = raids.map((r) => {
-    const signups = r.signups.map((s) => ({
-      response: s.response.toLowerCase() as RaidResponse,
-      role: (s.user.characters[0]?.raidRole.toLowerCase() as Role | undefined) ?? null,
-      mine: s.user.discordId === session.discordId,
-    }));
-    return {
-      id: r.id,
-      name: r.name,
-      startsAt: r.startsAt.toISOString(),
-      durationMin: r.durationMin,
-      notes: r.notes,
-      cancelled: r.cancelledAt !== null,
-      requirements: parseRequirements(r.requirements),
-      counts: countAccepted(signups),
-      mine: signups.find((s) => s.mine)?.response ?? null,
-    };
-  });
 
   return (
     <div className="flex flex-col gap-6 px-4 pb-12 pt-8 md:px-12 md:pt-11">
