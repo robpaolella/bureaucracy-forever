@@ -15,17 +15,22 @@ import { PrismaClient } from '@/lib/generated/prisma/client';
  */
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
+// One client per process in every environment. The module-level slot serves production;
+// the globalThis slot survives `next dev` re-evaluating this module on hot reload.
+let cached: PrismaClient | undefined;
+
 function create(): PrismaClient {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error('DATABASE_URL must be set');
   const adapter = new PrismaPg({ connectionString });
-  const client = new PrismaClient({ adapter });
-  if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = client;
-  return client;
+  return new PrismaClient({ adapter });
 }
 
 function instance(): PrismaClient {
-  return globalForPrisma.prisma ?? create();
+  if (cached) return cached;
+  cached = globalForPrisma.prisma ?? create();
+  if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = cached;
+  return cached;
 }
 
 export const db: PrismaClient = new Proxy({} as PrismaClient, {
