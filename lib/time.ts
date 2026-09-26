@@ -189,3 +189,17 @@ export function detectTimeZone(): string {
     return 'UTC';
   }
 }
+
+/**
+ * A coarse relative date for things like "Joined": "today", "3 days ago", "2 months ago",
+ * "1 year ago". Rounds to the nearest whole unit; a future date reads "today".
+ */
+export function relativeDate(then: Date, now: Date = new Date()): string {
+  const days = Math.floor((now.getTime() - then.getTime()) / 86_400_000);
+  if (days < 1) return 'today';
+  if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`;
+  const months = Math.round(days / 30.4375);
+  if (months < 12) return `${months} month${months === 1 ? '' : 's'} ago`;
+  const years = Math.round(days / 365.25);
+  return `${years} year${years === 1 ? '' : 's'} ago`;
+}
