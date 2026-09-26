@@ -14,7 +14,7 @@ const RESPONSE_ENUM = { accept: 'ACCEPT', tentative: 'TENTATIVE', absent: 'ABSEN
  * `source: WEB`; the last write wins on updatedAt (docs/06 § Discord bot sync). Members
  * only: socials do not sign up (docs/03 § Roles). Officers may pass `forUserId` to answer
  * on a member's behalf (docs/04 § Raid detail); that write records `setBy`. Returns the
- * raid's accepted counts.
+ * answered user's id and response with the raid's accepted counts.
  */
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -52,8 +52,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   let targetId = user.id;
   let setByUserId: string | null = null;
   if (forUserId && forUserId !== user.id) {
-    const target = await db.user.findUnique({ where: { id: forUserId }, select: { id: true } });
+    const target = await db.user.findUnique({ where: { id: forUserId }, select: { id: true, role: true } });
     if (!target) return NextResponse.json({ error: 'No such member.' }, { status: 404, headers: NO_STORE });
+    if (target.role === 'SOCIAL') return NextResponse.json({ error: 'Social members do not sign up for raids.' }, { status: 403, headers: NO_STORE });
     targetId = target.id;
     setByUserId = user.id;
   }
@@ -77,5 +78,5 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const counts = countAccepted(
     signups.map((s) => ({ response: s.response.toLowerCase() as RaidResponse, role: (s.user.characters[0]?.raidRole.toLowerCase() as Role | undefined) ?? null })),
   );
-  return NextResponse.json({ raidId: raid.id, mine: response, counts }, { headers: NO_STORE });
+  return NextResponse.json({ raidId: raid.id, userId: targetId, response, counts }, { headers: NO_STORE });
 }
