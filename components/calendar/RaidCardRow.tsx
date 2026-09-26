@@ -5,7 +5,7 @@ import { SegmentedControl } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { GUILD_TIMEZONE } from '@/lib/config';
 import { ROLE_SHORT, ROLES } from '@/lib/design/class-colors';
-import { countTone, type RaidCard, type RaidResponse } from '@/lib/raids';
+import { countTone, raidWeekday, type RaidCard, type RaidResponse } from '@/lib/raids';
 import { zonedParts } from '@/lib/time';
 
 type Props = {
@@ -36,9 +36,16 @@ export function RaidCardRow({ raid, tonight, canRespond, past, onRespond }: Prop
   return (
     <li className={cn('flex flex-col gap-4 rounded-card border bg-ink-850 p-5 md:flex-row md:items-center md:gap-6', tonight ? 'border-sand-dim' : 'border-line', raid.cancelled && 'opacity-60')}>
       <div className="flex items-center gap-4 md:flex-1">
-        <div className="flex w-14 shrink-0 flex-col items-center rounded-control border border-line bg-ink-900 py-2" aria-hidden>
-          <span className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">{MONTH_SHORT[p.month - 1]}</span>
-          <span className="tabular font-display text-[28px] font-medium leading-none">{p.day}</span>
+        <div className="flex w-14 shrink-0 flex-col items-center rounded-control border border-line bg-ink-900 py-2">
+          <span className="sr-only">
+            {raidWeekday(raid.startsAt)}, {MONTH_SHORT[p.month - 1]} {p.day}
+          </span>
+          <span className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3" aria-hidden>
+            {MONTH_SHORT[p.month - 1]}
+          </span>
+          <span className="tabular font-display text-[28px] font-medium leading-none" aria-hidden>
+            {p.day}
+          </span>
         </div>
         <div className="flex min-w-0 flex-col gap-1">
           {tonight && <span className="font-eyebrow text-[10px] font-semibold uppercase tracking-[0.28em] text-sand">Tonight</span>}
@@ -72,7 +79,7 @@ export function RaidCardRow({ raid, tonight, canRespond, past, onRespond }: Prop
       )}
       {canRespond && (past || raid.cancelled) && raid.mine && (
         <span className="text-sm text-fg-3 md:shrink-0">
-          You answered <span className="font-semibold text-fg-2">{raid.mine}</span>
+          You answered <span className="font-semibold text-fg-2">{RESPONSE_OPTIONS.find((o) => o.value === raid.mine)?.label}</span>
         </span>
       )}
     </li>
