@@ -6,7 +6,9 @@ import { CLASS_COLORS, ROLE_LABELS } from '@/lib/design/class-colors';
 import { formatGuildRangeShort, relativeDate, WEEKDAY_NAMES } from '@/lib/time';
 import { DETAIL } from '@/content/applications';
 import { RAID_NIGHTS } from '@/content/schedule';
+import { DecisionBar } from './DecisionBar';
 import { NightsLocal } from './NightsLocal';
+import { NoteComposer } from './NoteComposer';
 
 type Props = { app: ApplicationDetail; now: string };
 
@@ -15,8 +17,8 @@ const PROGRESSION = RAID_NIGHTS.filter((n) => !n.optional);
 /**
  * docs/04 § Application detail: head with the character in class colour and the meta row,
  * one block per answer, the logs link with its host visible, the availability answer with
- * guild and local times, then the private officer notes. Decisions and the note composer
- * arrive with the next PR; this renders what was submitted.
+ * guild and local times, then the private officer notes with their composer, and the
+ * decision bar pinned to the bottom while the application is pending.
  */
 export function ApplicationView({ app, now }: Props) {
   const at = new Date(now);
@@ -106,7 +108,10 @@ export function ApplicationView({ app, now }: Props) {
             ))}
           </ul>
         )}
+        <NoteComposer applicationId={app.id} />
       </section>
+
+      {app.status === 'pending' && <DecisionBar id={app.id} character={app.character} path={app.path} />}
     </article>
   );
 }

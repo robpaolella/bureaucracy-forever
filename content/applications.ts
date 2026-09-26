@@ -36,3 +36,29 @@ export const DETAIL = {
   noAccount: 'Applied without logging in: reach them by handle.',
   decided: (status: string, by: string | null) => (by ? `${status} by ${by}` : status),
 };
+
+/** docs/04 § Application detail § Actions: both confirmations name what the applicant will be told. */
+export const ACTIONS = {
+  accept: 'Accept',
+  decline: 'Decline',
+  toSocial: 'Move to social',
+  acceptTitle: (name: string) => `Accept ${name}?`,
+  acceptBody: 'They will be told they are in and invited to a short chat in Discord, then a two-week trial with full loot rights. Officer notes stay private.',
+  acceptConfirm: 'Accept the application',
+  declineTitle: (name: string) => `Decline ${name}?`,
+  declineBody: 'They will be told the answer is no, plainly and without the reasons. Officer notes stay private.',
+  declineConfirm: 'Decline the application',
+  keep: 'Not yet',
+  accepted: (name: string) => `Accepted ${name}`,
+  declined: (name: string) => `Declined ${name}`,
+  movedToSocial: (name: string) => `${name} moved to the social path`,
+  alreadyDecided: 'This application was already decided.',
+  dmNote: 'The Discord message goes out with the bot sync.',
+};
+
+export const NOTE_COMPOSER = {
+  label: 'Add a note',
+  placeholder: 'Only officers will read this.',
+  post: 'Post',
+  posted: 'Note added',
+};
