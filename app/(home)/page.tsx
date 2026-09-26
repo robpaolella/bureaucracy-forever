@@ -6,6 +6,7 @@ import { NightTimes } from '@/components/time/NightTimes';
 import { ButtonLink, Card, StatusPill } from '@/components/ui';
 import { CLOSING, HERO, PEDIGREE, PROGRESSION, PROGRESSION_NOTE, WEEK_NOTE, type ProgressionRow } from '@/content/home';
 import { NEED_LABEL, teaserNeeds } from '@/content/recruitment';
+import { getClassNeeds } from '@/lib/class-needs-data';
 import { RAID_NIGHTS } from '@/content/schedule';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
@@ -154,8 +155,8 @@ function TheWeek() {
 
 const PILL_TONE = { high: 'ok', medium: 'warn', closed: 'closed' } as const;
 
-function RecruitmentTeaser() {
-  const cards = teaserNeeds();
+async function RecruitmentTeaser() {
+  const cards = teaserNeeds(await getClassNeeds());
   return (
     <section className={cn(SECTION, 'flex flex-col gap-7 py-16 md:py-[88px]')}>
       <SectionHead eyebrow="Recruitment" title="What we're short of" link={{ href: '/recruitment', label: 'Every class and spec →' }} />
@@ -195,6 +196,9 @@ function ClosingCta() {
     </section>
   );
 }
+
+/** The whole page is ISR so the recruitment teaser can read the needs table; every other section is static copy. */
+export const revalidate = 60;
 
 export default function HomePage() {
   return (

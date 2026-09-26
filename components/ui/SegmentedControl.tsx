@@ -3,7 +3,7 @@
 import { useId, useRef, type KeyboardEvent } from 'react';
 import { cn } from '@/lib/cn';
 
-export type SegmentTone = 'teal' | 'ok' | 'warn' | 'stop';
+export type SegmentTone = 'teal' | 'ok' | 'warn' | 'stop' | 'neutral';
 
 export type Segment<V extends string> = {
   value: V;
@@ -32,6 +32,7 @@ const SELECTED: Record<SegmentTone, string> = {
   ok: 'border-ok-line bg-ok-wash text-ok',
   warn: 'border-warn-line bg-warn-wash text-warn',
   stop: 'border-stop-line bg-stop-wash text-stop',
+  neutral: 'border-line-strong bg-ink-700 text-fg-2',
 };
 
 /**

@@ -5,6 +5,7 @@ import { NeedsTable } from '@/components/recruitment/NeedsTable';
 import { AccentLink, EYEBROW } from '@/components/site/SectionHead';
 import { ButtonLink, Card } from '@/components/ui';
 import { EXPECTATIONS, NEED_LABEL, NEEDS_SECTION, NEXT_STEPS, RECRUITMENT_HEAD } from '@/content/recruitment';
+import { getClassNeeds } from '@/lib/class-needs-data';
 import { DISCORD_INVITE_URL } from '@/lib/config';
 
 export const metadata: Metadata = {
@@ -20,7 +21,11 @@ const LEGEND = [
   { status: 'closed', dot: 'bg-fg-3' },
 ] as const;
 
-export default function RecruitmentPage() {
+/** Needs come from the database and refresh within a minute of an officer's edit. */
+export const revalidate = 60;
+
+export default async function RecruitmentPage() {
+  const needs = await getClassNeeds();
   return (
     <>
       <section className={`${GUTTER} grid grid-cols-1 items-end gap-8 pb-12 pt-16 md:pt-20 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16`}>
@@ -50,7 +55,7 @@ export default function RecruitmentPage() {
             ))}
           </ul>
         </div>
-        <NeedsTable />
+        <NeedsTable needs={needs} />
         <p className="text-xs text-fg-3">{NEEDS_SECTION.note}</p>
       </section>
 
