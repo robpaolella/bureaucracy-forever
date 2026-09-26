@@ -17,6 +17,8 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
   const [raids, setRaids] = useState(initial);
   const previous = useRef(new Map<string, RaidResponse | null>());
   const inflight = useRef(new Map<string, number>());
+  /** Per-raid promise chain so writes reach the server in click order. */
+  const queue = useRef(new Map<string, Promise<void>>());
   // undo() runs from a toast created by respond(), and respond() hands undo to the toast:
   // the ref breaks that cycle without either closing over a stale version of the other.
   const respondRef = useRef<(id: string, response: RaidResponse | null, remember?: boolean) => void>(() => {});
@@ -38,12 +40,17 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
 
       const seq = (inflight.current.get(id) ?? 0) + 1;
       inflight.current.set(id, seq);
-      fetch(`/api/raids/${id}/signup`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ response }),
-        credentials: 'same-origin',
-      })
+      // Two quick answers on one raid must not race on the server: the second PUT waits
+      // for the first to settle, so the stored row always matches the last click.
+      const run = (queue.current.get(id) ?? Promise.resolve())
+        .then(() =>
+          fetch(`/api/raids/${id}/signup`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ response }),
+            credentials: 'same-origin',
+          }),
+        )
         .then((res) => (res.ok ? (res.json() as Promise<Result>) : Promise.reject(new Error(String(res.status)))))
         .then((result) => {
           if (inflight.current.get(id) !== seq) return;
@@ -55,6 +62,7 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
           setRaids((list) => list.map((r) => (r.id === id ? { ...r, mine: before.mine, counts: before.counts } : r)));
           onResult(false, before, response, () => undo(id));
         });
+      queue.current.set(id, run);
     },
     [raids, viewerRole, onResult, undo],
   );
