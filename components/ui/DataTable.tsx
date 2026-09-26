@@ -101,7 +101,7 @@ export function DataTable<T>({
           <tbody key={g.key} className="[&>tr:last-child>td]:border-b-0">
             {g.label && (
               <tr className="bg-ink-850">
-                <th scope="colgroup" colSpan={columns.length} className="h-8 border-y border-line px-5 text-left text-label font-semibold uppercase tracking-[0.12em] text-fg-2">
+                <th scope="rowgroup" colSpan={columns.length} className="h-8 border-y border-line px-5 text-left text-label font-semibold uppercase tracking-[0.12em] text-fg-2">
                   {g.label} <span className="tabular font-normal text-fg-3">· {g.rows.length}</span>
                 </th>
               </tr>

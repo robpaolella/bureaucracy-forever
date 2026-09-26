@@ -140,7 +140,7 @@ export function RosterTable({ rows }: Props) {
             caption="Guild roster"
             columns={columns}
             rows={shown}
-            groups={groupBy === 'flat' ? undefined : groups}
+            groups={groups}
             rowKey={(r) => r.id}
             sortKey={sortKey}
             sortDir={sortDir}
