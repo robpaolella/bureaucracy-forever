@@ -62,6 +62,13 @@ export function countTone(count: number, required: number): 'ok' | 'warn' | 'sto
   return 'ok';
 }
 
+/** Past raids shown on the calendar: the last eight weeks. Older history is a report, not a calendar. */
+export const PAST_WINDOW_MS = 8 * 7 * 24 * 3600_000;
+
+export function pastWindowStart(now: Date = new Date()): Date {
+  return new Date(now.getTime() - PAST_WINDOW_MS);
+}
+
 /** Upcoming means not yet finished: a raid in progress stays on the upcoming list. */
 export function isUpcoming(raid: { startsAt: string; durationMin: number }, now: Date): boolean {
   return Date.parse(raid.startsAt) + raid.durationMin * 60_000 >= now.getTime();
