@@ -105,6 +105,9 @@ export function MobileNav() {
               <NavLink href={OFFICER_LINKS.heatmap.href} variant="drawer" onNavigate={close}>
                 {OFFICER_LINKS.heatmap.label}
               </NavLink>
+              <NavLink href={OFFICER_LINKS.roster.href} variant="drawer" onNavigate={close}>
+                {OFFICER_LINKS.roster.label}
+              </NavLink>
               <NavLink href={OFFICER_LINKS.schedule.href} variant="drawer" onNavigate={close}>
                 {OFFICER_LINKS.schedule.label}
               </NavLink>
