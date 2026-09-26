@@ -1,7 +1,10 @@
 /** Site-wide constants. One place, so a page never carries its own copy. */
 
-/** The realm's timezone. docs/01 § Time: a single config constant, never per page. */
-export const REALM_TIMEZONE = 'America/Chicago';
+/**
+ * The guild's timezone: the zone raid nights are announced in. WoW Forever has no realm
+ * clock, so this stands where docs/01 § Time says "realm time". One constant, never per page.
+ */
+export const GUILD_TIMEZONE = 'America/Chicago';
 
 /** Public Discord invite. Placeholder until the guild supplies the real link. */
 export const DISCORD_INVITE_URL = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? 'https://discord.gg/bureaucracy';

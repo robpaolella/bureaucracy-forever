@@ -2,7 +2,7 @@
  * Raid week. PLACEHOLDER — design-handover/CLAUDE.md lists raid nights and times among
  * the invented content. Confirm with the guild before launch.
  *
- * Times are realm wall-clock ("HH:MM", 24h) in REALM_TIMEZONE (lib/config.ts). Never
+ * Times are guild wall-clock ("HH:MM", 24h) in GUILD_TIMEZONE (lib/config.ts). Never
  * store or show a bare time: components render these beside the viewer's local time.
  */
 import type { Weekday } from '@/lib/time';
@@ -24,7 +24,7 @@ export const RAID_NIGHTS: RaidNight[] = [
 /** Week strip order: Monday first, as drawn in Schedule.html. */
 export const WEEK_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0];
 
-/** Weekly lockout reset, realm time. */
+/** Weekly lockout reset, guild time. */
 export const LOCKOUT_RESET = { day: 2 as Weekday, time: '08:00' };
 
 export const SCHEDULE_HEAD = {

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Button, Modal, Select } from '@/components/ui';
-import { REALM_TIMEZONE } from '@/lib/config';
+import { GUILD_TIMEZONE } from '@/lib/config';
 import { formatUtcOffset, zoneAbbreviation } from '@/lib/time';
 import { setViewerTimeZone, useViewerTimeZone } from './useViewerTimeZone';
 
@@ -31,7 +31,7 @@ export function TimezoneBar() {
   const now = useMemo(() => new Date(), []);
   const options = useMemo(() => zoneOptions(), []);
 
-  const realm = `Realm · ${zoneAbbreviation(now, REALM_TIMEZONE)} (${formatUtcOffset(now, REALM_TIMEZONE)})`;
+  const guild = `Realm · ${zoneAbbreviation(now, GUILD_TIMEZONE)} (${formatUtcOffset(now, GUILD_TIMEZONE)})`;
   const yours = viewer ? `${viewer.zone} · ${zoneAbbreviation(now, viewer.zone)} (${formatUtcOffset(now, viewer.zone)})` : 'Detecting…';
 
   const openPicker = () => {
@@ -44,7 +44,7 @@ export function TimezoneBar() {
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-12 sm:gap-y-4">
         <div className="flex flex-col gap-[5px]">
           <span className={`${LABEL} text-sand`}>Server time</span>
-          <span className="tabular text-base font-semibold">{realm}</span>
+          <span className="tabular text-base font-semibold">{guild}</span>
         </div>
         <div className="hidden h-[38px] w-px bg-line sm:block" aria-hidden />
         <div className="flex flex-col gap-[5px]">

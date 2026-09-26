@@ -12,11 +12,11 @@ import { FORM } from '@/content/recruitment';
 import { RAID_NIGHTS } from '@/content/schedule';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS, CLASSES, SPECS, type WowClass } from '@/lib/design/class-colors';
-import { formatRangeShort, formatRealmRangeShort, minutesBetween, nextOccurrence, WEEKDAY_NAMES } from '@/lib/time';
+import { formatRangeShort, formatGuildRangeShort, minutesBetween, nextOccurrence, WEEKDAY_NAMES } from '@/lib/time';
 
 /** The progression nights, derived from the schedule so the question tracks the real times. */
 const PROGRESSION = RAID_NIGHTS.filter((n) => !n.optional);
-const AVAILABILITY_QUESTION = `Can you make ${PROGRESSION.map((n) => WEEKDAY_NAMES[n.day]).join(' and ')}, ${formatRealmRangeShort(
+const AVAILABILITY_QUESTION = `Can you make ${PROGRESSION.map((n) => WEEKDAY_NAMES[n.day]).join(' and ')}, ${formatGuildRangeShort(
   PROGRESSION[0].start,
   PROGRESSION[0].end,
 )} server?`;

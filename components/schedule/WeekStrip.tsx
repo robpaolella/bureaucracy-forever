@@ -3,7 +3,7 @@
 import { Tag } from '@/components/ui';
 import { LOCKOUT_RESET, RAID_NIGHTS, WEEK_NOTE_PREFIX, WEEK_ORDER, type RaidNight } from '@/content/schedule';
 import { cn } from '@/lib/cn';
-import { formatClock, formatRangeShort, formatRealmClock, formatRealmRangeShort, minutesBetween, nextOccurrence, WEEKDAY_NAMES } from '@/lib/time';
+import { formatClock, formatRangeShort, formatGuildClock, formatGuildRangeShort, minutesBetween, nextOccurrence, WEEKDAY_NAMES } from '@/lib/time';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 
 function localRange(night: RaidNight, zone: string): string {
@@ -52,7 +52,7 @@ export function WeekStrip() {
               <span className="text-base font-semibold">{night.kind}</span>
               {night.optional && <Tag className="self-start px-2 py-[3px] text-label tracking-normal">Optional</Tag>}
               <div className="mt-auto flex flex-col gap-1">
-                <span className="tabular text-[15px] font-semibold">{formatRealmRangeShort(night.start, night.end)}</span>
+                <span className="tabular text-[15px] font-semibold">{formatGuildRangeShort(night.start, night.end)}</span>
                 <span className="text-xs text-fg-3">server</span>
                 <span className="tabular text-sm text-teal">{viewer ? `${localRange(night, viewer.zone)} yours` : ' '}</span>
               </div>
@@ -61,7 +61,7 @@ export function WeekStrip() {
         })}
       </ol>
       <p className="text-[13px] text-fg-3">
-        {WEEK_NOTE_PREFIX} {WEEKDAY_NAMES[LOCKOUT_RESET.day]} <span className="tabular">{formatRealmClock(LOCKOUT_RESET.time)}</span> server
+        {WEEK_NOTE_PREFIX} {WEEKDAY_NAMES[LOCKOUT_RESET.day]} <span className="tabular">{formatGuildClock(LOCKOUT_RESET.time)}</span> server
         {resetLocal && (
           <>
             {' — '}

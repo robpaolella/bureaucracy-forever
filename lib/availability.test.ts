@@ -11,7 +11,7 @@ import {
   offsetDescription,
   parseKey,
   relativeTime,
-  serverOffsetSlots,
+  guildOffsetSlots,
   weekDays,
   weekStart,
   type Week,
@@ -77,7 +77,7 @@ describe('labels', () => {
     expect(cellLabel(1, 41)).toBe('Tue 8:30 PM');
   });
 
-  it('describes the server offset', () => {
+  it('describes the guild-time offset', () => {
     expect(offsetDescription(4)).toBe('2 hours ahead');
     expect(offsetDescription(-2)).toBe('1 hour behind');
     expect(offsetDescription(0)).toBe('same time');
@@ -109,14 +109,14 @@ describe('week and offsets', () => {
     expect(days.find((d) => d.isToday)?.name).toBe('Wed');
   });
 
-  it('measures how far the server clock is ahead, in half hours', () => {
+  it('measures how far the guild clock is ahead, in half hours', () => {
     const summer = new Date('2026-09-29T12:00:00Z');
-    expect(serverOffsetSlots(summer, 'America/Los_Angeles')).toBe(4);
-    expect(serverOffsetSlots(summer, 'America/Chicago')).toBe(0);
-    expect(serverOffsetSlots(summer, 'Europe/London')).toBe(-12);
-    expect(serverOffsetSlots(summer, 'Asia/Kolkata')).toBe(-21);
-    // Kathmandu is UTC+5:45: the server is 10h45 behind = -21.5 slots; Math.round takes .5 up, so -21.
-    expect(serverOffsetSlots(summer, 'Asia/Kathmandu')).toBe(-21);
+    expect(guildOffsetSlots(summer, 'America/Los_Angeles')).toBe(4);
+    expect(guildOffsetSlots(summer, 'America/Chicago')).toBe(0);
+    expect(guildOffsetSlots(summer, 'Europe/London')).toBe(-12);
+    expect(guildOffsetSlots(summer, 'Asia/Kolkata')).toBe(-21);
+    // Kathmandu is UTC+5:45: guild time is 10h45 behind = -21.5 slots; Math.round takes .5 up, so -21.
+    expect(guildOffsetSlots(summer, 'Asia/Kathmandu')).toBe(-21);
   });
 
   it('keeps a week whole across the US fall-back and the UK/US gap', () => {
@@ -128,9 +128,9 @@ describe('week and offsets', () => {
     expect(weekStart(new Date('2026-11-04T18:00:00Z'), 'America/Chicago').toISOString()).toBe('2026-11-02T06:00:00.000Z');
     // Spring forward: the week containing 8 Mar 2026 still has seven correctly dated days.
     expect(weekDays(new Date('2026-03-04T18:00:00Z'), 'America/Chicago').map((d) => d.date)).toEqual(['2 Mar', '3 Mar', '4 Mar', '5 Mar', '6 Mar', '7 Mar', '8 Mar']);
-    // The server offset for a London member changes between the two DST changes.
-    expect(serverOffsetSlots(weekStart(new Date('2026-10-21T12:00:00Z'), 'Europe/London'), 'Europe/London')).toBe(-12);
-    expect(serverOffsetSlots(weekStart(new Date('2026-10-28T12:00:00Z'), 'Europe/London'), 'Europe/London')).toBe(-10);
+    // The guild offset for a London member changes between the two DST changes.
+    expect(guildOffsetSlots(weekStart(new Date('2026-10-21T12:00:00Z'), 'Europe/London'), 'Europe/London')).toBe(-12);
+    expect(guildOffsetSlots(weekStart(new Date('2026-10-28T12:00:00Z'), 'Europe/London'), 'Europe/London')).toBe(-10);
   });
 
   it('validates timezones', () => {

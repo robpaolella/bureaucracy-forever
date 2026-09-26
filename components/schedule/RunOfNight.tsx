@@ -1,7 +1,7 @@
 'use client';
 
 import { RUN_OF_NIGHT } from '@/content/schedule';
-import { formatClock, formatRealmClock, nextOccurrence } from '@/lib/time';
+import { formatClock, formatGuildClock, nextOccurrence } from '@/lib/time';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 
 const TH = 'border-b border-line px-[22px] py-3 text-left text-label font-semibold uppercase tracking-[0.12em]';
@@ -14,7 +14,7 @@ export function RunOfNight() {
   const viewer = useViewerTimeZone();
   const rows = RUN_OF_NIGHT.rows.map((r) => ({
     ...r,
-    server: formatRealmClock(r.time),
+    server: formatGuildClock(r.time),
     local: viewer ? formatClock(nextOccurrence(RUN_OF_NIGHT.anchorDay, r.time), viewer.zone) : null,
   }));
 

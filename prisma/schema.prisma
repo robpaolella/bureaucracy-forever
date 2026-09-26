@@ -129,7 +129,7 @@ model Availability {
 model Raid {
   id             String    @id @default(cuid())
   name           String
-  /// Absolute instant; render twice per viewer (realm zone and theirs).
+  /// Absolute instant; render twice per viewer (guild zone and theirs).
   startsAt       DateTime
   durationMin    Int       @default(180)
   notes          String?

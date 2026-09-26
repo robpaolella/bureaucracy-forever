@@ -9,7 +9,7 @@ import {
   countStates,
   offsetDescription,
   relativeTime,
-  serverOffsetSlots,
+  guildOffsetSlots,
   slotKey,
   weekDays,
   weekStart,
@@ -19,7 +19,7 @@ import {
   type WeekDay,
 } from '@/lib/availability';
 import { cn } from '@/lib/cn';
-import { REALM_TIMEZONE } from '@/lib/config';
+import { GUILD_TIMEZONE } from '@/lib/config';
 import { zoneAbbreviation } from '@/lib/time';
 import { DayColumn } from './DayColumn';
 import { DayListModal } from './DayListModal';
@@ -64,7 +64,7 @@ export function AvailabilityEditor({ initial }: Props) {
   // The zone the week is painted in: the stored one, else the viewer's for a first-time painter.
   const [storedZone, setStoredZone] = useState(initial?.timezone ?? null);
   const zone = storedZone ?? viewer?.zone ?? null;
-  const effectiveZone = zone ?? REALM_TIMEZONE;
+  const effectiveZone = zone ?? GUILD_TIMEZONE;
   const [week, setWeek] = useState<Week>(initial?.slots ?? {});
   const [mode, setMode] = useState<PaintMode>('available');
   const [dirty, setDirty] = useState(false);
@@ -86,7 +86,7 @@ export function AvailabilityEditor({ initial }: Props) {
   }, []);
 
   const days = useMemo(() => weekDays(now, effectiveZone), [now, effectiveZone]);
-  const offsetSlots = useMemo(() => serverOffsetSlots(weekStart(now, effectiveZone), effectiveZone), [now, effectiveZone]);
+  const offsetSlots = useMemo(() => guildOffsetSlots(weekStart(now, effectiveZone), effectiveZone), [now, effectiveZone]);
   const counts = countStates(week);
 
   const change = useCallback((next: Week) => {
@@ -277,7 +277,7 @@ export function AvailabilityEditor({ initial }: Props) {
           <div className="flex flex-col gap-[3px]">
             <span className="text-label font-semibold uppercase text-sand">Server</span>
             <span className="tabular text-sm font-semibold text-fg-2">
-              {zoneAbbreviation(now, REALM_TIMEZONE)} · {offsetDescription(offsetSlots)}
+              {zoneAbbreviation(now, GUILD_TIMEZONE)} · {offsetDescription(offsetSlots)}
             </span>
           </div>
         </div>
