@@ -77,6 +77,21 @@ describe('stacking', () => {
     expect(h.weekStart).toBe('2026-09-28T07:00:00.000Z');
   });
 
+  it('keeps the role split summing to the total when if-needed halves round', () => {
+    const h = buildHeatmap(
+      [member('T', LA, { '1:40': 'if-needed' }, 'tank'), member('H', LA, { '1:40': 'if-needed' }, 'healer'), member('M', LA, { '1:40': 'available' }, 'melee')],
+      LA,
+      NOW,
+    );
+    const cell = h.cells[1][40];
+    expect(cell.total).toBe(2); // 1 + 0.5 + 0.5
+    const sum = cell.roles.tank + cell.roles.healer + cell.roles.melee + cell.roles.ranged;
+    expect(sum).toBe(cell.total);
+    expect(cell.roles.melee).toBe(1);
+    expect(cell.roles.tank + cell.roles.healer).toBe(1); // one half rounds up, the other down
+    expect(cell.roles.tank).toBe(1); // ties go to the earlier role
+  });
+
   it('ignores malformed keys rather than throwing', () => {
     const h = buildHeatmap([member('X', LA, { '9:99': 'available', junk: 'available', '0:0': 'available' } as never)], LA, NOW);
     expect(h.cells[0][0].total).toBe(1);

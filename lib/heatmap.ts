@@ -53,6 +53,28 @@ export function weighted(available: number, ifNeeded: number): number {
   return Math.round(available + ifNeeded / 2);
 }
 
+/**
+ * Role counts that add up to the cell's total. Each role's exact weight is floored, then
+ * the rounding remainder goes to the roles with the largest fractions, so the inspector's
+ * 2×2 breakdown never disagrees with the figure above it.
+ */
+export function splitToTotal(split: { a: RoleCounts; n: RoleCounts }, total: number): RoleCounts {
+  const exact = HEAT_ROLES.map((r) => ({ r, v: split.a[r] + split.n[r] / 2 }));
+  const out: RoleCounts = { ...ZERO_ROLES };
+  let remainder = total;
+  for (const { r, v } of exact) {
+    out[r] = Math.floor(v);
+    remainder -= out[r];
+  }
+  exact.sort((x, y) => y.v - Math.floor(y.v) - (x.v - Math.floor(x.v)) || HEAT_ROLES.indexOf(x.r) - HEAT_ROLES.indexOf(y.r));
+  for (const { r } of exact) {
+    if (remainder <= 0) break;
+    out[r] += 1;
+    remainder -= 1;
+  }
+  return out;
+}
+
 function emptyCell(): HeatCell {
   return { total: 0, available: 0, ifNeeded: 0, roles: { ...ZERO_ROLES }, who: [] };
 }
@@ -112,7 +134,7 @@ export function buildHeatmap(members: HeatMember[], viewerZone: string, now: Dat
       const cell = cells[d][s];
       const split = roleSplit[d][s];
       cell.total = weighted(cell.available, cell.ifNeeded);
-      for (const r of HEAT_ROLES) cell.roles[r] = weighted(split.a[r], split.n[r]);
+      cell.roles = splitToTotal(split, cell.total);
       cell.who.sort((x, y) => (x.state === y.state ? x.i - y.i : x.state === 'available' ? -1 : 1));
     }
   }
