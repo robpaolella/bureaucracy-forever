@@ -99,7 +99,7 @@ export default async function RaidDetailPage({ params }: Params) {
     <div className="flex flex-col gap-8 px-4 pb-12 pt-8 md:px-12 md:pt-11">
       <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="flex flex-col gap-3">
-          <Link href="/members/calendar" className="text-small text-fg-3 underline-offset-4 hover:underline">
+          <Link href="/members/calendar" className="inline-flex min-h-11 items-center self-start text-small text-fg-3 underline-offset-4 hover:underline">
             ← {BACK_TO_CALENDAR}
           </Link>
           <span className="font-eyebrow text-label font-semibold uppercase tracking-[0.28em] text-sand">{RAID_EYEBROW}</span>

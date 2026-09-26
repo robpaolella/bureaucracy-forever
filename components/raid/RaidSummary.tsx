@@ -37,20 +37,20 @@ export function RaidSummary({ counts, requirements, split, notes, cancelled }: P
         {cancelled && <p className="text-sm text-stop">{SUMMARY.cancelled}</p>}
       </div>
 
-      <dl className="flex flex-col gap-3">
+      <ul className="flex flex-col gap-3">
         {ROLES.map((r) => (
-          <div key={r} className="flex flex-col gap-1.5">
+          <li key={r} className="flex flex-col gap-1.5">
             <div className="flex items-baseline justify-between text-sm">
-              <dt className="text-fg-2">{ROLE_LABELS[r]}</dt>
-              <dd className="tabular">
+              <span className="text-fg-2">{ROLE_LABELS[r]}</span>
+              <span className="tabular">
                 <span className={cn('font-semibold', TONE_TEXT[countTone(counts[r], requirements[r])])}>{counts[r]}</span>
                 <span className="text-fg-3"> / {requirements[r]}</span>
-              </dd>
+              </span>
             </div>
             <ProgressTrack value={counts[r]} max={requirements[r]} label={ROLE_LABELS[r]} />
-          </div>
+          </li>
         ))}
-      </dl>
+      </ul>
 
       <p className="tabular text-small text-fg-3">
         {split.web} via web · {split.discord} via Discord

@@ -39,7 +39,7 @@ export const OFFICER_ACTIONS = {
   response: 'Response',
   clear: 'Clear their answer',
   apply: 'Set',
-  done: 'Done',
+  choose: 'Choose a member…',
 };
 
 export function onBehalfToast(name: string, response: string | null): string {

@@ -65,7 +65,7 @@ export function OfficerActions({ raidId, members, closed }: Props) {
 
 function OnBehalfForm({ raidId, members, onToast, onDone }: { raidId: string; members: MemberOption[]; onToast: (t: ToastData) => void; onDone: () => void }) {
   const router = useRouter();
-  const [userId, setUserId] = useState(members[0]?.id ?? '');
+  const [userId, setUserId] = useState('');
   const [response, setResponse] = useState<RaidResponse | ''>('accept');
   const [saving, setSaving] = useState(false);
 
@@ -94,7 +94,7 @@ function OnBehalfForm({ raidId, members, onToast, onDone }: { raidId: string; me
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3 md:flex-row md:items-end" aria-label={OFFICER_ACTIONS.onBehalf}>
-      <Select label={OFFICER_ACTIONS.member} options={members.map((m) => ({ value: m.id, label: m.label }))} value={userId} onChange={(e) => setUserId(e.target.value)} className="md:w-[220px]" />
+      <Select label={OFFICER_ACTIONS.member} options={[{ value: '', label: OFFICER_ACTIONS.choose }, ...members.map((m) => ({ value: m.id, label: m.label }))]} value={userId} onChange={(e) => setUserId(e.target.value)} className="md:w-[220px]" />
       <Select
         label={OFFICER_ACTIONS.response}
         options={[...RESPONSES.map((r) => ({ value: r, label: RESPONSE_LABEL[r] })), { value: '', label: OFFICER_ACTIONS.clear }]}
