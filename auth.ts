@@ -20,9 +20,12 @@ import { asRole, claimsForSignIn, refreshClaims } from '@/lib/auth/token-roles';
 const lookup = (discordId: string) => lookupGuildMember(discordId);
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  // Production must set AUTH_URL and gets Auth.js's fail-fast UnknownHost check. Only
-  // development trusts the incoming host, so `npm run dev` works on any port.
-  trustHost: process.env.NODE_ENV !== 'production',
+  // Auth.js refuses every request unless the host is trusted; setting AUTH_URL alone does
+  // not lift that. Development trusts any host so `npm run dev` works on any port. In
+  // production the host is trusted when AUTH_URL pins the callback URL or when Vercel is
+  // the host, since Vercel only routes the project's own domains to this function. With
+  // neither set, production still fails fast rather than trusting an arbitrary header.
+  trustHost: process.env.NODE_ENV !== 'production' || Boolean(process.env.AUTH_URL || process.env.VERCEL),
   session: { strategy: 'jwt' },
   pages: { signIn: '/login' },
   providers: [
