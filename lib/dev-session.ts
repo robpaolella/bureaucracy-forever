@@ -11,8 +11,10 @@ export const DEV_SESSION_STATES = ['out', 'member', 'member-unsubmitted', 'offic
 export type DevSessionState = (typeof DEV_SESSION_STATES)[number];
 
 const STUBS: Record<Exclude<DevSessionState, 'out'>, Session> = {
+  // Seeded ids from prisma/seed-data.ts: Redtape (i=1) and Ledgerline (i=0), so member
+  // pages show real seeded rows in development. The unsubmitted stub has no row on purpose.
   member: {
-    discordId: 'dev-member',
+    discordId: '100000000010007919',
     role: 'member',
     name: 'Redtape',
     wowClass: 'priest',
@@ -21,7 +23,7 @@ const STUBS: Record<Exclude<DevSessionState, 'out'>, Session> = {
     pendingApplications: 0,
   },
   'member-unsubmitted': {
-    discordId: 'dev-member',
+    discordId: 'dev-member-unsubmitted',
     role: 'member',
     name: 'Redtape',
     wowClass: 'priest',
@@ -30,7 +32,7 @@ const STUBS: Record<Exclude<DevSessionState, 'out'>, Session> = {
     pendingApplications: 0,
   },
   officer: {
-    discordId: 'dev-officer',
+    discordId: '100000000010000000',
     role: 'officer',
     name: 'Ledgerline',
     wowClass: 'warrior',

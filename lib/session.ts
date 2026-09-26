@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { auth } from '@/auth';
+import { db } from '@/lib/db';
 import type { Rank } from '@/components/ui/Badges';
 import type { WowClass } from '@/lib/design/class-colors';
 import { DEV_SESSION_COOKIE, devSessionFromCookie } from '@/lib/dev-session';
@@ -17,7 +18,7 @@ export type Session = {
   avatarUrl?: string;
   /** Display rank on the roster, stored separately from `role`. Derived from role until then. */
   rank: Rank;
-  /** Drives the "Not submitted" note in the Members menu. Real value arrives with step 6. */
+  /** Drives the "Not submitted" note in the Members menu. Read from the database. */
   availabilitySubmitted: boolean;
   /** Officers only: pending applications, shown as a count badge. Real value with step 9. */
   pendingApplications: number;
@@ -43,7 +44,7 @@ export async function getDevStubSession(): Promise<Session | null | undefined> {
  */
 export async function getSession(): Promise<Session | null> {
   const stub = await getDevStubSession();
-  if (stub !== undefined) return stub;
+  if (stub !== undefined) return stub && { ...stub, availabilitySubmitted: await hasAvailability(stub.discordId) };
 
   const session = await auth();
   if (!session?.user?.id) return null;
@@ -53,7 +54,16 @@ export async function getSession(): Promise<Session | null> {
     name: session.user.name ?? 'Member',
     avatarUrl: session.user.image ?? undefined,
     rank: RANK_FOR_ROLE[session.user.role],
-    availabilitySubmitted: true,
+    availabilitySubmitted: await hasAvailability(session.user.id),
     pendingApplications: 0,
   };
+}
+
+/** Whether this member has painted a week. A database failure reads as "not yet", never as an error on every page. */
+async function hasAvailability(discordId: string): Promise<boolean> {
+  try {
+    return (await db.availability.count({ where: { user: { discordId } } })) > 0;
+  } catch {
+    return false;
+  }
 }
