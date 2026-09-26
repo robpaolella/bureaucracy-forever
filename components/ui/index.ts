@@ -15,7 +15,7 @@ export {
   type SignupSource,
 } from './Badges';
 export { Card, StatCard } from './Card';
-export { DataTable, type Column, type SortDir } from './DataTable';
+export { DataTable, type Column, type RowGroup, type SortDir } from './DataTable';
 export { Modal, ModalPanel } from './Modal';
 export { EmptyState } from './EmptyState';
 export { Skeleton, SkeletonText } from './Skeleton';

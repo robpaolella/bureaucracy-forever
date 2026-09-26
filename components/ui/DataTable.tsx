@@ -16,9 +16,16 @@ export type Column<T> = {
   className?: string;
 };
 
+export type RowGroup<T> = { key: string; label: string; rows: T[] };
+
 type DataTableProps<T> = {
   columns: Column<T>[];
   rows: T[];
+  /**
+   * Grouped view (docs/04 § Roster): each group gets a 32px ink-850 header row carrying
+   * its label and count, then its rows. When set, `rows` is ignored for rendering.
+   */
+  groups?: RowGroup<T>[];
   rowKey: (row: T) => string;
   sortKey?: string;
   sortDir?: SortDir;
@@ -37,6 +44,7 @@ type DataTableProps<T> = {
 export function DataTable<T>({
   columns,
   rows,
+  groups,
   rowKey,
   sortKey,
   sortDir = 'asc',
@@ -45,7 +53,8 @@ export function DataTable<T>({
   caption,
   className,
 }: DataTableProps<T>) {
-  const pad = density === 'compact' ? 'py-2' : 'py-[13px]';
+  // Row height is the cell height, so a badge in a cell cannot stretch the row past 44 / 36.
+  const pad = density === 'compact' ? 'h-9 py-1' : 'h-11 py-1.5';
   const isRight = (c: Column<T>) => c.align === 'right' || c.numeric;
 
   return (
@@ -88,26 +97,35 @@ export function DataTable<T>({
             })}
           </tr>
         </thead>
-        <tbody className="[&>tr:last-child>td]:border-b-0">
-          {rows.map((row) => (
-            <tr key={rowKey(row)} className="transition-colors duration-[120ms] even:bg-ink-850 hover:bg-ink-850">
-              {columns.map((c) => (
-                <td
-                  key={c.key}
-                  className={cn(
-                    'border-b border-line-faint px-5',
-                    pad,
-                    isRight(c) && 'text-right',
-                    c.numeric && 'tabular',
-                    c.className,
-                  )}
-                >
-                  {c.render(row)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
+        {(groups ?? [{ key: 'all', label: '', rows }]).map((g) => (
+          <tbody key={g.key} className="[&>tr:last-child>td]:border-b-0">
+            {g.label && (
+              <tr className="bg-ink-850">
+                <th scope="colgroup" colSpan={columns.length} className="h-8 border-y border-line px-5 text-left text-label font-semibold uppercase tracking-[0.12em] text-fg-2">
+                  {g.label} <span className="tabular font-normal text-fg-3">· {g.rows.length}</span>
+                </th>
+              </tr>
+            )}
+            {g.rows.map((row) => (
+              <tr key={rowKey(row)} className="transition-colors duration-[120ms] even:bg-ink-850 hover:bg-ink-850">
+                {columns.map((c) => (
+                  <td
+                    key={c.key}
+                    className={cn(
+                      'border-b border-line-faint px-5',
+                      pad,
+                      isRight(c) && 'text-right',
+                      c.numeric && 'tabular',
+                      c.className,
+                    )}
+                  >
+                    {c.render(row)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        ))}
       </table>
     </div>
   );
