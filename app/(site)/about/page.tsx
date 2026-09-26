@@ -9,7 +9,7 @@ import { initials } from '@/lib/format';
 import { MEMBER_LINKS } from '@/lib/nav';
 
 export const metadata: Metadata = {
-  title: 'About — Bureaucracy',
+  title: 'About',
   description:
     'A competitive 40-player raiding guild from Smolderweb: server firsts, fastest clears, top 500 through Naxxramas. How we run a night, and who to ask.',
 };

@@ -9,7 +9,7 @@ import { getSession } from '@/lib/session';
 import { INBOX, INBOX_HEAD } from '@/content/applications';
 
 export const metadata: Metadata = {
-  title: 'Applications — Bureaucracy',
+  title: 'Applications',
   robots: { index: false, follow: false },
 };
 

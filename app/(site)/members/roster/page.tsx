@@ -9,7 +9,7 @@ import { getSession } from '@/lib/session';
 import { ROSTER_HEAD } from '@/content/roster';
 
 export const metadata: Metadata = {
-  title: 'Roster — Bureaucracy',
+  title: 'Roster',
   robots: { index: false, follow: false },
 };
 

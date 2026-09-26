@@ -6,7 +6,7 @@ import { getSession } from '@/lib/session';
 import { NEEDS_EDITOR_HEAD } from '@/content/needs-editor';
 
 export const metadata: Metadata = {
-  title: 'Edit class needs — Bureaucracy',
+  title: 'Edit class needs',
   robots: { index: false, follow: false },
 };
 

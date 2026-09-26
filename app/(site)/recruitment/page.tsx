@@ -9,7 +9,7 @@ import { getClassNeeds } from '@/lib/class-needs-data';
 import { DISCORD_INVITE_URL } from '@/lib/config';
 
 export const metadata: Metadata = {
-  title: 'Recruitment — Bureaucracy',
+  title: 'Recruitment',
   description: 'Open needs by class and role, what we expect of a raider, and the application form.',
 };
 

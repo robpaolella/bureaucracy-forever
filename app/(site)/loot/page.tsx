@@ -6,7 +6,7 @@ import { LOOT_ASIDE, LOOT_FAQ, LOOT_HEAD, LOOT_SUMMARY, LOOT_TOC, LOOT_TRIALS, L
 import { cn } from '@/lib/cn';
 
 export const metadata: Metadata = {
-  title: 'Loot rules — Bureaucracy',
+  title: 'Loot rules',
   description: 'How loot is decided: who sits on council, how a drop is weighed, and what trials can expect.',
 };
 

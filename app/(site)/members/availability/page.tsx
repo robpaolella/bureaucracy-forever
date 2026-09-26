@@ -6,7 +6,7 @@ import { db } from '@/lib/db';
 import { getSession } from '@/lib/session';
 
 export const metadata: Metadata = {
-  title: 'My availability — Bureaucracy',
+  title: 'My availability',
   robots: { index: false, follow: false },
 };
 

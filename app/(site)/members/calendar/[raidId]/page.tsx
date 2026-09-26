@@ -17,7 +17,7 @@ type Params = { params: Promise<{ raidId: string }> };
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { raidId } = await params;
   const raid = await db.raid.findUnique({ where: { id: raidId }, select: { name: true } });
-  return { title: `${raid?.name ?? 'Raid'} — Bureaucracy`, robots: { index: false, follow: false } };
+  return { title: raid?.name ?? 'Raid', robots: { index: false, follow: false } };
 }
 
 const MAIN = { where: { isMain: true }, take: 1, select: { name: true, class: true, spec: true, raidRole: true } } as const;

@@ -10,7 +10,7 @@ import { getSession } from '@/lib/session';
 import { CALENDAR_HEAD } from '@/content/calendar';
 
 export const metadata: Metadata = {
-  title: 'Raid calendar — Bureaucracy',
+  title: 'Raid calendar',
   robots: { index: false, follow: false },
 };
 
