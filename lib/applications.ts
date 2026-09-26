@@ -46,8 +46,16 @@ export function parseApplication(data: FormData, sessionHandle: string | null): 
   const rawCharacter = text(data, 'character');
   if (!CHARACTER.test(rawCharacter)) errors.character = 'Character names are 2–12 letters, exactly as in game.';
 
-  const discord = (sessionHandle ?? text(data, 'discord')).toLowerCase().replace(/^@/, '');
-  if (!DISCORD.test(discord)) errors.discord = 'Your Discord handle, so an officer can reach you.';
+  // Logged in: the session name is a guild nickname or display name, which Discord lets
+  // contain spaces and symbols, and the field is read-only, so it is trusted as given.
+  // Anonymous: a typed handle the bot must be able to look up, so it has to be a real one.
+  let discord: string;
+  if (sessionHandle) {
+    discord = sessionHandle.trim().slice(0, 64);
+  } else {
+    discord = text(data, 'discord').toLowerCase().replace(/^@/, '');
+    if (!DISCORD.test(discord)) errors.discord = 'Your Discord handle, so an officer can reach you.';
+  }
 
   let wowClass: WowClass | null = null;
   let spec: string | null = null;

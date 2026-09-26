@@ -56,7 +56,7 @@ export function ApplicationForm() {
   const params = useSearchParams();
   // From the session when logged in; the field is then read-only. Read on the client so
   // the page stays static.
-  const discordHandle = useSiteSession().session?.name.toLowerCase();
+  const discordHandle = useSiteSession().session?.name;
   const [path, setPath] = useState<ApplicationPath>(params.get('path') === 'social' ? 'social' : 'raider');
   const [wowClass, setWowClass] = useState<WowClass | ''>('');
   const [state, formAction, pending] = useActionState(submitApplication, INITIAL_STATE);
@@ -74,7 +74,7 @@ export function ApplicationForm() {
       {/* Honeypot: off-screen and out of the tab order; people never see it, bots fill it. */}
       <div aria-hidden className="absolute -left-[9999px] h-px w-px overflow-hidden">
         <label>
-          Website <input type="text" name={HONEYPOT_FIELD} tabIndex={-1} autoComplete="off" />
+          Website <input type="text" name={HONEYPOT_FIELD} tabIndex={-1} autoComplete="off" readOnly />
         </label>
       </div>
       <div className="flex flex-col gap-2.5">

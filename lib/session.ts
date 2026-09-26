@@ -50,20 +50,28 @@ export const getSession = cache(async function getSession(): Promise<Session | n
   if (!session?.user?.id) {
     const stub = await getDevStubSession();
     if (stub !== undefined) {
-      return stub && { ...stub, availabilitySubmitted: await hasAvailability(stub.discordId), pendingApplications: stub.role === 'officer' ? await pendingApplications() : 0 };
+      if (!stub) return null;
+      const [availabilitySubmitted, pendingApplications] = await counts(stub.discordId, stub.role);
+      return { ...stub, availabilitySubmitted, pendingApplications };
     }
     return null;
   }
+  const [availabilitySubmitted, pendingApplications] = await counts(session.user.id, session.user.role);
   return {
     discordId: session.user.id,
     role: session.user.role,
     name: session.user.name ?? 'Member',
     avatarUrl: session.user.image ?? undefined,
     rank: RANK_FOR_ROLE[session.user.role],
-    availabilitySubmitted: await hasAvailability(session.user.id),
-    pendingApplications: session.user.role === 'officer' ? await pendingApplications() : 0,
+    availabilitySubmitted,
+    pendingApplications,
   };
 });
+
+/** The two per-request reads, in parallel: has this member painted, and (officers) how many applications wait. */
+function counts(discordId: string, role: Role): Promise<[boolean, number]> {
+  return Promise.all([hasAvailability(discordId), role === 'officer' ? pendingApplications() : Promise.resolve(0)]);
+}
 
 /** Officers only: the count badge in the nav (docs/02 § SiteHeader). A database failure reads as none. */
 async function pendingApplications(): Promise<number> {

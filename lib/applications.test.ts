@@ -29,9 +29,10 @@ describe('parseApplication', () => {
     }
   });
 
-  it('takes the handle from the session when logged in', () => {
-    const r = parseApplication(form({ ...raider, discord: '' }), 'Ledgerline');
-    expect(r).toMatchObject({ ok: true, value: { discord: 'ledgerline' } });
+  it('takes the name from the session when logged in, however Discord spells it', () => {
+    expect(parseApplication(form({ ...raider, discord: '' }), 'Ledgerline')).toMatchObject({ ok: true, value: { discord: 'Ledgerline' } });
+    expect(parseApplication(form({ ...raider, discord: '' }), 'Red Tape 📎')).toMatchObject({ ok: true, value: { discord: 'Red Tape 📎' } });
+    expect(parseApplication(form({ ...raider, discord: 'red tape' }), null)).toMatchObject({ ok: false, errors: { discord: expect.any(String) } });
   });
 
   it('names every failing field', () => {
