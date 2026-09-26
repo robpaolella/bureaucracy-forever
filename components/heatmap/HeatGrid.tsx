@@ -34,30 +34,45 @@ export function HeatGrid({ heat, days, offsetSlots }: Props) {
   const empty = heat.submitted === 0;
 
   return (
-    <div ref={container} className="relative rounded-card border border-line bg-ink-900" onMouseLeave={() => setTarget(null)} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setTarget(null)}>
+    <div
+      ref={container}
+      role="grid"
+      aria-label="Roster availability, members available per half-hour"
+      aria-rowcount={SLOTS}
+      className="relative rounded-card border border-line bg-ink-900"
+      onMouseLeave={() => setTarget(null)}
+      onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setTarget(null)}
+    >
       <div className="flex h-11 items-stretch rounded-t-card border-b border-line bg-ink-850" role="row">
-        <div className={cn(GUTTER, 'flex items-center pl-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-teal')}>Yours</div>
+        <div className={cn(GUTTER, 'flex items-center pl-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-teal')} role="columnheader">
+          Yours
+        </div>
         {days.map((d) => (
-          <div key={d.day} className="flex flex-1 basis-0 flex-col justify-center gap-px border-l border-line-faint pl-2.5">
+          <div key={d.day} className="flex flex-1 basis-0 flex-col justify-center gap-px border-l border-line-faint pl-2.5" role="columnheader">
             <span className={cn('text-[13px] font-semibold', d.isToday ? 'text-sand' : 'text-fg')}>{d.name}</span>
             <span className="text-[10px] text-fg-3">{d.date}</span>
           </div>
         ))}
-        <div className={cn(GUTTER, 'flex items-center justify-end border-l border-line-faint pr-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-sand')}>Guild</div>
+        <div className={cn(GUTTER, 'flex items-center justify-end border-l border-line-faint pr-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-sand')} role="columnheader">
+          Guild
+        </div>
       </div>
 
       {Array.from({ length: SLOTS }, (_, slot) => {
         const onHour = slot % 2 === 0;
         const line = onHour ? 'border-line-faint' : 'border-line-hairline';
         return (
-          <div key={slot} className="flex items-stretch" style={{ height: ROW }}>
-            <div className={cn(GUTTER, 'tabular flex items-center border-b pl-3 text-[10px] text-fg-muted', line)}>{onHour ? fmtSlot(slot) : ''}</div>
+          <div key={slot} className="flex items-stretch" style={{ height: ROW }} role="row">
+            <div className={cn(GUTTER, 'tabular flex items-center border-b pl-3 text-[10px] text-fg-muted', line)} role="rowheader">
+              {onHour ? fmtSlot(slot) : ''}
+            </div>
             {days.map((d) => {
               const cell = heat.cells[d.day][slot];
               return (
                 <button
                   key={d.day}
                   type="button"
+                  role="gridcell"
                   aria-label={`${d.name} ${fmtSlot(slot)}, ${cell.total} available`}
                   onMouseEnter={(e) => show(d.day, slot, e.currentTarget)}
                   onFocus={(e) => show(d.day, slot, e.currentTarget)}
@@ -69,7 +84,9 @@ export function HeatGrid({ heat, days, offsetSlots }: Props) {
                 />
               );
             })}
-            <div className={cn(GUTTER, 'tabular flex items-center justify-end border-b border-l border-l-line-faint pr-3 text-[10px] text-fg-3', line)}>{onHour ? fmtSlot(slot + offsetSlots) : ''}</div>
+            <div className={cn(GUTTER, 'tabular flex items-center justify-end border-b border-l border-l-line-faint pr-3 text-[10px] text-fg-3', line)} role="gridcell">
+              {onHour ? fmtSlot(slot + offsetSlots) : ''}
+            </div>
           </div>
         );
       })}
