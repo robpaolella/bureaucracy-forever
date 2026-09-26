@@ -14,7 +14,8 @@ export default defineConfig({
   },
   datasource: {
     // Migrations need the direct (non-pooled) host. The app itself connects through
-    // the pooled DATABASE_URL in lib/db.ts.
-    url: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
+    // the pooled DATABASE_URL in lib/db.ts. `||`, not `??`: a host that defines
+    // DIRECT_URL as an empty string should fall back rather than fail on an empty URL.
+    url: process.env.DIRECT_URL || process.env.DATABASE_URL,
   },
 });
