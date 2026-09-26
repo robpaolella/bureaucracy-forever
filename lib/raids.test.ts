@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyResponse, countAccepted, countTone, groupSignups, isRaidResponse, isTonight, isUpcoming, parseRequirements, raidWeekday, responseToast, sourceSplit, totalCounts, ZERO_COUNTS, type SignupRow } from './raids';
+import { applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, emptyRaidInput, groupSignups, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, parseRequirements, raidWeekday, responseToast, sourceSplit, totalCounts, ZERO_COUNTS, type SignupRow } from './raids';
 
 describe('requirements and counts', () => {
   it('parses a JSON requirements column defensively', () => {
@@ -106,5 +106,44 @@ describe('raid detail', () => {
   it('splits answers by surface and totals the role counts', () => {
     expect(sourceSplit([row({}), row({ source: 'discord' }), row({ source: 'discord', response: 'absent' })])).toEqual({ web: 1, discord: 2 });
     expect(totalCounts({ tank: 2, healer: 8, melee: 11, ranged: 14 })).toBe(35);
+  });
+});
+
+describe('schedule form input', () => {
+  const good = { name: 'Blackwing Lair', date: '2026-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 }, notes: '' };
+
+  it('derives the instant in guild time', () => {
+    const r = parseRaidInput(good);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      // 4 Nov 2026 is after the US fall-back: 19:00 PST is 03:00Z next day.
+      expect(r.startsAt.toISOString()).toBe('2026-11-05T03:00:00.000Z');
+      expect(r.value.name).toBe('Blackwing Lair');
+    }
+    const summer = parseRaidInput({ ...good, date: '2026-10-07' });
+    if (summer.ok) expect(summer.startsAt.toISOString()).toBe('2026-10-08T02:00:00.000Z');
+  });
+
+  it('names the field that failed', () => {
+    expect(parseRaidInput({ ...good, name: ' ' })).toMatchObject({ ok: false, error: /name/ });
+    expect(parseRaidInput({ ...good, date: '2026-13-01' })).toMatchObject({ ok: false, error: /not real/ });
+    expect(parseRaidInput({ ...good, date: '2026-02-30' })).toMatchObject({ ok: false, error: /not real/ });
+    expect(parseRaidInput({ ...good, time: '7pm' })).toMatchObject({ ok: false, error: /start time/ });
+    expect(parseRaidInput({ ...good, durationMin: 100 })).toMatchObject({ ok: false, error: /length/ });
+    expect(parseRaidInput({ ...good, requirements: { tank: 2, healer: 8, melee: 9, ranged: 41 } })).toMatchObject({ ok: false, error: /0 to 40/ });
+    expect(parseRaidInput({ ...good, requirements: { tank: 0, healer: 0, melee: 0, ranged: 0 } })).toMatchObject({ ok: false, error: /at least one/ });
+    expect(parseRaidInput({ ...good, notes: 'x'.repeat(501) })).toMatchObject({ ok: false, error: /notes/ });
+  });
+
+  it('round-trips a stored raid through the form values', () => {
+    const input = raidToInput({ name: 'MC', startsAt: '2026-10-08T02:00:00.000Z', durationMin: 180, requirements: good.requirements, notes: null });
+    expect(input).toMatchObject({ date: '2026-10-07', time: '19:00', notes: '' });
+  });
+
+  it('prefills the next matching guild-time weekday from a heatmap window', () => {
+    // Saturday 26 Sep 2026, 10:00 PDT.
+    const now = new Date('2026-09-26T17:00:00.000Z');
+    expect(emptyRaidInput({ weekday: 3, time: '20:00', length: 240 }, now)).toMatchObject({ date: '2026-09-30', time: '20:00', durationMin: 240 });
+    expect(emptyRaidInput({}, now)).toMatchObject({ date: '2026-09-26', time: '19:00', durationMin: 180, requirements: DEFAULT_REQUIREMENTS });
   });
 });

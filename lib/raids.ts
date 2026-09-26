@@ -5,7 +5,7 @@
  */
 import type { Role, WowClass } from '@/lib/design/class-colors';
 import { GUILD_TIMEZONE } from '@/lib/config';
-import { formatClock, zonedParts } from '@/lib/time';
+import { formatClock, nextOccurrence, zonedParts, zonedTimeToUtc, type Weekday } from '@/lib/time';
 
 export type RaidResponse = 'accept' | 'tentative' | 'absent';
 export const RESPONSES: readonly RaidResponse[] = ['accept', 'tentative', 'absent'];
@@ -146,4 +146,96 @@ export function sourceSplit(rows: { source: SignupSource }[]): { web: number; di
 
 export function totalCounts(counts: RoleCounts): number {
   return counts.tank + counts.healer + counts.melee + counts.ranged;
+}
+
+/** What the schedule form submits: guild-time wall clock, never an instant. */
+export type RaidInput = {
+  name: string;
+  /** YYYY-MM-DD in guild time. */
+  date: string;
+  /** HH:MM, 24-hour, in guild time. */
+  time: string;
+  durationMin: number;
+  requirements: RoleCounts;
+  notes: string;
+};
+
+export const RAID_NAME_MAX = 80;
+export const RAID_NOTES_MAX = 500;
+export const DURATIONS = [90, 120, 150, 180, 210, 240, 270, 300, 330, 360] as const;
+export const DEFAULT_REQUIREMENTS: RoleCounts = { tank: 2, healer: 8, melee: 9, ranged: 11 };
+
+export type ParsedRaid = { ok: true; value: RaidInput; startsAt: Date } | { ok: false; error: string };
+
+/**
+ * Validate a schedule / edit body. Every failure names the field so the form can show
+ * it; the instant is derived here so the route and the form agree on guild time.
+ */
+export function parseRaidInput(body: unknown): ParsedRaid {
+  const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+  const name = typeof b.name === 'string' ? b.name.trim() : '';
+  if (!name) return { ok: false, error: 'Give the raid a name.' };
+  if (name.length > RAID_NAME_MAX) return { ok: false, error: `Keep the name under ${RAID_NAME_MAX} characters.` };
+
+  const date = typeof b.date === 'string' ? b.date : '';
+  const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const time = typeof b.time === 'string' ? b.time : '';
+  const tm = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!dm || !tm) return { ok: false, error: 'Pick a date and a start time.' };
+  const [year, month, day] = [Number(dm[1]), Number(dm[2]), Number(dm[3])];
+  const [hour, minute] = [Number(tm[1]), Number(tm[2])];
+  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59) return { ok: false, error: 'That date or time is not real.' };
+  const startsAt = zonedTimeToUtc(year, month, day, hour, minute, GUILD_TIMEZONE);
+  const back = zonedParts(startsAt, GUILD_TIMEZONE);
+  if (back.month !== month || back.day !== day) return { ok: false, error: 'That date or time is not real.' };
+
+  const durationMin = typeof b.durationMin === 'number' ? b.durationMin : Number(b.durationMin);
+  if (!(DURATIONS as readonly number[]).includes(durationMin)) return { ok: false, error: 'Pick a raid length.' };
+
+  const req = parseRequirements(b.requirements);
+  const given = (b.requirements && typeof b.requirements === 'object' ? b.requirements : {}) as Record<string, unknown>;
+  for (const role of ['tank', 'healer', 'melee', 'ranged'] as const) {
+    const v = given[role];
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 40) return { ok: false, error: 'Requirements are whole numbers from 0 to 40.' };
+  }
+  if (totalCounts(req) === 0) return { ok: false, error: 'A raid needs at least one person.' };
+
+  const notes = typeof b.notes === 'string' ? b.notes.trim() : '';
+  if (notes.length > RAID_NOTES_MAX) return { ok: false, error: `Keep the notes under ${RAID_NOTES_MAX} characters.` };
+
+  return { ok: true, value: { name, date, time, durationMin, requirements: req, notes }, startsAt };
+}
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** The form values for an existing raid, in guild time. */
+export function raidToInput(raid: { name: string; startsAt: string; durationMin: number; requirements: RoleCounts; notes: string | null }): RaidInput {
+  const p = zonedParts(new Date(raid.startsAt), GUILD_TIMEZONE);
+  return {
+    name: raid.name,
+    date: `${p.year}-${pad(p.month)}-${pad(p.day)}`,
+    time: `${pad(p.hour)}:${pad(p.minute)}`,
+    durationMin: raid.durationMin,
+    requirements: raid.requirements,
+    notes: raid.notes ?? '',
+  };
+}
+
+/**
+ * A blank form, optionally prefilled from a heatmap window: `weekday` (0 = Sunday) and
+ * `time` in guild time become the next such date; `length` is minutes.
+ */
+export function emptyRaidInput(prefill: { weekday?: Weekday; time?: string; length?: number } = {}, now: Date = new Date()): RaidInput {
+  const time = prefill.time && /^\d{2}:\d{2}$/.test(prefill.time) ? prefill.time : '19:00';
+  const at = prefill.weekday !== undefined ? nextOccurrence(prefill.weekday, time, GUILD_TIMEZONE, now) : now;
+  const p = zonedParts(at, GUILD_TIMEZONE);
+  const length = prefill.length && (DURATIONS as readonly number[]).includes(prefill.length) ? prefill.length : 180;
+  return {
+    name: '',
+    date: `${p.year}-${pad(p.month)}-${pad(p.day)}`,
+    time,
+    durationMin: length,
+    requirements: DEFAULT_REQUIREMENTS,
+    notes: '',
+  };
 }
