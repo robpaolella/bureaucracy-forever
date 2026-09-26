@@ -13,8 +13,8 @@ function localRange(night: RaidNight, zone: string): string {
 }
 
 /**
- * Seven equal cells, Monday first. Raid nights: ink-800 fill, sand-dim border, server
- * range large, "server" small, local range in teal. Off nights read "Off". On mobile the
+ * Seven equal cells, Monday first. Raid nights: ink-800 fill, sand-dim border, guild
+ * range large, "guild" small, local range in teal. Off nights read "Off". On mobile the
  * strip is a list and off days collapse to a 44px row (docs/04 § Raid schedule).
  */
 export function WeekStrip() {
@@ -53,7 +53,7 @@ export function WeekStrip() {
               {night.optional && <Tag className="self-start px-2 py-[3px] text-label tracking-normal">Optional</Tag>}
               <div className="mt-auto flex flex-col gap-1">
                 <span className="tabular text-[15px] font-semibold">{formatGuildRangeShort(night.start, night.end)}</span>
-                <span className="text-xs text-fg-3">server</span>
+                <span className="text-xs text-fg-3">guild</span>
                 <span className="tabular text-sm text-teal">{viewer ? `${localRange(night, viewer.zone)} yours` : ' '}</span>
               </div>
             </li>
@@ -61,7 +61,7 @@ export function WeekStrip() {
         })}
       </ol>
       <p className="text-[13px] text-fg-3">
-        {WEEK_NOTE_PREFIX} {WEEKDAY_NAMES[LOCKOUT_RESET.day]} <span className="tabular">{formatGuildClock(LOCKOUT_RESET.time)}</span> server
+        {WEEK_NOTE_PREFIX} {WEEKDAY_NAMES[LOCKOUT_RESET.day]} <span className="tabular">{formatGuildClock(LOCKOUT_RESET.time)}</span> guild time
         {resetLocal && (
           <>
             {' — '}

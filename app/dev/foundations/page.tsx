@@ -39,7 +39,7 @@ const TYPE_ROWS: { label: string; className: string; sample: string }[] = [
   { label: 'Display XL · Newsreader 500 · 64/1.04', className: 'font-display text-display-xl font-medium', sample: 'Prepared, on time, first down' },
   { label: 'Display L · Newsreader 500 · 44/1.1', className: 'font-display text-display-l font-medium', sample: 'Forty people, one pull' },
   { label: 'Display M · Newsreader 500 · 30/1.2', className: 'font-display text-display-m font-medium', sample: 'What we expect of a raider' },
-  { label: 'Title · Archivo 600 · 20/1.3', className: 'text-title font-semibold', sample: 'Tuesday, 8:00 PM server' },
+  { label: 'Title · Archivo 600 · 20/1.3', className: 'text-title font-semibold', sample: 'Tuesday, 8:00 PM guild time' },
   { label: 'Body · Archivo 400 · 16/1.65', className: 'max-w-[640px] text-body text-fg-2', sample: "We raid three nights a week and we finish on time. Consumables are your own, the strategy is the officers' and the loot is the guild's." },
   { label: 'Small · Archivo 400 · 13/1.55', className: 'text-small text-fg-2', sample: 'Last saved 2 minutes ago · detected timezone America/Los_Angeles' },
   { label: 'Label · Archivo 600 · 11/0.14em', className: 'text-label font-semibold uppercase text-fg-3', sample: 'Ranged DPS' },

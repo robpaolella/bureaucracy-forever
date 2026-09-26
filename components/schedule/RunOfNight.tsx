@@ -7,14 +7,14 @@ import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 const TH = 'border-b border-line px-[22px] py-3 text-left text-label font-semibold uppercase tracking-[0.12em]';
 
 /**
- * Server / Your time / What happens. A table on desktop; on mobile a stacked list with
+ * Guild time / Your time / What happens. A table on desktop; on mobile a stacked list with
  * both times side by side above each description (docs/04 § Raid schedule).
  */
 export function RunOfNight() {
   const viewer = useViewerTimeZone();
   const rows = RUN_OF_NIGHT.rows.map((r) => ({
     ...r,
-    server: formatGuildClock(r.time),
+    guild: formatGuildClock(r.time),
     local: viewer ? formatClock(nextOccurrence(RUN_OF_NIGHT.anchorDay, r.time), viewer.zone) : null,
   }));
 
@@ -25,7 +25,7 @@ export function RunOfNight() {
           <thead>
             <tr className="bg-ink-850">
               <th scope="col" className={`${TH} text-sand`}>
-                Server
+                Guild time
               </th>
               <th scope="col" className={`${TH} text-teal`}>
                 Your time
@@ -38,7 +38,7 @@ export function RunOfNight() {
           <tbody className="[&>tr:last-child>td]:border-b-0">
             {rows.map((r) => (
               <tr key={r.time} className="even:bg-ink-850">
-                <td className="tabular border-b border-line-faint px-[22px] py-4 font-semibold">{r.server}</td>
+                <td className="tabular border-b border-line-faint px-[22px] py-4 font-semibold">{r.guild}</td>
                 <td className="tabular border-b border-line-faint px-[22px] py-4 text-fg-2">{r.local ?? '—'}</td>
                 <td className="border-b border-line-faint px-[22px] py-4 text-fg-2">{r.text}</td>
               </tr>
@@ -52,7 +52,7 @@ export function RunOfNight() {
           <li key={r.time} className="flex flex-col gap-2 px-5 py-4 even:bg-ink-850">
             <div className="flex items-baseline gap-4">
               <span className="tabular text-[15px] font-semibold">
-                {r.server} <span className="text-label font-semibold uppercase tracking-[0.12em] text-sand">server</span>
+                {r.guild} <span className="text-label font-semibold uppercase tracking-[0.12em] text-sand">guild</span>
               </span>
               {r.local && (
                 <span className="tabular text-[15px] text-fg-2">

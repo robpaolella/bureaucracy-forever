@@ -9,7 +9,7 @@ import { MEMBER_LINKS } from '@/lib/nav';
 
 export const metadata: Metadata = {
   title: 'Raid schedule — Bureaucracy',
-  description: 'Three raid nights a week, shown in server time and yours. How a night runs, attendance and sign-ups.',
+  description: 'Three raid nights a week, shown in guild time and yours. How a night runs, attendance and sign-ups.',
 };
 
 const GUTTER = 'px-4 md:px-gutter';

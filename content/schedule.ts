@@ -30,7 +30,7 @@ export const LOCKOUT_RESET = { day: 2 as Weekday, time: '08:00' };
 export const SCHEDULE_HEAD = {
   eyebrow: 'Raid schedule',
   title: 'Three nights, nine hours, no overtime',
-  lede: 'Every time on this page is written twice: realm time, and the time on your own clock. Neither is ever the one you have to convert.',
+  lede: 'Every time on this page is written twice: guild time, and the time on your own clock. Neither is ever the one you have to convert.',
 };
 
 export const WEEK_NOTE_PREFIX = 'Raid nights are shown in bronze. Lockouts reset';

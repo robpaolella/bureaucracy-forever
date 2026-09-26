@@ -17,7 +17,7 @@ function zoneOptions(): { value: string; label: string }[] {
 }
 
 /**
- * The canonical dual-time block (docs/04 § Raid schedule): server zone in sand, the
+ * The canonical dual-time block (docs/04 § Raid schedule): guild zone in sand, the
  * viewer's zone in teal with a Detected / Chosen pill, and a button to override.
  * Reused at the top of the availability pages.
  */
@@ -31,7 +31,7 @@ export function TimezoneBar() {
   const now = useMemo(() => new Date(), []);
   const options = useMemo(() => zoneOptions(), []);
 
-  const guild = `Realm · ${zoneAbbreviation(now, GUILD_TIMEZONE)} (${formatUtcOffset(now, GUILD_TIMEZONE)})`;
+  const guild = `${GUILD_TIMEZONE} · ${zoneAbbreviation(now, GUILD_TIMEZONE)} (${formatUtcOffset(now, GUILD_TIMEZONE)})`;
   const yours = viewer ? `${viewer.zone} · ${zoneAbbreviation(now, viewer.zone)} (${formatUtcOffset(now, viewer.zone)})` : 'Detecting…';
 
   const openPicker = () => {
@@ -43,7 +43,7 @@ export function TimezoneBar() {
     <div className="flex flex-col gap-5 rounded-card border border-line bg-ink-850 px-5 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-[26px]">
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-12 sm:gap-y-4">
         <div className="flex flex-col gap-[5px]">
-          <span className={`${LABEL} text-sand`}>Server time</span>
+          <span className={`${LABEL} text-sand`}>Guild time</span>
           <span className="tabular text-base font-semibold">{guild}</span>
         </div>
         <div className="hidden h-[38px] w-px bg-line sm:block" aria-hidden />
@@ -93,7 +93,7 @@ export function TimezoneBar() {
         }
       >
         <div className="flex flex-col gap-4">
-          <p>Every time on the site will show in this zone beside server time. Saved in this browser.</p>
+          <p>Every time on the site will show in this zone beside guild time. Saved in this browser.</p>
           <Select label="Timezone" options={options} value={draft ?? ''} onChange={(e) => setDraft(e.target.value)} />
         </div>
       </Modal>

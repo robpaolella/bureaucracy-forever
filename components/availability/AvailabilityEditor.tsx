@@ -275,7 +275,7 @@ export function AvailabilityEditor({ initial }: Props) {
             </span>
           </div>
           <div className="flex flex-col gap-[3px]">
-            <span className="text-label font-semibold uppercase text-sand">Server</span>
+            <span className="text-label font-semibold uppercase text-sand">Guild time</span>
             <span className="tabular text-sm font-semibold text-fg-2">
               {zoneAbbreviation(now, GUILD_TIMEZONE)} · {offsetDescription(offsetSlots)}
             </span>

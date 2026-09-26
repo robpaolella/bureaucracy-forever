@@ -19,7 +19,7 @@ const PROGRESSION = RAID_NIGHTS.filter((n) => !n.optional);
 const AVAILABILITY_QUESTION = `Can you make ${PROGRESSION.map((n) => WEEKDAY_NAMES[n.day]).join(' and ')}, ${formatGuildRangeShort(
   PROGRESSION[0].start,
   PROGRESSION[0].end,
-)} server?`;
+)} guild time?`;
 
 function PathCard({ value, title, text, checked, onChange }: { value: ApplicationPath; title: string; text: string; checked: boolean; onChange: () => void }) {
   return (

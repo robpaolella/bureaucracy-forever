@@ -53,7 +53,7 @@ export function WeekGrid({ week, days, offsetSlots, paintCell, onOpenDay }: Prop
           </div>
         ))}
         <div className="flex w-[92px] shrink-0 items-center justify-end border-l border-line-faint pr-3.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-sand" role="columnheader">
-          Server
+          Guild
         </div>
       </div>
 

@@ -75,7 +75,7 @@ export function applyPaintRun(week: Week, day: number, fromSlot: number, toSlot:
   return next;
 }
 
-/** "8:30 PM". Slots wrap, so a server label past midnight reads correctly. */
+/** "8:30 PM". Slots wrap, so a guild-time label past midnight reads correctly. */
 export function fmtSlot(slot: number): string {
   const i = ((slot % SLOTS) + SLOTS) % SLOTS;
   const h = Math.floor(i / 2);
