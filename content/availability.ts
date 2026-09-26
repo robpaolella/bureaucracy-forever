@@ -26,4 +26,7 @@ export const WINDOW_FINDER = {
 export const NOBODY_SUBMITTED = 'Nobody has painted a week yet. The grid fills in as members save theirs.';
 
 export const NUDGE_LABEL = 'Nudge the rest in Discord';
-export const NUDGE_PENDING = 'Arrives with the Discord sync (build step 10).';
+export const NUDGE_SENT = (n: number) => (n === 1 ? 'Nudged one member in Discord' : `Nudged ${n} members in Discord`);
+export const NUDGE_NONE = 'Everyone has painted a week; nobody to nudge.';
+export const NUDGE_FAILED = "Couldn't reach the bot — try again in a minute.";
+export const NUDGE_UNCONFIGURED = 'Discord sync is not configured yet.';
