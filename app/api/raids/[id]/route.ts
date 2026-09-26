@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
+import { raidSummary } from '@/lib/bot-events';
+import { notifyBot } from '@/lib/bot-notify';
 import { db } from '@/lib/db';
-import { parseRaidInput } from '@/lib/raids';
+import { parseRaidInput, parseRequirements } from '@/lib/raids';
 import { getSession } from '@/lib/session';
 
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
@@ -25,8 +27,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const body: unknown = await request.json().catch(() => null);
   const b = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
 
+  const FULL = { id: true, name: true, startsAt: true, durationMin: true, notes: true, cancelledAt: true, requirements: true, discordEventId: true } as const;
   if (typeof b.cancelled === 'boolean') {
-    const updated = await db.raid.update({ where: { id: raid.id }, data: { cancelledAt: b.cancelled ? new Date() : null }, select: { id: true, cancelledAt: true } });
+    const updated = await db.raid.update({ where: { id: raid.id }, data: { cancelledAt: b.cancelled ? new Date() : null }, select: FULL });
+    after(() => notifyBot({ type: b.cancelled ? 'raid.cancelled' : 'raid.restored', raid: raidSummary({ ...updated, requirements: parseRequirements(updated.requirements) }) }));
     return NextResponse.json({ id: updated.id, cancelled: updated.cancelledAt !== null }, { headers: NO_STORE });
   }
 
@@ -41,7 +45,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const updated = await db.raid.update({
     where: { id: raid.id },
     data: { name: value.name, startsAt: parsed.startsAt, durationMin: value.durationMin, requirements: value.requirements, notes: value.notes || null },
-    select: { id: true, name: true, startsAt: true },
+    select: FULL,
   });
+  after(() => notifyBot({ type: 'raid.updated', raid: raidSummary({ ...updated, requirements: value.requirements }) }));
   return NextResponse.json({ id: updated.id, name: updated.name, startsAt: updated.startsAt.toISOString() }, { headers: NO_STORE });
 }
