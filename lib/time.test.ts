@@ -4,8 +4,8 @@ import {
   formatClockShort,
   formatRange,
   formatRangeShort,
-  formatRealmRange,
-  formatRealmRangeShort,
+  formatGuildRange,
+  formatGuildRangeShort,
   formatUtcOffset,
   minutesBetween,
   nextOccurrence,
@@ -66,7 +66,7 @@ describe('zonedTimeToUtc', () => {
 });
 
 describe('nextOccurrence', () => {
-  it('finds next Tuesday 8 PM realm time from a Wednesday', () => {
+  it('finds next Tuesday 8 PM guild time from a Wednesday', () => {
     const from = new Date('2026-09-30T12:00:00Z'); // a Wednesday
     const t = nextOccurrence(2, '20:00', CHI, from);
     expect(t.toISOString()).toBe('2026-10-07T01:00:00.000Z');
@@ -103,9 +103,9 @@ describe('formatting', () => {
     expect(formatRange(s, e, CHI)).toBe('11:00 AM – 1:00 PM');
   });
 
-  it('formats realm wall times without a date', () => {
-    expect(formatRealmRange('20:00', '23:00')).toBe('8:00 – 11:00 PM');
-    expect(formatRealmRange('19:00', '22:00')).toBe('7:00 – 10:00 PM');
+  it('formats guild wall times without a date', () => {
+    expect(formatGuildRange('20:00', '23:00')).toBe('8:00 – 11:00 PM');
+    expect(formatGuildRange('19:00', '22:00')).toBe('7:00 – 10:00 PM');
   });
 
   it('drops :00 in short ranges but keeps other minutes', () => {
@@ -114,8 +114,8 @@ describe('formatting', () => {
     expect(formatRangeShort(s, e, CHI)).toBe('8 – 11 PM');
     expect(formatRangeShort(s, e, LA)).toBe('6 – 9 PM');
     expect(formatClockShort(zonedTimeToUtc(2026, 9, 29, 19, 50, CHI), CHI)).toBe('7:50 PM');
-    expect(formatRealmRangeShort('20:00', '23:00')).toBe('8 – 11 PM');
-    expect(formatRealmRangeShort('19:30', '22:00')).toBe('7:30 – 10 PM');
+    expect(formatGuildRangeShort('20:00', '23:00')).toBe('8 – 11 PM');
+    expect(formatGuildRangeShort('19:30', '22:00')).toBe('7:30 – 10 PM');
   });
 
   it('formats UTC offsets with a real minus sign', () => {
@@ -133,9 +133,9 @@ describe('formatting', () => {
     expect(minutesBetween('22:30', '00:15')).toBe(105);
   });
 
-  it('keeps both periods in a short realm range across noon or midnight', () => {
-    expect(formatRealmRangeShort('11:00', '13:00')).toBe('11 AM – 1 PM');
-    expect(formatRealmRangeShort('23:00', '01:00')).toBe('11 PM – 1 AM');
+  it('keeps both periods in a short guild range across noon or midnight', () => {
+    expect(formatGuildRangeShort('11:00', '13:00')).toBe('11 AM – 1 PM');
+    expect(formatGuildRangeShort('23:00', '01:00')).toBe('11 PM – 1 AM');
   });
 
   it('names zones', () => {

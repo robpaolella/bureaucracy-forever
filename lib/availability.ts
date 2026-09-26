@@ -1,9 +1,9 @@
 /**
  * Availability week maths (docs/05 § Shared model). 7 days × 48 half-hour slots, day 0 =
  * Monday, slot 0 = 00:00, slot 47 = 23:30. Slots are stored in the member's own zone with
- * the zone they painted in; nothing here is in server time unless it says so.
+ * the zone they painted in; nothing here is in guild time unless it says so.
  */
-import { REALM_TIMEZONE } from '@/lib/config';
+import { GUILD_TIMEZONE } from '@/lib/config';
 import { tzOffsetMs, zonedParts, zonedTimeToUtc } from '@/lib/time';
 
 export const DAYS = 7;
@@ -75,7 +75,7 @@ export function applyPaintRun(week: Week, day: number, fromSlot: number, toSlot:
   return next;
 }
 
-/** "8:30 PM". Slots wrap, so a server label past midnight reads correctly. */
+/** "8:30 PM". Slots wrap, so a guild-time label past midnight reads correctly. */
 export function fmtSlot(slot: number): string {
   const i = ((slot % SLOTS) + SLOTS) % SLOTS;
   const h = Math.floor(i / 2);
@@ -118,13 +118,13 @@ export function weekDays(now: Date, zone: string): WeekDay[] {
 }
 
 /**
- * How many half-hour slots the realm clock is ahead of `zone` at `at`. Positive = server
- * is ahead. The grid passes the week's start, so a week straddling a DST change carries one
+ * How many half-hour slots the guild clock is ahead of `zone` at `at`. Positive = guild
+ * time is ahead. The grid passes the week's start, so a week straddling a DST change carries one
  * offset for its whole width, as the artboard does. Zones on quarter-hour offsets round to
  * the nearest half-hour.
  */
-export function serverOffsetSlots(at: Date, zone: string): number {
-  return Math.round((tzOffsetMs(at, REALM_TIMEZONE) - tzOffsetMs(at, zone)) / 1_800_000);
+export function guildOffsetSlots(at: Date, zone: string): number {
+  return Math.round((tzOffsetMs(at, GUILD_TIMEZONE) - tzOffsetMs(at, zone)) / 1_800_000);
 }
 
 /** "2 hours ahead", "same time", "5½ hours behind". */

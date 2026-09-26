@@ -8,7 +8,7 @@ import { detectTimeZone } from '@/lib/time';
  * by the viewer (docs/01 § Time: "let the member override it"). The override lives in
  * localStorage for now; a member's stored override on the user row will feed the same
  * store once auth lands. `null` during server render and hydration, so pages render the
- * realm time first and add the viewer's time after.
+ * guild time first and add the viewer's time after.
  */
 
 export type ViewerTimeZone = { zone: string; source: 'detected' | 'chosen' };

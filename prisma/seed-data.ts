@@ -8,7 +8,7 @@
  */
 import { CLASS_NEEDS } from '@/content/recruitment';
 import { RAID_NIGHTS } from '@/content/schedule';
-import { REALM_TIMEZONE } from '@/lib/config';
+import { GUILD_TIMEZONE } from '@/lib/config';
 import type { Role as RaidRoleKey, WowClass as WowClassKey } from '@/lib/design/class-colors';
 import { minutesBetween, nextOccurrence, zonedParts, type Weekday } from '@/lib/time';
 
@@ -139,7 +139,7 @@ export function mondayIndex(jsWeekday: number): number {
 }
 
 /**
- * A member's painted week in their own zone: every raid night's realm window converted
+ * A member's painted week in their own zone: every raid night's guild-time window converted
  * to local day/slot pairs, plus some if-needed spill around it. Slot 0 = 00:00, 47 = 23:30.
  */
 export function paintWeek(zone: string, random: () => number, from = new Date()): Week {
@@ -149,7 +149,7 @@ export function paintWeek(zone: string, random: () => number, from = new Date())
     if (state === 'available' || !week[key]) week[key] = state;
   };
   for (const night of RAID_NIGHTS) {
-    const start = nextOccurrence(night.day as Weekday, night.start, REALM_TIMEZONE, from);
+    const start = nextOccurrence(night.day as Weekday, night.start, GUILD_TIMEZONE, from);
     const halfHours = minutesBetween(night.start, night.end) / 30;
     for (let i = -2; i < halfHours + 2; i++) {
       const t = new Date(start.getTime() + i * 30 * 60_000);
@@ -177,7 +177,7 @@ export function buildRaids(from = new Date()): SeedRaid[] {
   const raids: SeedRaid[] = [];
   for (let week = 0; week < 3; week++) {
     for (const night of RAID_NIGHTS) {
-      const first = nextOccurrence(night.day as Weekday, night.start, REALM_TIMEZONE, from);
+      const first = nextOccurrence(night.day as Weekday, night.start, GUILD_TIMEZONE, from);
       const startsAt = new Date(first.getTime() + week * 7 * 24 * 3600_000);
       raids.push({
         name: names[night.day] ?? night.kind,

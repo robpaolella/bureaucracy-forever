@@ -1,8 +1,8 @@
 /**
  * Time helpers built on Intl only. docs/01 § Time: no time is ever rendered alone, the
- * realm zone is one constant, and offsets are real (DST transitions differ by zone).
+ * guild zone is one constant, and offsets are real (DST transitions differ by zone).
  */
-import { REALM_TIMEZONE } from '@/lib/config';
+import { GUILD_TIMEZONE } from '@/lib/config';
 
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -91,7 +91,7 @@ export function parseHHMM(hhmm: string): { hour: number; minute: number } {
  * The next instant (at or after `from`) when it is `hhmm` on `weekday` in `zone`.
  * Walks the zone's own calendar, so the answer is right across DST changes.
  */
-export function nextOccurrence(weekday: Weekday, hhmm: string, zone: string = REALM_TIMEZONE, from: Date = new Date()): Date {
+export function nextOccurrence(weekday: Weekday, hhmm: string, zone: string = GUILD_TIMEZONE, from: Date = new Date()): Date {
   const today = zonedParts(from, zone);
   const { hour, minute } = parseHHMM(hhmm);
   for (let add = 0; add <= 7; add++) {
@@ -119,18 +119,18 @@ export function formatRange(start: Date, end: Date, zone: string): string {
   return `${formatClock(start, zone, !same)} – ${formatClock(end, zone)}`;
 }
 
-/** Realm wall time as text, no date needed: "20:00" → "8:00 PM". */
-export function formatRealmClock(hhmm: string, withPeriod = true): string {
+/** Guild wall time as text, no date needed: "20:00" → "8:00 PM". */
+export function formatGuildClock(hhmm: string, withPeriod = true): string {
   const { hour, minute } = parseHHMM(hhmm);
   const d = new Date(Date.UTC(2026, 0, 4, hour, minute));
   return formatClock(d, 'UTC', withPeriod);
 }
 
-export function formatRealmRange(startHHMM: string, endHHMM: string): string {
+export function formatGuildRange(startHHMM: string, endHHMM: string): string {
   const s = parseHHMM(startHHMM);
   const e = parseHHMM(endHHMM);
   const same = s.hour < 12 === e.hour < 12;
-  return `${formatRealmClock(startHHMM, !same)} – ${formatRealmClock(endHHMM)}`;
+  return `${formatGuildClock(startHHMM, !same)} – ${formatGuildClock(endHHMM)}`;
 }
 
 /** "8 PM" / "8:30 PM": like formatClock but drops ":00". Week-strip cells use this. */
@@ -144,16 +144,16 @@ export function formatRangeShort(start: Date, end: Date, zone: string): string {
   return `${formatClockShort(start, zone, !same)} – ${formatClockShort(end, zone)}`;
 }
 
-export function formatRealmRangeShort(startHHMM: string, endHHMM: string): string {
+export function formatGuildRangeShort(startHHMM: string, endHHMM: string): string {
   const s = parseHHMM(startHHMM);
   const e = parseHHMM(endHHMM);
   const same = s.hour < 12 === e.hour < 12;
   const short = (clock: string) => clock.replace(/:00(?=\s|$)/, '');
-  return `${short(formatRealmClock(startHHMM, !same))} – ${short(formatRealmClock(endHHMM))}`;
+  return `${short(formatGuildClock(startHHMM, !same))} – ${short(formatGuildClock(endHHMM))}`;
 }
 
 /**
- * Minutes from one realm wall time to the next occurrence of another, e.g. "20:00" →
+ * Minutes from one guild wall time to the next occurrence of another, e.g. "20:00" →
  * "23:00" = 180. A range that crosses midnight ("23:00" → "01:00") is 120, not negative.
  */
 export function minutesBetween(startHHMM: string, endHHMM: string): number {

@@ -50,7 +50,10 @@ Adjust freely if the repo already disagrees with any of this. The design does no
    role counts — never as a background fill.
 2. **Dark theme only** for v1. There is no light theme; don't build the toggle.
 3. **Every time is shown twice** — realm time and the viewer's local time, each labelled.
-   Never render a bare time. See `docs/01 § Time`.
+   Never render a bare time. See `docs/01 § Time`. *Build note (Sept 2026):* WoW Forever
+   has no realm clock, so wherever the docs say "realm" or "server" time the site says
+   **guild time**, anchored on `GUILD_TIMEZONE` (`America/Los_Angeles`) in `lib/config.ts`.
+   The dual-time rule is otherwise unchanged.
 4. **44px minimum hit target** on every control, mobile included. The one exception is the
    availability grid cell, which is a paint surface.
 5. **Text contrast ≥ 4.5:1** on ink (3:1 at 24px+). Shaman and Warlock class colors are

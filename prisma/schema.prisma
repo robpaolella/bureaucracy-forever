@@ -116,7 +116,7 @@ model Character {
 }
 
 /// One row per member. `slots` is the painted week, keys "day:slot", day 0 = Monday,
-/// slot 0 = 00:00, slot 47 = 23:30, in `timezone`, NOT server time (docs/05 § Shared model).
+/// slot 0 = 00:00, slot 47 = 23:30, in `timezone`, NOT guild time (docs/05 § Shared model).
 model Availability {
   userId    String   @id
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -129,7 +129,7 @@ model Availability {
 model Raid {
   id             String    @id @default(cuid())
   name           String
-  /// Absolute instant; render twice per viewer (realm zone and theirs).
+  /// Absolute instant; render twice per viewer (guild zone and theirs).
   startsAt       DateTime
   durationMin    Int       @default(180)
   notes          String?

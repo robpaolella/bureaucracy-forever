@@ -48,7 +48,7 @@ export const PROGRESSION: ProgressionRow[] = [
 export const PROGRESSION_NOTE = 'Kill counts read from our logs on save — no one edits this table by hand.';
 
 export const WEEK_NOTE =
-  'Every time on this site is shown in server time with your own beside it. We detect your timezone — you never do the maths.';
+  'Every time on this site is shown in guild time with your own beside it. We detect your timezone — you never do the maths.';
 
 export const CLOSING = {
   headline: "If you read the fight before you're asked to, you'll fit here.",

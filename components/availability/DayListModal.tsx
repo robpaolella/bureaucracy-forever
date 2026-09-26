@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn';
 type Props = {
   day: WeekDay | null;
   week: Week;
-  /** Half-hour slots the server clock is ahead of the member's. */
+  /** Half-hour slots the guild clock is ahead of the member's. */
   offsetSlots: number;
   onSet: (day: number, slot: number, state: SlotState | null) => void;
   onClose: () => void;
@@ -37,7 +37,7 @@ export function DayListModal({ day, week, offsetSlots, onSet, onClose }: Props) 
     >
       {day && (
         <div className="flex flex-col">
-          <p className="pb-3">Set each half-hour. Times are yours; the server time follows in grey.</p>
+          <p className="pb-3">Set each half-hour. Times are yours; guild time follows in grey.</p>
           <div className="-mx-2 max-h-[60vh] overflow-y-auto">
             {Array.from({ length: SLOTS }, (_, slot) => {
               const key = slotKey(day.day, slot);
@@ -52,7 +52,7 @@ export function DayListModal({ day, week, offsetSlots, onSet, onClose }: Props) 
                   </legend>
                   <span className="tabular w-[92px] shrink-0 text-xs text-fg-muted">
                     {fmtSlot(slot)}
-                    <span className="block text-[10px] text-fg-3">{fmtSlot(slot + offsetSlots)} server</span>
+                    <span className="block text-[10px] text-fg-3">{fmtSlot(slot + offsetSlots)} guild</span>
                   </span>
                   <div className="flex flex-1 flex-wrap gap-x-3 gap-y-1">
                     {OPTIONS.map((o) => (

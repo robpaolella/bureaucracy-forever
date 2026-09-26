@@ -37,19 +37,20 @@ describe('paintWeek', () => {
   const from = new Date('2026-09-30T12:00:00Z'); // a Wednesday
 
   it('covers the progression nights in the member’s own local slots', () => {
-    // Chicago: Tue/Wed 20:00–23:00 → day 1 and 2, slots 40..45
-    const chi = paintWeek('America/Chicago', rng(1), from);
-    for (const day of [1, 2]) for (const slot of [40, 41, 42, 43, 44, 45]) expect(chi[`${day}:${slot}`]).toBeDefined();
-    // Los Angeles: 18:00–21:00 → slots 36..41
+    // Los Angeles is guild time: Tue/Wed 20:00–23:00 → day 1 and 2, slots 40..45
     const la = paintWeek('America/Los_Angeles', rng(1), from);
-    for (const slot of [36, 37, 38, 39, 40, 41]) expect(la[`1:${slot}`]).toBeDefined();
-    expect(la['1:45']).toBeUndefined();
+    for (const day of [1, 2]) for (const slot of [40, 41, 42, 43, 44, 45]) expect(la[`${day}:${slot}`]).toBeDefined();
+    // Chicago: 22:00–01:00 → slots 44..47, then 0..1 of the next day
+    const chi = paintWeek('America/Chicago', rng(1), from);
+    for (const slot of [44, 45, 46, 47]) expect(chi[`1:${slot}`]).toBeDefined();
+    for (const slot of [0, 1]) expect(chi[`2:${slot}`]).toBeDefined();
+    expect(chi['1:40']).toBeUndefined();
   });
 
   it('rolls a European member past midnight into the next day', () => {
-    // Berlin: Tue 20:00 Chicago = Wed 03:00 Berlin → day 2, slots 6..11
+    // Berlin: Tue 20:00 Los Angeles = Wed 05:00 Berlin → day 2, slots 10..15
     const ber = paintWeek('Europe/Berlin', rng(1), from);
-    for (const slot of [6, 7, 8, 9, 10, 11]) expect(ber[`2:${slot}`]).toBeDefined();
+    for (const slot of [10, 11, 12, 13, 14, 15]) expect(ber[`2:${slot}`]).toBeDefined();
   });
 
   it('only uses valid keys and states', () => {

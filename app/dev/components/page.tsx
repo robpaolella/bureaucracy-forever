@@ -194,7 +194,7 @@ export default function ComponentsPage() {
             <Card hover className="flex flex-col gap-2.5">
               <span className="text-body-l font-semibold">Wednesday — Blackwing Lair</span>
               <span className="text-sm leading-relaxed text-fg-2">
-                8:00 PM server · 6:00 PM your time. Invites at ten to, first pull on the hour.
+                8:00 PM guild · 10:00 PM your time. Invites at ten to, first pull on the hour.
               </span>
               <TextLink href="#cards" className="self-start text-[13px]">
                 Sign up →
