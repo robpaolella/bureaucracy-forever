@@ -31,13 +31,15 @@ export function Inbox({ items, selectedId, now, children }: Props) {
   const shown = useMemo(() => sortInbox(filterInbox(items, filters)), [items, filters]);
   const pendingCount = items.filter((a) => a.status === 'pending').length;
 
-  if (pendingCount === 0 && items.length === 0) {
+  if (items.length === 0) {
     return (
       <EmptyState title={INBOX_EMPTY.title} className="min-h-[280px]">
         {INBOX_EMPTY.body}
       </EmptyState>
     );
   }
+  // Caught up: applications exist but none is pending under the default view.
+  const caughtUp = shown.length === 0 && pendingCount === 0 && filters.status === 'pending' && filters.search.trim() === '';
 
   return (
     <div className="flex flex-col gap-4">
@@ -64,9 +66,13 @@ export function Inbox({ items, selectedId, now, children }: Props) {
       </FilterBar>
 
       <div className="grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
-        {shown.length === 0 ? (
+        {caughtUp ? (
+          <EmptyState title={INBOX_EMPTY.title} className="min-h-[220px]">
+            {INBOX_EMPTY.body}
+          </EmptyState>
+        ) : shown.length === 0 ? (
           <p role="status" className="rounded-card border border-dashed border-line-strong px-6 py-10 text-center text-sm text-fg-2">
-            {pendingCount === 0 && filters.status === 'pending' && filters.search === '' ? INBOX_EMPTY.body : INBOX.noMatch}
+            {INBOX.noMatch}
           </p>
         ) : (
           <ul className="divide-y divide-line-faint overflow-hidden rounded-card border border-line bg-ink-900" aria-label="Applications">
@@ -77,7 +83,7 @@ export function Inbox({ items, selectedId, now, children }: Props) {
                   {selected && <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-teal" />}
                   <Link
                     href={`/officers/applications/${a.id}`}
-                    aria-current={selected ? 'page' : undefined}
+                    aria-current={selected ? 'true' : undefined}
                     className={cn('flex min-h-[72px] items-center gap-3 px-4 py-3 transition-colors duration-[120ms] hover:bg-ink-850', selected && 'bg-teal-wash')}
                   >
                     <span aria-hidden className={cn('h-1.5 w-1.5 shrink-0 rounded-full', a.unread ? 'bg-sand' : 'bg-transparent')} />

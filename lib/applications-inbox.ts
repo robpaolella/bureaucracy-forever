@@ -50,7 +50,17 @@ export function defaultSelection(shown: InboxItem[], requested: string | null): 
   return shown.find((a) => a.status === 'pending')?.id ?? shown[0]?.id ?? null;
 }
 
-/** Newest first, unread pending before read, for the list. */
+/**
+ * What the inbox page opens: an explicitly requested application whatever its path or
+ * status (the detail page's back link relies on this), else the first pending raider,
+ * else the newest of anything.
+ */
+export function selectApplication(items: InboxItem[], requested: string | null): string | null {
+  if (requested && items.some((a) => a.id === requested)) return requested;
+  return defaultSelection(sortInbox(filterInbox(items, DEFAULT_FILTERS)), null) ?? defaultSelection(sortInbox(items), null);
+}
+
+/** Newest first, for the list. */
 export function sortInbox(items: InboxItem[]): InboxItem[] {
   return [...items].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }

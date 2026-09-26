@@ -8,10 +8,13 @@ import type { WowClass } from '@/lib/design/class-colors';
 const path = (p: 'RAIDER' | 'SOCIAL'): ApplicationPath => (p === 'SOCIAL' ? 'social' : 'raider');
 const status = (s: 'PENDING' | 'ACCEPTED' | 'DECLINED'): AppStatus => s.toLowerCase() as AppStatus;
 
-/** Every application as an inbox row. Officers only call this; the volume is small. */
+/** The newest applications as inbox rows, capped so the page cannot grow without bound. */
+export const INBOX_LIMIT = 500;
+
 export async function loadInbox(): Promise<InboxItem[]> {
   const rows = await db.application.findMany({
     orderBy: { createdAt: 'desc' },
+    take: INBOX_LIMIT,
     select: { id: true, path: true, status: true, character: true, class: true, spec: true, discordName: true, createdAt: true, readAt: true },
   });
   return rows.map((r) => ({

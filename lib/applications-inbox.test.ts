@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countActiveInboxFilters, DEFAULT_FILTERS, defaultSelection, filterInbox, orderedAnswers, sortInbox, type InboxItem } from './applications-inbox';
+import { countActiveInboxFilters, DEFAULT_FILTERS, defaultSelection, filterInbox, orderedAnswers, selectApplication, sortInbox, type InboxItem } from './applications-inbox';
 
 const item = (over: Partial<InboxItem>): InboxItem => ({
   id: over.character?.toLowerCase() ?? 'x',
@@ -40,6 +40,14 @@ describe('inbox', () => {
     expect(defaultSelection(sorted, 'stapler')).toBe('stapler');
     expect(defaultSelection(sorted, 'nope')).toBe('loophole');
     expect(defaultSelection([], null)).toBeNull();
+  });
+
+  it('opens a requested application even outside the default filter, else the first pending raider', () => {
+    expect(selectApplication(items, 'sidebar')).toBe('sidebar');
+    expect(selectApplication(items, 'stapler')).toBe('stapler');
+    expect(selectApplication(items, 'nope')).toBe('loophole');
+    expect(selectApplication(items.filter((a) => a.path === 'social'), null)).toBe('sidebar');
+    expect(selectApplication([], null)).toBeNull();
   });
 
   it('orders answers by the form’s questions and keeps unknown keys', () => {

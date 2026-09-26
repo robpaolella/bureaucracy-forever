@@ -4,7 +4,7 @@ import { after } from 'next/server';
 import { ApplicationView } from '@/components/applications/ApplicationView';
 import { Inbox } from '@/components/applications/Inbox';
 import { loadApplication, loadInbox, markRead } from '@/lib/applications-data';
-import { defaultSelection, filterInbox, DEFAULT_FILTERS, sortInbox } from '@/lib/applications-inbox';
+import { selectApplication } from '@/lib/applications-inbox';
 import { getSession } from '@/lib/session';
 import { INBOX, INBOX_HEAD } from '@/content/applications';
 
@@ -26,7 +26,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
   if (!session || session.role !== 'officer') notFound();
   const items = await loadInbox();
   const requested = one((await searchParams).id);
-  const selectedId = defaultSelection(sortInbox(filterInbox(items, DEFAULT_FILTERS)), requested) ?? defaultSelection(sortInbox(items), requested);
+  const selectedId = selectApplication(items, requested);
   const app = selectedId ? await loadApplication(selectedId) : null;
   if (app?.unread) after(() => markRead(app.id));
   const now = new Date().toISOString();

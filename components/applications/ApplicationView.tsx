@@ -1,7 +1,8 @@
 import { ClassAvatar, StatusPill, Tag } from '@/components/ui';
 import { orderedAnswers, PATH_LABEL, STATUS_LABEL, STATUS_TONE } from '@/lib/applications-inbox';
 import type { ApplicationDetail } from '@/lib/applications-data';
-import { CLASS_COLORS } from '@/lib/design/class-colors';
+import { rolesOfSpec } from '@/lib/class-needs';
+import { CLASS_COLORS, ROLE_LABELS } from '@/lib/design/class-colors';
 import { formatGuildRangeShort, relativeDate, WEEKDAY_NAMES } from '@/lib/time';
 import { DETAIL } from '@/content/applications';
 import { RAID_NIGHTS } from '@/content/schedule';
@@ -21,7 +22,8 @@ export function ApplicationView({ app, now }: Props) {
   const at = new Date(now);
   const color = app.wowClass ? CLASS_COLORS[app.wowClass].onInk : undefined;
   const answers = orderedAnswers(app.answers);
-  const meta = [app.wowClass ? CLASS_COLORS[app.wowClass].label : null, app.spec].filter(Boolean).join(' · ');
+  const roles = app.wowClass && app.spec ? rolesOfSpec(app.wowClass, app.spec).map((r) => ROLE_LABELS[r]).join(' / ') : null;
+  const meta = [app.wowClass ? CLASS_COLORS[app.wowClass].label : null, app.spec, roles].filter(Boolean).join(' · ');
   const host = app.logsUrl ? safeHost(app.logsUrl) : null;
 
   return (

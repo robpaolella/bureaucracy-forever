@@ -10,8 +10,10 @@ import { DETAIL } from '@/content/applications';
 type Params = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const session = await getSession();
   const { id } = await params;
-  const app = await loadApplication(id);
+  // Same guard as the page: an applicant's name never leaks into a title for non-officers.
+  const app = session?.role === 'officer' ? await loadApplication(id) : null;
   return { title: `${app?.character ?? 'Application'} — Bureaucracy`, robots: { index: false, follow: false } };
 }
 
