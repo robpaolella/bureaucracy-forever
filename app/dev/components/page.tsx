@@ -19,7 +19,7 @@ import {
   Textarea,
   TextLink,
 } from '@/components/ui';
-import { LoadingButtonDemo, ModalDemo, TableDemo, ToggleDemo } from './demos';
+import { LoadingButtonDemo, ModalDemo, TableDemo, ToggleDemo, RosterPrimitivesDemo } from './demos';
 
 /**
  * Build-order step 2. Mirrors design-handover/reference/Components.html so the
@@ -179,6 +179,13 @@ export default function ComponentsPage() {
             </div>
           </Card>
         </div>
+      </section>
+
+      <section className="flex flex-col gap-6">
+        <SectionHead title="Roster & calendar controls" code="<SegmentedControl> · <FilterBar> · <MultiSelect> · <Sheet> · <ClassAvatar> · <ProgressTrack>" />
+        <Panel>
+          <RosterPrimitivesDemo />
+        </Panel>
       </section>
 
       <section className="flex flex-col gap-6">
