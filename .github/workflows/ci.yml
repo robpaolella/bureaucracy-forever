@@ -10,8 +10,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  checks:
-    name: Lint, typecheck, test, build
+  ci:
+    name: CI
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
