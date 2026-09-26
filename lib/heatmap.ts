@@ -15,7 +15,8 @@ export type RoleCounts = Record<HeatRole, number>;
 /** One roster member as the aggregation needs them. `slots` is null when they never saved. */
 export type HeatMember = {
   name: string;
-  wowClass: WowClass;
+  /** null when the member has no main character on the roster yet. */
+  wowClass: WowClass | null;
   role: HeatRole;
   timezone: string;
   slots: Week | null;
@@ -32,7 +33,7 @@ export type HeatCell = {
   who: { i: number; state: SlotState }[];
 };
 
-export type HeatmapMember = { name: string; wowClass: WowClass; role: HeatRole };
+export type HeatmapMember = { name: string; wowClass: WowClass | null; role: HeatRole };
 
 export type Heatmap = {
   timezone: string;
