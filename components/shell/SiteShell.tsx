@@ -6,8 +6,8 @@ import { SiteSessionProvider } from './SiteSessionProvider';
 
 /**
  * Header, content column, footer. `above` renders before the header (the home
- * announcement). `initialSession` is only ever the dev stub; in production it is
- * undefined so the layout stays static and the header fetches its state after load.
+ * announcement). Layouts pass `initialSession={undefined}` so they stay static and the
+ * header fetches its state from /api/session after load; a known value is only for tests.
  */
 export function SiteShell({
   initialSession,

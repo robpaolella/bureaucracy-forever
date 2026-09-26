@@ -6,8 +6,8 @@ import type { Session } from '@/lib/session';
 /**
  * The viewer's session for the header. Public pages must prerender (docs/03), so the
  * server never reads cookies for them: the provider starts logged out and asks
- * /api/session after hydration. Development passes the dev-stub session in directly.
- * Member and officer pages read getSession() on the server as usual.
+ * /api/session after hydration, which returns the real Discord login when there is one
+ * and the dev stub otherwise. Member and officer pages read getSession() on the server.
  */
 const Ctx = createContext<Session | null>(null);
 
