@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Role } from '@/lib/design/class-colors';
 import { applyResponse, type RaidCard, type RaidResponse, type RoleCounts } from '@/lib/raids';
 
-type Result = { raidId: string; mine: RaidResponse | null; counts: RoleCounts };
+type Result = { raidId: string; userId: string; response: RaidResponse | null; counts: RoleCounts };
 
 /**
  * Optimistic raid sign-ups (docs/04 § Sign-up confirmation). Answering updates the row at
@@ -54,7 +54,7 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
         .then((res) => (res.ok ? (res.json() as Promise<Result>) : Promise.reject(new Error(String(res.status)))))
         .then((result) => {
           if (inflight.current.get(id) !== seq) return;
-          setRaids((list) => list.map((r) => (r.id === id ? { ...r, mine: result.mine, counts: result.counts } : r)));
+          setRaids((list) => list.map((r) => (r.id === id ? { ...r, mine: result.response, counts: result.counts } : r)));
           onResult(true, before, response, () => undo(id));
         })
         .catch(() => {

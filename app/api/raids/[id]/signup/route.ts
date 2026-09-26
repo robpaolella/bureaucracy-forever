@@ -12,7 +12,9 @@ const RESPONSE_ENUM = { accept: 'ACCEPT', tentative: 'TENTATIVE', absent: 'ABSEN
  * Body `{ response: "accept" | "tentative" | "absent" | null, reason? }`; null withdraws
  * the answer, which is what Undo sends when there was none before. Writes carry
  * `source: WEB`; the last write wins on updatedAt (docs/06 § Discord bot sync). Members
- * only: socials do not sign up (docs/03 § Roles). Returns the raid's accepted counts.
+ * only: socials do not sign up (docs/03 § Roles). Officers may pass `forUserId` to answer
+ * on a member's behalf (docs/04 § Raid detail); that write records `setBy`. Returns the
+ * answered user's id and response with the raid's accepted counts.
  */
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -21,11 +23,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const body: unknown = await request.json().catch(() => null);
-  const b = body && typeof body === 'object' ? (body as { response?: unknown; reason?: unknown }) : {};
+  const b = body && typeof body === 'object' ? (body as { response?: unknown; reason?: unknown; forUserId?: unknown }) : {};
   if (b.response !== null && !isRaidResponse(b.response)) {
     return NextResponse.json({ error: 'response must be "accept", "tentative", "absent" or null.' }, { status: 400, headers: NO_STORE });
   }
   const reason = typeof b.reason === 'string' && b.reason.trim() ? b.reason.trim().slice(0, 200) : null;
+  const forUserId = typeof b.forUserId === 'string' && b.forUserId ? b.forUserId : null;
+  if (forUserId && session.role !== 'officer') {
+    return NextResponse.json({ error: 'Only officers answer on someone else’s behalf.' }, { status: 403, headers: NO_STORE });
+  }
 
   const raid = await db.raid.findUnique({ where: { id }, select: { id: true, cancelledAt: true, startsAt: true, durationMin: true } });
   if (!raid) return NextResponse.json({ error: 'No such raid.' }, { status: 404, headers: NO_STORE });
@@ -42,14 +48,26 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     select: { id: true },
   });
 
+  // An officer answering for someone else: the target must exist, and the row records who set it.
+  let targetId = user.id;
+  let setByUserId: string | null = null;
+  if (forUserId && forUserId !== user.id) {
+    const target = await db.user.findUnique({ where: { id: forUserId }, select: { id: true, role: true } });
+    if (!target) return NextResponse.json({ error: 'No such member.' }, { status: 404, headers: NO_STORE });
+    if (target.role === 'SOCIAL') return NextResponse.json({ error: 'Social members do not sign up for raids.' }, { status: 403, headers: NO_STORE });
+    targetId = target.id;
+    setByUserId = user.id;
+  }
+
   const response = b.response as RaidResponse | null;
   if (response === null) {
-    await db.signup.deleteMany({ where: { raidId: raid.id, userId: user.id } });
+    await db.signup.deleteMany({ where: { raidId: raid.id, userId: targetId } });
   } else {
+    const fields = { response: RESPONSE_ENUM[response], source: 'WEB' as const, reason: response === 'absent' ? reason : null, setByUserId };
     await db.signup.upsert({
-      where: { raidId_userId: { raidId: raid.id, userId: user.id } },
-      create: { raidId: raid.id, userId: user.id, response: RESPONSE_ENUM[response], source: 'WEB', reason: response === 'absent' ? reason : null },
-      update: { response: RESPONSE_ENUM[response], source: 'WEB', reason: response === 'absent' ? reason : null, setByUserId: null },
+      where: { raidId_userId: { raidId: raid.id, userId: targetId } },
+      create: { raidId: raid.id, userId: targetId, ...fields },
+      update: fields,
     });
   }
 
@@ -60,5 +78,5 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const counts = countAccepted(
     signups.map((s) => ({ response: s.response.toLowerCase() as RaidResponse, role: (s.user.characters[0]?.raidRole.toLowerCase() as Role | undefined) ?? null })),
   );
-  return NextResponse.json({ raidId: raid.id, mine: response, counts }, { headers: NO_STORE });
+  return NextResponse.json({ raidId: raid.id, userId: targetId, response, counts }, { headers: NO_STORE });
 }
