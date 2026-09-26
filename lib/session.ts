@@ -49,7 +49,9 @@ export const getSession = cache(async function getSession(): Promise<Session | n
   const session = await auth();
   if (!session?.user?.id) {
     const stub = await getDevStubSession();
-    if (stub !== undefined) return stub && { ...stub, availabilitySubmitted: await hasAvailability(stub.discordId) };
+    if (stub !== undefined) {
+      return stub && { ...stub, availabilitySubmitted: await hasAvailability(stub.discordId), pendingApplications: stub.role === 'officer' ? await pendingApplications() : 0 };
+    }
     return null;
   }
   return {
@@ -59,9 +61,18 @@ export const getSession = cache(async function getSession(): Promise<Session | n
     avatarUrl: session.user.image ?? undefined,
     rank: RANK_FOR_ROLE[session.user.role],
     availabilitySubmitted: await hasAvailability(session.user.id),
-    pendingApplications: 0,
+    pendingApplications: session.user.role === 'officer' ? await pendingApplications() : 0,
   };
 });
+
+/** Officers only: the count badge in the nav (docs/02 § SiteHeader). A database failure reads as none. */
+async function pendingApplications(): Promise<number> {
+  try {
+    return await db.application.count({ where: { status: 'PENDING' } });
+  } catch {
+    return 0;
+  }
+}
 
 /** Whether this member has painted a week. A database failure reads as "not yet", never as an error on every page. */
 async function hasAvailability(discordId: string): Promise<boolean> {
