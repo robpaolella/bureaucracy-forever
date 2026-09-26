@@ -82,7 +82,7 @@ describe('labels', () => {
     expect(offsetDescription(-2)).toBe('1 hour behind');
     expect(offsetDescription(0)).toBe('same time');
     expect(offsetDescription(11)).toBe('5½ hours ahead');
-    expect(offsetDescription(1)).toBe('½ hours ahead');
+    expect(offsetDescription(1)).toBe('½ hour ahead');
   });
 
   it('formats relative time', () => {
@@ -115,6 +115,22 @@ describe('week and offsets', () => {
     expect(serverOffsetSlots(summer, 'America/Chicago')).toBe(0);
     expect(serverOffsetSlots(summer, 'Europe/London')).toBe(-12);
     expect(serverOffsetSlots(summer, 'Asia/Kolkata')).toBe(-21);
+    // Kathmandu is UTC+5:45: the server is 10h45 behind = -21.5 slots; Math.round takes .5 up, so -21.
+    expect(serverOffsetSlots(summer, 'Asia/Kathmandu')).toBe(-21);
+  });
+
+  it('keeps a week whole across the US fall-back and the UK/US gap', () => {
+    // Week of Mon 26 Oct – Sun 1 Nov 2026 in Chicago: clocks fall back on the Sunday.
+    const days = weekDays(new Date('2026-10-28T18:00:00Z'), 'America/Chicago');
+    expect(days.map((d) => d.date)).toEqual(['26 Oct', '27 Oct', '28 Oct', '29 Oct', '30 Oct', '31 Oct', '1 Nov']);
+    expect(weekStart(new Date('2026-10-28T18:00:00Z'), 'America/Chicago').toISOString()).toBe('2026-10-26T05:00:00.000Z');
+    // The week after starts under CST: Monday 00:00 is 06:00Z, not 05:00Z.
+    expect(weekStart(new Date('2026-11-04T18:00:00Z'), 'America/Chicago').toISOString()).toBe('2026-11-02T06:00:00.000Z');
+    // Spring forward: the week containing 8 Mar 2026 still has seven correctly dated days.
+    expect(weekDays(new Date('2026-03-04T18:00:00Z'), 'America/Chicago').map((d) => d.date)).toEqual(['2 Mar', '3 Mar', '4 Mar', '5 Mar', '6 Mar', '7 Mar', '8 Mar']);
+    // The server offset for a London member changes between the two DST changes.
+    expect(serverOffsetSlots(weekStart(new Date('2026-10-21T12:00:00Z'), 'Europe/London'), 'Europe/London')).toBe(-12);
+    expect(serverOffsetSlots(weekStart(new Date('2026-10-28T12:00:00Z'), 'Europe/London'), 'Europe/London')).toBe(-10);
   });
 
   it('validates timezones', () => {

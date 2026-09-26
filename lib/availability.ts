@@ -119,8 +119,9 @@ export function weekDays(now: Date, zone: string): WeekDay[] {
 
 /**
  * How many half-hour slots the realm clock is ahead of `zone` at `at`. Positive = server
- * is ahead. Used for the right-hand "Server" gutter; a week straddling a DST change is
- * labelled with the offset at the week's start, which is what the artboard does too.
+ * is ahead. The grid passes the week's start, so a week straddling a DST change carries one
+ * offset for its whole width, as the artboard does. Zones on quarter-hour offsets round to
+ * the nearest half-hour.
  */
 export function serverOffsetSlots(at: Date, zone: string): number {
   return Math.round((tzOffsetMs(at, REALM_TIMEZONE) - tzOffsetMs(at, zone)) / 1_800_000);
@@ -133,7 +134,7 @@ export function offsetDescription(offsetSlots: number): string {
   const hours = Math.floor(abs / 2);
   const half = abs % 2 === 1;
   const amount = hours === 0 ? '½' : half ? `${hours}½` : String(hours);
-  const unit = hours === 1 && !half ? 'hour' : 'hours';
+  const unit = (hours === 1 && !half) || hours === 0 ? 'hour' : 'hours';
   return `${amount} ${unit} ${offsetSlots > 0 ? 'ahead' : 'behind'}`;
 }
 

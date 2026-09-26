@@ -12,6 +12,7 @@ import {
   serverOffsetSlots,
   slotKey,
   weekDays,
+  weekStart,
   type PaintMode,
   type SlotState,
   type Week,
@@ -83,7 +84,7 @@ export function AvailabilityEditor({ initial }: Props) {
   }, []);
 
   const days = useMemo(() => weekDays(now, effectiveZone), [now, effectiveZone]);
-  const offsetSlots = useMemo(() => serverOffsetSlots(now, effectiveZone), [now, effectiveZone]);
+  const offsetSlots = useMemo(() => serverOffsetSlots(weekStart(now, effectiveZone), effectiveZone), [now, effectiveZone]);
   const counts = countStates(week);
 
   const change = useCallback((next: Week) => {
@@ -155,6 +156,33 @@ export function AvailabilityEditor({ initial }: Props) {
     const t = setTimeout(() => void save(false), AUTOSAVE_MS);
     return () => clearTimeout(t);
   }, [dirty, saving, week, zone, save]);
+
+  // Leaving inside the debounce: warn, and push the week with a keepalive request so a
+  // paint made a second before closing the tab is not lost silently.
+  useEffect(() => {
+    if (!dirty || !zone) return;
+    const flush = () => {
+      void fetch('/api/availability', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timezone: zone, slots: week }),
+        keepalive: true,
+      }).catch(() => {});
+    };
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      flush();
+      e.preventDefault();
+    };
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      document.removeEventListener('visibilitychange', onHide);
+    };
+  }, [dirty, zone, week]);
 
   const savedLabel = dirty ? 'Unsaved changes' : saving ? 'Saving…' : lastSavedAt ? `Last saved ${relativeTime(lastSavedAt, now)}` : 'Nothing saved yet';
   const dotTone = dirty ? 'bg-warn text-warn' : lastSavedAt ? 'bg-ok text-ok' : 'bg-fg-3 text-fg-3';
@@ -249,7 +277,7 @@ export function AvailabilityEditor({ initial }: Props) {
         <WeekGrid week={week} days={days} offsetSlots={offsetSlots} paintCell={paintCell} onOpenDay={setOpenDay} />
       </div>
       <div className="md:hidden">
-        <DayColumn week={week} days={days} offsetSlots={offsetSlots} mode={mode} onWeek={change} />
+        <DayColumn week={week} days={days} offsetSlots={offsetSlots} mode={mode} onWeek={change} onOpenDay={setOpenDay} />
       </div>
 
       <section className="flex flex-col gap-3 text-[13px] text-fg-2 md:flex-row md:items-center md:justify-between">

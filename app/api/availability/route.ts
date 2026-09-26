@@ -41,7 +41,7 @@ export async function PUT(request: Request) {
   const user = await db.user.upsert({
     where: { discordId: session.discordId },
     create: { discordId: session.discordId, discordName: session.name, role: session.role.toUpperCase() as 'MEMBER' | 'OFFICER' },
-    update: { discordName: session.name },
+    update: { discordName: session.name, role: session.role.toUpperCase() as 'MEMBER' | 'OFFICER' },
     select: { id: true },
   });
   const row = await db.availability.upsert({

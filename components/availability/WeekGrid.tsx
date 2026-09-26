@@ -75,7 +75,7 @@ export function WeekGrid({ week, days, offsetSlots, paintCell, onOpenDay }: Prop
                   data-key={key}
                   role="gridcell"
                   aria-label={cellLabel(d.day, slot)}
-                  aria-pressed={state ? true : false}
+                  aria-selected={state ? true : false}
                   title={state === 'available' ? 'Available' : state === 'if-needed' ? 'If needed' : undefined}
                   className={cn(
                     'flex-1 basis-0 cursor-crosshair border-b border-l border-l-line-faint p-0 hover:outline hover:outline-1 hover:-outline-offset-1 hover:outline-teal',
@@ -85,7 +85,7 @@ export function WeekGrid({ week, days, offsetSlots, paintCell, onOpenDay }: Prop
                 />
               );
             })}
-            <div className={cn('tabular flex w-[92px] shrink-0 items-center justify-end border-b border-l border-l-line-faint pr-3.5 text-[10px] text-fg-3', line)}>
+            <div className={cn('tabular flex w-[92px] shrink-0 items-center justify-end border-b border-l border-l-line-faint pr-3.5 text-[10px] text-fg-3', line)} role="gridcell">
               {onHour ? fmtSlot(slot + offsetSlots) : ''}
             </div>
           </div>
