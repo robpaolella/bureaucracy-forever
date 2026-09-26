@@ -10,6 +10,7 @@ import {
   minutesBetween,
   nextOccurrence,
   parseHHMM,
+  relativeDate,
   tzOffsetMs,
   zoneAbbreviation,
   zonedTimeToUtc,
@@ -141,5 +142,17 @@ describe('formatting', () => {
   it('names zones', () => {
     expect(zoneAbbreviation(new Date('2026-09-29T00:00:00Z'), CHI)).toBe('CDT');
     expect(zoneAbbreviation(new Date('2026-12-29T00:00:00Z'), CHI)).toBe('CST');
+  });
+});
+
+describe('relativeDate', () => {
+  const now = new Date('2026-11-04T12:00:00Z');
+  it('rounds to whole days, months and years', () => {
+    expect(relativeDate(new Date('2026-11-04T09:00:00Z'), now)).toBe('today');
+    expect(relativeDate(new Date('2026-11-03T09:00:00Z'), now)).toBe('1 day ago');
+    expect(relativeDate(new Date('2026-10-20T12:00:00Z'), now)).toBe('15 days ago');
+    expect(relativeDate(new Date('2026-09-04T12:00:00Z'), now)).toBe('2 months ago');
+    expect(relativeDate(new Date('2024-10-01T12:00:00Z'), now)).toBe('2 years ago');
+    expect(relativeDate(new Date('2027-01-01T12:00:00Z'), now)).toBe('today');
   });
 });
