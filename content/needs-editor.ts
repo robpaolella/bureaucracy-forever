@@ -7,9 +7,6 @@ export const NEEDS_EDITOR_HEAD = {
 };
 
 export const NEEDS_EDITOR = {
-  spec: 'Spec',
-  roles: 'Role',
-  status: 'Status',
   statusFor: (wowClass: string, spec: string) => `Need for ${wowClass} ${spec}`,
   saved: (wowClass: string, spec: string, status: string) => `${wowClass} ${spec}: ${status}`,
 };

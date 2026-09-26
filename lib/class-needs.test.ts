@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SPECS } from '@/lib/design/class-colors';
-import { allSpecRows, groupNeeds, parseNeedInput, type NeedRow } from './class-needs';
+import { allSpecRows, groupNeeds, parseNeedInput, rolesOfSpec, type NeedRow } from './class-needs';
 
 describe('class needs', () => {
   const stored: NeedRow[] = [
@@ -26,6 +26,11 @@ describe('class needs', () => {
     expect(rows[2]).toMatchObject({ wowClass: 'druid', specs: ['Restoration'], status: 'medium' });
     expect(rows[3]).toEqual({ wowClass: 'druid', specs: ['Feral'], roles: ['tank', 'melee'], status: 'closed' });
     expect(rows[4]).toMatchObject({ wowClass: 'mage', status: 'closed' });
+  });
+
+  it('knows which roles a spec fills', () => {
+    expect(rolesOfSpec('druid', 'Feral')).toEqual(['tank', 'melee']);
+    expect(rolesOfSpec('mage', 'Holy')).toEqual([]);
   });
 
   it('validates an officer write', () => {

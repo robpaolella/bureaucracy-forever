@@ -77,7 +77,7 @@ export const RECRUITMENT_HEAD = {
 
 export const NEEDS_SECTION = {
   title: 'Open needs by class and role',
-  note: "Officers set each row from the Officers menu. Changing a status here updates the home page strip and the bot's /recruiting reply at the same time.",
+  note: "Officers set each row from the Officers menu. A change reaches this table, the home page strip and the bot's /recruiting reply within a minute.",
 };
 
 export const EXPECTATIONS = {

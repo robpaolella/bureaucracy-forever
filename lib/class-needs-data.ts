@@ -10,6 +10,8 @@ import type { WowClass } from '@/lib/design/class-colors';
 export const CLASS_NEEDS_TAG = 'class-needs';
 
 async function loadNeedRows(): Promise<NeedRow[]> {
+  // `roles` is not read: the pages derive a spec's roles from SPECS. The column is kept
+  // current on every write for the bot, which may read the table directly.
   const rows = await db.classNeed.findMany({ select: { class: true, spec: true, status: true } });
   return rows.map((r) => ({ wowClass: r.class.toLowerCase() as WowClass, spec: r.spec, status: r.status.toLowerCase() as NeedStatus }));
 }
@@ -29,7 +31,11 @@ export async function getClassNeeds(): Promise<ClassNeed[]> {
   try {
     return groupNeeds(allSpecRows(await getNeedRows()));
   } catch (error) {
-    console.warn('class needs: falling back to content', error instanceof Error ? error.message : error);
+    // No database configured (a CI build) is expected; a configured database failing is not,
+    // and is logged as an error, but the public page still renders the hand-written table.
+    const detail = error instanceof Error ? error.message : String(error);
+    if (process.env.DATABASE_URL) console.error('class needs: database read failed, serving the hand-written table', detail);
+    else console.warn('class needs: no database configured, serving the hand-written table');
     return CLASS_NEEDS;
   }
 }

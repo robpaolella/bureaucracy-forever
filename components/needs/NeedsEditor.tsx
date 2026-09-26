@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { SegmentedControl, Toast, type Segment, type ToastData } from '@/components/ui';
 import { NEED_LABEL, type NeedStatus } from '@/content/recruitment';
 import { rolesOfSpec, type NeedRow } from '@/lib/class-needs';
@@ -26,10 +26,14 @@ const key = (r: { wowClass: string; spec: string }) => `${r.wowClass}/${r.spec}`
 export function NeedsEditor({ rows }: Props) {
   const [status, setStatus] = useState(() => new Map(rows.map((r) => [key(r), r.status])));
   const [toast, setToast] = useState<ToastData | null>(null);
+  /** Per-row request generation: a superseded write neither confirms nor reverts anything. */
+  const generation = useRef(new Map<string, number>());
 
   async function change(row: NeedRow, next: NeedStatus) {
     const previous = status.get(key(row)) ?? row.status;
     if (previous === next) return;
+    const seq = (generation.current.get(key(row)) ?? 0) + 1;
+    generation.current.set(key(row), seq);
     setStatus((m) => new Map(m).set(key(row), next));
     try {
       const res = await fetch('/api/class-needs', {
@@ -39,8 +43,10 @@ export function NeedsEditor({ rows }: Props) {
         credentials: 'same-origin',
       });
       if (!res.ok) throw new Error(String(res.status));
+      if (generation.current.get(key(row)) !== seq) return;
       setToast({ tone: 'ok', title: NEEDS_EDITOR.saved(CLASS_COLORS[row.wowClass].label, row.spec, NEED_LABEL[next]) });
     } catch {
+      if (generation.current.get(key(row)) !== seq) return;
       setStatus((m) => new Map(m).set(key(row), previous));
       setToast({ tone: 'stop', title: SAVE_FAILED });
     }

@@ -197,7 +197,7 @@ function ClosingCta() {
   );
 }
 
-/** The recruitment teaser reads the needs table; the rest is static copy. */
+/** The whole page is ISR so the recruitment teaser can read the needs table; every other section is static copy. */
 export const revalidate = 60;
 
 export default function HomePage() {
