@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { DualTime } from '@/components/time/DualTime';
 import { SegmentedControl } from '@/components/ui';
 import { cn } from '@/lib/cn';
@@ -50,7 +51,9 @@ export function RaidCardRow({ raid, tonight, canRespond, past, onRespond }: Prop
         <div className="flex min-w-0 flex-col gap-1">
           {tonight && <span className="font-eyebrow text-[10px] font-semibold uppercase tracking-[0.28em] text-sand">Tonight</span>}
           <h2 className="text-[17px] font-semibold">
-            {raid.name}
+            <Link href={`/members/calendar/${raid.id}`} className="rounded-sm underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">
+              {raid.name}
+            </Link>
             {raid.cancelled && <span className="ml-2 text-sm font-normal text-stop">Cancelled</span>}
           </h2>
           <DualTime startsAt={raid.startsAt} durationMin={raid.durationMin} />
