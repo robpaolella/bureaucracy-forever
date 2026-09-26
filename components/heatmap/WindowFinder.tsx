@@ -1,12 +1,13 @@
 'use client';
 
 import { useId, useMemo, useState } from 'react';
-import { Card, CONTROL, FIELD_LABEL } from '@/components/ui';
+import { ButtonLink, Card, CONTROL, FIELD_LABEL } from '@/components/ui';
 import { fmtSlot, type WeekDay } from '@/lib/availability';
 import { cn } from '@/lib/cn';
 import { HEAT_ROLES, type Heatmap, type HeatRole, type RoleCounts } from '@/lib/heatmap';
-import { DEFAULT_MINIMA, findWindows, formatRoleMinima, topWindows, WINDOW_LENGTHS } from '@/lib/windows';
+import { DEFAULT_MINIMA, findWindows, formatRoleMinima, scheduleHref, topWindows, WINDOW_LENGTHS } from '@/lib/windows';
 import { WINDOW_FINDER } from '@/content/availability';
+import { SCHEDULE_FROM_WINDOW } from '@/content/calendar';
 
 type Props = { heat: Heatmap | null; days: WeekDay[]; offsetSlots: number };
 
@@ -98,7 +99,7 @@ export function WindowFinder({ heat, days, offsetSlots }: Props) {
             {shown.map((w) => {
               const day = days[w.day];
               return (
-                <li key={`${w.day}:${w.start}`} className="flex items-center justify-between gap-3 rounded-control border border-line-strong bg-ink-800 px-4 py-3.5">
+                <li key={`${w.day}:${w.start}`} className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-line-strong bg-ink-800 px-4 py-3.5">
                   <div className="flex flex-col gap-[3px]">
                     <span className="tabular text-[15px] font-semibold">
                       {day.name} {fmtSlot(w.start)} – {fmtSlot(w.start + w.length)}
@@ -111,6 +112,9 @@ export function WindowFinder({ heat, days, offsetSlots }: Props) {
                     <span className="tabular text-base font-bold text-ok">{w.score}</span>
                     <span className="tabular text-[11px] text-fg-2">{formatRoleMinima(w.roles)}</span>
                   </div>
+                  <ButtonLink href={scheduleHref(w.day, w.start, w.length, offsetSlots)} variant="secondary" size="sm" aria-label={`${SCHEDULE_FROM_WINDOW} ${day.longName} ${fmtSlot(w.start)}`}>
+                    {SCHEDULE_FROM_WINDOW}
+                  </ButtonLink>
                 </li>
               );
             })}
