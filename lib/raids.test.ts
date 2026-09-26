@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyResponse, countAccepted, countTone, isRaidResponse, isTonight, isUpcoming, parseRequirements, raidWeekday, responseToast, ZERO_COUNTS } from './raids';
+import { applyResponse, countAccepted, countTone, groupSignups, isRaidResponse, isTonight, isUpcoming, parseRequirements, raidWeekday, responseToast, sourceSplit, totalCounts, ZERO_COUNTS, type SignupRow } from './raids';
 
 describe('requirements and counts', () => {
   it('parses a JSON requirements column defensively', () => {
@@ -73,5 +73,38 @@ describe('responseToast', () => {
     expect(responseToast(raid, 'tentative', 'America/Los_Angeles').title).toBe('Marked tentative for Wednesday — Blackwing Lair');
     expect(responseToast(raid, 'absent', null).detail).toBe('8:00 PM guild');
     expect(responseToast(raid, null, null).title).toBe('Answer withdrawn for Wednesday — Blackwing Lair');
+  });
+});
+
+describe('raid detail', () => {
+  const row = (over: Partial<SignupRow>): SignupRow => ({
+    userId: 'u',
+    name: 'Redtape',
+    wowClass: 'priest',
+    spec: 'Holy',
+    role: 'healer',
+    response: 'accept',
+    source: 'web',
+    reason: null,
+    setBy: null,
+    updatedAt: '2026-10-01T00:00:00.000Z',
+    ...over,
+  });
+
+  it('groups sign-ups by response, newest first', () => {
+    const sections = groupSignups([
+      row({ userId: 'a', updatedAt: '2026-10-01T00:00:00.000Z' }),
+      row({ userId: 'b', response: 'absent', reason: 'work' }),
+      row({ userId: 'c', updatedAt: '2026-10-02T00:00:00.000Z' }),
+      row({ userId: 'd', response: 'tentative' }),
+    ]);
+    expect(sections.accept.map((r) => r.userId)).toEqual(['c', 'a']);
+    expect(sections.tentative.map((r) => r.userId)).toEqual(['d']);
+    expect(sections.absent[0].reason).toBe('work');
+  });
+
+  it('splits answers by surface and totals the role counts', () => {
+    expect(sourceSplit([row({}), row({ source: 'discord' }), row({ source: 'discord', response: 'absent' })])).toEqual({ web: 1, discord: 2 });
+    expect(totalCounts({ tank: 2, healer: 8, melee: 11, ranged: 14 })).toBe(35);
   });
 });

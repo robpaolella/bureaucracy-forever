@@ -3,7 +3,7 @@
  * and the sign-up hook lean on these so the optimistic update and the toast copy are
  * unit-tested rather than improvised in components.
  */
-import type { Role } from '@/lib/design/class-colors';
+import type { Role, WowClass } from '@/lib/design/class-colors';
 import { GUILD_TIMEZONE } from '@/lib/config';
 import { formatClock, zonedParts } from '@/lib/time';
 
@@ -106,4 +106,44 @@ export function responseToast(raid: { name: string; startsAt: string }, response
   const guild = `${formatClock(start, GUILD_TIMEZONE)} guild`;
   const detail = viewerZone && viewerZone !== GUILD_TIMEZONE ? `${guild} · ${formatClock(start, viewerZone)} your time` : guild;
   return { title, detail };
+}
+
+export type SignupSource = 'web' | 'discord';
+
+/** One sign-up as the raid detail lists it (docs/04 § Raid detail § Sign-up list). */
+export type SignupRow = {
+  userId: string;
+  /** The member's main, or their Discord name until the roster knows one. */
+  name: string;
+  wowClass: WowClass | null;
+  spec: string | null;
+  role: Role | null;
+  response: RaidResponse;
+  source: SignupSource;
+  reason: string | null;
+  /** The officer who answered on the member's behalf, if any. */
+  setBy: string | null;
+  updatedAt: string;
+};
+
+export type SignupSections = Record<RaidResponse, SignupRow[]>;
+
+/** Accepted / Tentative / Absent, each newest answer first. */
+export function groupSignups(rows: SignupRow[]): SignupSections {
+  const sections: SignupSections = { accept: [], tentative: [], absent: [] };
+  for (const row of rows) sections[row.response].push(row);
+  for (const key of RESPONSES) sections[key].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+  return sections;
+}
+
+/** "12 via web · 9 via Discord": how the answers split by surface, all responses counted. */
+export function sourceSplit(rows: { source: SignupSource }[]): { web: number; discord: number } {
+  let web = 0;
+  let discord = 0;
+  for (const row of rows) if (row.source === 'discord') discord += 1; else web += 1;
+  return { web, discord };
+}
+
+export function totalCounts(counts: RoleCounts): number {
+  return counts.tank + counts.healer + counts.melee + counts.ranged;
 }
