@@ -1,5 +1,7 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { parseDecision } from '@/lib/applications-decide';
+import { applicantDiscordId } from '@/lib/bot-events';
+import { notifyBot } from '@/lib/bot-notify';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/session';
 import { ensureUser } from '@/lib/users';
@@ -21,7 +23,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400, headers: NO_STORE });
 
   const { id } = await params;
-  const app = await db.application.findUnique({ where: { id }, select: { id: true, status: true, path: true } });
+  const app = await db.application.findUnique({ where: { id }, select: { id: true, status: true, path: true, character: true, discordId: true, discordName: true } });
   if (!app) return NextResponse.json({ error: 'No such application.' }, { status: 404, headers: NO_STORE });
   if (app.status !== 'PENDING') return NextResponse.json({ error: 'This application was already decided.' }, { status: 409, headers: NO_STORE });
 
@@ -40,5 +42,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     data: { status: parsed.value.status === 'accepted' ? 'ACCEPTED' : 'DECLINED', decidedAt: new Date(), decidedByUserId: officer.id, readAt: new Date() },
   });
   if (decided.count === 0) return NextResponse.json({ error: 'This application was already decided.' }, { status: 409, headers: NO_STORE });
-  return NextResponse.json({ id: app.id, status: parsed.value.status }, { headers: NO_STORE });
+  const status = parsed.value.status;
+  after(() =>
+    notifyBot({ type: 'application.decided', applicationId: app.id, status, path: app.path === 'SOCIAL' ? 'social' : 'raider', character: app.character, discordId: applicantDiscordId(app.discordId), discordName: app.discordName }),
+  );
+  return NextResponse.json({ id: app.id, status }, { headers: NO_STORE });
 }

@@ -16,9 +16,17 @@ export const HEATMAP_TAG = 'heatmap';
  * and expired on every availability write (docs/06 § API routes); the projection onto
  * the officer's zone happens per request, this read is the part worth caching.
  */
+/** Who is asked for availability: everyone but socials (docs/03 § Roles). */
+export const RAIDING_ROSTER = { role: { not: 'SOCIAL' } } as const;
+
+/** Members who have not painted a week, for the Discord nudge. Same denominator as the heatmap. */
+export async function loadNotSubmitted(): Promise<{ discordId: string; discordName: string }[]> {
+  return db.user.findMany({ where: { ...RAIDING_ROSTER, availability: null }, select: { discordId: true, discordName: true }, orderBy: { discordName: 'asc' } });
+}
+
 async function loadRosterAvailability(): Promise<HeatMember[]> {
   const users = await db.user.findMany({
-    where: { role: { not: 'SOCIAL' } },
+    where: RAIDING_ROSTER,
     orderBy: { discordName: 'asc' },
     select: {
       discordName: true,

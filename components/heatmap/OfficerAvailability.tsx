@@ -6,10 +6,11 @@ import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { guildOffsetSlots, weekDays, weekStart } from '@/lib/availability';
 import { GUILD_TIMEZONE } from '@/lib/config';
 import type { Heatmap, HeatmapMember } from '@/lib/heatmap';
-import { NUDGE_LABEL, NUDGE_PENDING, OFFICER_AVAILABILITY_HEAD } from '@/content/availability';
+import { OFFICER_AVAILABILITY_HEAD } from '@/content/availability';
 import { DaySummary } from './DaySummary';
 import { HEAT_BG, HeatGrid } from './HeatGrid';
 import { NotSubmitted } from './NotSubmitted';
+import { NudgeButton } from './NudgeButton';
 import { WindowFinder } from './WindowFinder';
 
 type Props = {
@@ -68,9 +69,7 @@ export function OfficerAvailability({ memberCount, submitted, notSubmitted }: Pr
               {submitted} of {memberCount}
             </span>
           </div>
-          <Button variant="secondary" disabled title={NUDGE_PENDING}>
-            {NUDGE_LABEL}
-          </Button>
+          <NudgeButton />
         </div>
       </section>
 
