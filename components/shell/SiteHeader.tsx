@@ -59,6 +59,9 @@ export function SiteHeader() {
                 <NavLink href={OFFICER_LINKS.heatmap.href} variant="menu">
                   {OFFICER_LINKS.heatmap.label}
                 </NavLink>
+                <NavLink href={OFFICER_LINKS.roster.href} variant="menu">
+                  {OFFICER_LINKS.roster.label}
+                </NavLink>
                 <NavLink href={OFFICER_LINKS.schedule.href} variant="menu">
                   {OFFICER_LINKS.schedule.label}
                 </NavLink>
