@@ -20,3 +20,4 @@ export { Modal, ModalPanel } from './Modal';
 export { EmptyState } from './EmptyState';
 export { Skeleton, SkeletonText } from './Skeleton';
 export { Toast, type ToastData } from './Toast';
+export { SegmentedControl, type Segment, type SegmentTone } from './SegmentedControl';
