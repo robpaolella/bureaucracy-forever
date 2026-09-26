@@ -44,8 +44,10 @@ export function CalendarList({ raids: initial, viewer }: Props) {
   const upcoming = useMemo(() => raids.filter((r) => isUpcoming(r, now)), [raids, now]);
   const past = useMemo(() => raids.filter((r) => !isUpcoming(r, now)).reverse(), [raids, now]);
   const shown = scope === 'upcoming' ? upcoming : past;
-  const tonightId = zone ? upcoming.find((r) => isTonight(r.startsAt, now, zone.zone))?.id : undefined;
-  const ordered = tonightId ? [shown.find((r) => r.id === tonightId)!, ...shown.filter((r) => r.id !== tonightId)] : shown;
+  const tonightId =
+    zone && scope === 'upcoming' ? upcoming.find((r) => isTonight(r.startsAt, now, zone.zone))?.id : undefined;
+  const tonightRaid = tonightId ? shown.find((r) => r.id === tonightId) : undefined;
+  const ordered = tonightRaid ? [tonightRaid, ...shown.filter((r) => r.id !== tonightId)] : shown;
 
   return (
     <div className="flex flex-col gap-5">
