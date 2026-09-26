@@ -55,6 +55,22 @@ export function applyResponse(counts: RoleCounts, role: Role | null, from: RaidR
   return next;
 }
 
+/** The viewer's optimistic answer and the counts that went with it, held apart from the server's card. */
+export type LocalAnswer = Pick<RaidCard, 'mine' | 'counts'>;
+
+/**
+ * The server's cards with the viewer's local answers on top. A local answer is dropped
+ * once the server's own card already carries it: that fetch reflects the write, so its
+ * counts are at least as fresh as anything held locally (other members' answers included).
+ */
+export function mergeLocal(cards: RaidCard[], local: ReadonlyMap<string, LocalAnswer>): RaidCard[] {
+  return cards.map((card) => {
+    const mine = local.get(card.id);
+    if (!mine || mine.mine === card.mine) return card;
+    return { ...card, ...mine };
+  });
+}
+
 /** warn below the requirement, stop at zero, ok otherwise (docs/04 § Raid calendar § Rows). */
 export function countTone(count: number, required: number): 'ok' | 'warn' | 'stop' {
   if (count <= 0 && required > 0) return 'stop';
@@ -187,7 +203,10 @@ export function parseRaidInput(body: unknown): ParsedRaid {
   if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59) return { ok: false, error: 'That date or time is not real.' };
   const startsAt = zonedTimeToUtc(year, month, day, hour, minute, GUILD_TIMEZONE);
   const back = zonedParts(startsAt, GUILD_TIMEZONE);
-  if (back.month !== month || back.day !== day) return { ok: false, error: 'That date or time is not real.' };
+  // Also catches a wall time inside the spring-forward gap, which zonedTimeToUtc moves forward.
+  if (back.month !== month || back.day !== day || back.hour !== hour || back.minute !== minute) {
+    return { ok: false, error: 'That date or time is not real.' };
+  }
 
   const durationMin = typeof b.durationMin === 'number' ? b.durationMin : Number(b.durationMin);
   if (!(DURATIONS as readonly number[]).includes(durationMin)) return { ok: false, error: 'Pick a raid length.' };

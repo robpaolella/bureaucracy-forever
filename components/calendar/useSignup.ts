@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Role } from '@/lib/design/class-colors';
-import { applyResponse, type RaidCard, type RaidResponse, type RoleCounts } from '@/lib/raids';
+import { applyResponse, mergeLocal, type LocalAnswer, type RaidCard, type RaidResponse, type RoleCounts } from '@/lib/raids';
 
 type Result = { raidId: string; userId: string; response: RaidResponse | null; counts: RoleCounts };
 
@@ -13,15 +13,13 @@ type Result = { raidId: string; userId: string; response: RaidResponse | null; c
  * last change. One request per raid at a time: a newer answer supersedes an in-flight one
  * by ignoring its reply.
  */
-type Local = Pick<RaidCard, 'mine' | 'counts'>;
-
 export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult: (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void) => void) {
   // The server's cards stay the base and only the viewer's answers ride on top, so a
   // refreshed page (a raid scheduled, another member's answer) shows up without losing
   // the optimistic state.
-  const [local, setLocal] = useState(new Map<string, Local>());
-  const raids = useMemo(() => initial.map((r) => ({ ...r, ...local.get(r.id) })), [initial, local]);
-  const setRaid = useCallback((id: string, value: Local) => setLocal((m) => new Map(m).set(id, value)), []);
+  const [local, setLocal] = useState(new Map<string, LocalAnswer>());
+  const raids = useMemo(() => mergeLocal(initial, local), [initial, local]);
+  const setRaid = useCallback((id: string, value: LocalAnswer) => setLocal((m) => new Map(m).set(id, value)), []);
   const previous = useRef(new Map<string, RaidResponse | null>());
   const inflight = useRef(new Map<string, number>());
   /** Per-raid promise chain so writes reach the server in click order. */

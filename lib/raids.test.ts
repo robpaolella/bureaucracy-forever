@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, emptyRaidInput, groupSignups, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, parseRequirements, raidWeekday, responseToast, sourceSplit, totalCounts, ZERO_COUNTS, type SignupRow } from './raids';
+import { applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, emptyRaidInput, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, parseRequirements, raidWeekday, responseToast, sourceSplit, totalCounts, ZERO_COUNTS, type RaidCard, type SignupRow } from './raids';
 
 describe('requirements and counts', () => {
   it('parses a JSON requirements column defensively', () => {
@@ -128,6 +128,9 @@ describe('schedule form input', () => {
     expect(parseRaidInput({ ...good, name: ' ' })).toMatchObject({ ok: false, error: /name/ });
     expect(parseRaidInput({ ...good, date: '2026-13-01' })).toMatchObject({ ok: false, error: /not real/ });
     expect(parseRaidInput({ ...good, date: '2026-02-30' })).toMatchObject({ ok: false, error: /not real/ });
+    // 14 Mar 2027 the clocks jump 02:00 → 03:00 in Los Angeles: 02:30 never happens.
+    expect(parseRaidInput({ ...good, date: '2027-03-14', time: '02:30' })).toMatchObject({ ok: false, error: /not real/ });
+    expect(parseRaidInput({ ...good, date: '2027-03-14', time: '03:30' })).toMatchObject({ ok: true });
     expect(parseRaidInput({ ...good, time: '7pm' })).toMatchObject({ ok: false, error: /start time/ });
     expect(parseRaidInput({ ...good, durationMin: 100 })).toMatchObject({ ok: false, error: /length/ });
     expect(parseRaidInput({ ...good, requirements: { tank: 2, healer: 8, melee: 9, ranged: 41 } })).toMatchObject({ ok: false, error: /0 to 40/ });
@@ -145,5 +148,32 @@ describe('schedule form input', () => {
     const now = new Date('2026-09-26T17:00:00.000Z');
     expect(emptyRaidInput({ weekday: 3, time: '20:00', length: 240 }, now)).toMatchObject({ date: '2026-09-30', time: '20:00', durationMin: 240 });
     expect(emptyRaidInput({}, now)).toMatchObject({ date: '2026-09-26', time: '19:00', durationMin: 180, requirements: DEFAULT_REQUIREMENTS });
+  });
+});
+
+describe('mergeLocal', () => {
+  const card = (over: Partial<RaidCard>): RaidCard => ({
+    id: 'x',
+    name: 'MC',
+    startsAt: '2026-10-08T02:00:00.000Z',
+    durationMin: 180,
+    notes: null,
+    cancelled: false,
+    requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 },
+    counts: { tank: 2, healer: 6, melee: 9, ranged: 11 },
+    mine: null,
+    ...over,
+  });
+
+  it('keeps a pending local answer over a server card that has not seen it', () => {
+    const local = new Map([['x', { mine: 'accept' as const, counts: { tank: 2, healer: 7, melee: 9, ranged: 11 } }]]);
+    expect(mergeLocal([card({})], local)[0]).toMatchObject({ mine: 'accept', counts: { healer: 7 } });
+  });
+
+  it('drops the local answer once the server card carries it, so fresher counts win', () => {
+    const local = new Map([['x', { mine: 'accept' as const, counts: { tank: 2, healer: 7, melee: 9, ranged: 11 } }]]);
+    const fresh = card({ mine: 'accept', counts: { tank: 2, healer: 8, melee: 9, ranged: 11 } });
+    expect(mergeLocal([fresh], local)[0]).toBe(fresh);
+    expect(mergeLocal([card({ id: 'y' })], local)[0].mine).toBeNull();
   });
 });
