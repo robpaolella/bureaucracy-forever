@@ -9,6 +9,7 @@ import { useSiteSession } from '@/components/shell/SiteSessionProvider';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { Button, Choice, ChoiceGroup, Field, Input, Select, Textarea } from '@/components/ui';
 import { FORM } from '@/content/recruitment';
+import { HONEYPOT_FIELD } from '@/lib/applications';
 import { RAID_NIGHTS } from '@/content/schedule';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS, CLASSES, SPECS, type WowClass } from '@/lib/design/class-colors';
@@ -55,7 +56,7 @@ export function ApplicationForm() {
   const params = useSearchParams();
   // From the session when logged in; the field is then read-only. Read on the client so
   // the page stays static.
-  const discordHandle = useSiteSession().session?.name.toLowerCase();
+  const discordHandle = useSiteSession().session?.name;
   const [path, setPath] = useState<ApplicationPath>(params.get('path') === 'social' ? 'social' : 'raider');
   const [wowClass, setWowClass] = useState<WowClass | ''>('');
   const [state, formAction, pending] = useActionState(submitApplication, INITIAL_STATE);
@@ -69,7 +70,13 @@ export function ApplicationForm() {
   ];
 
   return (
-    <form action={formAction} noValidate className="flex flex-col gap-6 rounded-card border border-line bg-ink-850 p-6 md:p-10">
+    <form action={formAction} noValidate className="relative flex flex-col gap-6 rounded-card border border-line bg-ink-850 p-6 md:p-10">
+      {/* Honeypot: off-screen and out of the tab order; people never see it, bots fill it. */}
+      <div aria-hidden className="absolute -left-[9999px] h-px w-px overflow-hidden">
+        <label>
+          Website <input type="text" name={HONEYPOT_FIELD} tabIndex={-1} autoComplete="off" readOnly />
+        </label>
+      </div>
       <div className="flex flex-col gap-2.5">
         <h2 className="font-display text-[34px] font-medium leading-[1.1]">{FORM.title}</h2>
         <p className="text-[15px] leading-[1.65] text-fg-2">{FORM.lede}</p>
@@ -87,10 +94,10 @@ export function ApplicationForm() {
         </Field>
         <Field
           label="Discord handle"
-          hint={discordHandle ? 'From your Discord login.' : 'Log in with Discord to fill this in automatically.'}
+          hint={discordHandle ? 'From your Discord login.' : "So an officer can reach you. Log in with Discord to fill it in automatically."}
           error={e.discord}
         >
-          <Input key={discordHandle ?? 'anon'} name="discord" defaultValue={discordHandle} readOnly={Boolean(discordHandle)} placeholder="yourhandle" autoComplete="off" />
+          <Input key={discordHandle ?? 'anon'} name="discord" defaultValue={discordHandle} readOnly={Boolean(discordHandle)} placeholder="yourhandle" autoComplete="off" required />
         </Field>
         {path === 'raider' && (
           <>

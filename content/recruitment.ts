@@ -111,8 +111,20 @@ export const FORM = {
   socialPlaceholder: 'How you found us, who you know here, what you play.',
   submit: 'Submit application',
   submitNote: "You'll get a Discord DM when an officer picks it up.",
-  /** Shown until the applications API exists (build-order step 9). */
-  notOpen: "Applications aren't open yet. Join the Discord and ask in #recruitment — that's where we'll reach you.",
+  tooMany: 'That is a lot of applications from one place. Wait an hour, or ask in #recruitment.',
+  duplicate: 'An application for this character is already waiting on an officer.',
+};
+
+/** docs/04 § Application submitted. */
+export const SUBMITTED = {
+  eyebrow: 'Received',
+  title: 'Your application is in',
+  body: "An officer picks it up within a day and you'll get a Discord DM either way. If you're not in the server yet, join now — that's where we'll reach you.",
+  summary: { character: 'Character', wowClass: 'Class', spec: 'Spec', path: 'Path' },
+  paths: { raider: 'Raider', social: 'Social' },
+  join: 'Join Discord',
+  back: 'Back to the site',
+  mistake: 'Applied by mistake or need to change something? Post in #recruitment.',
 };
 
 export const NEXT_STEPS = {

@@ -1,48 +1,64 @@
 'use server';
 
-import type { ApplicationPath, ApplicationState } from '@/components/recruitment/form-state';
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
+import type { ApplicationState } from '@/components/recruitment/form-state';
 import { FORM } from '@/content/recruitment';
-import { CLASSES, SPECS, type WowClass } from '@/lib/design/class-colors';
+import { isHoneypotFilled, parseApplication, submittedSearch } from '@/lib/applications';
+import { db } from '@/lib/db';
+import { Prisma } from '@/lib/generated/prisma/client';
+import { clientAddress, rateLimited } from '@/lib/rate-limit';
+import { getSession } from '@/lib/session';
 
-// Letters only, any script; the Latin-1 range would let × and ÷ through.
-const CHARACTER = /^\p{L}{2,12}$/u;
-
-function text(data: FormData, key: string): string {
-  const v = data.get(key);
-  return typeof v === 'string' ? v.trim() : '';
-}
+const LIMIT = 5;
+const WINDOW_MS = 60 * 60_000;
 
 /**
- * Validates the public application form. Persistence and the officer inbox arrive with
- * build-order step 9 (POST /api/applications, rate-limited); until then a valid form
- * gets the not-open notice rather than a false "received".
+ * The public application form (docs/04 § Recruitment). Anyone may apply, no login: the
+ * Discord handle comes from the session when there is one and from the form otherwise.
+ * Spam controls: a honeypot field, a per-address limit, and one pending application per
+ * character. On success the applicant lands on /recruitment/submitted.
  */
 export async function submitApplication(_prev: ApplicationState, data: FormData): Promise<ApplicationState> {
-  const errors: Record<string, string> = {};
-  const path: ApplicationPath = text(data, 'path') === 'social' ? 'social' : 'raider';
+  const session = await getSession();
+  const parsed = parseApplication(data, session?.name ?? null);
+  if (!parsed.ok) return { ok: false, errors: parsed.errors };
+  const { value } = parsed;
 
-  const character = text(data, 'character');
-  if (!CHARACTER.test(character)) errors.character = 'Character names are 2–12 letters, exactly as in game.';
+  // A bot filled the field nobody sees: pretend it worked and store nothing.
+  if (isHoneypotFilled(data)) redirect(`/recruitment/submitted?${submittedSearch(value)}`);
 
-  if (path === 'raider') {
-    const wowClass = text(data, 'class') as WowClass;
-    if (!(CLASSES as readonly string[]).includes(wowClass)) errors.class = 'Choose a class.';
-    const spec = text(data, 'spec');
-    if (!errors.class && !SPECS[wowClass].some((s) => s.name === spec)) errors.spec = 'Choose a spec.';
+  if (rateLimited(`application:${clientAddress(await headers())}`, LIMIT, WINDOW_MS)) return { ok: false, errors: {}, message: FORM.tooMany };
 
-    const logs = text(data, 'logs');
-    try {
-      const url = new URL(logs);
-      if (!/^https?:$/.test(url.protocol)) throw new Error();
-    } catch {
-      errors.logs = 'We need a link to at least one parse before we can review this.';
-    }
-
-    if (!(FORM.availabilityOptions as readonly string[]).includes(text(data, 'availability'))) errors.availability = 'Pick one.';
-    if (text(data, 'wipe').length < 20) errors.wipe = 'A few honest sentences.';
-    if (data.get('agree') !== 'on') errors.agree = 'Read the loot rules and the expectations first.';
+  // One pending application per character: check and insert in one serializable
+  // transaction so a double submit cannot slip two rows through.
+  let duplicate = false;
+  try {
+    duplicate = await db.$transaction(
+      async (tx) => {
+        const pending = await tx.application.findFirst({ where: { status: 'PENDING', character: { equals: value.character, mode: 'insensitive' } }, select: { id: true } });
+        if (pending) return true;
+        await tx.application.create({
+          data: {
+            path: value.path === 'social' ? 'SOCIAL' : 'RAIDER',
+            // '' means no Discord account is known: the inbox and the bot must fall back to discordName.
+            discordId: session?.discordId ?? '',
+            discordName: value.discord,
+            character: value.character,
+            class: value.wowClass ? (value.wowClass.toUpperCase() as Uppercase<typeof value.wowClass>) : null,
+            spec: value.spec,
+            logsUrl: value.logsUrl,
+            answers: value.answers,
+          },
+        });
+        return false;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034') duplicate = true;
+    else throw e;
   }
-
-  if (Object.keys(errors).length > 0) return { ok: false, errors };
-  return { ok: false, errors: {}, message: FORM.notOpen };
+  if (duplicate) return { ok: false, errors: { character: FORM.duplicate } };
+  redirect(`/recruitment/submitted?${submittedSearch(value)}`);
 }
