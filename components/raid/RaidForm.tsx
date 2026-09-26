@@ -91,7 +91,7 @@ export function RaidForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
                 value={input.requirements[r]}
                 onChange={(e) => {
                   const n = Number.parseInt(e.target.value, 10);
-                  set('requirements', { ...input.requirements, [r]: Number.isNaN(n) ? 0 : n });
+                  set('requirements', { ...input.requirements, [r]: Number.isNaN(n) || n < 0 ? 0 : n });
                 }}
                 className={cn(CONTROL, 'tabular h-11 px-3')}
               />

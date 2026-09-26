@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { loadRaidCards } from '@/lib/raid-cards';
-import { parseRaidInput } from '@/lib/raids';
+import { isUpcoming, parseRaidInput } from '@/lib/raids';
 import { getSession } from '@/lib/session';
 
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
@@ -10,8 +10,9 @@ const NO_STORE = { 'Cache-Control': 'private, no-store' };
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Log in first.' }, { status: 401, headers: NO_STORE });
-  const raids = await loadRaidCards(new Date(Date.now() - 6 * 3600_000), session.discordId);
-  return NextResponse.json({ raids: raids.filter((r) => Date.parse(r.startsAt) + r.durationMin * 60_000 >= Date.now()) }, { headers: NO_STORE });
+  const now = new Date();
+  const raids = await loadRaidCards(new Date(now.getTime() - 6 * 3600_000), session.discordId);
+  return NextResponse.json({ raids: raids.filter((r) => isUpcoming(r, now)) }, { headers: NO_STORE });
 }
 
 /**
