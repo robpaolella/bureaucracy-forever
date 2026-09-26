@@ -4,7 +4,8 @@ import { CalendarList } from '@/components/calendar/CalendarList';
 import { db } from '@/lib/db';
 import type { Role } from '@/lib/design/class-colors';
 import { loadRaidCards } from '@/lib/raid-cards';
-import { pastWindowStart } from '@/lib/raids';
+import { emptyRaidInput, pastWindowStart } from '@/lib/raids';
+import type { Weekday } from '@/lib/time';
 import { getSession } from '@/lib/session';
 import { CALENDAR_HEAD } from '@/content/calendar';
 
@@ -18,9 +19,31 @@ export const metadata: Metadata = {
  * Sign-ups are loaded with each user's main so the role stacks count accepted answers
  * per role; the viewer's own answer rides on the card.
  */
-export default async function CalendarPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+
+/**
+ * `?new=1` opens the schedule form (the officer nav link); `day` (0 = Sunday), `time`
+ * (HH:MM guild) and `length` (minutes) prefill it from a heatmap window.
+ */
+function scheduleFrom(params: Record<string, string | string[] | undefined>) {
+  const day = Number(one(params.day));
+  const length = Number(one(params.length));
+  return {
+    openOnLoad: one(params.new) === '1',
+    initial: emptyRaidInput({
+      weekday: Number.isInteger(day) && day >= 0 && day <= 6 ? (day as Weekday) : undefined,
+      time: one(params.time),
+      length: Number.isFinite(length) ? length : undefined,
+    }),
+  };
+}
+
+export default async function CalendarPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await getSession();
   if (!session) notFound();
+  const params = await searchParams;
 
   const [cards, me] = await Promise.all([
     loadRaidCards(pastWindowStart(), session.discordId),
@@ -37,6 +60,7 @@ export default async function CalendarPage() {
       <CalendarList
         raids={cards}
         viewer={{ role: session.role, raidRole: (me?.characters[0]?.raidRole.toLowerCase() as Role | undefined) ?? null, availabilitySubmitted: session.availabilitySubmitted }}
+        schedule={session.role === 'officer' ? scheduleFrom(params) : undefined}
       />
     </div>
   );
