@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { verifyBotRequest } from './bot-auth';
-import { notifyBot } from './bot-notify';
+import { botWebhookUrl, notifyBot } from './bot-notify';
 
 describe('notifyBot', () => {
   afterEach(() => vi.unstubAllEnvs());
@@ -46,5 +46,18 @@ describe('notifyBot', () => {
     expect(await notifyBot({ type: 'availability.nudge', members: [] }, throwing)).toBe('failed');
     expect(warn).toHaveBeenCalledTimes(2);
     warn.mockRestore();
+  });
+});
+
+describe('botWebhookUrl', () => {
+  it('accepts https anywhere and http only locally or outside production', () => {
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(botWebhookUrl({ BOT_WEBHOOK_URL: 'https://bot.example/hook', NODE_ENV: 'production' })).toBe('https://bot.example/hook');
+    expect(botWebhookUrl({ BOT_WEBHOOK_URL: 'http://localhost:3300/hook', NODE_ENV: 'production' })).toBe('http://localhost:3300/hook');
+    expect(botWebhookUrl({ BOT_WEBHOOK_URL: 'http://bot.example/hook', NODE_ENV: 'production' })).toBeNull();
+    expect(botWebhookUrl({ BOT_WEBHOOK_URL: 'http://bot.example/hook', NODE_ENV: 'development' })).toBe('http://bot.example/hook');
+    expect(botWebhookUrl({ BOT_WEBHOOK_URL: 'not a url', NODE_ENV: 'production' })).toBeNull();
+    expect(botWebhookUrl({} as NodeJS.ProcessEnv)).toBeNull();
+    quiet.mockRestore();
   });
 });

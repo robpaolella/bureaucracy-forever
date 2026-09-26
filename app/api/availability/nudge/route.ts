@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { botConfigured, notifyBot } from '@/lib/bot-notify';
-import { db } from '@/lib/db';
+import { loadNotSubmitted } from '@/lib/roster-availability';
 import { getSession } from '@/lib/session';
 
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
@@ -16,7 +16,7 @@ export async function POST() {
   if (session.role !== 'officer') return NextResponse.json({ error: 'Officers only.' }, { status: 403, headers: NO_STORE });
   if (!botConfigured()) return NextResponse.json({ error: 'Discord sync is not configured yet.' }, { status: 503, headers: NO_STORE });
 
-  const members = await db.user.findMany({ where: { role: { not: 'SOCIAL' }, availability: null }, select: { discordId: true, discordName: true }, orderBy: { discordName: 'asc' } });
+  const members = await loadNotSubmitted();
   if (members.length === 0) return NextResponse.json({ nudged: 0 }, { headers: NO_STORE });
 
   const outcome = await notifyBot({ type: 'availability.nudge', members });
