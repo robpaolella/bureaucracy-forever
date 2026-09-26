@@ -13,6 +13,8 @@ describe('character input', () => {
   it('names the field that failed', () => {
     expect(parseCharacterInput({ ...good, name: 'X' })).toMatchObject({ ok: false, error: /2 to 12 letters/ });
     expect(parseCharacterInput({ ...good, name: 'Red tape' })).toMatchObject({ ok: false, error: /letters/ });
+    expect(parseCharacterInput({ ...good, name: 'A÷b' })).toMatchObject({ ok: false, error: /letters/ });
+    expect(parseCharacterInput({ ...good, name: 'Ångström' })).toMatchObject({ ok: true });
     expect(parseCharacterInput({ ...good, wowClass: 'deathknight' })).toMatchObject({ ok: false, error: /class/ });
     expect(parseCharacterInput({ ...good, spec: 'Fire' })).toMatchObject({ ok: false, error: /spec/ });
     expect(parseCharacterInput({ ...good, role: 'tank' })).toMatchObject({ ok: false, error: /raid role/ });

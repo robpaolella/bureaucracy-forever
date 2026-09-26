@@ -34,6 +34,9 @@ export async function PATCH(request: Request, { params }: Params) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
       return NextResponse.json({ error: 'That character name is already on the roster.' }, { status: 409, headers: NO_STORE });
     }
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
+      return NextResponse.json({ error: 'No such character.' }, { status: 404, headers: NO_STORE });
+    }
     throw e;
   }
 }
@@ -43,8 +46,13 @@ export async function DELETE(_request: Request, { params }: Params) {
   const denied = await officer();
   if (denied) return denied;
   const { characterId } = await params;
-  const existing = await db.character.findUnique({ where: { id: characterId }, select: { id: true, name: true } });
-  if (!existing) return NextResponse.json({ error: 'No such character.' }, { status: 404, headers: NO_STORE });
-  await db.character.delete({ where: { id: characterId } });
-  return NextResponse.json({ id: existing.id, name: existing.name }, { headers: NO_STORE });
+  try {
+    const removed = await db.character.delete({ where: { id: characterId }, select: { id: true, name: true } });
+    return NextResponse.json(removed, { headers: NO_STORE });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
+      return NextResponse.json({ error: 'No such character.' }, { status: 404, headers: NO_STORE });
+    }
+    throw e;
+  }
 }

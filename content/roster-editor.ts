@@ -35,5 +35,4 @@ export const EDITOR_TOASTS = {
   saved: (name: string) => `Saved ${name}`,
   added: (name: string) => `Added ${name} to the roster`,
   removed: (name: string) => `Removed ${name}`,
-  taken: 'That character name is already on the roster.',
 };

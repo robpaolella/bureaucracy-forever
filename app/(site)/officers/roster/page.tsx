@@ -22,7 +22,7 @@ export default async function RosterEditorPage() {
 
   const users = await db.user.findMany({
     where: { role: { in: ['MEMBER', 'OFFICER'] } },
-    select: { id: true, discordName: true, role: true, characters: { where: { isMain: true }, take: 1, select: { id: true, name: true, class: true, spec: true, raidRole: true, rank: true } } },
+    select: { id: true, discordName: true, characters: { where: { isMain: true }, take: 1, select: { id: true, name: true, class: true, spec: true, raidRole: true, rank: true } } },
     orderBy: { discordName: 'asc' },
   });
   const members: EditorMember[] = users
@@ -31,7 +31,6 @@ export default async function RosterEditorPage() {
       return {
         userId: u.id,
         discordName: u.discordName,
-        officer: u.role === 'OFFICER',
         main: c ? { id: c.id, name: c.name, wowClass: c.class.toLowerCase() as WowClass, spec: c.spec, role: c.raidRole.toLowerCase() as Role, rank: c.rank.toLowerCase() as Rank } : null,
       };
     })

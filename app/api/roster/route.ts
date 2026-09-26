@@ -24,17 +24,29 @@ export async function POST(request: Request) {
   const parsed = parseCharacterInput(b);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400, headers: NO_STORE });
 
-  const user = await db.user.findUnique({ where: { id: userId }, select: { id: true, role: true, characters: { where: { isMain: true }, select: { id: true } } } });
-  if (!user) return NextResponse.json({ error: 'No such member.' }, { status: 404, headers: NO_STORE });
-  if (user.role === 'SOCIAL') return NextResponse.json({ error: 'Social members are not on the raid roster.' }, { status: 409, headers: NO_STORE });
-  if (user.characters.length > 0) return NextResponse.json({ error: 'That member already has a main. Edit it instead.' }, { status: 409, headers: NO_STORE });
-
   try {
-    const created = await db.character.create({ data: { userId: user.id, isMain: true, ...toPrismaCharacter(parsed.value) }, select: { id: true, name: true } });
-    return NextResponse.json(created, { status: 201, headers: NO_STORE });
+    // Check and create in one serializable transaction so two officers cannot both give
+    // the same member a main.
+    const outcome = await db.$transaction(
+      async (tx) => {
+        const user = await tx.user.findUnique({ where: { id: userId }, select: { id: true, role: true, characters: { where: { isMain: true }, select: { id: true } } } });
+        if (!user) return { status: 404, error: 'No such member.' } as const;
+        if (user.role === 'SOCIAL') return { status: 409, error: 'Social members are not on the raid roster.' } as const;
+        if (user.characters.length > 0) return { status: 409, error: 'That member already has a main. Edit it instead.' } as const;
+        const created = await tx.character.create({ data: { userId: user.id, isMain: true, ...toPrismaCharacter(parsed.value) }, select: { id: true, name: true } });
+        return { status: 201, created } as const;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+    if ('error' in outcome) return NextResponse.json({ error: outcome.error }, { status: outcome.status, headers: NO_STORE });
+    return NextResponse.json(outcome.created, { status: 201, headers: NO_STORE });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
       return NextResponse.json({ error: 'That character name is already on the roster.' }, { status: 409, headers: NO_STORE });
+    }
+    // Serialization failure: the other officer's write landed first.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034') {
+      return NextResponse.json({ error: 'That member already has a main. Edit it instead.' }, { status: 409, headers: NO_STORE });
     }
     throw e;
   }

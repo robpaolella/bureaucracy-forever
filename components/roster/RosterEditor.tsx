@@ -13,8 +13,6 @@ import { CharacterForm } from './CharacterForm';
 export type EditorMember = {
   userId: string;
   discordName: string;
-  /** Discord decides this; shown so officers know who can hold a rank. */
-  officer: boolean;
   main: (CharacterInput & { id: string }) | null;
 };
 
@@ -66,8 +64,15 @@ export function RosterEditor({ members }: Props) {
     setBusy(true);
     const res = await send(`/api/roster/${removing.id}`, 'DELETE');
     setBusy(false);
-    setToast(res.ok ? { tone: 'ok', title: EDITOR_TOASTS.removed(removing.name) } : { tone: 'stop', title: await failureMessage(res) });
+    if (!res.ok) {
+      // Stay put so the officer can retry or back out; only the toast changes.
+      setToast({ tone: 'stop', title: await failureMessage(res) });
+      return;
+    }
+    setToast({ tone: 'ok', title: EDITOR_TOASTS.removed(removing.name) });
+    // Close the confirm first so its focus return lands on the still-mounted form, then the form.
     setRemoving(null);
+    await new Promise((r) => setTimeout(r, 0));
     setEditing(null);
     router.refresh();
   }

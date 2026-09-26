@@ -19,8 +19,8 @@ export type CharacterInput = {
 
 export type ParsedCharacter = { ok: true; value: CharacterInput } | { ok: false; error: string };
 
-/** WoW names: 2–12 letters, one capital. The rest is normalised the way the game does. */
-export const NAME_PATTERN = /^[A-Za-zÀ-ÿ]{2,12}$/;
+/** WoW names: 2–12 letters, one capital. The rest is normalised the way the game does. (× and ÷ sit inside the Latin-1 letter block and are skipped.) */
+export const NAME_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,12}$/;
 
 export function normaliseName(raw: string): string {
   const name = raw.trim();
