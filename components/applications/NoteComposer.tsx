@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
-import { Button, CONTROL, Toast, type ToastData } from '@/components/ui';
+import { Button, CONTROL, useToast } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { NOTE_MAX } from '@/lib/applications-decide';
 import { SAVE_FAILED } from '@/content/calendar';
@@ -13,7 +13,7 @@ export function NoteComposer({ applicationId }: { applicationId: string }) {
   const router = useRouter();
   const [body, setBody] = useState('');
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState<ToastData | null>(null);
+  const setToast = useToast();
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -48,7 +48,6 @@ export function NoteComposer({ applicationId }: { applicationId: string }) {
       <Button type="submit" variant="secondary" size="sm" loading={saving} disabled={!body.trim()}>
         {NOTE_COMPOSER.post}
       </Button>
-      <Toast toast={toast} onDismiss={() => setToast(null)} />
     </form>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Button, Modal, Toast, type ToastData } from '@/components/ui';
+import { Button, Modal, useToast } from '@/components/ui';
 import { SAVE_FAILED } from '@/content/calendar';
 import { ACTIONS } from '@/content/applications';
 
@@ -27,7 +27,7 @@ export function DecisionBar({ id, character, path, pending }: Props) {
   const router = useRouter();
   const [confirming, setConfirming] = useState<Pending>(null);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState<ToastData | null>(null);
+  const setToast = useToast();
 
   async function send(body: unknown, done: string) {
     if (busy) return;
@@ -36,6 +36,11 @@ export function DecisionBar({ id, character, path, pending }: Props) {
       const res = await fetch(`/api/applications/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' });
       if (!res.ok) {
         setToast({ tone: 'stop', title: await failureMessage(res) });
+        // A conflict means another officer got there first: show the real state.
+        if (res.status === 409) {
+          setConfirming(null);
+          router.refresh();
+        }
         return;
       }
       setToast({ tone: 'ok', title: done, detail: ACTIONS.dmNote });
@@ -49,9 +54,8 @@ export function DecisionBar({ id, character, path, pending }: Props) {
   }
 
   const confirm = confirming;
-  // Once decided the bar goes, but the component stays mounted so the confirming toast
-  // survives the refresh that removed the buttons.
-  if (!pending) return <Toast toast={toast} onDismiss={() => setToast(null)} />;
+  // The toast lives in the view's ToastHost, so it survives this bar leaving after a decision.
+  if (!pending) return null;
   return (
     <>
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-2.5 border-t border-line bg-ink-900 px-4 py-3 md:-mx-0 md:rounded-b-card md:px-0" role="group" aria-label="Decision">
@@ -89,8 +93,6 @@ export function DecisionBar({ id, character, path, pending }: Props) {
       >
         {confirm === 'declined' ? ACTIONS.declineBody : ACTIONS.acceptBody}
       </Modal>
-
-      <Toast toast={toast} onDismiss={() => setToast(null)} />
     </>
   );
 }

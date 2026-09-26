@@ -27,8 +27,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   if (parsed.value.kind === 'path') {
     if (app.path === 'SOCIAL') return NextResponse.json({ error: 'Already on the social path.' }, { status: 409, headers: NO_STORE });
-    const moved = await db.application.update({ where: { id: app.id }, data: { path: 'SOCIAL' }, select: { id: true, path: true } });
-    return NextResponse.json({ id: moved.id, path: 'social' }, { headers: NO_STORE });
+    // Only a still-pending raider application moves: a decision landing first wins.
+    const moved = await db.application.updateMany({ where: { id: app.id, status: 'PENDING', path: 'RAIDER' }, data: { path: 'SOCIAL' } });
+    if (moved.count === 0) return NextResponse.json({ error: 'This application was already decided.' }, { status: 409, headers: NO_STORE });
+    return NextResponse.json({ id: app.id, path: 'social' }, { headers: NO_STORE });
   }
 
   const officer = await ensureUser(session);

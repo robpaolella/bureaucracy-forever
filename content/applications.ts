@@ -52,7 +52,6 @@ export const ACTIONS = {
   accepted: (name: string) => `Accepted ${name}`,
   declined: (name: string) => `Declined ${name}`,
   movedToSocial: (name: string) => `${name} moved to the social path`,
-  alreadyDecided: 'This application was already decided.',
   dmNote: 'The Discord message goes out with the bot sync.',
 };
 
