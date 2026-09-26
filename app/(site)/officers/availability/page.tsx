@@ -5,7 +5,7 @@ import { getRosterAvailability } from '@/lib/roster-availability';
 import { getSession } from '@/lib/session';
 
 export const metadata: Metadata = {
-  title: 'Roster availability — Bureaucracy',
+  title: 'Roster availability',
   robots: { index: false, follow: false },
 };
 

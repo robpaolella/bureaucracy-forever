@@ -6,7 +6,7 @@ import { DISCORD_INVITE_URL } from '@/lib/config';
 import { CLASS_COLORS, CLASSES, type WowClass } from '@/lib/design/class-colors';
 
 export const metadata: Metadata = {
-  title: 'Application received — Bureaucracy',
+  title: 'Application received',
   robots: { index: false, follow: false },
 };
 

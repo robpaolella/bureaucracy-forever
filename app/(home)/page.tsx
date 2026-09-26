@@ -13,7 +13,7 @@ import { CLASS_COLORS } from '@/lib/design/class-colors';
 import { WEEKDAY_NAMES } from '@/lib/time';
 
 export const metadata: Metadata = {
-  title: 'Bureaucracy — a 40-player raiding guild on WoW Forever',
+  title: { absolute: 'Bureaucracy — a 40-player raiding guild on WoW Forever' },
   description: HERO.lede,
 };
 

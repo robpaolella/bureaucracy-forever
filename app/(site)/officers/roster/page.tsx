@@ -8,7 +8,7 @@ import { getSession } from '@/lib/session';
 import { ROSTER_EDITOR_HEAD } from '@/content/roster-editor';
 
 export const metadata: Metadata = {
-  title: 'Edit the roster — Bureaucracy',
+  title: 'Edit the roster',
   robots: { index: false, follow: false },
 };
 

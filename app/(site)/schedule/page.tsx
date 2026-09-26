@@ -8,7 +8,7 @@ import { RUN_OF_NIGHT, SCHEDULE_ASIDES, SCHEDULE_HEAD } from '@/content/schedule
 import { MEMBER_LINKS } from '@/lib/nav';
 
 export const metadata: Metadata = {
-  title: 'Raid schedule — Bureaucracy',
+  title: 'Raid schedule',
   description: 'Three raid nights a week, shown in guild time and yours. How a night runs, attendance and sign-ups.',
 };
 

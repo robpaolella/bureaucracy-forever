@@ -15,3 +15,7 @@ export const LOGIN_URL = '/login';
 export const SITE_NAME = 'Bureaucracy';
 /** Ships on every page (docs/02 § Footer). */
 export const DISCLAIMER = 'Bureaucracy · WoW Forever · Not affiliated with Blizzard Entertainment.';
+
+/** Canonical origin for absolute URLs in metadata, robots and Open Graph cards. Fixed: previews and dev still point at the real site. */
+export const SITE_URL = 'https://www.bureauguild.com';
+export const SITE_DESCRIPTION = 'A competitive 40-player raiding guild on WoW Forever.';
