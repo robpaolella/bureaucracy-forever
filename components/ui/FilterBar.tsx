@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { CountBadge } from './Badges';
 import { Button } from './Button';
@@ -33,12 +33,13 @@ function FilterIcon() {
  */
 export function FilterBar({ children, summary, activeCount, onClear, className }: Props) {
   const [open, setOpen] = useState(false);
+  const sheetId = useId();
   const active = activeCount > 0;
 
   return (
     <div className={cn('flex items-center justify-between gap-4 rounded-card border border-line bg-ink-850 px-4 py-3 md:px-5', className)}>
       <div className="hidden flex-1 flex-wrap items-center gap-2.5 md:flex">{children}</div>
-      <Button variant="secondary" className="md:hidden" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open}>
+      <Button variant="secondary" className="md:hidden" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open} aria-controls={sheetId}>
         <FilterIcon />
         Filters
         {active && <CountBadge aria-label={`${activeCount} active`}>{activeCount}</CountBadge>}
@@ -52,6 +53,7 @@ export function FilterBar({ children, summary, activeCount, onClear, className }
         )}
       </div>
       <Sheet
+        id={sheetId}
         open={open}
         onClose={() => setOpen(false)}
         title="Filters"

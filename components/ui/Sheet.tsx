@@ -5,6 +5,8 @@ import { cn } from '@/lib/cn';
 import { Button } from './Button';
 
 type SheetProps = {
+  /** Lets the trigger point at the sheet with aria-controls. */
+  id?: string;
   open: boolean;
   onClose: () => void;
   title: string;
@@ -20,7 +22,7 @@ type SheetProps = {
  * <dialog>, so focus trap, Escape and focus return come from the platform. On wide
  * screens it centres like a modal, so nothing breaks if it opens there.
  */
-export function Sheet({ open, onClose, title, children, actions, className }: SheetProps) {
+export function Sheet({ id, open, onClose, title, children, actions, className }: SheetProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -34,6 +36,7 @@ export function Sheet({ open, onClose, title, children, actions, className }: Sh
   return (
     <dialog
       ref={ref}
+      id={id}
       aria-labelledby={titleId}
       onCancel={(e) => {
         e.preventDefault();

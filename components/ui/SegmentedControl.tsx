@@ -19,6 +19,7 @@ type Props<V extends string> = {
   /** Screen-reader name for the group, or pass `labelledBy` instead. */
   label?: string;
   labelledBy?: string;
+  /** `sm` is narrower with smaller text; both sizes keep the 44px hit target. */
   size?: 'md' | 'sm';
   /** Stretch segments to fill the row. */
   fill?: boolean;
@@ -37,7 +38,7 @@ const SELECTED: Record<SegmentTone, string> = {
  * A row of exclusive choices (Flat / By role / By class, Upcoming / Past, Accept /
  * Tentative / Absent). Real radio semantics: one tab stop, arrow keys move the
  * selection, Home and End jump, and the selected segment is the one in the tab order.
- * 44px tall by default; `sm` is 36px for filter bars.
+ * Always 44px tall; `sm` only narrows the padding and text for filter bars.
  */
 export function SegmentedControl<V extends string>({ options, value, onChange, label, labelledBy, size = 'md', fill = false, disabled = false, className }: Props<V>) {
   const groupId = useId();
@@ -78,8 +79,8 @@ export function SegmentedControl<V extends string>({ options, value, onChange, l
             disabled={disabled}
             onClick={() => onChange(o.value)}
             className={cn(
-              'rounded-control border px-4 text-sm font-semibold transition-colors duration-[120ms] disabled:cursor-not-allowed disabled:opacity-50',
-              size === 'sm' ? 'h-9 px-3 text-[13px]' : 'h-11',
+              'h-11 rounded-control border font-semibold transition-colors duration-[120ms] disabled:cursor-not-allowed disabled:opacity-50',
+              size === 'sm' ? 'px-3 text-[13px]' : 'px-4 text-sm',
               fill && 'flex-1',
               selected ? SELECTED[o.tone ?? 'teal'] : 'border-line-strong bg-ink-800 text-fg-2 hover:bg-ink-700 hover:text-fg',
             )}

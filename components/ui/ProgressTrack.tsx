@@ -4,7 +4,8 @@ type Props = {
   value: number;
   /** The requirement. The track reads ok when value ≥ max, warn when short, stop at zero. */
   max: number;
-  label?: string;
+  /** The meter's accessible name, e.g. "Healers". Required: the bar has no text of its own. */
+  label: string;
   className?: string;
 };
 

@@ -30,8 +30,10 @@ function Chevron({ open }: { open: boolean }) {
 
 /**
  * A 44px control that opens a checklist popover. The button reads the selection back
- * ("Any class", "Priest", "3 classes") so the filter is legible when closed. Escape and an
- * outside click close it; focus returns to the button when it closed from inside.
+ * ("Any class", "Priest", "3 classes") so the filter is legible when closed. A plain
+ * disclosure (aria-expanded, as NavGroup): the popover holds real checkboxes, not a
+ * listbox. Escape, an outside click and tabbing out all close it; focus returns to the
+ * button only when it closed from inside.
  */
 export function MultiSelect<V extends string>({ label, options, values, onChange, placeholder, plural, className }: Props<V>) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -53,7 +55,6 @@ export function MultiSelect<V extends string>({ label, options, values, onChange
       <button
         ref={triggerRef}
         type="button"
-        aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
         aria-label={`${label}: ${summary}`}
@@ -77,7 +78,7 @@ export function MultiSelect<V extends string>({ label, options, values, onChange
             label={o.label}
             checked={values.includes(o.value)}
             onChange={(e) => set(o.value, e.target.checked)}
-            className="min-h-10 items-center whitespace-nowrap rounded-control px-2.5 hover:bg-ink-700"
+            className="items-center whitespace-nowrap rounded-control px-2.5 hover:bg-ink-700"
           />
         ))}
       </div>
