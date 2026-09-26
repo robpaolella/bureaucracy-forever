@@ -111,7 +111,7 @@ export function ApplicationView({ app, now }: Props) {
         <NoteComposer applicationId={app.id} />
       </section>
 
-      {app.status === 'pending' && <DecisionBar id={app.id} character={app.character} path={app.path} />}
+      <DecisionBar id={app.id} character={app.character} path={app.path} pending={app.status === 'pending'} />
     </article>
   );
 }

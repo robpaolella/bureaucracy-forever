@@ -6,7 +6,7 @@ import { Button, Modal, Toast, type ToastData } from '@/components/ui';
 import { SAVE_FAILED } from '@/content/calendar';
 import { ACTIONS } from '@/content/applications';
 
-type Props = { id: string; character: string; path: 'raider' | 'social' };
+type Props = { id: string; character: string; path: 'raider' | 'social'; pending: boolean };
 
 type Pending = 'accepted' | 'declined' | null;
 
@@ -23,7 +23,7 @@ async function failureMessage(res: Response): Promise<string> {
  * who fits better there. After a decision the page refreshes: the pill updates and the
  * row leaves the Pending filter.
  */
-export function DecisionBar({ id, character, path }: Props) {
+export function DecisionBar({ id, character, path, pending }: Props) {
   const router = useRouter();
   const [confirming, setConfirming] = useState<Pending>(null);
   const [busy, setBusy] = useState(false);
@@ -49,6 +49,9 @@ export function DecisionBar({ id, character, path }: Props) {
   }
 
   const confirm = confirming;
+  // Once decided the bar goes, but the component stays mounted so the confirming toast
+  // survives the refresh that removed the buttons.
+  if (!pending) return <Toast toast={toast} onDismiss={() => setToast(null)} />;
   return (
     <>
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-2.5 border-t border-line bg-ink-900 px-4 py-3 md:-mx-0 md:rounded-b-card md:px-0" role="group" aria-label="Decision">
