@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn';
 type Props = {
   day: WeekDay | null;
   week: Week;
-  /** Half-hour slots the server clock is ahead of the member's. */
+  /** Half-hour slots the guild clock is ahead of the member's. */
   offsetSlots: number;
   onSet: (day: number, slot: number, state: SlotState | null) => void;
   onClose: () => void;
