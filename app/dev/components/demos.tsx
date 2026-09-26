@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, DataTable, Modal, RankBadge, Toggle, type Column, type Rank, type SortDir } from '@/components/ui';
-import { CLASS_COLORS, type WowClass } from '@/lib/design/class-colors';
+import { Button, ClassAvatar, CONTROL, DataTable, FilterBar, Modal, MultiSelect, ProgressTrack, RankBadge, SegmentedControl, Toggle, type Column, type Rank, type SortDir } from '@/components/ui';
+import { cn } from '@/lib/cn';
+import { CLASS_COLORS, CLASSES, ROLE_LABELS, ROLES, type Role, type WowClass } from '@/lib/design/class-colors';
 
 export function ToggleDemo() {
   const [on, setOn] = useState(true);
@@ -93,5 +94,92 @@ export function TableDemo() {
         }
       }}
     />
+  );
+}
+
+export function RosterPrimitivesDemo() {
+  const [group, setGroup] = useState<'flat' | 'role' | 'class'>('flat');
+  const [response, setResponse] = useState<'accept' | 'tentative' | 'absent' | null>('accept');
+  const [classes, setClasses] = useState<WowClass[]>([]);
+  const [roles, setRoles] = useState<Role[]>(['healer']);
+  const active = classes.length + roles.length;
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center gap-6">
+        <SegmentedControl
+          label="Group roster by"
+          value={group}
+          onChange={setGroup}
+          options={[
+            { value: 'flat', label: 'Flat' },
+            { value: 'role', label: 'By role' },
+            { value: 'class', label: 'By class' },
+          ]}
+        />
+        <SegmentedControl
+          label="Your response"
+          value={response}
+          onChange={setResponse}
+          options={[
+            { value: 'accept', label: 'Accept', tone: 'ok' },
+            { value: 'tentative', label: 'Tentative', tone: 'warn' },
+            { value: 'absent', label: 'Absent', tone: 'stop' },
+          ]}
+        />
+        <SegmentedControl label="Density" size="sm" value="comfortable" onChange={() => {}} options={[{ value: 'comfortable', label: 'Comfortable' }, { value: 'compact', label: 'Compact' }]} />
+      </div>
+      <FilterBar
+        summary={`${41 - active * 6} of 41 shown`}
+        activeCount={active}
+        onClear={() => {
+          setClasses([]);
+          setRoles([]);
+        }}
+      >
+        <input className={cn(CONTROL, 'h-11 px-3.5 md:w-[220px]')} placeholder="Search characters" aria-label="Search characters" />
+        <MultiSelect label="Class" plural="classes" options={CLASSES.map((c) => ({ value: c, label: CLASS_COLORS[c].label }))} values={classes} onChange={setClasses} className="md:w-[180px]" />
+        <MultiSelect label="Role" options={ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] }))} values={roles} onChange={setRoles} className="md:w-[180px]" />
+      </FilterBar>
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="flex flex-col gap-3">
+          {(
+            [
+              ['Ledgerline', 'warrior'],
+              ['Redtape', 'priest'],
+              ['Subclause', 'warlock'],
+              ['Nobody yet', null],
+            ] as const
+          ).map(([name, cls]) => (
+            <div key={name} className="flex items-center gap-3 text-sm">
+              <ClassAvatar name={name} wowClass={cls} />
+              <span className="font-semibold" style={{ color: cls ? CLASS_COLORS[cls].onInk : undefined }}>
+                {name}
+              </span>
+              <ClassAvatar name={name} wowClass={cls} size={32} className="ml-auto" />
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-col gap-3 text-sm">
+          {(
+            [
+              ['Tanks', 2, 2],
+              ['Healers', 6, 8],
+              ['Melee', 11, 9],
+              ['Ranged', 0, 11],
+            ] as const
+          ).map(([label, value, max]) => (
+            <div key={label} className="flex flex-col gap-1.5">
+              <div className="flex justify-between">
+                <span className="text-fg-2">{label}</span>
+                <span className="tabular">
+                  {value} <span className="text-fg-3">/ {max}</span>
+                </span>
+              </div>
+              <ProgressTrack value={value} max={max} label={label} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
