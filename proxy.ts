@@ -12,9 +12,12 @@ import type { Role } from '@/lib/session';
 export default auth((req) => {
   const { pathname, search } = req.nextUrl;
 
+  // A real login wins; the dev stub only applies when nobody is logged in (same as getSession).
   let role: Role | null = req.auth?.user?.role ?? null;
-  const stub = devSessionFromCookie(req.cookies.get(DEV_SESSION_COOKIE)?.value);
-  if (stub !== undefined) role = stub?.role ?? null;
+  if (role === null) {
+    const stub = devSessionFromCookie(req.cookies.get(DEV_SESSION_COOKIE)?.value);
+    if (stub !== undefined) role = stub?.role ?? null;
+  }
 
   const decision = gateDecision(pathname, search, role);
   const response =

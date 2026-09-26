@@ -23,6 +23,7 @@ export default {
           DEFAULT: 'var(--line)',
           strong: 'var(--line-strong)',
           faint: 'var(--line-faint)',
+          hairline: 'var(--line-hairline)', // added: see globals.css
         },
         fg: {
           DEFAULT: 'var(--fg)',

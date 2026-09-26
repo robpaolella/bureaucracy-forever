@@ -20,6 +20,10 @@
   /* Added token. Readable teal for body text on teal-wash (announcement bar, the
      timezone note). Home.html and Schedule.html use it; teal itself is for links. */
   --teal-text: #A8DCE8;
+
+  /* Added token. docs/05 § The grid names #0D1117 for half-hour row separators: the
+     hour banding comes from alternating this with line-faint, no extra rule needed. */
+  --line-hairline: #0D1117;
 }
 
 @layer components {
