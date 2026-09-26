@@ -38,5 +38,5 @@ export const OFFICER_LINKS = {
   heatmap: { href: '/officers/availability', label: 'Availability heatmap' },
   roster: { href: '/officers/roster', label: 'Edit the roster' },
   schedule: { href: '/members/calendar?new=1', label: 'Schedule a raid' },
-  needs: { href: '/recruitment#needs', label: 'Edit class needs' },
+  needs: { href: '/officers/needs', label: 'Edit class needs' },
 } satisfies Record<string, NavItem>;

@@ -1,7 +1,7 @@
 'use client';
 
 import { DataTable, StatusPill, type Column } from '@/components/ui';
-import { CLASS_NEEDS, NEED_LABEL, type ClassNeed } from '@/content/recruitment';
+import { NEED_LABEL, type ClassNeed } from '@/content/recruitment';
 import { CLASS_COLORS, ROLE_LABELS } from '@/lib/design/class-colors';
 
 const TONE = { high: 'ok', medium: 'warn', closed: 'closed' } as const;
@@ -33,14 +33,14 @@ const rowKey = (r: ClassNeed) => `${r.wowClass}-${r.specs.join('-')}`;
  * Class / spec / role / status. A table from md up; on mobile one card per row with class
  * and status on the first line, spec and role on the second (docs/04 § Recruitment).
  */
-export function NeedsTable() {
+export function NeedsTable({ needs }: { needs: ClassNeed[] }) {
   return (
     <>
       <div className="hidden md:block">
-        <DataTable caption="Open needs by class and role" columns={COLUMNS} rows={CLASS_NEEDS} rowKey={rowKey} className="text-[15px]" />
+        <DataTable caption="Open needs by class and role" columns={COLUMNS} rows={needs} rowKey={rowKey} className="text-[15px]" />
       </div>
       <ul className="flex flex-col gap-2 md:hidden" aria-label="Open needs by class and role">
-        {CLASS_NEEDS.map((r) => (
+        {needs.map((r) => (
           <li key={rowKey(r)} className="flex flex-col gap-1.5 rounded-card border border-line bg-ink-850 px-4 py-3.5">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[15px] font-semibold" style={{ color: CLASS_COLORS[r.wowClass].onInk }}>
