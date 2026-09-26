@@ -16,10 +16,12 @@ describe('bot auth', () => {
 
   it('rejects a stale timestamp, a wrong secret, a tampered body and a missing secret', () => {
     const h = botRequestHeaders(secret, body, now);
-    expect(verifyBotRequest(headers(h), body, secret, now + REPLAY_WINDOW_S + 1)).toMatchObject({ ok: false, status: 401, error: /Stale/ });
-    expect(verifyBotRequest(headers(h), body, 'other', now)).toMatchObject({ ok: false, status: 401, error: /signature/ });
-    expect(verifyBotRequest(headers(h), body + ' ', secret, now)).toMatchObject({ ok: false, status: 401 });
-    expect(verifyBotRequest(headers({}), body, secret, now)).toMatchObject({ ok: false, status: 401, error: /timestamp/ });
+    const denied = { ok: false, status: 401, error: 'Unauthorised.' };
+    expect(verifyBotRequest(headers(h), body, secret, now + REPLAY_WINDOW_S + 1)).toEqual(denied);
+    expect(verifyBotRequest(headers(h), body, 'other', now)).toEqual(denied);
+    expect(verifyBotRequest(headers(h), body + ' ', secret, now)).toEqual(denied);
+    expect(verifyBotRequest(headers({}), body, secret, now)).toEqual(denied);
+    expect(verifyBotRequest(headers({ ...h, 'x-bot-timestamp': '1.8e9' }), body, secret, now)).toEqual(denied);
     expect(verifyBotRequest(headers(h), body, undefined, now)).toMatchObject({ ok: false, status: 503 });
   });
 

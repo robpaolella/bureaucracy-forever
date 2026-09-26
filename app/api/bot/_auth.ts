@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyBotRequest } from '@/lib/bot-auth';
+import { MAX_BODY_BYTES, verifyBotRequest } from '@/lib/bot-auth';
 
 export const NO_STORE = { 'Cache-Control': 'private, no-store' };
 
@@ -8,7 +8,11 @@ export const NO_STORE = { 'Cache-Control': 'private, no-store' };
  * back (503 when no secret is configured, 401 on a bad or stale signature).
  */
 export async function readBotRequest(request: Request): Promise<{ body: unknown } | { deny: NextResponse }> {
+  // Refuse oversized bodies before buffering them; the signature check needs the whole body.
+  const length = Number(request.headers.get('content-length') ?? '0');
+  if (!Number.isFinite(length) || length > MAX_BODY_BYTES) return { deny: NextResponse.json({ error: 'Body too large.' }, { status: 413, headers: NO_STORE }) };
   const raw = await request.text();
+  if (raw.length > MAX_BODY_BYTES) return { deny: NextResponse.json({ error: 'Body too large.' }, { status: 413, headers: NO_STORE }) };
   const auth = verifyBotRequest(request.headers, raw, process.env.BOT_SHARED_SECRET);
   if (!auth.ok) return { deny: NextResponse.json({ error: auth.error }, { status: auth.status, headers: NO_STORE }) };
   try {

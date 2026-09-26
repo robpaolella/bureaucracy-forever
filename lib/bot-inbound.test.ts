@@ -3,7 +3,9 @@ import { parseBotApplication, parseBotSignup } from './bot-inbound';
 
 describe('bot payloads', () => {
   it('parses a sign-up by raid id or Discord event id', () => {
-    expect(parseBotSignup({ raidId: 'r1', discordId: '100000000010000000', discordName: 'Redtape', response: 'accept' })).toMatchObject({ ok: true, value: { raidId: 'r1', response: 'accept', reason: null } });
+    expect(parseBotSignup({ raidId: 'r1', discordId: '100000000010000000', discordName: 'Redtape', response: 'accept' })).toMatchObject({ ok: true, value: { raidId: 'r1', response: 'accept', reason: null, role: null, at: null } });
+    expect(parseBotSignup({ raidId: 'r1', discordId: '100000000010000000', discordName: 'Redtape', response: 'accept', role: 'member', at: 1_800_000_000 })).toMatchObject({ ok: true, value: { role: 'member', at: 1_800_000_000 } });
+    expect(parseBotSignup({ raidId: 'r1', discordId: '100000000010000000', discordName: 'Redtape', response: 'accept', role: 'guest' })).toMatchObject({ ok: false, error: /role/ });
     expect(parseBotSignup({ discordEventId: '123456789012345678', discordId: '100000000010000000', discordName: 'Redtape', response: null })).toMatchObject({ ok: true, value: { discordEventId: '123456789012345678', response: null } });
     expect(parseBotSignup({ discordId: '100000000010000000', discordName: 'x', response: 'accept' })).toMatchObject({ ok: false, error: /raidId/ });
     expect(parseBotSignup({ raidId: 'r1', discordId: 'abc', discordName: 'x', response: 'accept' })).toMatchObject({ ok: false, error: /discordId/ });

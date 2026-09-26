@@ -7,14 +7,20 @@ import { isRaidResponse, type RaidResponse } from '@/lib/raids';
 
 const SNOWFLAKE = /^\d{17,20}$/;
 
+export type BotRole = 'member' | 'officer' | 'social';
+
 export type BotSignup = {
   /** The site's raid id, or the Discord scheduled event id the bot posted for it. */
   raidId: string | null;
   discordEventId: string | null;
   discordId: string;
   discordName: string;
+  /** The member's access level from their guild roles; required for a Discord id the site has never seen. */
+  role: BotRole | null;
   response: RaidResponse | null;
   reason: string | null;
+  /** When the member clicked, unix seconds; an answer older than the stored row is ignored. */
+  at: number | null;
 };
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -31,7 +37,10 @@ export function parseBotSignup(body: unknown): Parsed<BotSignup> {
   const discordName = str(b.discordName, 64);
   if (!discordName) return { ok: false, error: 'Send discordName.' };
   if (b.response !== null && !isRaidResponse(b.response)) return { ok: false, error: 'response must be "accept", "tentative", "absent" or null.' };
-  return { ok: true, value: { raidId, discordEventId, discordId, discordName, response: b.response as RaidResponse | null, reason: str(b.reason, 200) } };
+  const role = b.role === 'member' || b.role === 'officer' || b.role === 'social' ? b.role : null;
+  if (b.role !== undefined && b.role !== null && !role) return { ok: false, error: 'role must be "member", "officer" or "social".' };
+  const at = typeof b.at === 'number' && Number.isInteger(b.at) && b.at > 0 ? b.at : null;
+  return { ok: true, value: { raidId, discordEventId, discordId, discordName, role, response: b.response as RaidResponse | null, reason: str(b.reason, 200), at } };
 }
 
 export type BotApplication = {
