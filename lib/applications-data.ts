@@ -37,7 +37,8 @@ export type ApplicationDetail = InboxItem & {
   answers: unknown;
   decidedAt: string | null;
   decidedBy: string | null;
-  notes: { id: string; author: string; authorClass: WowClass | null; body: string; createdAt: string }[];
+  discordThreadId: string | null;
+  notes: { id: string; author: string; authorClass: WowClass | null; body: string; createdAt: string; source: 'web' | 'discord'; discordMessageId: string | null; editedAt: string | null }[];
 };
 
 export async function loadApplication(id: string): Promise<ApplicationDetail | null> {
@@ -58,9 +59,11 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
       createdAt: true,
       decidedAt: true,
       decidedBy: { select: { discordName: true, characters: { where: { isMain: true }, take: 1, select: { name: true } } } },
+      discordThreadId: true,
       notes: {
+        where: { deletedAt: null },
         orderBy: { createdAt: 'asc' },
-        select: { id: true, body: true, createdAt: true, author: { select: { discordName: true, characters: { where: { isMain: true }, take: 1, select: { name: true, class: true } } } } },
+        select: { id: true, body: true, createdAt: true, source: true, discordMessageId: true, editedAt: true, author: { select: { discordName: true, characters: { where: { isMain: true }, take: 1, select: { name: true, class: true } } } } },
       },
     },
   });
@@ -80,12 +83,16 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
     unread: r.readAt === null,
     decidedAt: r.decidedAt?.toISOString() ?? null,
     decidedBy: r.decidedBy ? r.decidedBy.characters[0]?.name ?? r.decidedBy.discordName : null,
+    discordThreadId: r.discordThreadId,
     notes: r.notes.map((n) => ({
       id: n.id,
       author: n.author.characters[0]?.name ?? n.author.discordName,
       authorClass: (n.author.characters[0]?.class.toLowerCase() as WowClass | undefined) ?? null,
       body: n.body,
       createdAt: n.createdAt.toISOString(),
+      source: n.source === 'DISCORD' ? 'discord' : 'web',
+      discordMessageId: n.discordMessageId,
+      editedAt: n.editedAt?.toISOString() ?? null,
     })),
   };
 }
