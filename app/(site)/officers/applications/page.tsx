@@ -19,8 +19,8 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 
 /**
  * The inbox (docs/04 § Applications inbox): list left, the open application right. `?id=`
- * picks one; otherwise the first pending. Opening one clears its unread dot after the
- * response goes out.
+ * picks one, which is how a row in the list selects it without leaving the page; otherwise
+ * the first pending. Opening one clears its unread dot after the response goes out.
  */
 export default async function ApplicationsPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await getSession();
@@ -40,7 +40,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
         <p className="max-w-[640px] text-[15px] leading-[1.65] text-fg-2">{INBOX_HEAD.lede}</p>
       </section>
       <Inbox items={items} selectedId={app?.id ?? null} now={now}>
-        {app ? <ApplicationView app={app} now={now} threadUrl={discordThreadUrl(app.discordThreadId)} /> : <p className="rounded-card border border-dashed border-line-strong px-6 py-10 text-center text-sm text-fg-2">{INBOX.pickOne}</p>}
+        {app ? <ApplicationView app={app} now={now} threadUrl={discordThreadUrl(app.discordThreadId)} standaloneUrl={`/officers/applications/${app.id}`} /> : <p className="rounded-card border border-dashed border-line-strong px-6 py-10 text-center text-sm text-fg-2">{INBOX.pickOne}</p>}
       </Inbox>
     </div>
   );

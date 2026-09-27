@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import { useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import { ClassAvatar, CONTROL, EmptyState, FilterBar, SegmentedControl, Tag } from '@/components/ui';
 import { countActiveInboxFilters, DEFAULT_FILTERS, filterInbox, PATH_LABEL, sortInbox, type InboxFilters, type InboxItem } from '@/lib/applications-inbox';
 import { cn } from '@/lib/cn';
@@ -22,11 +23,21 @@ type Props = {
  * docs/04 § Applications inbox: a 380px list beside the open application. Filters are a
  * segmented Raider / Social / All, a status select and a search box, default Raider +
  * Pending. Rows are 72px with a sand unread dot; the selected row is teal-washed with a
- * 2px teal left edge, the one place a left accent is allowed. On phones the list stands
- * alone and a row goes to the detail route.
+ * 2px teal left edge, the one place a left accent is allowed. Picking a row selects it in
+ * place: the row links to `?id=` on this page, so the right pane changes and the filters
+ * stay put. On phones the pane is hidden, so the same click goes to the detail route.
  */
 export function Inbox({ items, selectedId, now, children }: Props) {
+  const router = useRouter();
   const [filters, setFilters] = useState<InboxFilters>(DEFAULT_FILTERS);
+
+  /** Below the lg breakpoint there is no right pane; open the application as its own page instead. */
+  function openRow(event: MouseEvent<HTMLAnchorElement>, id: string) {
+    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+    if (window.matchMedia('(min-width: 1024px)').matches) return;
+    event.preventDefault();
+    router.push(`/officers/applications/${id}`);
+  }
   const at = useMemo(() => new Date(now), [now]);
   const shown = useMemo(() => sortInbox(filterInbox(items, filters)), [items, filters]);
   const pendingCount = items.filter((a) => a.status === 'pending').length;
@@ -82,7 +93,9 @@ export function Inbox({ items, selectedId, now, children }: Props) {
                 <li key={a.id} className="relative">
                   {selected && <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-teal" />}
                   <Link
-                    href={`/officers/applications/${a.id}`}
+                    href={`/officers/applications?id=${a.id}`}
+                    scroll={false}
+                    onClick={(event) => openRow(event, a.id)}
                     aria-current={selected ? 'true' : undefined}
                     className={cn('flex min-h-[72px] items-center gap-3 px-4 py-3 transition-colors duration-[120ms] hover:bg-ink-850', selected && 'bg-teal-wash')}
                   >
