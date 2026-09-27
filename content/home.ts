@@ -4,6 +4,8 @@
  * placeholder) and must be replaced before launch. The pedigree claims are real.
  */
 
+import { DISCORD_INVITE_URL } from '@/lib/config';
+
 export const ANNOUNCEMENT = {
   eyebrow: 'Launch',
   text: "WoW Forever launches November 4. We're recruiting now.",
@@ -17,7 +19,7 @@ export const HERO = {
   lede:
     "Bureaucracy has been raiding together since 2013. On Smolderweb we were the top guild from Molten Core through Naxx, with server firsts, the fastest clears, and a top 100 world Naxx clear. We're bringing the same crew to WoW Forever and building on what we did there.",
   primary: { label: 'Apply to raid', href: '/recruitment' },
-  secondary: { label: 'Join our Discord', href: 'https://discord.gg/3Scxcv9w3V' },
+  secondary: { label: 'Join our Discord', href: DISCORD_INVITE_URL },
 };
 
 /** The guild's three verified claims. Use as written. */

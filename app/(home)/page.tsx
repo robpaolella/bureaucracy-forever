@@ -9,6 +9,7 @@ import { NEED_LABEL, teaserNeeds } from '@/content/recruitment';
 import { getClassNeeds } from '@/lib/class-needs-data';
 import { RAID_NIGHTS } from '@/content/schedule';
 import { cn } from '@/lib/cn';
+import { SITE_NAME } from '@/lib/config';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
 import { WEEKDAY_NAMES } from '@/lib/time';
 
@@ -16,11 +17,12 @@ const TITLE = 'Bureaucracy | WoW Forever Raiding Guild, US Alliance PvP';
 const DESCRIPTION =
   'Bureaucracy is a US Alliance raiding guild on WoW Forever. #1 on Smolderweb in Classic with a top 100 world Naxx clear. Now recruiting for launch.';
 
+/** Root layout's openGraph/twitter are whole-object overrides, not merged — repeat siteName/locale/card here too. */
 export const metadata: Metadata = {
   title: { absolute: TITLE },
   description: DESCRIPTION,
-  openGraph: { title: TITLE, description: DESCRIPTION },
-  twitter: { title: TITLE, description: DESCRIPTION },
+  openGraph: { type: 'website', siteName: SITE_NAME, locale: 'en_US', title: TITLE, description: DESCRIPTION },
+  twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
 };
 
 const SECTION = 'border-b border-line-faint px-4 md:px-gutter';
