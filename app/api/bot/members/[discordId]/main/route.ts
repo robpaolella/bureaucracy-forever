@@ -1,7 +1,8 @@
+import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { withIdempotency, reply } from '@/lib/idempotency';
 import { parseCharacterInput } from '@/lib/roster-edit';
-import { authorizeBot, isSnowflake, readJson } from '../../../_lib';
+import { authorizeBot, isSnowflake, NO_STORE, readJson } from '../../../_lib';
 import { toPrismaCharacter } from '../../../../roster/fields';
 
 /**
@@ -17,7 +18,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ disc
   const read = await readJson(request);
   if ('deny' in read) return read.deny;
   const { discordId } = await params;
-  if (!isSnowflake(discordId)) return reply(400, { error: 'Not a Discord id.' });
+  if (!isSnowflake(discordId)) return NextResponse.json({ error: 'Not a Discord id.' }, { status: 400, headers: NO_STORE });
   return withIdempotency(request, async () => {
     const user = await db.user.findUnique({ where: { discordId }, select: { id: true, rank: true, characters: { where: { isMain: true }, take: 1, select: { id: true } } } });
     if (!user) return reply(404, { error: 'Unknown member.' });
