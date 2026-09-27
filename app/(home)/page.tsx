@@ -4,17 +4,25 @@ import { HeroContours } from '@/components/home/HeroContours';
 import { AccentLink, SectionHead } from '@/components/site/SectionHead';
 import { NightTimes } from '@/components/time/NightTimes';
 import { ButtonLink, Card, StatusPill } from '@/components/ui';
-import { CLOSING, HERO, PEDIGREE, PROGRESSION, PROGRESSION_NOTE, WEEK_NOTE, type ProgressionRow } from '@/content/home';
+import { CLOSING, HERO, PEDIGREE, PROGRESSION, type ProgressionRow } from '@/content/home';
 import { NEED_LABEL, teaserNeeds } from '@/content/recruitment';
 import { getClassNeeds } from '@/lib/class-needs-data';
 import { RAID_NIGHTS } from '@/content/schedule';
 import { cn } from '@/lib/cn';
+import { SITE_NAME } from '@/lib/config';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
 import { WEEKDAY_NAMES } from '@/lib/time';
 
+const TITLE = 'Bureaucracy | WoW Forever Raiding Guild, US Alliance PvP';
+const DESCRIPTION =
+  'Bureaucracy is a US Alliance raiding guild on WoW Forever. #1 on Smolderweb in Classic with a top 100 world Naxx clear. Now recruiting for launch.';
+
+/** Root layout's openGraph/twitter are whole-object overrides, not merged — repeat siteName/locale/card here too. */
 export const metadata: Metadata = {
-  title: { absolute: 'Bureaucracy — a 40-player raiding guild on WoW Forever' },
-  description: HERO.lede,
+  title: { absolute: TITLE },
+  description: DESCRIPTION,
+  openGraph: { type: 'website', siteName: SITE_NAME, locale: 'en_US', title: TITLE, description: DESCRIPTION },
+  twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
 };
 
 const SECTION = 'border-b border-line-faint px-4 md:px-gutter';
@@ -45,7 +53,7 @@ function Hero() {
           <ButtonLink href={HERO.primary.href} size="lg" className="font-bold">
             {HERO.primary.label}
           </ButtonLink>
-          <ButtonLink href={HERO.secondary.href} size="lg" variant="secondary">
+          <ButtonLink href={HERO.secondary.href} size="lg" variant="secondary" target="_blank" rel="noopener noreferrer">
             {HERO.secondary.label}
           </ButtonLink>
         </div>
@@ -116,13 +124,12 @@ function ProgressionRowView({ row }: { row: ProgressionRow }) {
 function Progression() {
   return (
     <div className="flex flex-col gap-6">
-      <SectionHead eyebrow="Progression" title="Where we are this tier" link={{ href: '/about', label: 'Full history →' }} />
+      <SectionHead eyebrow="Progression" title="Current progression" link={{ href: '/about', label: 'Full history →' }} />
       <div className="flex flex-col divide-y divide-line-faint overflow-hidden rounded-card border border-line bg-ink-850">
         {PROGRESSION.map((row) => (
           <ProgressionRowView key={row.name} row={row} />
         ))}
       </div>
-      <p className="text-xs text-fg-3">{PROGRESSION_NOTE}</p>
     </div>
   );
 }
@@ -130,7 +137,7 @@ function Progression() {
 function TheWeek() {
   return (
     <div className="flex flex-col gap-6">
-      <SectionHead eyebrow="The week" title="Three nights" />
+      <SectionHead eyebrow="The week" title="Raid schedule" />
       <div className="flex flex-col gap-3">
         {RAID_NIGHTS.map((night) => (
           <Card key={night.day} className="flex items-center justify-between px-[22px] py-5">
@@ -145,7 +152,6 @@ function TheWeek() {
           </Card>
         ))}
       </div>
-      <div className="rounded-card border border-teal-line bg-teal-wash px-5 py-[18px] text-[13px] leading-[1.6] text-teal-text">{WEEK_NOTE}</div>
       <AccentLink href="/schedule" className="self-start">
         Full schedule →
       </AccentLink>
@@ -159,7 +165,7 @@ async function RecruitmentTeaser() {
   const cards = teaserNeeds(await getClassNeeds());
   return (
     <section className={cn(SECTION, 'flex flex-col gap-7 py-16 md:py-[88px]')}>
-      <SectionHead eyebrow="Recruitment" title="What we're short of" link={{ href: '/recruitment', label: 'Every class and spec →' }} />
+      <SectionHead eyebrow="Recruitment" title="Current recruitment needs" link={{ href: '/recruitment', label: 'Every class and spec →' }} />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {cards.map((c) => (
           <Card key={c.wowClass} className="flex flex-col gap-3.5">

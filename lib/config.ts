@@ -6,8 +6,8 @@
  */
 export const GUILD_TIMEZONE = 'America/Los_Angeles';
 
-/** Public Discord invite. Placeholder until the guild supplies the real link. */
-export const DISCORD_INVITE_URL = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? 'https://discord.gg/bureaucracy';
+/** Public Discord invite. */
+export const DISCORD_INVITE_URL = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? 'https://discord.gg/3Scxcv9w3V';
 
 /** Sends the visitor straight to Discord; app/login/route.ts. Logging out is a server action. */
 export const LOGIN_URL = '/login';

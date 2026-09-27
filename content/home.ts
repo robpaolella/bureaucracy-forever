@@ -4,27 +4,29 @@
  * placeholder) and must be replaced before launch. The pedigree claims are real.
  */
 
+import { DISCORD_INVITE_URL } from '@/lib/config';
+
 export const ANNOUNCEMENT = {
   eyebrow: 'Launch',
-  text: 'WoW Forever goes live 4 November. We are recruiting now for the first lockout.',
-  linkLabel: 'Open needs →',
+  text: "WoW Forever launches November 4. We're recruiting now.",
+  linkLabel: 'See recruitment needs →',
   href: '/recruitment',
 };
 
 export const HERO = {
-  eyebrow: 'Bureaucracy · WoW Forever',
-  headline: ["We don't out-play people.", 'We out-prepare them.'],
+  eyebrow: 'US · Alliance · PvP',
+  headline: ["Smolderweb's #1 raiding guild.", 'Now on WoW Forever.'],
   lede:
-    'A competitive 40-player raiding guild carrying over from Classic — multiple server firsts and fastest clears on Smolderweb, top 500 worldwide through Naxxramas. Small enough that nobody here is a stranger.',
+    "Bureaucracy has been raiding together since 2013. On Smolderweb we were the top guild from Molten Core through Naxx, with server firsts, the fastest clears, and a top 100 world Naxx clear. We're bringing the same crew to WoW Forever and building on what we did there.",
   primary: { label: 'Apply to raid', href: '/recruitment' },
-  secondary: { label: 'See the raid week', href: '/schedule' },
+  secondary: { label: 'Join our Discord', href: DISCORD_INVITE_URL },
 };
 
 /** The guild's three verified claims. Use as written. */
 export const PEDIGREE = [
-  { figure: 'Server firsts', text: 'Multiple first kills on Smolderweb in Classic, across the full raid tier list.' },
-  { figure: 'Fastest clears', text: 'Server-best clear times, set with the same core the guild still raids with.' },
-  { figure: 'Top 500 Naxx', text: 'Among the first 500 guilds worldwide to clear Naxxramas at release.' },
+  { figure: 'Server firsts', text: 'First on Smolderweb to clear Blackwing Lair and AQ40.' },
+  { figure: 'Fastest clears', text: "Held the server's fastest clear times in Molten Core, Blackwing Lair, and AQ40." },
+  { figure: 'Strong community', text: 'A tight-knit community of competitive players with 10+ years of playing WoW together.' },
 ] as const;
 
 export type TierState = 'cleared' | 'current' | 'locked';
@@ -45,14 +47,9 @@ export const PROGRESSION: ProgressionRow[] = [
   { name: 'The Barrow Deeps', size: 'Not yet released', state: 'locked', killed: 0, total: 0 },
 ];
 
-export const PROGRESSION_NOTE = 'Kill counts read from our logs on save — no one edits this table by hand.';
-
-export const WEEK_NOTE =
-  'Every time on this site is shown in guild time with your own beside it. We detect your timezone — you never do the maths.';
-
 export const CLOSING = {
-  headline: "If you read the fight before you're asked to, you'll fit here.",
-  text: "Applications take about ten minutes. An officer reads every one, and you'll hear back either way.",
+  headline: 'Are you ready to take your game to the next level?',
+  text: "Bureaucracy is always recruiting talented players to join our core team. If you're a competitive player who wants to keep climbing, fill out an application. We read every application and will respond within a few days.",
   primary: { label: 'Apply to raid', href: '/recruitment' },
-  secondary: { label: 'Apply as social', href: '/recruitment?path=social' },
+  secondary: { label: 'Join as a social member', href: '/recruitment?path=social' },
 };
