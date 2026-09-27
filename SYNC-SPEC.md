@@ -208,14 +208,21 @@ directly from the click; it may reply ephemerally ("You're set to Accept") immed
 | `application.decide` | Post decision embed (green Accepted / red Declined, by whom, via web or Discord). Retag. DM applicant from the template in `content/dm-templates` (site serves it in the job payload). On ACCEPTED: add `ROLE_GUILD_MEMBER_ID`, remove `ROLE_GUEST_ID`. Archive + lock the thread. | `{ dmDelivered: bool }` | — |
 | `application.reopen` | Unarchive, unlock, retag Pending, post "Reopened by X". | — | — |
 | `application.nudge` | Message in `OFFICERS_CHANNEL_ID`: "Application from X has been pending 24h" + link. | — | — |
-| `raid.post` | Create forum post in `RAID_SIGNUPS_FORUM_ID`: title `Template — Ddd Mon D`, tags `[template.short, Open]`, starter = embed (§8) + buttons Accept / Tentative / Decline / Join bench / View roster (link). | `{ threadId, messageId }` | store on Raid |
-| `raid.update` | Re-render embed + tags from `GET /raids/:id`. | — | — |
+| `raid.post` | Post one message in `RAID_SIGNUPS_CHANNEL_ID`: embed (§8) titled `🟢 Template — Ddd Mon D` (+ " · added late" when `payload.late`) + buttons Accept / Tentative / Decline / Join bench / View roster (link); open a thread on it named like the title minus the state marker. | `{ threadId, messageId }` | store on Raid |
+| `raid.update` | Re-render the embed (title prefix and colour carry the state) from `GET /raids/:id`. | — | — |
 | `raid.remind` | Thread message mentioning `payload.discordIds`. For anyone the mention can't reach (left server), skip. | — | — |
-| `raid.lock` | Retag Locked, post "Sign-ups are locked. Officers can still change answers on the web." | — | — |
-| `raid.cancel` | Post cancellation notice with `payload.reason`, DM everyone who ACCEPTed, retag Cancelled, archive + lock. | — | — |
-| `raid.close` | Retag Done, archive. | — | — |
+| `raid.lock` | Re-render as 🔒 Locked, post "Sign-ups are locked. Officers can still change answers on the web." in the thread. | — | — |
+| `raid.cancel` | Edit the message to the compact ❌ line with `payload.reason`, remove buttons, DM everyone who ACCEPTed, archive the thread. | — | — |
+| `raid.close` | Edit the message to the compact ✅ line with the attended count, remove buttons, archive the thread. | — | — |
 | `member.roles.sync` | `{ discordId, add: [roleId], remove: [roleId] }`. Only ever touches Guild Member, Guest and Raider. **Never Officer** — that role grants site access and is managed by humans. | — | — |
 | `officers.notify` | Free-text message to `#officers`. Used for FAILED jobs and reconcile findings. | — | — |
+
+The `raid.post` / `raid.update` / `raid.lock` / `raid.cancel` / `raid.close` rows describe
+the forum-era mechanism; since #raid-signups became a text channel (§8) the bot posts one
+message plus a thread instead of a forum post, and state is the embed's title prefix and
+colour instead of tags. The site-facing contract is identical: payloads, the ack result
+`{ threadId, messageId }`, and what the site stores (`Raid.discordMessageId` is the channel
+message, `Raid.discordThreadId` the thread).
 
 The bot processes jobs **in order per entity** (same `applicationId`/`raidId` never in
 parallel) and up to 4 entities concurrently.
@@ -285,23 +292,29 @@ rows only; answered rows are kept.
 - Web notes arrive as `application.note.post` and are posted by the bot as
   `**Robert** (web) · text`. The bot ignores its own messages when ingesting.
 
-### `#raid-signups` (forum, read-only for members, chat allowed in threads)
-- Permissions: Guild Member — deny *Create Posts*, allow *Send Messages in Posts*. Bot —
-  *Create Posts*, *Manage Posts*, *Send Messages in Posts*.
-- Tags: one per `RaidTemplate.short`, plus `Open`, `Locked`, `Done`, `Cancelled`.
-- Starter embed:
-  - Title `Template · size-player · full clear`
-  - `<t:unix:F> – <t:unix_end:t> · <t:unix:R>` then a muted line "8:00 PM guild time
-    (Pacific). Shown above in your local time." Discord renders `<t:>` in each viewer's zone.
-  - Monospace block: `Accepted 34 / 40` then bars per role `Tanks ███░ 3/4`, built from
-    `requirements` and ROSTER+ACCEPT counts.
-  - Six inline fields: Accepted, Tentative, Declined, Not answered, Bench, Locks at (`<t:>`).
-  - Footer: "Updated <t:R> · Full roster, bench and who hasn't answered are on the web".
-  - **No names on the embed.**
-- Buttons: **Accept** (green), **Tentative** (grey), **Decline** (red), **Join bench**
-  (blurple), **View roster** (link to `/members/calendar/:id`). Decline opens a modal with one
-  optional "Reason" field. Every click gets an ephemeral reply stating the user's new state.
-- Reminder messages `@mention` the unanswered in the thread.
+### `#raid-signups` (text channel, read-only for members, chat in threads)
+- Permissions: Guild Member — deny Send Messages, allow Send Messages in Threads,
+  allow Add Reactions off. Bot — Send Messages, Create Public Threads, Send Messages
+  in Threads, Manage Messages, Manage Threads.
+- One message per raid. tick enqueues `raid.post` in `startsAt` order, so the channel
+  reads chronologically. A raid created inside the `postAheadDays` window is posted at
+  the bottom and its embed title is suffixed " · added late" (the site marks it
+  `late: true` in the `raid.post` payload).
+- The bot opens a thread on each post named exactly like the embed title minus the
+  state marker, e.g. "Molten Core — Thu Nov 19". Reminders go in the thread.
+- State lives in the embed, not tags: title prefix 🟢 Open / 🔒 Locked / ✅ Done /
+  ❌ Cancelled, and embed colour teal / sand / green / red. Store nothing about state
+  in the message itself; always re-render from `GET /raids/:id`.
+- Embed body is unchanged from the previous spec: `<t:>` timestamps, monospace
+  composition bars, six inline fields (Accepted, Tentative, Declined, Not answered,
+  Bench, Locks at), footer "Updated <t:R> · Full roster, bench and who hasn't
+  answered are on the web". No names on the embed.
+- Buttons unchanged: **Accept** / **Tentative** / **Decline** / **Join bench** / **View
+  roster** (link). Decline opens a modal with one optional "Reason" field. Every click
+  gets an ephemeral reply stating the user's new state.
+- `raid.close` and `raid.cancel` edit the message to a single compact line
+  ("✅ Molten Core — Thu Nov 19 · 38 attended" or "❌ … · cancelled: <reason>"),
+  remove all buttons, and archive the thread. The message is not deleted.
 
 ### `#apply` message
 - Replace the two component buttons with **link buttons**: `Apply as a Raider` →
@@ -342,7 +355,7 @@ Site (Vercel): `BOT_SHARED_SECRET`, `GUILD_TZ=America/Los_Angeles`. Remove `BOT_
 
 Bot (server env file): `DISCORD_TOKEN`, `GUILD_ID`, `SITE_API_URL=https://www.bureauguild.com`,
 `SITE_PUBLIC_URL=https://www.bureauguild.com`, `BOT_SHARED_SECRET`, `APPLICATIONS_FORUM_ID`,
-`RAID_SIGNUPS_FORUM_ID`, `OFFICERS_CHANNEL_ID`, `ROLE_GUILD_MEMBER_ID`, `ROLE_GUEST_ID`,
+`RAID_SIGNUPS_CHANNEL_ID`, `OFFICERS_CHANNEL_ID`, `ROLE_GUILD_MEMBER_ID`, `ROLE_GUEST_ID`,
 `ROLE_RAIDER_ID`, `POLL_SECONDS=5`, `TICK_SECONDS=60`.
 
 ---
