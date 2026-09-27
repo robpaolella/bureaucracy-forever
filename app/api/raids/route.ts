@@ -1,6 +1,4 @@
-import { after, NextResponse } from 'next/server';
-import { raidSummary } from '@/lib/bot-events';
-import { notifyBot } from '@/lib/bot-notify';
+import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { loadRaidCards } from '@/lib/raid-cards';
 import { isUpcoming, locksAtFor, parseRaidInput } from '@/lib/raids';
@@ -36,6 +34,5 @@ export async function POST(request: Request) {
     data: { name: value.name, startsAt: parsed.startsAt, locksAt: locksAtFor(parsed.startsAt), durationMin: value.durationMin, requirements: value.requirements, notes: value.notes || null },
     select: { id: true, name: true, startsAt: true, durationMin: true, notes: true, cancelledAt: true, discordEventId: true },
   });
-  after(() => notifyBot({ type: 'raid.created', raid: raidSummary({ ...raid, requirements: value.requirements }) }));
   return NextResponse.json({ id: raid.id, name: raid.name, startsAt: raid.startsAt.toISOString() }, { status: 201, headers: NO_STORE });
 }

@@ -1,7 +1,6 @@
 import { after, NextResponse } from 'next/server';
 import { parseDecision } from '@/lib/applications-decide';
-import { applicantDiscordId } from '@/lib/bot-events';
-import { notifyBot } from '@/lib/bot-notify';
+import { enqueue } from '@/lib/outbox';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/session';
 import { ensureUser } from '@/lib/users';
@@ -43,8 +42,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   });
   if (decided.count === 0) return NextResponse.json({ error: 'This application was already decided.' }, { status: 409, headers: NO_STORE });
   const status = parsed.value.status;
-  after(() =>
-    notifyBot({ type: 'application.decided', applicationId: app.id, status, path: app.path === 'SOCIAL' ? 'social' : 'raider', character: app.character, discordId: applicantDiscordId(app.discordId), discordName: app.discordName }),
-  );
+  after(() => enqueue('application.decide', { applicationId: app.id, status, decidedBy: session.name, source: 'web' }));
   return NextResponse.json({ id: app.id, status }, { headers: NO_STORE });
 }

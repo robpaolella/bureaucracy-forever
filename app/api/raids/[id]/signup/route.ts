@@ -1,5 +1,5 @@
 import { after, NextResponse } from 'next/server';
-import { notifyBot } from '@/lib/bot-notify';
+import { enqueue } from '@/lib/outbox';
 import { db } from '@/lib/db';
 import type { Role } from '@/lib/design/class-colors';
 import { countAccepted, isRaidResponse, type RaidResponse } from '@/lib/raids';
@@ -34,7 +34,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: 'Only officers answer on someone else’s behalf.' }, { status: 403, headers: NO_STORE });
   }
 
-  const raid = await db.raid.findUnique({ where: { id }, select: { id: true, cancelledAt: true, startsAt: true, durationMin: true } });
+  const raid = await db.raid.findUnique({ where: { id }, select: { id: true, cancelledAt: true, startsAt: true, durationMin: true, discordThreadId: true } });
   if (!raid) return NextResponse.json({ error: 'No such raid.' }, { status: 404, headers: NO_STORE });
   if (raid.cancelledAt) return NextResponse.json({ error: 'This raid was cancelled.' }, { status: 409, headers: NO_STORE });
   if (raid.startsAt.getTime() + raid.durationMin * 60_000 < Date.now()) {
@@ -51,15 +51,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   // An officer answering for someone else: the target must exist, and the row records who set it.
   let targetId = user.id;
-  // Who the answer is for, as the bot needs to name them.
-  let answered = { discordId: session.discordId, discordName: session.name };
   let setByUserId: string | null = null;
   if (forUserId && forUserId !== user.id) {
-    const target = await db.user.findUnique({ where: { id: forUserId }, select: { id: true, role: true, discordId: true, discordName: true } });
+    const target = await db.user.findUnique({ where: { id: forUserId }, select: { id: true, role: true } });
     if (!target) return NextResponse.json({ error: 'No such member.' }, { status: 404, headers: NO_STORE });
     if (target.role === 'SOCIAL') return NextResponse.json({ error: 'Social members do not sign up for raids.' }, { status: 403, headers: NO_STORE });
     targetId = target.id;
-    answered = { discordId: target.discordId, discordName: target.discordName };
     setByUserId = user.id;
   }
 
@@ -82,6 +79,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const counts = countAccepted(
     signups.map((s) => ({ response: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null, role: (s.user.characters[0]?.raidRole.toLowerCase() as Role | undefined) ?? null })),
   );
-  after(() => notifyBot({ type: 'signup.changed', raidId: raid.id, discordId: answered.discordId, discordName: answered.discordName, response, source: 'web', setBy: setByUserId ? session.name : null, counts }));
+  if (raid.discordThreadId) after(() => enqueue('raid.update', { raidId: raid.id }));
   return NextResponse.json({ raidId: raid.id, userId: targetId, response, counts }, { headers: NO_STORE });
 }
