@@ -10,6 +10,10 @@ export const SUMMARY = {
   notes: 'Notes',
   noNotes: 'No notes for this raid yet.',
   cancelled: 'This raid was cancelled.',
+  cancelReason: 'Reason:',
+  locksAt: 'Sign-ups lock',
+  locked: 'Sign-ups are locked',
+  done: 'Finished',
 };
 
 export const SECTIONS = {
@@ -32,17 +36,21 @@ export const OFFICER_ACTIONS = {
   edit: 'Edit raid',
   editTitle: 'Edit raid',
   save: 'Save changes',
-  post: 'Post to Discord',
+  openThread: 'Open in Discord',
+  notPosted: 'Not posted to Discord yet',
+  notPostedHint: 'The bot posts each raid to #raid-signups on the series schedule.',
   cancel: 'Cancel raid',
   restore: 'Restore raid',
   cancelTitle: 'Cancel this raid?',
-  cancelBody: 'Sign-ups stay on record and the raid stays on the calendar, marked cancelled. You can restore it later.',
+  cancelBody: 'Sign-ups stay on record and the raid stays on the calendar, marked cancelled. Everyone who accepted is told in Discord. You can restore it later.',
+  cancelReason: 'Reason',
+  cancelReasonHint: 'Shown on the Discord post and in the messages to those who accepted.',
+  cancelReasonPlaceholder: 'Not enough healers this week',
   cancelConfirm: 'Cancel the raid',
   keep: 'Keep it',
-  postPending: 'Arrives with the Discord sync.',
   finished: 'This raid has finished.',
   restoreFirst: 'Restore the raid to edit it.',
-  onBehalf: 'Answer for a member',
+  onBehalf: 'Answer for someone not listed',
   member: 'Member',
   response: 'Response',
   clear: 'Clear their answer',
@@ -59,3 +67,50 @@ export const RAID_TOASTS = {
 export function onBehalfToast(name: string, response: string | null): string {
   return response ? `${name} marked ${response}` : `${name}'s answer cleared`;
 }
+
+/** The roster grouped by role (SYNC-SPEC §9.5). */
+export const ROSTER = {
+  heading: 'Roster',
+  empty: 'Nobody is on this roster yet. The roster comes from rank: raiders, trials and officers.',
+  noRole: 'No main set',
+  answer: 'Answer',
+  via: 'Via',
+  noAnswer: 'No answer yet',
+  answerFor: 'Answer for them',
+  attended: 'Attended',
+  missed: 'Did not attend',
+  reasonPrefix: 'Reason:',
+};
+
+export const ANSWER_LABEL = { accept: 'Accepted', tentative: 'Tentative', absent: 'Absent' } as const;
+
+export const BENCH = {
+  heading: 'Bench',
+  lede: 'Members off the roster who answered. Bench answers do not fill a slot until an officer moves them.',
+  empty: 'Nobody on the bench.',
+  moveToRoster: 'Move to roster',
+  moved: (name: string) => `${name} moved to the roster`,
+};
+
+export const UNANSWERED = {
+  heading: "Hasn't answered",
+  empty: 'Everyone on the roster has answered.',
+  nudge: 'Nudge in Discord',
+  nudgeHint: 'Mentions them in the raid thread.',
+  nudged: (n: number) => (n === 1 ? 'Nudged 1 member in Discord' : `Nudged ${n} members in Discord`),
+  noThread: 'The raid is not posted to Discord yet.',
+};
+
+export const ATTENDANCE = {
+  heading: 'Mark attendance',
+  lede: 'Tick everyone who showed up. Accepted members are ticked to start with; tentative ones are not.',
+  empty: 'Nobody accepted or was tentative, so there is nobody to mark.',
+  save: 'Save attendance',
+  saved: (n: number) => (n === 1 ? 'Attendance saved for 1 member' : `Attendance saved for ${n} members`),
+};
+
+export const RESPONSE_NOTES = {
+  locked: 'Sign-ups are locked. Ask an officer if something changed.',
+  offRoster: "You're not on this roster. Accepting puts you on the bench.",
+  youAnswered: 'You answered',
+};
