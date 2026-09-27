@@ -15,14 +15,15 @@ const LIMIT = 5;
 const WINDOW_MS = 60 * 60_000;
 
 /**
- * The public application form (docs/04 § Recruitment). Anyone may apply, no login: the
- * Discord handle comes from the session when there is one and from the form otherwise.
- * Spam controls: a honeypot field, a per-address limit, and one pending application per
- * character. On success the applicant lands on /recruitment/submitted.
+ * The application form on /apply (SYNC-SPEC §9.1): a Discord sign-in is required, so the
+ * handle always comes from the session and every application is tied to an account.
+ * Spam controls: a honeypot field, a per-address limit, one pending application per
+ * character and one per account. On success the applicant lands on /recruitment/submitted.
  */
 export async function submitApplication(_prev: ApplicationState, data: FormData): Promise<ApplicationState> {
   const session = await getSession();
-  const parsed = parseApplication(data, session?.name ?? null);
+  if (!session) return { ok: false, errors: {}, message: FORM.signInRequired };
+  const parsed = parseApplication(data, session.name);
   if (!parsed.ok) return { ok: false, errors: parsed.errors };
   const { value } = parsed;
 
@@ -40,7 +41,7 @@ export async function submitApplication(_prev: ApplicationState, data: FormData)
         const pending = await tx.application.findFirst({ where: { status: 'PENDING', character: { equals: value.character, mode: 'insensitive' } }, select: { id: true } });
         if (pending) return true;
         // SYNC-SPEC §9.1: one pending application per Discord account.
-        if (session?.discordId) {
+        {
           const mine = await tx.application.findFirst({ where: { status: 'PENDING', discordId: session.discordId }, select: { id: true } });
           if (mine) return 'account' as const;
         }
@@ -48,8 +49,7 @@ export async function submitApplication(_prev: ApplicationState, data: FormData)
           select: { id: true },
           data: {
             path: value.path === 'social' ? 'SOCIAL' : 'RAIDER',
-            // '' means no Discord account is known: the inbox and the bot must fall back to discordName.
-            discordId: session?.discordId ?? '',
+            discordId: session.discordId,
             discordName: value.discord,
             character: value.character,
             class: value.wowClass ? (value.wowClass.toUpperCase() as Uppercase<typeof value.wowClass>) : null,

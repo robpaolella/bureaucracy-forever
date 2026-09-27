@@ -114,6 +114,7 @@ export const FORM = {
   tooMany: 'That is a lot of applications from one place. Wait an hour, or ask in #recruitment.',
   duplicate: 'An application for this character is already waiting on an officer.',
   duplicateAccount: 'You already have an application waiting on an officer.',
+  signInRequired: 'Sign in with Discord first; the form is on /apply.',
 };
 
 /** docs/04 § Application submitted. */

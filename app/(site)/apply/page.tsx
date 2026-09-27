@@ -3,15 +3,15 @@ import { Suspense } from 'react';
 import { ApplicationForm } from '@/components/recruitment/ApplicationForm';
 import { StatusPage } from '@/components/site/StatusPage';
 import { ButtonLink } from '@/components/ui';
-import { lookupGuildMember } from '@/lib/auth/discord';
 import { DISCORD_INVITE_URL, LOGIN_URL } from '@/lib/config';
+import { isGuildMember } from '@/lib/guild-check';
 import { getDevStubSession, getSession } from '@/lib/session';
 import { APPLY_GATE } from '@/content/recruitment';
 
 export const metadata: Metadata = {
   title: 'Apply',
   description: 'Apply to Bureaucracy as a raider or a social member.',
-  robots: { index: false, follow: true },
+  robots: { index: false, follow: false },
 };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -44,9 +44,11 @@ export default async function ApplyPage({ searchParams }: { searchParams: Search
     );
   }
 
-  // The dev stub is not a Discord account; treat it as a member so the form can be worked on.
+  // The dev stub is not a Discord account; when the session IS the stub, treat it as a member
+  // so the form can be worked on. A Discord error fails open: the action re-checks nothing,
+  // but the applicant is signed in and officers see the account either way.
   const stub = await getDevStubSession();
-  const lookup = stub ? { kind: 'member' as const } : await lookupGuildMember(session.discordId);
+  const lookup = stub && stub.discordId === session.discordId ? { kind: 'member' as const } : await isGuildMember(session.discordId);
   if (lookup.kind === 'absent') {
     return (
       <StatusPage
@@ -68,7 +70,7 @@ export default async function ApplyPage({ searchParams }: { searchParams: Search
   return (
     <div className="mx-auto flex w-full max-w-[880px] flex-col gap-6 px-4 pb-20 pt-8 md:px-12 md:pt-11">
       <Suspense fallback={null}>
-        <ApplicationForm />
+        <ApplicationForm discordHandle={session.name} />
       </Suspense>
     </div>
   );
