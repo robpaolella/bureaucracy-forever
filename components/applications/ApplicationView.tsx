@@ -10,7 +10,13 @@ import { DecisionBar } from './DecisionBar';
 import { NightsLocal } from './NightsLocal';
 import { NoteComposer } from './NoteComposer';
 
-type Props = { app: ApplicationDetail; now: string; threadUrl?: string | null };
+type Props = {
+  app: ApplicationDetail;
+  now: string;
+  threadUrl?: string | null;
+  /** In the inbox pane: the application's own page, offered in a new window. Absent on that page itself. */
+  standaloneUrl?: string | null;
+};
 
 const PROGRESSION = RAID_NIGHTS.filter((n) => !n.optional);
 
@@ -20,7 +26,7 @@ const PROGRESSION = RAID_NIGHTS.filter((n) => !n.optional);
  * guild and local times, then the private officer notes with their composer, and the
  * decision bar pinned to the bottom while the application is pending.
  */
-export function ApplicationView({ app, now, threadUrl = null }: Props) {
+export function ApplicationView({ app, now, threadUrl = null, standaloneUrl = null }: Props) {
   const at = new Date(now);
   const color = app.wowClass ? CLASS_COLORS[app.wowClass].onInk : undefined;
   const answers = orderedAnswers(app.answers);
@@ -32,11 +38,16 @@ export function ApplicationView({ app, now, threadUrl = null }: Props) {
     <ToastHost>
       <article className="flex flex-col gap-6" aria-labelledby="application-title">
         <header className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <ClassAvatar name={app.character} wowClass={app.wowClass} size={32} />
             <h2 id="application-title" className="font-display text-[30px] font-medium leading-none" style={{ color }}>
               {app.character}
             </h2>
+            {standaloneUrl && (
+              <a href={standaloneUrl} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex min-h-11 items-center gap-1 text-sm text-fg-3 underline-offset-4 hover:text-fg hover:underline">
+                {DETAIL.openWindow} <span aria-hidden>↗</span>
+              </a>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-fg-3">
             {meta && <span>{meta}</span>}

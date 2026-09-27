@@ -84,3 +84,23 @@ export function orderedAnswers(answers: unknown): { key: string; label: string; 
     .map((k) => ({ key: k, label: k, answer: a[k] as string }));
   return [...known, ...extra];
 }
+
+/** Tailwind's `lg`, where the inbox shows its right pane (`hidden lg:block`). Keep in step with tailwind.config.ts. */
+export const INBOX_PANE_MIN_WIDTH = 1024;
+
+export type RowClick = { button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean; wide: boolean };
+
+/**
+ * Whether a click on an inbox row should open the application as its own page instead of
+ * following the row's `?id=` link. Only a plain primary click below the pane breakpoint:
+ * with a modifier or another button the browser's own behaviour wins, as Next's Link does.
+ */
+export function opensStandalone(click: RowClick): boolean {
+  if (click.button !== 0 || click.metaKey || click.ctrlKey || click.shiftKey || click.altKey) return false;
+  return !click.wide;
+}
+
+/** The list with the open application's unread dot already cleared, since the page marks it read as it renders. */
+export function withSelectedRead(items: InboxItem[], selectedId: string | null): InboxItem[] {
+  return selectedId ? items.map((a) => (a.id === selectedId && a.unread ? { ...a, unread: false } : a)) : items;
+}

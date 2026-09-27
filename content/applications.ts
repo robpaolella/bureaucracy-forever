@@ -33,6 +33,7 @@ export const DETAIL = {
   notesPrivate: 'Only officers see this. Applicants never do.',
   notesSynced: 'Synced with #applications',
   openThread: 'Open the thread',
+  openWindow: 'Open on its own page',
   edited: 'edited',
   noNotes: 'No notes yet.',
   composer: 'Add a note',
