@@ -52,11 +52,13 @@ function LocalNightsLine() {
   );
 }
 
-export function ApplicationForm() {
+export function ApplicationForm({ discordHandle: known }: { discordHandle?: string } = {}) {
   const params = useSearchParams();
   // From the session when logged in; the field is then read-only. Read on the client so
   // the page stays static.
-  const discordHandle = useSiteSession().session?.name;
+  // The server-gated /apply page passes the name it already knows; the client context is the fallback.
+  const clientName = useSiteSession().session?.name;
+  const discordHandle = known ?? clientName;
   const [path, setPath] = useState<ApplicationPath>(params.get('path') === 'social' ? 'social' : 'raider');
   const [wowClass, setWowClass] = useState<WowClass | ''>('');
   const [state, formAction, pending] = useActionState(submitApplication, INITIAL_STATE);

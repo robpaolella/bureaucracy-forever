@@ -113,6 +113,8 @@ export const FORM = {
   submitNote: "You'll get a Discord DM when an officer picks it up.",
   tooMany: 'That is a lot of applications from one place. Wait an hour, or ask in #recruitment.',
   duplicate: 'An application for this character is already waiting on an officer.',
+  duplicateAccount: 'You already have an application waiting on an officer.',
+  signInRequired: 'Sign in with Discord first; the form is on /apply.',
 };
 
 /** docs/04 § Application submitted. */
@@ -125,6 +127,25 @@ export const SUBMITTED = {
   join: 'Join Discord',
   back: 'Back to the site',
   mistake: 'Applied by mistake or need to change something? Post in #recruitment.',
+};
+
+/** SYNC-SPEC §9.1: /apply sits behind a Discord sign-in and a guild-membership check. */
+export const APPLY_GATE = {
+  eyebrow: 'Apply',
+  signInTitle: 'Sign in with Discord to apply',
+  signInBody: "Applications are tied to your Discord account so officers can reach you and so one person applies once. If you're not in the server yet, join first; the sign-in follows.",
+  signIn: 'Sign in with Discord',
+  joinTitle: "You're not in our Discord yet",
+  joinBody: "Join the server first, then come back to this page. Officers decide applications in Discord and reach you there.",
+  join: 'Join Discord',
+  retry: "I've joined — try again",
+};
+
+/** The recruitment page's apply section: two doors to /apply (SYNC-SPEC §9.1). */
+export const APPLY_LINKS = {
+  raider: { label: 'Apply as a Raider', href: '/apply?path=raider' },
+  social: { label: 'Apply as Social', href: '/apply?path=social' },
+  note: "You'll sign in with Discord on the next page, so join the server first.",
 };
 
 export const NEXT_STEPS = {

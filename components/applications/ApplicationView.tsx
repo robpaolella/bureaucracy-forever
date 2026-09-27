@@ -1,4 +1,4 @@
-import { ClassAvatar, StatusPill, Tag, ToastHost } from '@/components/ui';
+import { ClassAvatar, SourceBadge, StatusPill, Tag, ToastHost } from '@/components/ui';
 import { orderedAnswers, PATH_LABEL, STATUS_LABEL, STATUS_TONE } from '@/lib/applications-inbox';
 import type { ApplicationDetail } from '@/lib/applications-data';
 import { rolesOfSpec } from '@/lib/class-needs';
@@ -10,7 +10,7 @@ import { DecisionBar } from './DecisionBar';
 import { NightsLocal } from './NightsLocal';
 import { NoteComposer } from './NoteComposer';
 
-type Props = { app: ApplicationDetail; now: string };
+type Props = { app: ApplicationDetail; now: string; threadUrl?: string | null };
 
 const PROGRESSION = RAID_NIGHTS.filter((n) => !n.optional);
 
@@ -20,7 +20,7 @@ const PROGRESSION = RAID_NIGHTS.filter((n) => !n.optional);
  * guild and local times, then the private officer notes with their composer, and the
  * decision bar pinned to the bottom while the application is pending.
  */
-export function ApplicationView({ app, now }: Props) {
+export function ApplicationView({ app, now, threadUrl = null }: Props) {
   const at = new Date(now);
   const color = app.wowClass ? CLASS_COLORS[app.wowClass].onInk : undefined;
   const answers = orderedAnswers(app.answers);
@@ -81,26 +81,36 @@ export function ApplicationView({ app, now }: Props) {
         </dl>
 
         <section className="flex flex-col gap-3 rounded-card border border-line bg-ink-800 p-4" aria-labelledby="officer-notes">
-          <div className="flex items-baseline justify-between gap-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <h3 id="officer-notes" className="text-label font-semibold uppercase tracking-[0.12em] text-fg-2">
               {DETAIL.notes}
+              {app.discordThreadId && <span className="ml-2 font-normal normal-case tracking-normal text-fg-3">· {DETAIL.notesSynced}</span>}
             </h3>
-            <span className="text-xs text-fg-3">{DETAIL.notesPrivate}</span>
+            <span className="flex items-center gap-3 text-xs text-fg-3">
+              {DETAIL.notesPrivate}
+              {threadUrl && (
+                <a href={threadUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-teal-text underline-offset-4 hover:underline">
+                  {DETAIL.openThread} ↗
+                </a>
+              )}
+            </span>
           </div>
           {app.notes.length === 0 ? (
             <p className="text-sm text-fg-3">{DETAIL.noNotes}</p>
           ) : (
             <ul className="flex flex-col gap-3">
               {app.notes.map((n) => (
-                <li key={n.id} className="flex items-start gap-3">
+                <li key={n.id} className="flex min-h-11 items-start gap-3">
                   <ClassAvatar name={n.author} wowClass={n.authorClass} />
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <div className="flex items-baseline justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className="text-sm font-semibold" style={{ color: n.authorClass ? CLASS_COLORS[n.authorClass].onInk : undefined }}>
                         {n.author}
                       </span>
+                      <SourceBadge source={n.source} />
                       <time dateTime={n.createdAt} className="text-xs text-fg-3">
                         {relativeDate(new Date(n.createdAt), at)}
+                        {n.editedAt && ` · ${DETAIL.edited}`}
                       </time>
                     </div>
                     <p className="whitespace-pre-line text-sm leading-[1.6] text-fg-2">{n.body}</p>

@@ -91,7 +91,12 @@ export function DecisionBar({ id, character, path, pending }: Props) {
           </>
         }
       >
-        {confirm === 'declined' ? ACTIONS.declineBody : ACTIONS.acceptBody}
+        <p>{confirm === 'declined' ? ACTIONS.declineBody : ACTIONS.acceptBody}</p>
+        <ul className="mt-3 flex list-disc flex-col gap-1 pl-5 text-fg-2">
+          {(confirm === 'declined' ? ACTIONS.declineEffects : ACTIONS.acceptEffects).map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
       </Modal>
     </>
   );

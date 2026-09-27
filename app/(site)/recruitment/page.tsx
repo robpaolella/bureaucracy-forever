@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
-import { Suspense } from 'react';
-import { ApplicationForm } from '@/components/recruitment/ApplicationForm';
 import { NeedsTable } from '@/components/recruitment/NeedsTable';
 import { AccentLink, EYEBROW } from '@/components/site/SectionHead';
 import { ButtonLink, Card } from '@/components/ui';
-import { EXPECTATIONS, NEED_LABEL, NEEDS_SECTION, NEXT_STEPS, RECRUITMENT_HEAD } from '@/content/recruitment';
+import { APPLY_LINKS, EXPECTATIONS, FORM, NEED_LABEL, NEEDS_SECTION, NEXT_STEPS, RECRUITMENT_HEAD } from '@/content/recruitment';
 import { getClassNeeds } from '@/lib/class-needs-data';
 import { DISCORD_INVITE_URL } from '@/lib/config';
 
@@ -76,9 +74,21 @@ export default async function RecruitmentPage() {
       </section>
 
       <section id="apply" className={`${GUTTER} grid grid-cols-1 items-start gap-10 pb-20 lg:grid-cols-[minmax(0,1fr)_380px]`}>
-        <Suspense fallback={null}>
-          <ApplicationForm />
-        </Suspense>
+        <Card className="flex flex-col gap-6 p-6 md:p-10">
+          <div className="flex flex-col gap-2.5">
+            <h2 className="font-display text-[34px] font-medium leading-[1.1]">{FORM.title}</h2>
+            <p className="text-[15px] leading-[1.65] text-fg-2">{FORM.lede}</p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <ButtonLink href={APPLY_LINKS.raider.href} size="lg" className="font-bold">
+              {APPLY_LINKS.raider.label}
+            </ButtonLink>
+            <ButtonLink href={APPLY_LINKS.social.href} size="lg" variant="secondary">
+              {APPLY_LINKS.social.label}
+            </ButtonLink>
+          </div>
+          <p className="text-[13px] text-fg-3">{APPLY_LINKS.note}</p>
+        </Card>
         <div className="flex flex-col gap-4">
           <Card className="flex flex-col gap-4 p-[26px]">
             <h3 className="text-[17px] font-semibold">{NEXT_STEPS.title}</h3>
