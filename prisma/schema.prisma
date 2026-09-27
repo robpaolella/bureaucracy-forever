@@ -177,6 +177,7 @@ model RaidSeries {
   lockMinutesBefore Int          @default(120)
   horizonWeeks      Int          @default(4)
   active            Boolean      @default(true)
+  /// The officer who made it; a plain id, not a relation, so the series outlives the account.
   createdById       String
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countsForBars, decideBench, decideRespond, REASONS, type RaidState } from './signup-rules';
+import { countsForBars, decideBench, decideRespond, raidClosed, REASONS, type RaidState } from './signup-rules';
 
 const now = new Date('2026-10-15T20:00:00.000Z');
 const open: RaidState = { status: 'SCHEDULED', locksAt: new Date('2026-10-16T01:00:00.000Z') };
@@ -32,6 +32,15 @@ describe('sign-up rules', () => {
     expect(decideBench(member, open, null, now)).toEqual({ ok: true, standing: 'BENCH', response: 'accept' });
     expect(decideBench(member, open, { standing: 'ROSTER', response: 'absent' }, now)).toMatchObject({ ok: false, status: 409, reason: REASONS.alreadyRoster });
     expect(decideBench({ role: 'social' }, open, null, now)).toMatchObject({ status: 403 });
+  });
+
+  it('closes withdrawals after the lock unless an officer acts on the web', () => {
+    const locked = { ...open, status: 'LOCKED' as const };
+    expect(raidClosed(open, now, false)).toBeNull();
+    expect(raidClosed(locked, now, false)).toMatchObject({ ok: false, status: 409, reason: REASONS.locked });
+    expect(raidClosed({ ...open, locksAt: now }, now, false)).toMatchObject({ ok: false, reason: REASONS.locked });
+    expect(raidClosed(locked, now, true)).toBeNull();
+    expect(raidClosed({ ...open, status: 'DONE' }, now, true)).toMatchObject({ ok: false, reason: REASONS.done });
   });
 
   it('bars count roster acceptances only', () => {

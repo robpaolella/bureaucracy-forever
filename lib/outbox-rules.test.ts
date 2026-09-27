@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { entityKey, lockExpired, LOCK_TIMEOUT_MS, MAX_ATTEMPTS, nextAttempt, parseAck } from './outbox-rules';
+import { entityKey, lockExpired, LOCK_TIMEOUT_MS, MAX_ATTEMPTS, nextAttempt, oneJobPerEntity, parseAck } from './outbox-rules';
 
 describe('outbox rules', () => {
   const now = new Date('2026-10-01T00:00:00.000Z');
@@ -24,6 +24,12 @@ describe('outbox rules', () => {
     expect(parseAck({ ok: false })).toEqual({ ok: false, error: 'unknown error' });
     expect(parseAck({})).toBeNull();
     expect(parseAck('yes')).toBeNull();
+  });
+
+  it('hands out one job per entity and skips entities already in flight', () => {
+    const jobs = [{ id: 'a', entity: 'raid:1' }, { id: 'b', entity: 'raid:1' }, { id: 'c', entity: 'raid:2' }, { id: 'd', entity: 'application:9' }];
+    expect(oneJobPerEntity(jobs, new Set(['raid:2'])).map((j) => j.id)).toEqual(['a', 'd']);
+    expect(oneJobPerEntity(jobs, new Set()).map((j) => j.id)).toEqual(['a', 'c', 'd']);
   });
 
   it('keys jobs by entity', () => {

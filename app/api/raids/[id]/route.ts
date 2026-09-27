@@ -27,6 +27,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const b = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
 
   if (typeof b.cancelled === 'boolean') {
+    // Already in the requested state: answer without queuing a duplicate job.
+    if (b.cancelled === (raid.cancelledAt !== null)) return NextResponse.json({ id: raid.id, cancelled: b.cancelled }, { headers: NO_STORE });
     const now = new Date();
     // Restoring lands on SCHEDULED, or LOCKED if the lock time has already passed.
     const status = b.cancelled ? 'CANCELLED' : raid.locksAt.getTime() <= now.getTime() ? 'LOCKED' : 'SCHEDULED';

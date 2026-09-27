@@ -1,6 +1,6 @@
 import { after, NextResponse } from 'next/server';
 import { enqueue } from '@/lib/outbox';
-import { decideRespond, type Existing } from '@/lib/signup-rules';
+import { decideRespond, raidClosed, type Existing } from '@/lib/signup-rules';
 import { db } from '@/lib/db';
 import type { Role } from '@/lib/design/class-colors';
 import { countAccepted, isRaidResponse, type RaidResponse } from '@/lib/raids';
@@ -65,7 +65,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const existingRow = await db.signup.findUnique({ where: { raidId_userId: { raidId: raid.id, userId: targetId } }, select: { standing: true, response: true } });
   const existing: Existing = existingRow ? { standing: existingRow.standing, response: (existingRow.response?.toLowerCase() as RaidResponse | undefined) ?? null } : null;
   if (response === null) {
-    // Withdrawing: a roster member goes back to unanswered; a bench row goes away.
+    // Withdrawing obeys the lock like any other answer (SYNC-SPEC §7); an officer acting
+    // for someone is the exception. A roster member goes back to unanswered; a bench row goes away.
+    const stop = raidClosed(raid, new Date(), setByUserId !== null);
+    if (stop) return NextResponse.json({ error: stop.reason }, { status: stop.status, headers: NO_STORE });
     if (existing?.standing === 'ROSTER') await db.signup.update({ where: { raidId_userId: { raidId: raid.id, userId: targetId } }, data: { response: null, reason: null, setByUserId, source: 'WEB' } });
     else await db.signup.deleteMany({ where: { raidId: raid.id, userId: targetId } });
   } else {

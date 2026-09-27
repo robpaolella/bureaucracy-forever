@@ -46,6 +46,22 @@ export function parseAck(body: unknown): AckBody | null {
   return { ok: false, error: typeof b.error === 'string' && b.error ? b.error.slice(0, 1000) : 'unknown error' };
 }
 
+/**
+ * SYNC-SPEC §5: one job per entity in flight. Given the candidates in claim order and the
+ * entities that already have a fresh RUNNING job, keep only the first candidate per free
+ * entity; the rest wait for the next poll.
+ */
+export function oneJobPerEntity<T extends { entity: string }>(candidates: T[], busy: ReadonlySet<string>): T[] {
+  const taken = new Set(busy);
+  const out: T[] = [];
+  for (const c of candidates) {
+    if (taken.has(c.entity)) continue;
+    taken.add(c.entity);
+    out.push(c);
+  }
+  return out;
+}
+
 /** The entity a job belongs to, so the bot can order work per entity. */
 export function entityKey(type: JobType, payload: Record<string, unknown>): string {
   if (type.startsWith('application.')) return `application:${String(payload.applicationId ?? '')}`;

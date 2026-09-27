@@ -8,7 +8,8 @@ export type Standing = 'ROSTER' | 'BENCH';
 export type RaidState = { status: 'SCHEDULED' | 'LOCKED' | 'DONE' | 'CANCELLED'; locksAt: Date };
 export type Actor = { role: 'social' | 'member' | 'officer' };
 export type Existing = { standing: Standing; response: RaidResponse | null } | null;
-export type Outcome = { ok: true; standing: Standing; response: RaidResponse } | { ok: false; status: 403 | 409; reason: string };
+export type Refusal = { ok: false; status: 403 | 409; reason: string };
+export type Outcome = { ok: true; standing: Standing; response: RaidResponse } | Refusal;
 
 export const REASONS = {
   social: 'The calendar is view-only for social members.',
@@ -19,7 +20,8 @@ export const REASONS = {
   alreadyRoster: "You're already on the roster.",
 };
 
-function closed(raid: RaidState, now: Date, officerOverride: boolean): Outcome | null {
+/** Why a raid takes no answer right now, or null when it does. Withdrawals go through this too. */
+export function raidClosed(raid: RaidState, now: Date, officerOverride: boolean): Refusal | null {
   if (raid.status === 'CANCELLED') return { ok: false, status: 409, reason: REASONS.cancelled };
   if (raid.status === 'DONE') return { ok: false, status: 409, reason: REASONS.done };
   if ((raid.status === 'LOCKED' || now.getTime() >= raid.locksAt.getTime()) && !officerOverride) return { ok: false, status: 409, reason: REASONS.locked };
@@ -34,7 +36,7 @@ function closed(raid: RaidState, now: Date, officerOverride: boolean): Outcome |
  */
 export function decideRespond(actor: Actor, raid: RaidState, existing: Existing, response: RaidResponse, now: Date, officerOverride = false): Outcome {
   if (actor.role === 'social') return { ok: false, status: 403, reason: REASONS.social };
-  const stop = closed(raid, now, officerOverride);
+  const stop = raidClosed(raid, now, officerOverride);
   if (stop) return stop;
   if (existing?.standing === 'ROSTER') return { ok: true, standing: 'ROSTER', response };
   if (response === 'absent') return { ok: false, status: 409, reason: REASONS.notOnRoster };
@@ -44,7 +46,7 @@ export function decideRespond(actor: Actor, raid: RaidState, existing: Existing,
 /** "Join bench": bench + accept. Roster members are already in. */
 export function decideBench(actor: Actor, raid: RaidState, existing: Existing, now: Date): Outcome {
   if (actor.role === 'social') return { ok: false, status: 403, reason: REASONS.social };
-  const stop = closed(raid, now, false);
+  const stop = raidClosed(raid, now, false);
   if (stop) return stop;
   if (existing?.standing === 'ROSTER') return { ok: false, status: 409, reason: REASONS.alreadyRoster };
   return { ok: true, standing: 'BENCH', response: 'accept' };

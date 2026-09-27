@@ -2,7 +2,7 @@ import 'server-only';
 
 import type { Prisma } from '@/lib/generated/prisma/client';
 import { db } from '@/lib/db';
-import { entityKey, lockExpired, LOCK_TIMEOUT_MS, nextAttempt, type AckBody, type JobType } from './outbox-rules';
+import { entityKey, lockExpired, LOCK_TIMEOUT_MS, nextAttempt, oneJobPerEntity, type AckBody, type JobType } from './outbox-rules';
 
 type Tx = Prisma.TransactionClient;
 
@@ -18,9 +18,9 @@ export async function enqueue(type: JobType, payload: Record<string, unknown>, t
 export type ClaimedJob = { id: string; type: string; payload: unknown; attempts: number; entity: string; createdAt: string };
 
 /**
- * GET /outbox: hand out up to `limit` due jobs, oldest first, marking them RUNNING. Jobs
- * whose lock is older than five minutes are handed out again. Two concurrent polls cannot
- * take the same job: the update is conditional on the status the poll saw.
+ * GET /outbox: hand out up to `limit` due jobs, oldest first, one per entity, marking them
+ * RUNNING. Jobs whose lock is older than five minutes are handed out again. Two concurrent
+ * polls cannot take the same job: the update is conditional on the status the poll saw.
  */
 export async function claimJobs(limit: number, now = new Date()): Promise<ClaimedJob[]> {
   const stale = new Date(now.getTime() - LOCK_TIMEOUT_MS);
@@ -30,15 +30,20 @@ export async function claimJobs(limit: number, now = new Date()): Promise<Claime
     take: limit,
     select: { id: true, type: true, payload: true, attempts: true, status: true, lockedAt: true, createdAt: true },
   });
+  // §5: never two jobs for one entity in flight. Entities with a fresh RUNNING job are busy;
+  // within this batch only the oldest job per entity goes out.
+  const inFlight = await db.outboxJob.findMany({ where: { status: 'RUNNING', lockedAt: { gte: stale } }, select: { type: true, payload: true } });
+  const busy = new Set(inFlight.map((j) => entityKey(j.type as JobType, (j.payload ?? {}) as Record<string, unknown>)));
+  const eligible = oneJobPerEntity(candidates.map((job) => ({ ...job, entity: entityKey(job.type as JobType, (job.payload ?? {}) as Record<string, unknown>) })), busy);
   const claimed: ClaimedJob[] = [];
-  for (const job of candidates) {
+  for (const job of eligible) {
     const abandoned = job.status === 'RUNNING' && lockExpired(job.lockedAt, now);
     const taken = await db.outboxJob.updateMany({
       where: job.status === 'PENDING' ? { id: job.id, status: 'PENDING' } : { id: job.id, status: 'RUNNING', lockedAt: job.lockedAt },
       data: { status: 'RUNNING', lockedAt: now },
     });
     if (taken.count === 0) continue;
-    claimed.push({ id: job.id, type: job.type, payload: job.payload, attempts: job.attempts + (abandoned ? 1 : 0), entity: entityKey(job.type as JobType, (job.payload ?? {}) as Record<string, unknown>), createdAt: job.createdAt.toISOString() });
+    claimed.push({ id: job.id, type: job.type, payload: job.payload, attempts: job.attempts + (abandoned ? 1 : 0), entity: job.entity, createdAt: job.createdAt.toISOString() });
   }
   return claimed;
 }

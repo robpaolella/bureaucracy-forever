@@ -7,6 +7,10 @@ import { locksAtFor, parseRequirements } from '@/lib/raids';
 import { instanceName, isRosterRank, missingOccurrences, occurrences } from '@/lib/series';
 import { dueForClose, dueForLock, dueForNudge, dueForPost, HOUR_MS, reminderDue } from '@/lib/tick-rules';
 
+const RECONCILE_MARKER = 'tick:reconcile';
+/** DONE and FAILED jobs and idempotency keys older than this are trimmed by the hourly reconcile. */
+const RETENTION_DAYS = 14;
+
 export type TickCounts = {
   generated: number;
   rosterAdded: number;
@@ -19,9 +23,9 @@ export type TickCounts = {
   reconciled: number;
 };
 
-/** Users on the roster: a main character with a roster rank, and not a social account. */
+/** Users on the roster (SYNC-SPEC §3): a main character whose rank is RAIDER, TRIAL or OFFICER. Rank alone decides. */
 export async function rosterUserIds(): Promise<string[]> {
-  const mains = await db.character.findMany({ where: { isMain: true, user: { role: { not: 'SOCIAL' } } }, select: { userId: true, rank: true } });
+  const mains = await db.character.findMany({ where: { isMain: true }, select: { userId: true, rank: true } });
   return [...new Set(mains.filter((c) => isRosterRank(c.rank)).map((c) => c.userId))];
 }
 
@@ -128,10 +132,15 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
   }
 
   // 7. Reconcile once an hour: re-render everything the bot has posted whose state implies
-  // archived or locked, so drift in Discord is corrected. The most recent reconcile job is
-  // the marker; with nothing to reconcile the two queries below simply run each tick.
-  const lastReconcile = await db.outboxJob.findFirst({ where: { payload: { path: ['reconcile'], equals: true } }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } });
-  if (!lastReconcile || now.getTime() - lastReconcile.createdAt.getTime() >= HOUR_MS) {
+  // archived or locked, so drift in Discord is corrected. The marker is one well-known row
+  // in BotRequest (a primary-key read), and the same hour also trims old jobs and keys.
+  const marker = await db.botRequest.findUnique({ where: { key: RECONCILE_MARKER }, select: { createdAt: true, body: true } });
+  const lastAt = marker ? Date.parse(String((marker.body as { at?: string }).at ?? '')) : NaN;
+  if (Number.isNaN(lastAt) || now.getTime() - lastAt >= HOUR_MS) {
+    await db.botRequest.upsert({ where: { key: RECONCILE_MARKER }, create: { key: RECONCILE_MARKER, statusCode: 200, body: { at: now.toISOString() } }, update: { body: { at: now.toISOString() } } });
+    const cutoff = new Date(now.getTime() - RETENTION_DAYS * 24 * HOUR_MS);
+    await db.outboxJob.deleteMany({ where: { status: { in: ['DONE', 'FAILED'] }, createdAt: { lt: cutoff } } });
+    await db.botRequest.deleteMany({ where: { createdAt: { lt: cutoff }, key: { not: RECONCILE_MARKER } } });
     const raids = await db.raid.findMany({ where: { discordThreadId: { not: null }, status: { in: ['LOCKED', 'DONE', 'CANCELLED'] }, startsAt: { gt: new Date(now.getTime() - 14 * 24 * HOUR_MS) } }, select: { id: true } });
     const apps = await db.application.findMany({ where: { discordThreadId: { not: null }, status: { in: ['ACCEPTED', 'DECLINED'] }, createdAt: { gt: new Date(now.getTime() - 30 * 24 * HOUR_MS) } }, select: { id: true } });
     for (const r of raids) await enqueue('raid.update', { raidId: r.id, reconcile: true });
