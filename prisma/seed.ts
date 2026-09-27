@@ -7,7 +7,7 @@
 import { config as loadEnv } from 'dotenv';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@/lib/generated/prisma/client';
-import { buildApplications, buildClassNeeds, buildRaids, buildRoster, paintWeek, rng } from './seed-data';
+import { buildApplications, buildClassNeeds, buildRaids, buildRaidTemplates, buildRoster, paintWeek, rng } from './seed-data';
 
 loadEnv({ path: '.env.local' });
 loadEnv();
@@ -29,10 +29,14 @@ async function main() {
   const random = rng(20261104);
 
   // Wipe in dependency order.
+  await db.botRequest.deleteMany();
+  await db.outboxJob.deleteMany();
   await db.officerNote.deleteMany();
   await db.application.deleteMany();
   await db.signup.deleteMany();
   await db.raid.deleteMany();
+  await db.raidSeries.deleteMany();
+  await db.raidTemplate.deleteMany();
   await db.availability.deleteMany();
   await db.character.deleteMany();
   await db.classNeed.deleteMany();
@@ -67,6 +71,11 @@ async function main() {
     if (m.role !== 'SOCIAL' && random() < 0.88) {
       await db.availability.create({ data: { userId: user.id, timezone: m.timezone, slots: paintWeek(m.timezone, random, now) } });
     }
+  }
+
+  // Raid templates (SYNC-SPEC §3). Series are created by officers, not seeded.
+  for (const t of buildRaidTemplates()) {
+    await db.raidTemplate.create({ data: t });
   }
 
   // Raids and sign-ups: the upcoming week is mostly answered, later weeks sparsely.
@@ -127,6 +136,7 @@ async function main() {
     users: await db.user.count(),
     characters: await db.character.count(),
     availability: await db.availability.count(),
+    raidTemplates: await db.raidTemplate.count(),
     raids: await db.raid.count(),
     signups: await db.signup.count(),
     classNeeds: await db.classNeed.count(),
