@@ -33,12 +33,17 @@ export async function submitApplication(_prev: ApplicationState, data: FormData)
 
   // One pending application per character: check and insert in one serializable
   // transaction so a double submit cannot slip two rows through.
-  let duplicate = false;
+  let duplicate: boolean | 'account' = false;
   try {
     duplicate = await db.$transaction(
       async (tx) => {
         const pending = await tx.application.findFirst({ where: { status: 'PENDING', character: { equals: value.character, mode: 'insensitive' } }, select: { id: true } });
         if (pending) return true;
+        // SYNC-SPEC §9.1: one pending application per Discord account.
+        if (session?.discordId) {
+          const mine = await tx.application.findFirst({ where: { status: 'PENDING', discordId: session.discordId }, select: { id: true } });
+          if (mine) return 'account' as const;
+        }
         const created = await tx.application.create({
           select: { id: true },
           data: {
@@ -63,6 +68,7 @@ export async function submitApplication(_prev: ApplicationState, data: FormData)
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034') duplicate = true;
     else throw e;
   }
+  if (duplicate === 'account') return { ok: false, errors: {}, message: FORM.duplicateAccount };
   if (duplicate) return { ok: false, errors: { character: FORM.duplicate } };
   redirect(`/recruitment/submitted?${submittedSearch(value)}`);
 }
