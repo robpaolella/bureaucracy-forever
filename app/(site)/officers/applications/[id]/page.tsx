@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { after } from 'next/server';
 import { ApplicationView } from '@/components/applications/ApplicationView';
 import { loadApplication, markRead } from '@/lib/applications-data';
+import { discordThreadUrl } from '@/lib/discord-links';
 import { getSession } from '@/lib/session';
 import { DETAIL } from '@/content/applications';
 
@@ -31,7 +32,7 @@ export default async function ApplicationPage({ params }: Params) {
       <Link href={`/officers/applications?id=${app.id}`} className="inline-flex min-h-11 items-center self-start text-small text-fg-3 underline-offset-4 hover:underline">
         ← {DETAIL.back}
       </Link>
-      <ApplicationView app={app} now={new Date().toISOString()} />
+      <ApplicationView app={app} now={new Date().toISOString()} threadUrl={discordThreadUrl(app.discordThreadId)} />
     </div>
   );
 }

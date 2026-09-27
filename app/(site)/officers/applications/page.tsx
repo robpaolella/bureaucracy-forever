@@ -5,6 +5,7 @@ import { ApplicationView } from '@/components/applications/ApplicationView';
 import { Inbox } from '@/components/applications/Inbox';
 import { loadApplication, loadInbox, markRead } from '@/lib/applications-data';
 import { selectApplication } from '@/lib/applications-inbox';
+import { discordThreadUrl } from '@/lib/discord-links';
 import { getSession } from '@/lib/session';
 import { INBOX, INBOX_HEAD } from '@/content/applications';
 
@@ -39,7 +40,7 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
         <p className="max-w-[640px] text-[15px] leading-[1.65] text-fg-2">{INBOX_HEAD.lede}</p>
       </section>
       <Inbox items={items} selectedId={app?.id ?? null} now={now}>
-        {app ? <ApplicationView app={app} now={now} /> : <p className="rounded-card border border-dashed border-line-strong px-6 py-10 text-center text-sm text-fg-2">{INBOX.pickOne}</p>}
+        {app ? <ApplicationView app={app} now={now} threadUrl={discordThreadUrl(app.discordThreadId)} /> : <p className="rounded-card border border-dashed border-line-strong px-6 py-10 text-center text-sm text-fg-2">{INBOX.pickOne}</p>}
       </Inbox>
     </div>
   );
