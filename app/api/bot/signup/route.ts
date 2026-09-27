@@ -58,7 +58,7 @@ export async function POST(request: Request) {
   }
 
   const signups = await db.signup.findMany({ where: { raidId: raid.id }, select: { response: true, user: { select: { characters: { where: { isMain: true }, take: 1, select: { raidRole: true } } } } } });
-  const counts = countAccepted(signups.map((s) => ({ response: s.response.toLowerCase() as RaidResponse, role: (s.user.characters[0]?.raidRole.toLowerCase() as Role | undefined) ?? null })));
-  const response = stale ? ((existing?.response.toLowerCase() as RaidResponse | undefined) ?? null) : value.response;
+  const counts = countAccepted(signups.map((s) => ({ response: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null, role: (s.user.characters[0]?.raidRole.toLowerCase() as Role | undefined) ?? null })));
+  const response = stale ? ((existing?.response?.toLowerCase() as RaidResponse | undefined) ?? null) : value.response;
   return NextResponse.json({ raidId: raid.id, userId: user.id, response, stale, counts }, { headers: NO_STORE });
 }

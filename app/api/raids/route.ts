@@ -3,7 +3,7 @@ import { raidSummary } from '@/lib/bot-events';
 import { notifyBot } from '@/lib/bot-notify';
 import { db } from '@/lib/db';
 import { loadRaidCards } from '@/lib/raid-cards';
-import { isUpcoming, parseRaidInput } from '@/lib/raids';
+import { isUpcoming, locksAtFor, parseRaidInput } from '@/lib/raids';
 import { getSession } from '@/lib/session';
 
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
   const { value } = parsed;
   const raid = await db.raid.create({
-    data: { name: value.name, startsAt: parsed.startsAt, durationMin: value.durationMin, requirements: value.requirements, notes: value.notes || null },
+    data: { name: value.name, startsAt: parsed.startsAt, locksAt: locksAtFor(parsed.startsAt), durationMin: value.durationMin, requirements: value.requirements, notes: value.notes || null },
     select: { id: true, name: true, startsAt: true, durationMin: true, notes: true, cancelledAt: true, discordEventId: true },
   });
   after(() => notifyBot({ type: 'raid.created', raid: raidSummary({ ...raid, requirements: value.requirements }) }));

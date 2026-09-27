@@ -80,7 +80,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     select: { response: true, user: { select: { characters: { where: { isMain: true }, take: 1, select: { raidRole: true } } } } },
   });
   const counts = countAccepted(
-    signups.map((s) => ({ response: s.response.toLowerCase() as RaidResponse, role: (s.user.characters[0]?.raidRole.toLowerCase() as Role | undefined) ?? null })),
+    signups.map((s) => ({ response: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null, role: (s.user.characters[0]?.raidRole.toLowerCase() as Role | undefined) ?? null })),
   );
   after(() => notifyBot({ type: 'signup.changed', raidId: raid.id, discordId: answered.discordId, discordName: answered.discordName, response, source: 'web', setBy: setByUserId ? session.name : null, counts }));
   return NextResponse.json({ raidId: raid.id, userId: targetId, response, counts }, { headers: NO_STORE });

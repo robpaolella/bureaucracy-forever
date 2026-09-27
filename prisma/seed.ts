@@ -72,7 +72,7 @@ async function main() {
   // Raids and sign-ups: the upcoming week is mostly answered, later weeks sparsely.
   const raids = buildRaids(now);
   for (const [i, r] of raids.entries()) {
-    const raid = await db.raid.create({ data: { name: r.name, startsAt: r.startsAt, durationMin: r.durationMin, requirements: r.requirements, notes: r.notes } });
+    const raid = await db.raid.create({ data: { name: r.name, startsAt: r.startsAt, locksAt: new Date(r.startsAt.getTime() - 120 * 60_000), durationMin: r.durationMin, requirements: r.requirements, notes: r.notes } });
     const answerRate = i < 3 ? 0.9 : i < 6 ? 0.45 : 0.15;
     for (const u of users) {
       if (u.role === 'SOCIAL' || random() > answerRate) continue;
