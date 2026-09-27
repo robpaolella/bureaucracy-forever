@@ -1,0 +1,63 @@
+/** Copy for /officers/raids: templates and series (SYNC-SPEC §9.3). */
+
+export const PLANNER_HEAD = {
+  eyebrow: 'Officers',
+  title: 'Raids and series',
+  lede: 'A series is a weekly slot in guild time; the site turns it into raids a few weeks ahead, puts the roster on each, and the bot posts them fourteen days out.',
+};
+
+export const TEMPLATES = {
+  heading: 'Templates',
+  lede: 'One per raid tier. The size and the four requirements drive the composition bars.',
+  edit: 'Edit',
+  name: 'Name',
+  short: 'Short',
+  size: 'Size',
+  length: 'Length (minutes)',
+  needs: 'Tank / Healer / Melee / Ranged',
+  active: 'Active',
+  inactive: 'Inactive',
+  editTitle: 'Edit template',
+  save: 'Save template',
+  cancel: 'Cancel',
+  saved: (name: string) => `Saved ${name}`,
+};
+
+export const SERIES = {
+  heading: 'Series',
+  lede: 'Each active series keeps its next few weeks of raids on the calendar.',
+  empty: 'No series yet. Add the first one below; the raids appear on the calendar at once.',
+  newTitle: 'New series',
+  editTitle: 'Edit series',
+  template: 'Template',
+  weekday: 'Weekday',
+  start: 'Start (guild time)',
+  length: 'Length',
+  notes: 'Notes',
+  notesHint: 'Shown on every raid the series makes.',
+  postAhead: 'Post to Discord (days ahead)',
+  lock: 'Lock sign-ups (minutes before)',
+  horizon: 'Keep on the calendar (weeks ahead)',
+  create: 'Add series',
+  save: 'Save this and future raids',
+  saveHint: 'Future raids move with the series and keep their sign-ups; raids edited on their own keep what they have. Posted raids update in Discord.',
+  cancel: 'Cancel',
+  deactivate: 'Deactivate',
+  deactivateTitle: 'Deactivate this series?',
+  deactivateBody: 'No new raids will be made. Future raids that are not posted yet are removed; posted ones stay and can be cancelled one by one.',
+  deactivateConfirm: 'Deactivate',
+  keep: 'Keep it',
+  reactivate: 'Reactivate',
+  raids: (n: number) => `${n} raid${n === 1 ? '' : 's'}`,
+  created: (generated: number) => `Series added: ${generated} raid${generated === 1 ? '' : 's'} on the calendar. The bot posts them on schedule.`,
+  saved: (moved: number, generated: number) =>
+    `Series saved: ${moved} raid${moved === 1 ? '' : 's'} moved${generated ? `, ${generated} added` : ''}`,
+  summary: (s: { durationMin: number; postAheadDays: number; lockMinutesBefore: number; horizonWeeks: number }) =>
+    `${s.durationMin} min · posts ${s.postAheadDays} days ahead · locks ${s.lockMinutesBefore} min before · ${s.horizonWeeks} weeks`,
+  guild: 'guild',
+  yours: 'yours',
+  activateFirst: 'Activate a template first.',
+  hours: (minutes: number) => (minutes % 60 ? `${Math.floor(minutes / 60)}½ hours` : `${minutes / 60} hours`),
+  deactivated: 'Series deactivated',
+  reactivated: 'Series reactivated',
+};

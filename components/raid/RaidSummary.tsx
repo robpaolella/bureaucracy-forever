@@ -1,3 +1,4 @@
+import { DualTime } from '@/components/time/DualTime';
 import { ProgressTrack } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { ROLE_LABELS, ROLES } from '@/lib/design/class-colors';
@@ -10,6 +11,9 @@ type Props = {
   split: { web: number; discord: number };
   notes: string | null;
   cancelled: boolean;
+  status: 'SCHEDULED' | 'LOCKED' | 'DONE' | 'CANCELLED';
+  /** ISO instant sign-ups close (SYNC-SPEC §7). */
+  locksAt: string;
 };
 
 const TONE_TEXT = { ok: 'text-ok', warn: 'text-warn', stop: 'text-stop' } as const;
@@ -17,9 +21,9 @@ const TONE_TEXT = { ok: 'text-ok', warn: 'text-warn', stop: 'text-stop' } as con
 /**
  * The summary card (docs/04 § Raid detail): total accepted against the requirement as a
  * large tabular figure, a 6px track per role, the web / Discord split so officers see
- * which surface answers came from, then the officer's notes as prose.
+ * which surface answers came from, when sign-ups lock, then the officer's notes as prose.
  */
-export function RaidSummary({ counts, requirements, split, notes, cancelled }: Props) {
+export function RaidSummary({ counts, requirements, split, notes, cancelled, status, locksAt }: Props) {
   const total = totalCounts(counts);
   const required = totalCounts(requirements);
   return (
@@ -35,6 +39,8 @@ export function RaidSummary({ counts, requirements, split, notes, cancelled }: P
           </span>
         </p>
         {cancelled && <p className="text-sm text-stop">{SUMMARY.cancelled}</p>}
+        {!cancelled && status === 'LOCKED' && <p className="text-sm text-warn">{SUMMARY.locked}</p>}
+        {!cancelled && status === 'DONE' && <p className="text-sm text-fg-3">{SUMMARY.done}</p>}
       </div>
 
       <ul className="flex flex-col gap-3">
@@ -55,6 +61,13 @@ export function RaidSummary({ counts, requirements, split, notes, cancelled }: P
       <p className="tabular text-small text-fg-3">
         {split.web} via web · {split.discord} via Discord
       </p>
+
+      {status === 'SCHEDULED' && !cancelled && (
+        <div className="flex flex-col gap-1 border-t border-line-faint pt-4">
+          <h3 className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">{SUMMARY.locksAt}</h3>
+          <DualTime startsAt={locksAt} durationMin={0} />
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5 border-t border-line-faint pt-4">
         <h3 className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">{SUMMARY.notes}</h3>

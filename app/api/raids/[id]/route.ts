@@ -33,9 +33,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // Restoring lands on SCHEDULED, or LOCKED if the lock time has already passed.
     const status = b.cancelled ? 'CANCELLED' : raid.locksAt.getTime() <= now.getTime() ? 'LOCKED' : 'SCHEDULED';
     const reason = typeof b.reason === 'string' ? b.reason.trim().slice(0, 500) : '';
-    const updated = await db.raid.update({ where: { id: raid.id }, data: { cancelledAt: b.cancelled ? now : null, status, lockedAt: status === 'LOCKED' ? now : null }, select: { id: true, cancelledAt: true, discordThreadId: true } });
-    // Only a raid the bot has posted needs the thread told (SYNC-SPEC §5).
-    if (updated.discordThreadId) after(() => enqueue(b.cancelled ? 'raid.cancel' : 'raid.update', { raidId: raid.id, reason }));
+    const updated = await db.raid.update({ where: { id: raid.id }, data: { cancelledAt: b.cancelled ? now : null, cancelReason: b.cancelled ? reason || null : null, status, lockedAt: status === 'LOCKED' ? now : null }, select: { id: true, cancelledAt: true, discordThreadId: true } });
+    // Only a raid the bot has posted needs the thread told (SYNC-SPEC §5). Cancelling also
+    // lists who had accepted, so the bot can DM them.
+    if (updated.discordThreadId) {
+      const accepted = b.cancelled ? await db.signup.findMany({ where: { raidId: raid.id, response: 'ACCEPT' }, select: { user: { select: { discordId: true } } } }) : [];
+      after(() => enqueue(b.cancelled ? 'raid.cancel' : 'raid.update', { raidId: raid.id, reason, acceptedDiscordIds: accepted.map((s) => s.user.discordId) }));
+    }
     return NextResponse.json({ id: updated.id, cancelled: updated.cancelledAt !== null }, { headers: NO_STORE });
   }
 

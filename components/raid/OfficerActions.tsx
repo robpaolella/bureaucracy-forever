@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useId, useState, type FormEvent } from 'react';
-import { Button, Modal, Select, Sheet, Toast, type ToastData } from '@/components/ui';
+import { Button, ButtonLink, Field, Modal, Select, Sheet, Textarea, useToast, type ToastData } from '@/components/ui';
 import { raidToInput, RESPONSES, type RaidCard, type RaidInput, type RaidResponse } from '@/lib/raids';
 import { SAVE_FAILED } from '@/content/calendar';
 import { OFFICER_ACTIONS, onBehalfToast, RAID_TOASTS } from '@/content/raid';
@@ -15,6 +15,8 @@ type Props = {
   members: MemberOption[];
   /** A finished raid is history: nothing here changes it. */
   past: boolean;
+  /** The #raid-signups thread, once the bot has posted the raid. */
+  threadUrl: string | null;
 };
 
 const RESPONSE_LABEL: Record<RaidResponse, string> = { accept: 'Accept', tentative: 'Tentative', absent: 'Absent' };
@@ -32,19 +34,21 @@ async function failureMessage(res: Response): Promise<string> {
 
 /**
  * The officer row at the top of the sign-up column (docs/04 § Raid detail): Edit raid,
- * Post to Discord, Cancel raid, and answering on a member's behalf, which the route
- * records as `setBy`. Edit opens the schedule form prefilled; Cancel asks first and can
- * be undone with Restore. Post arrives with the bot sync, so it renders disabled with a
- * reason. On phones the row collapses into one button that opens a sheet.
+ * the link to the Discord thread once the bot has posted it, Cancel raid with a reason
+ * (SYNC-SPEC §9.5), and answering for someone who has no row yet, which the route records
+ * as `setBy`. Edit opens the schedule form prefilled; Cancel asks first and can be undone
+ * with Restore. On phones the row collapses into one button that opens a sheet.
  */
-export function OfficerActions({ raid, members, past }: Props) {
+export function OfficerActions({ raid, members, past, threadUrl }: Props) {
   const router = useRouter();
+  const setToast = useToast();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState<ToastData | null>(null);
   const sheetId = useId();
+  const reasonId = useId();
 
   async function saveEdit(input: RaidInput): Promise<string | null> {
     try {
@@ -63,7 +67,7 @@ export function OfficerActions({ raid, members, past }: Props) {
     if (busy) return;
     setBusy(true);
     try {
-      const res = await patchRaid(raid.id, { cancelled });
+      const res = await patchRaid(raid.id, cancelled ? { cancelled, reason: reason.trim() } : { cancelled });
       if (!res.ok) {
         setConfirming(false);
         setToast({ tone: 'stop', title: await failureMessage(res) });
@@ -71,6 +75,7 @@ export function OfficerActions({ raid, members, past }: Props) {
       }
       setConfirming(false);
       setOpen(false);
+      setReason('');
       setToast({ tone: 'ok', title: cancelled ? RAID_TOASTS.cancelled(raid.name) : RAID_TOASTS.restored(raid.name) });
       router.refresh();
     } catch {
@@ -95,9 +100,15 @@ export function OfficerActions({ raid, members, past }: Props) {
         >
           {OFFICER_ACTIONS.edit}
         </Button>
-        <Button variant="secondary" size="sm" disabled title={OFFICER_ACTIONS.postPending}>
-          {OFFICER_ACTIONS.post}
-        </Button>
+        {threadUrl ? (
+          <ButtonLink href={threadUrl} variant="secondary" size="sm" target="_blank" rel="noreferrer">
+            {OFFICER_ACTIONS.openThread}
+          </ButtonLink>
+        ) : (
+          <Button variant="secondary" size="sm" disabled title={OFFICER_ACTIONS.notPostedHint}>
+            {OFFICER_ACTIONS.notPosted}
+          </Button>
+        )}
         {raid.cancelled ? (
           <Button variant="secondary" size="sm" disabled={past} title={past ? OFFICER_ACTIONS.finished : undefined} loading={busy} onClick={() => setCancelled(false)}>
             {OFFICER_ACTIONS.restore}
@@ -152,10 +163,13 @@ export function OfficerActions({ raid, members, past }: Props) {
           </>
         }
       >
-        {OFFICER_ACTIONS.cancelBody}
+        <div className="flex flex-col gap-4">
+          <p>{OFFICER_ACTIONS.cancelBody}</p>
+          <Field label={OFFICER_ACTIONS.cancelReason} hint={OFFICER_ACTIONS.cancelReasonHint} id={reasonId}>
+            <Textarea id={reasonId} rows={2} maxLength={500} value={reason} placeholder={OFFICER_ACTIONS.cancelReasonPlaceholder} onChange={(e) => setReason(e.target.value)} />
+          </Field>
+        </div>
       </Modal>
-
-      <Toast toast={toast} onDismiss={() => setToast(null)} />
     </section>
   );
 }

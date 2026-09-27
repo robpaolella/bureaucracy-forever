@@ -30,6 +30,45 @@ export async function rosterUserIds(): Promise<string[]> {
 }
 
 /**
+ * §6 step 1: create the missing instances of every active series (or of one series) with
+ * the roster on each. Dates that already have a raid for the series are skipped, so a moved
+ * instance is not regenerated beside itself. The (seriesId, startsAt) unique index makes a
+ * concurrent run (an officer saving a series while the bot's tick runs) lose quietly.
+ */
+export async function generateInstances(now: Date, roster: string[], seriesId?: string): Promise<number> {
+  let generated = 0;
+  const seriesList = await db.raidSeries.findMany({ where: { id: seriesId, active: true, template: { active: true } }, include: { template: true, raids: { select: { startsAt: true } } } });
+  for (const s of seriesList) {
+    const wanted = occurrences({ weekday: s.weekday, startTime: s.startTime, horizonWeeks: s.horizonWeeks }, now);
+    for (const startsAt of missingOccurrences(wanted, s.raids.map((r) => r.startsAt))) {
+      try {
+        await db.raid.create({
+          data: {
+            name: instanceName(s.template.name, startsAt),
+            startsAt,
+            locksAt: locksAtFor(startsAt, s.lockMinutesBefore),
+            durationMin: s.durationMin,
+            notes: s.notes,
+            requirements: parseRequirements(s.template.requirements) as unknown as Prisma.InputJsonValue,
+            templateId: s.templateId,
+            seriesId: s.id,
+            signups: { create: roster.map((userId) => ({ userId, standing: 'ROSTER' as const, source: 'WEB' as const })) },
+          },
+        });
+        generated += 1;
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
+      }
+    }
+  }
+  return generated;
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as { code?: string }).code === 'P2002';
+}
+
+/**
  * SYNC-SPEC §6. Called by the bot every 60 s; every step is idempotent and bounded, so a
  * missed or doubled tick changes nothing but timing.
  */
@@ -38,26 +77,7 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
   const roster = await rosterUserIds();
 
   // 1. Generate instances for every active series.
-  const seriesList = await db.raidSeries.findMany({ where: { active: true, template: { active: true } }, include: { template: true, raids: { select: { startsAt: true } } } });
-  for (const s of seriesList) {
-    const wanted = occurrences({ weekday: s.weekday, startTime: s.startTime, horizonWeeks: s.horizonWeeks }, now);
-    for (const startsAt of missingOccurrences(wanted, s.raids.map((r) => r.startsAt))) {
-      await db.raid.create({
-        data: {
-          name: instanceName(s.template.name, startsAt),
-          startsAt,
-          locksAt: locksAtFor(startsAt, s.lockMinutesBefore),
-          durationMin: s.durationMin,
-          notes: s.notes,
-          requirements: parseRequirements(s.template.requirements) as unknown as Prisma.InputJsonValue,
-          templateId: s.templateId,
-          seriesId: s.id,
-          signups: { create: roster.map((userId) => ({ userId, standing: 'ROSTER' as const, source: 'WEB' as const })) },
-        },
-      });
-      counts.generated += 1;
-    }
-  }
+  counts.generated = await generateInstances(now, roster);
 
   // 1b. Roster changes: add new roster members to every future SCHEDULED raid; drop the
   // unanswered rows of anyone who left the roster. Answered rows are kept.

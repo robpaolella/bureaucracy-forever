@@ -35,10 +35,31 @@ export function occurrences(series: SeriesShape, from: Date, zone: string = GUIL
   return out;
 }
 
-/** Which occurrences have no raid yet, by exact instant. */
-export function missingOccurrences(wanted: Date[], existing: Date[]): Date[] {
-  const have = new Set(existing.map((d) => d.getTime()));
-  return wanted.filter((d) => !have.has(d.getTime()));
+/** "2026-11-19": the guild calendar date an instant falls on. A series has one raid per date. */
+export function guildDateKey(date: Date, zone: string = GUILD_TIMEZONE): string {
+  const p = zonedParts(date, zone);
+  return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
+}
+
+/**
+ * Which occurrences have no raid yet, by guild date (§6 step 1: "skip dates that already
+ * have a raid for the series"). Matching by instant would regenerate a raid whose time was
+ * moved, next to the one that moved.
+ */
+export function missingOccurrences(wanted: Date[], existing: Date[], zone: string = GUILD_TIMEZONE): Date[] {
+  const have = new Set(existing.map((d) => guildDateKey(d, zone)));
+  return wanted.filter((d) => !have.has(guildDateKey(d, zone)));
+}
+
+/**
+ * The series' occurrence in the same guild week (Sunday to Saturday) as `startsAt`: where an
+ * existing instance lands when "this and future raids" changes the weekday or the time.
+ */
+export function occurrenceInWeekOf(startsAt: Date, series: Pick<SeriesShape, 'weekday' | 'startTime'>, zone: string = GUILD_TIMEZONE): Date {
+  const { hour, minute } = parseHHMM(series.startTime);
+  const p = zonedParts(startsAt, zone);
+  const cal = new Date(Date.UTC(p.year, p.month - 1, p.day - p.weekday + series.weekday));
+  return zonedTimeToUtc(cal.getUTCFullYear(), cal.getUTCMonth() + 1, cal.getUTCDate(), hour, minute, zone);
 }
 
 /** "Molten Core — Thu Oct 15", the post title and the raid name for a generated instance. */

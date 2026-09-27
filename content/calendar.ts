@@ -42,3 +42,18 @@ export function scheduledToast(name: string, weekday: string): string {
 /** Heatmap window rows link here so a window becomes a raid in one step. */
 export const SCHEDULE_FROM_WINDOW = 'Schedule';
 export const SAVE_FAILED = "Couldn't save that — try again.";
+
+/** The month grid and the List / Month toggle (SYNC-SPEC §9.4). */
+export const MONTH = {
+  view: 'View',
+  list: 'List',
+  month: 'Month',
+  previous: 'Previous month',
+  next: 'Next month',
+  today: 'Today',
+  days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  answered: 'you answered',
+  cancelled: 'cancelled',
+  yours: 'yours',
+  guild: 'guild',
+};

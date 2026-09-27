@@ -19,15 +19,22 @@ export async function loadRaidCards(since: Date, viewerDiscordId: string | null)
       notes: true,
       cancelledAt: true,
       requirements: true,
-      signups: { select: { response: true, user: { select: { discordId: true, characters: { where: { isMain: true }, take: 1, select: { raidRole: true } } } } } },
+      status: true,
+      locksAt: true,
+      template: { select: { short: true } },
+      signups: { select: { response: true, standing: true, user: { select: { discordId: true, characters: { where: { isMain: true }, take: 1, select: { raidRole: true } } } } } },
     },
   });
   return raids.map((r) => {
     const signups = r.signups.map((s) => ({
-      response: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null,
+      // Composition counts roster acceptances only (SYNC-SPEC §7); bench answers do not fill a slot.
+      response: s.standing === 'ROSTER' ? ((s.response?.toLowerCase() as RaidResponse | undefined) ?? null) : null,
+      ownResponse: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null,
+      standing: s.standing,
       role: (s.user.characters[0]?.raidRole.toLowerCase() as Role | undefined) ?? null,
       mine: viewerDiscordId !== null && s.user.discordId === viewerDiscordId,
     }));
+    const me = signups.find((s) => s.mine);
     return {
       id: r.id,
       name: r.name,
@@ -37,7 +44,11 @@ export async function loadRaidCards(since: Date, viewerDiscordId: string | null)
       cancelled: r.cancelledAt !== null,
       requirements: parseRequirements(r.requirements),
       counts: countAccepted(signups),
-      mine: signups.find((s) => s.mine)?.response ?? null,
+      mine: me?.ownResponse ?? null,
+      status: r.status,
+      locksAt: r.locksAt.toISOString(),
+      short: r.template?.short ?? null,
+      onRoster: me?.standing === 'ROSTER',
     };
   });
 }
