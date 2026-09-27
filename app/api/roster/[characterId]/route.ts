@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Prisma } from '@/lib/generated/prisma/client';
-import { syncRaiderRole } from '@/lib/roles-sync';
+import { setRankFromWeb } from '@/lib/roles-sync';
 import { parseCharacterInput } from '@/lib/roster-edit';
 import { getSession } from '@/lib/session';
 import { toPrismaCharacter } from '../fields';
@@ -30,7 +30,7 @@ export async function PATCH(request: Request, { params }: Params) {
   if (!existing) return NextResponse.json({ error: 'No such character.' }, { status: 404, headers: NO_STORE });
   try {
     const updated = await db.character.update({ where: { id: characterId }, data: toPrismaCharacter(parsed.value), select: { id: true, name: true } });
-    if (existing.isMain) await syncRaiderRole(existing.userId, existing.rank, parsed.value.rank.toUpperCase());
+    if (existing.isMain) await setRankFromWeb(existing.userId, parsed.value.rank.toUpperCase() as Uppercase<typeof parsed.value.rank>);
     return NextResponse.json(updated, { headers: NO_STORE });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
@@ -43,14 +43,13 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 }
 
-/** DELETE /api/roster/[characterId] — take a character off the roster (officers). The member stays. */
+/** DELETE /api/roster/[characterId] — take a character off the roster (officers). The member and their rank stay. */
 export async function DELETE(_request: Request, { params }: Params) {
   const denied = await officer();
   if (denied) return denied;
   const { characterId } = await params;
   try {
     const removed = await db.character.delete({ where: { id: characterId }, select: { id: true, name: true, userId: true, rank: true, isMain: true } });
-    if (removed.isMain) await syncRaiderRole(removed.userId, removed.rank, null);
     return NextResponse.json({ id: removed.id, name: removed.name }, { headers: NO_STORE });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {

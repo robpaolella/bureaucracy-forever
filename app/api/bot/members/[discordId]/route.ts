@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { authorizeBot, isSnowflake, NO_STORE, userByDiscordId } from '../../_lib';
 
-/** GET /api/bot/members/:discordId — role, rank and main character (SYNC-SPEC §4). 404 if unknown. */
+/** GET /api/bot/members/:discordId — role, rank, guild membership and main character (SYNC-SPEC §4). 404 if unknown. */
 export async function GET(request: Request, { params }: { params: Promise<{ discordId: string }> }) {
   const denied = authorizeBot(request);
   if (denied) return denied;
@@ -15,7 +15,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ disc
       discordId,
       discordName: user.discordName,
       role: user.role.toLowerCase(),
-      rank: main?.rank.toLowerCase() ?? null,
+      rank: user.rank.toLowerCase(),
+      inGuild: user.inGuild,
       main: main ? { name: main.name, class: main.class.toLowerCase(), spec: main.spec, raidRole: main.raidRole.toLowerCase() } : null,
     },
     { headers: NO_STORE },

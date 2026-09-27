@@ -5,7 +5,9 @@ import type { Prisma } from '@/lib/generated/prisma/client';
 import { enqueue } from '@/lib/outbox';
 import { locksAtFor, parseRequirements } from '@/lib/raids';
 import { instanceName, isRosterRank, missingOccurrences, occurrences } from '@/lib/series';
+import { trialCheckInDue, TRIAL_DAYS } from '@/lib/rank-rules';
 import { dueForClose, dueForLock, dueForNudge, dueForPost, HOUR_MS, reminderDue } from '@/lib/tick-rules';
+import { SITE_URL } from '@/lib/config';
 
 const RECONCILE_MARKER = 'tick:reconcile';
 /** DONE and FAILED jobs and idempotency keys older than this are trimmed by the hourly reconcile. */
@@ -20,13 +22,14 @@ export type TickCounts = {
   locked: number;
   closed: number;
   nudged: number;
+  trialsRaised: number;
   reconciled: number;
 };
 
-/** Users on the roster (SYNC-SPEC §3): a main character whose rank is RAIDER, TRIAL or OFFICER. Rank alone decides. */
+/** Users on the roster (SYNC-SPEC §3): in the guild with rank RAIDER, TRIAL or OFFICER. Rank alone decides; a main is not required. */
 export async function rosterUserIds(): Promise<string[]> {
-  const mains = await db.character.findMany({ where: { isMain: true }, select: { userId: true, rank: true } });
-  return [...new Set(mains.filter((c) => isRosterRank(c.rank)).map((c) => c.userId))];
+  const users = await db.user.findMany({ where: { inGuild: true }, select: { id: true, rank: true } });
+  return users.filter((u) => isRosterRank(u.rank)).map((u) => u.id);
 }
 
 /**
@@ -73,7 +76,7 @@ function isUniqueViolation(error: unknown): boolean {
  * missed or doubled tick changes nothing but timing.
  */
 export async function runTick(now = new Date()): Promise<TickCounts> {
-  const counts: TickCounts = { generated: 0, rosterAdded: 0, rosterRemoved: 0, posted: 0, reminded: 0, locked: 0, closed: 0, nudged: 0, reconciled: 0 };
+  const counts: TickCounts = { generated: 0, rosterAdded: 0, rosterRemoved: 0, posted: 0, reminded: 0, locked: 0, closed: 0, nudged: 0, trialsRaised: 0, reconciled: 0 };
   const roster = await rosterUserIds();
 
   // 1. Generate instances for every active series.
@@ -149,6 +152,18 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
       await enqueue('application.nudge', { applicationId: app.id, character: app.character }, tx);
     });
     counts.nudged += 1;
+  }
+
+  // 6b. Trials: two weeks in, ask officers whether to extend or end it (docs/04 § Roster).
+  const trials = await db.user.findMany({ where: { rank: 'TRIAL', inGuild: true, trialStartedAt: { not: null }, trialNudgedAt: null }, select: { id: true, rank: true, discordName: true, trialStartedAt: true, trialNudgedAt: true, characters: { where: { isMain: true }, take: 1, select: { name: true } } } });
+  for (const t of trials) {
+    if (!trialCheckInDue(t, now)) continue;
+    const who = t.characters[0]?.name ?? t.discordName;
+    await db.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: t.id }, data: { trialNudgedAt: now } });
+      await enqueue('officers.notify', { text: `${who}'s trial started ${TRIAL_DAYS} days ago. Extend it or end it on the roster editor: ${SITE_URL}/officers/roster (Raider keeps them, Social ends it).`, trialUserId: t.id }, tx);
+    });
+    counts.trialsRaised += 1;
   }
 
   // 7. Reconcile once an hour: re-render everything the bot has posted whose state implies

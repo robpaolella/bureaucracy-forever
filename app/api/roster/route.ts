@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Prisma } from '@/lib/generated/prisma/client';
-import { syncRaiderRole } from '@/lib/roles-sync';
+import { setRankFromWeb } from '@/lib/roles-sync';
 import { parseCharacterInput } from '@/lib/roster-edit';
 import { getSession } from '@/lib/session';
 import { toPrismaCharacter } from './fields';
@@ -30,9 +30,8 @@ export async function POST(request: Request) {
     // the same member a main.
     const outcome = await db.$transaction(
       async (tx) => {
-        const user = await tx.user.findUnique({ where: { id: userId }, select: { id: true, role: true, characters: { where: { isMain: true }, select: { id: true } } } });
+        const user = await tx.user.findUnique({ where: { id: userId }, select: { id: true, characters: { where: { isMain: true }, select: { id: true } } } });
         if (!user) return { status: 404, error: 'No such member.' } as const;
-        if (user.role === 'SOCIAL') return { status: 409, error: 'Social members are not on the raid roster.' } as const;
         if (user.characters.length > 0) return { status: 409, error: 'That member already has a main. Edit it instead.' } as const;
         const created = await tx.character.create({ data: { userId: user.id, isMain: true, ...toPrismaCharacter(parsed.value) }, select: { id: true, name: true } });
         return { status: 201, created } as const;
@@ -40,7 +39,8 @@ export async function POST(request: Request) {
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
     if ('error' in outcome) return NextResponse.json({ error: outcome.error }, { status: outcome.status, headers: NO_STORE });
-    await syncRaiderRole(userId, null, parsed.value.rank.toUpperCase());
+    // The character's rank field mirrors the user's; the user's is what the roster and the Discord roles follow.
+    await setRankFromWeb(userId, parsed.value.rank.toUpperCase() as Uppercase<typeof parsed.value.rank>);
     return NextResponse.json(outcome.created, { status: 201, headers: NO_STORE });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
