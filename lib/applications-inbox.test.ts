@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countActiveInboxFilters, DEFAULT_FILTERS, defaultSelection, filterInbox, orderedAnswers, selectApplication, sortInbox, type InboxItem } from './applications-inbox';
+import { countActiveInboxFilters, DEFAULT_FILTERS, defaultSelection, filterInbox, opensStandalone, orderedAnswers, selectApplication, sortInbox, withSelectedRead, type InboxItem } from './applications-inbox';
 
 const item = (over: Partial<InboxItem>): InboxItem => ({
   id: over.character?.toLowerCase() ?? 'x',
@@ -53,5 +53,24 @@ describe('inbox', () => {
   it('orders answers by the form’s questions and keeps unknown keys', () => {
     expect(orderedAnswers({ wipe: 'Stood in fire.', availability: 'Both nights', extra: 'x', empty: '  ' }).map((a) => a.key)).toEqual(['availability', 'wipe', 'extra']);
     expect(orderedAnswers(null)).toEqual([]);
+  });
+});
+
+describe('inbox rows', () => {
+  const plain = { button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false };
+  it('opens the standalone page only for a plain primary click below the pane breakpoint', () => {
+    expect(opensStandalone({ ...plain, wide: true })).toBe(false);
+    expect(opensStandalone({ ...plain, wide: false })).toBe(true);
+    expect(opensStandalone({ ...plain, wide: false, ctrlKey: true })).toBe(false);
+    expect(opensStandalone({ ...plain, wide: false, metaKey: true })).toBe(false);
+    expect(opensStandalone({ ...plain, wide: false, shiftKey: true })).toBe(false);
+    expect(opensStandalone({ ...plain, wide: false, altKey: true })).toBe(false);
+    expect(opensStandalone({ ...plain, wide: false, button: 1 })).toBe(false);
+  });
+
+  it('clears the unread dot on the open application only', () => {
+    const items = [{ id: 'a', unread: true }, { id: 'b', unread: true }] as InboxItem[];
+    expect(withSelectedRead(items, 'a').map((i) => i.unread)).toEqual([false, true]);
+    expect(withSelectedRead(items, null)).toBe(items);
   });
 });
