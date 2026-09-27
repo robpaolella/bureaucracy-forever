@@ -26,6 +26,13 @@ export type RaidCard = {
   counts: RoleCounts;
   /** The viewer's own response, if any. */
   mine: RaidResponse | null;
+  /** SYNC-SPEC additions; optional so older callers and tests still build cards. */
+  status?: 'SCHEDULED' | 'LOCKED' | 'DONE' | 'CANCELLED';
+  locksAt?: string;
+  /** Template short name for calendar chips ("MC"); null for a raid made without a template. */
+  short?: string | null;
+  /** The viewer holds a roster row on this raid (answered or not). */
+  onRoster?: boolean;
 };
 
 export function isRaidResponse(value: unknown): value is RaidResponse {

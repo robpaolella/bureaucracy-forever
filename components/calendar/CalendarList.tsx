@@ -6,12 +6,15 @@ import { ScheduleRaidModal } from '@/components/raid/ScheduleRaidModal';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { Button, EmptyState, SegmentedControl, Toast, type ToastData } from '@/components/ui';
 import type { Role } from '@/lib/design/class-colors';
+import { sortNeedsAnswerFirst } from '@/lib/calendar-grid';
 import { isTonight, isUpcoming, raidWeekday, responseToast, type RaidCard, type RaidInput, type RaidResponse } from '@/lib/raids';
+import { MonthGrid } from './MonthGrid';
 import { AVAILABILITY_PROMPT, CALENDAR_EMPTY, CALENDAR_PAST_EMPTY, SAVE_FAILED, SCHEDULE_RAID, scheduledToast } from '@/content/calendar';
 import { RaidCardRow } from './RaidCardRow';
 import { useSignup } from './useSignup';
 
 type Scope = 'upcoming' | 'past';
+type View = 'list' | 'month';
 
 type Props = {
   raids: RaidCard[];
@@ -28,6 +31,8 @@ type Props = {
 export function CalendarList({ raids: initial, viewer, schedule }: Props) {
   const router = useRouter();
   const [scope, setScope] = useState<Scope>('upcoming');
+  // List is the default everywhere and the only view on phones (SYNC-SPEC §9.4).
+  const [view, setView] = useState<View>('list');
   const [toast, setToast] = useState<ToastData | null>(null);
   const [scheduling, setScheduling] = useState(Boolean(schedule?.openOnLoad));
   const zone = useViewerTimeZone();
@@ -60,7 +65,7 @@ export function CalendarList({ raids: initial, viewer, schedule }: Props) {
   const { raids, respond } = useSignup(initial, viewer.raidRole, onResult);
 
   const canRespond = viewer.role !== 'social';
-  const upcoming = useMemo(() => raids.filter((r) => isUpcoming(r, now)), [raids, now]);
+  const upcoming = useMemo(() => sortNeedsAnswerFirst(raids.filter((r) => isUpcoming(r, now))), [raids, now]);
   const past = useMemo(() => raids.filter((r) => !isUpcoming(r, now)).reverse(), [raids, now]);
   const shown = scope === 'upcoming' ? upcoming : past;
   const tonightId =
@@ -80,8 +85,27 @@ export function CalendarList({ raids: initial, viewer, schedule }: Props) {
             { value: 'past', label: 'Past' },
           ]}
         />
-        {schedule && <Button onClick={() => setScheduling(true)}>{SCHEDULE_RAID}</Button>}
+        <div className="flex items-center gap-3">
+          <SegmentedControl
+            label="View"
+            size="sm"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'list', label: 'List' },
+              { value: 'month', label: 'Month' },
+            ]}
+            className="hidden md:flex"
+          />
+          {schedule && <Button onClick={() => setScheduling(true)}>{SCHEDULE_RAID}</Button>}
+        </div>
       </div>
+
+      {view === 'month' && scope === 'upcoming' && (
+        <div className="hidden md:block">
+          <MonthGrid raids={raids} now={now} />
+        </div>
+      )}
 
       {canRespond && !viewer.availabilitySubmitted && (
         <p role="status" className="text-sm text-warn">
