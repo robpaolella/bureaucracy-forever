@@ -7,7 +7,9 @@ import { cn } from '@/lib/cn';
 import { GUILD_TIMEZONE } from '@/lib/config';
 import { ROLE_SHORT, ROLES } from '@/lib/design/class-colors';
 import { countTone, raidWeekday, type RaidCard, type RaidResponse } from '@/lib/raids';
+import { signupsClosed } from '@/lib/raid-detail';
 import { zonedParts } from '@/lib/time';
+import { RESPONSE_NOTES } from '@/content/raid';
 
 type Props = {
   raid: RaidCard;
@@ -15,6 +17,8 @@ type Props = {
   /** Socials and the logged-out see the card without the response control. */
   canRespond: boolean;
   past: boolean;
+  /** ISO instant the list rendered at, for the lock check. */
+  now: string;
   onRespond: (response: RaidResponse) => void;
 };
 
@@ -32,8 +36,11 @@ const RESPONSE_OPTIONS = [
  * and dual time, four role stacks that turn warn below the requirement and stop at zero,
  * and the viewer's three-way response. Tonight's raid takes a sand-dim border and eyebrow.
  */
-export function RaidCardRow({ raid, tonight, canRespond, past, onRespond }: Props) {
+export function RaidCardRow({ raid, tonight, canRespond, past, now, onRespond }: Props) {
   const p = zonedParts(new Date(raid.startsAt), GUILD_TIMEZONE);
+  // SYNC-SPEC §7: no answers after the lock, and no Absent for a member off the roster.
+  const closed = signupsClosed(raid, past, new Date(now));
+  const options = raid.onRoster === false ? RESPONSE_OPTIONS.filter((o) => o.value !== 'absent') : RESPONSE_OPTIONS;
   return (
     <li className={cn('flex flex-col gap-4 rounded-card border bg-ink-850 p-5 md:flex-row md:items-center md:gap-6', tonight ? 'border-sand-dim' : 'border-line', raid.cancelled && 'opacity-60')}>
       <div className="flex items-center gap-4 md:flex-1">
@@ -77,12 +84,18 @@ export function RaidCardRow({ raid, tonight, canRespond, past, onRespond }: Prop
         })}
       </dl>
 
-      {canRespond && !past && !raid.cancelled && (
-        <SegmentedControl label={`Your response to ${raid.name}`} value={raid.mine} onChange={onRespond} options={RESPONSE_OPTIONS} fill className="md:w-auto md:shrink-0 md:[&>button]:flex-none" />
+      {canRespond && !closed && (
+        <SegmentedControl label={`Your response to ${raid.name}`} value={raid.mine} onChange={onRespond} options={options} fill className="md:w-auto md:shrink-0 md:[&>button]:flex-none" />
       )}
-      {canRespond && (past || raid.cancelled) && raid.mine && (
+      {canRespond && closed && (raid.mine || (!past && !raid.cancelled)) && (
         <span className="text-sm text-fg-3 md:shrink-0">
-          You answered <span className="font-semibold text-fg-2">{RESPONSE_OPTIONS.find((o) => o.value === raid.mine)?.label}</span>
+          {raid.mine ? (
+            <>
+              {RESPONSE_NOTES.youAnswered} <span className="font-semibold text-fg-2">{RESPONSE_OPTIONS.find((o) => o.value === raid.mine)?.label}</span>
+            </>
+          ) : (
+            RESPONSE_NOTES.locked
+          )}
         </span>
       )}
     </li>

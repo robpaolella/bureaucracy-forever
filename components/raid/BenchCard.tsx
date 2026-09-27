@@ -68,7 +68,7 @@ export function BenchCard({ raidId, rows, officer }: Props) {
                   </span>
                   <span className="truncate text-small text-fg-3">{row.wowClass ? [CLASS_COLORS[row.wowClass].label, row.spec].filter(Boolean).join(' · ') : UNKNOWN_MAIN}</span>
                 </div>
-                {officer ? <AnswerFor raidId={raidId} userId={row.userId} name={row.name} current={row.response} /> : <span className="text-sm font-semibold text-fg-2">{row.response ? ANSWER_LABEL[row.response] : ''}</span>}
+                {officer ? <AnswerFor raidId={raidId} userId={row.userId} name={row.name} current={row.response} allowAbsent={false} /> : <span className="text-sm font-semibold text-fg-2">{row.response ? ANSWER_LABEL[row.response] : ''}</span>}
                 <SourceBadge source={row.source} />
                 {officer && (
                   <Button variant="secondary" size="sm" loading={moving === row.userId} onClick={() => moveToRoster(row)}>

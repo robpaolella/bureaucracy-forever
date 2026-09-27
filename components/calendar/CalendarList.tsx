@@ -9,7 +9,7 @@ import type { Role } from '@/lib/design/class-colors';
 import { sortNeedsAnswerFirst } from '@/lib/calendar-grid';
 import { isTonight, isUpcoming, raidWeekday, responseToast, type RaidCard, type RaidInput, type RaidResponse } from '@/lib/raids';
 import { MonthGrid } from './MonthGrid';
-import { AVAILABILITY_PROMPT, CALENDAR_EMPTY, CALENDAR_PAST_EMPTY, SAVE_FAILED, SCHEDULE_RAID, scheduledToast } from '@/content/calendar';
+import { AVAILABILITY_PROMPT, CALENDAR_EMPTY, CALENDAR_PAST_EMPTY, MONTH, SAVE_FAILED, SCHEDULE_RAID, scheduledToast } from '@/content/calendar';
 import { RaidCardRow } from './RaidCardRow';
 import { useSignup } from './useSignup';
 
@@ -65,7 +65,12 @@ export function CalendarList({ raids: initial, viewer, schedule }: Props) {
   const { raids, respond } = useSignup(initial, viewer.raidRole, onResult);
 
   const canRespond = viewer.role !== 'social';
-  const upcoming = useMemo(() => sortNeedsAnswerFirst(raids.filter((r) => isUpcoming(r, now))), [raids, now]);
+  // Sorted from the server's cards, then the optimistic answers laid on top: answering the
+  // top "needs your answer" row must not move it under the pointer until the next load.
+  const upcoming = useMemo(() => {
+    const byId = new Map(raids.map((r) => [r.id, r]));
+    return sortNeedsAnswerFirst(initial.filter((r) => isUpcoming(r, now))).map((r) => byId.get(r.id) ?? r);
+  }, [initial, raids, now]);
   const past = useMemo(() => raids.filter((r) => !isUpcoming(r, now)).reverse(), [raids, now]);
   const shown = scope === 'upcoming' ? upcoming : past;
   const tonightId =
@@ -87,13 +92,13 @@ export function CalendarList({ raids: initial, viewer, schedule }: Props) {
         />
         <div className="flex items-center gap-3">
           <SegmentedControl
-            label="View"
+            label={MONTH.view}
             size="sm"
             value={view}
             onChange={setView}
             options={[
-              { value: 'list', label: 'List' },
-              { value: 'month', label: 'Month' },
+              { value: 'list', label: MONTH.list },
+              { value: 'month', label: MONTH.month },
             ]}
             className="hidden md:flex"
           />
@@ -137,7 +142,7 @@ export function CalendarList({ raids: initial, viewer, schedule }: Props) {
       ) : (
         <ol className="flex flex-col gap-3">
           {ordered.map((raid) => (
-            <RaidCardRow key={raid.id} raid={raid} tonight={raid.id === tonightId} canRespond={canRespond} past={scope === 'past'} onRespond={(response) => respond(raid.id, response)} />
+            <RaidCardRow key={raid.id} raid={raid} tonight={raid.id === tonightId} canRespond={canRespond} past={scope === 'past'} now={now.toISOString()} onRespond={(response) => respond(raid.id, response)} />
           ))}
         </ol>
       )}

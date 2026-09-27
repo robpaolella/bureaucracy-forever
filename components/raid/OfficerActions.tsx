@@ -75,6 +75,7 @@ export function OfficerActions({ raid, members, past, threadUrl }: Props) {
       }
       setConfirming(false);
       setOpen(false);
+      setReason('');
       setToast({ tone: 'ok', title: cancelled ? RAID_TOASTS.cancelled(raid.name) : RAID_TOASTS.restored(raid.name) });
       router.refresh();
     } catch {

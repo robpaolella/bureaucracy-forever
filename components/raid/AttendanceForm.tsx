@@ -71,7 +71,7 @@ export function AttendanceForm({ raidId, rows }: Props) {
                   label={
                     <span className="flex flex-wrap items-baseline gap-x-2">
                       <span className="font-semibold text-fg">{row.name}</span>
-                      <span className="text-small text-fg-3">{row.response ? ANSWER_LABEL[row.response] : ''}{row.standing === 'BENCH' ? ' · bench' : ''}</span>
+                      <span className="text-small text-fg-3">{row.response ? ANSWER_LABEL[row.response] : ''}{row.standing === 'BENCH' ? ` · ${ATTENDANCE.bench}` : ''}</span>
                     </span>
                   }
                 />

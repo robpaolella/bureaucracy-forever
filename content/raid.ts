@@ -73,6 +73,8 @@ export const ROSTER = {
   heading: 'Roster',
   empty: 'Nobody is on this roster yet. The roster comes from rank: raiders, trials and officers.',
   noRole: 'No main set',
+  member: 'Member',
+  updated: 'Updated',
   answer: 'Answer',
   via: 'Via',
   noAnswer: 'No answer yet',
@@ -105,6 +107,7 @@ export const ATTENDANCE = {
   heading: 'Mark attendance',
   lede: 'Tick everyone who showed up. Accepted members are ticked to start with; tentative ones are not.',
   empty: 'Nobody accepted or was tentative, so there is nobody to mark.',
+  bench: 'bench',
   save: 'Save attendance',
   saved: (n: number) => (n === 1 ? 'Attendance saved for 1 member' : `Attendance saved for ${n} members`),
 };

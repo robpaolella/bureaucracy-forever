@@ -45,10 +45,10 @@ export function RosterByRole({ raidId, rows, now, canAnswerFor, showAttendance }
             <ul className="divide-y divide-line-faint rounded-card border border-line bg-ink-850">
               <li className="hidden items-center gap-x-3 px-4 py-1.5 text-label font-semibold uppercase tracking-[0.08em] text-fg-3 md:flex" aria-hidden>
                 <span className="w-6" />
-                <span className="flex-1">Member</span>
+                <span className="flex-1">{ROSTER.member}</span>
                 <span className="w-[132px]">{ROSTER.answer}</span>
                 <span className="w-28">{ROSTER.via}</span>
-                <span className="w-20 text-right">Updated</span>
+                <span className="w-20 text-right">{ROSTER.updated}</span>
               </li>
               {group.rows.map((row) => (
                 <Row key={row.userId} raidId={raidId} row={row} at={at} canAnswerFor={canAnswerFor} showAttendance={showAttendance} />

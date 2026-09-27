@@ -13,6 +13,8 @@ type Props = {
   userId: string;
   name: string;
   current: RaidResponse | null;
+  /** Bench rows cannot be marked absent (SYNC-SPEC §7: a decline off the roster means nothing). */
+  allowAbsent?: boolean;
 };
 
 /**
@@ -20,7 +22,7 @@ type Props = {
  * writes through the same route as the member's own answer, recorded as set by the
  * officer. Officers are the one writer the lock does not stop.
  */
-export function AnswerFor({ raidId, userId, name, current }: Props) {
+export function AnswerFor({ raidId, userId, name, current, allowAbsent = true }: Props) {
   const router = useRouter();
   const toast = useToast();
   const [saving, setSaving] = useState(false);
@@ -57,10 +59,10 @@ export function AnswerFor({ raidId, userId, name, current }: Props) {
       value={current ?? ''}
       disabled={saving}
       onChange={(e) => change(e.target.value)}
-      className={cn(CONTROL, 'h-9 w-[132px] px-2 text-sm')}
+      className={cn(CONTROL, 'h-11 w-[132px] px-2 text-sm')}
     >
       <option value="">{ROSTER.noAnswer}</option>
-      {RESPONSES.map((r) => (
+      {RESPONSES.filter((r) => allowAbsent || r !== 'absent').map((r) => (
         <option key={r} value={r}>
           {ANSWER_LABEL[r]}
         </option>
