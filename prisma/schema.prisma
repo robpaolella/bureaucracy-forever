@@ -194,6 +194,8 @@ model Raid {
   /// Legacy: a Discord scheduled event id. Nullable, unused; do not build on it (SYNC-SPEC §3).
   discordEventId   String?       @unique
   cancelledAt      DateTime?
+  /// Why it was cancelled; the bot re-renders the compact line from this (SYNC-SPEC §8).
+  cancelReason     String?
   /// { tank: 2, healer: 8, melee: 11, ranged: 14 }
   requirements     Json
   signups          Signup[]

@@ -15,6 +15,8 @@ export type RaidView = {
   locksAt: string;
   durationMin: number;
   notes: string | null;
+  /** Set when status is CANCELLED and the officer gave one. */
+  cancelledReason: string | null;
   late: boolean;
   template: { name: string; short: string; size: number } | null;
   requirements: RoleCounts;
@@ -31,7 +33,7 @@ export async function loadRaidView(id: string, viewerDiscordId: string | null): 
   const r = await db.raid.findUnique({
     where: { id },
     select: {
-      id: true, name: true, status: true, startsAt: true, locksAt: true, durationMin: true, notes: true, requirements: true, postedAt: true, discordThreadId: true, discordMessageId: true,
+      id: true, name: true, status: true, startsAt: true, locksAt: true, durationMin: true, notes: true, cancelReason: true, requirements: true, postedAt: true, discordThreadId: true, discordMessageId: true,
       template: { select: { name: true, short: true, size: true } },
       series: { select: { postAheadDays: true } },
       signups: { select: { standing: true, response: true, attended: true, user: { select: { discordId: true, characters: { where: { isMain: true }, take: 1, select: { raidRole: true } } } } } },
@@ -51,6 +53,7 @@ export async function loadRaidView(id: string, viewerDiscordId: string | null): 
     locksAt: r.locksAt.toISOString(),
     durationMin: r.durationMin,
     notes: r.notes,
+    cancelledReason: r.status === 'CANCELLED' ? r.cancelReason : null,
     late: r.postedAt !== null && r.startsAt.getTime() - r.postedAt.getTime() < postAhead - 24 * 3_600_000,
     template: r.template,
     requirements: parseRequirements(r.requirements),
