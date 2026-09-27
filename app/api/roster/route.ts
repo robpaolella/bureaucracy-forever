@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Prisma } from '@/lib/generated/prisma/client';
+import { syncRaiderRole } from '@/lib/roles-sync';
 import { parseCharacterInput } from '@/lib/roster-edit';
 import { getSession } from '@/lib/session';
 import { toPrismaCharacter } from './fields';
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
     if ('error' in outcome) return NextResponse.json({ error: outcome.error }, { status: outcome.status, headers: NO_STORE });
+    await syncRaiderRole(userId, null, parsed.value.rank.toUpperCase());
     return NextResponse.json(outcome.created, { status: 201, headers: NO_STORE });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {

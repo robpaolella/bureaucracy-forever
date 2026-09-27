@@ -1,5 +1,6 @@
 import { after, NextResponse } from 'next/server';
 import { enqueue } from '@/lib/outbox';
+import { decideRespond, type Existing } from '@/lib/signup-rules';
 import { db } from '@/lib/db';
 import type { Role } from '@/lib/design/class-colors';
 import { countAccepted, isRaidResponse, type RaidResponse } from '@/lib/raids';
@@ -34,7 +35,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: 'Only officers answer on someone else’s behalf.' }, { status: 403, headers: NO_STORE });
   }
 
-  const raid = await db.raid.findUnique({ where: { id }, select: { id: true, cancelledAt: true, startsAt: true, durationMin: true, discordThreadId: true } });
+  const raid = await db.raid.findUnique({ where: { id }, select: { id: true, cancelledAt: true, startsAt: true, durationMin: true, discordThreadId: true, status: true, locksAt: true } });
   if (!raid) return NextResponse.json({ error: 'No such raid.' }, { status: 404, headers: NO_STORE });
   if (raid.cancelledAt) return NextResponse.json({ error: 'This raid was cancelled.' }, { status: 409, headers: NO_STORE });
   if (raid.startsAt.getTime() + raid.durationMin * 60_000 < Date.now()) {
@@ -61,10 +62,18 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
 
   const response = b.response as RaidResponse | null;
+  const existingRow = await db.signup.findUnique({ where: { raidId_userId: { raidId: raid.id, userId: targetId } }, select: { standing: true, response: true } });
+  const existing: Existing = existingRow ? { standing: existingRow.standing, response: (existingRow.response?.toLowerCase() as RaidResponse | undefined) ?? null } : null;
   if (response === null) {
-    await db.signup.deleteMany({ where: { raidId: raid.id, userId: targetId } });
+    // Withdrawing: a roster member goes back to unanswered; a bench row goes away.
+    if (existing?.standing === 'ROSTER') await db.signup.update({ where: { raidId_userId: { raidId: raid.id, userId: targetId } }, data: { response: null, reason: null, setByUserId, source: 'WEB' } });
+    else await db.signup.deleteMany({ where: { raidId: raid.id, userId: targetId } });
   } else {
-    const fields = { response: RESPONSE_ENUM[response], source: 'WEB' as const, reason: response === 'absent' ? reason : null, setByUserId };
+    // SYNC-SPEC §7: roster members answer; others land on the bench; an officer answering
+    // for someone is the one write the lock does not stop.
+    const outcome = decideRespond({ role: setByUserId ? 'officer' : session.role }, raid, existing, response, new Date(), setByUserId !== null);
+    if (!outcome.ok) return NextResponse.json({ error: outcome.reason }, { status: outcome.status, headers: NO_STORE });
+    const fields = { standing: outcome.standing, response: RESPONSE_ENUM[outcome.response], source: 'WEB' as const, reason: outcome.response === 'absent' ? reason : null, setByUserId };
     await db.signup.upsert({
       where: { raidId_userId: { raidId: raid.id, userId: targetId } },
       create: { raidId: raid.id, userId: targetId, ...fields },

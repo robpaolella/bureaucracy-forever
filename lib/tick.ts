@@ -20,7 +20,7 @@ export type TickCounts = {
 };
 
 /** Users on the roster: a main character with a roster rank, and not a social account. */
-async function rosterUserIds(): Promise<string[]> {
+export async function rosterUserIds(): Promise<string[]> {
   const mains = await db.character.findMany({ where: { isMain: true, user: { role: { not: 'SOCIAL' } } }, select: { userId: true, rank: true } });
   return [...new Set(mains.filter((c) => isRosterRank(c.rank)).map((c) => c.userId))];
 }

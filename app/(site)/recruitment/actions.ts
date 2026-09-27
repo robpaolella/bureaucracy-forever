@@ -6,6 +6,7 @@ import type { ApplicationState } from '@/components/recruitment/form-state';
 import { FORM } from '@/content/recruitment';
 import { isHoneypotFilled, parseApplication, submittedSearch } from '@/lib/applications';
 import { db } from '@/lib/db';
+import { enqueue } from '@/lib/outbox';
 import { Prisma } from '@/lib/generated/prisma/client';
 import { clientAddress, rateLimited } from '@/lib/rate-limit';
 import { getSession } from '@/lib/session';
@@ -38,7 +39,8 @@ export async function submitApplication(_prev: ApplicationState, data: FormData)
       async (tx) => {
         const pending = await tx.application.findFirst({ where: { status: 'PENDING', character: { equals: value.character, mode: 'insensitive' } }, select: { id: true } });
         if (pending) return true;
-        await tx.application.create({
+        const created = await tx.application.create({
+          select: { id: true },
           data: {
             path: value.path === 'social' ? 'SOCIAL' : 'RAIDER',
             // '' means no Discord account is known: the inbox and the bot must fall back to discordName.
@@ -51,6 +53,8 @@ export async function submitApplication(_prev: ApplicationState, data: FormData)
             answers: value.answers,
           },
         });
+        // The bot posts it to #applications on its next poll (SYNC-SPEC §5).
+        await enqueue('application.post', { applicationId: created.id, character: value.character }, tx);
         return false;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
