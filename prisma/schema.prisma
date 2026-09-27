@@ -221,6 +221,8 @@ model Raid {
 
   @@index([startsAt])
   @@index([status, locksAt])
+  /// One instance per series per instant: the officer's request and the bot's tick can both generate.
+  @@unique([seriesId, startsAt])
 }
 
 model Signup {

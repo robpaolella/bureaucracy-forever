@@ -37,12 +37,12 @@ export function SeriesForm({ templates, initial, submitLabel, hint, onSubmit, on
       <Select label={SERIES.template} options={templates.map((t) => ({ value: t.id, label: t.name }))} value={input.templateId} onChange={(e) => { const t = templates.find((x) => x.id === e.target.value); set('templateId', e.target.value); if (t) set('durationMin', t.durationMin); }} />
       <div className="grid grid-cols-2 gap-3">
         <Select label={SERIES.weekday} options={WEEKDAY_LABELS.map((w, i) => ({ value: String(i), label: w }))} value={String(input.weekday)} onChange={(e) => set('weekday', Number(e.target.value))} />
-        <Field label={SERIES.start} hint={preview && viewer ? `${formatClock(preview, GUILD_TIMEZONE)} guild · ${formatClock(preview, viewer.zone)} yours` : undefined}>
+        <Field label={SERIES.start} hint={preview && viewer ? `${formatClock(preview, GUILD_TIMEZONE)} ${SERIES.guild} · ${formatClock(preview, viewer.zone)} ${SERIES.yours}` : undefined}>
           <Input type="time" step={900} value={input.startTime} onChange={(e) => set('startTime', e.target.value)} />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Select label={SERIES.length} options={LENGTHS.map((m) => ({ value: String(m), label: m % 60 ? `${Math.floor(m / 60)}½ hours` : `${m / 60} hours` }))} value={String(input.durationMin)} onChange={(e) => set('durationMin', Number(e.target.value))} />
+        <Select label={SERIES.length} options={LENGTHS.map((m) => ({ value: String(m), label: SERIES.hours(m) }))} value={String(input.durationMin)} onChange={(e) => set('durationMin', Number(e.target.value))} />
         <Field label={SERIES.postAhead}>
           <Input type="number" inputMode="numeric" min={1} max={60} value={input.postAheadDays} onChange={(e) => set('postAheadDays', Number(e.target.value))} />
         </Field>

@@ -41,7 +41,7 @@ export function TemplateForm({ initial, onSubmit, onCancel }: Props) {
         <Field label={TEMPLATES.size}>
           <Input type="number" inputMode="numeric" min={5} max={40} value={input.size} onChange={(e) => set('size', Number(e.target.value))} />
         </Field>
-        <Field label={`${TEMPLATES.length} (minutes)`}>
+        <Field label={TEMPLATES.length}>
           <Input type="number" inputMode="numeric" min={30} max={480} step={15} value={input.durationMin} onChange={(e) => set('durationMin', Number(e.target.value))} />
         </Field>
       </div>

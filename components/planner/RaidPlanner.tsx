@@ -5,7 +5,9 @@ import { useState } from 'react';
 import { Button, Card, Modal, StatusPill, ToastHost, useToast } from '@/components/ui';
 import { ROLES } from '@/lib/design/class-colors';
 import { WEEKDAY_LABELS, type SeriesInput, type TemplateInput } from '@/lib/raid-series-rules';
-import { formatGuildClock } from '@/lib/time';
+import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
+import { GUILD_TIMEZONE } from '@/lib/config';
+import { formatClock, formatGuildClock, nextOccurrence, type Weekday } from '@/lib/time';
 import { SAVE_FAILED } from '@/content/calendar';
 import { SERIES, TEMPLATES } from '@/content/planner';
 import { SeriesForm } from './SeriesForm';
@@ -55,7 +57,7 @@ function Planner({ templates, series }: Props) {
   async function createSeries(input: SeriesInput): Promise<string | null> {
     const r = await send('/api/raid-series', 'POST', input);
     if (!r.ok) return failure(r);
-    toast({ tone: 'ok', title: SERIES.created(Number(r.json.generated ?? 0), Number(r.json.posted ?? 0)) });
+    toast({ tone: 'ok', title: SERIES.created(Number(r.json.generated ?? 0)) });
     router.refresh();
     return null;
   }
@@ -63,7 +65,7 @@ function Planner({ templates, series }: Props) {
     if (!editingSeries) return null;
     const r = await send(`/api/raid-series/${editingSeries.id}`, 'PATCH', input);
     if (!r.ok) return failure(r);
-    toast({ tone: 'ok', title: SERIES.saved(Number(r.json.dropped ?? 0), Number(r.json.generated ?? 0)) });
+    toast({ tone: 'ok', title: SERIES.saved(Number(r.json.moved ?? 0), Number(r.json.generated ?? 0)) });
     setEditingSeries(null);
     router.refresh();
     return null;
@@ -122,10 +124,10 @@ function Planner({ templates, series }: Props) {
               <li key={s.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="text-[15px] font-semibold">
-                    {s.templateName} <span className="text-fg-3">· {WEEKDAY_LABELS[s.weekday]}s {formatGuildClock(s.startTime)} guild</span>
+                    {s.templateName} <span className="text-fg-3">· {WEEKDAY_LABELS[s.weekday]}s <SeriesTime weekday={s.weekday} startTime={s.startTime} /></span>
                   </span>
                   <span className="tabular text-[13px] text-fg-3">
-                    {s.durationMin} min · posts {s.postAheadDays} days ahead · locks {s.lockMinutesBefore} min before · {s.horizonWeeks} weeks · {SERIES.raids(s.raids)}
+                    {SERIES.summary(s)} · {SERIES.raids(s.raids)}
                     {s.notes && ` · ${s.notes}`}
                   </span>
                 </div>
@@ -148,7 +150,7 @@ function Planner({ templates, series }: Props) {
         )}
         <Card className="flex flex-col gap-4">
           <h3 className="text-[17px] font-semibold">{SERIES.newTitle}</h3>
-          {activeTemplates.length === 0 ? <p className="text-sm text-fg-3">Activate a template first.</p> : <SeriesForm key={series.length} templates={activeTemplates} initial={blank} submitLabel={SERIES.create} onSubmit={createSeries} />}
+          {activeTemplates.length === 0 ? <p className="text-sm text-fg-3">{SERIES.activateFirst}</p> : <SeriesForm key={series.length} templates={activeTemplates} initial={blank} submitLabel={SERIES.create} onSubmit={createSeries} />}
         </Card>
       </section>
 
@@ -156,7 +158,7 @@ function Planner({ templates, series }: Props) {
         {editingTemplate && <TemplateForm initial={editingTemplate} onSubmit={saveTemplate} onCancel={() => setEditingTemplate(null)} />}
       </Modal>
       <Modal open={editingSeries !== null} onClose={() => setEditingSeries(null)} title={SERIES.editTitle}>
-        {editingSeries && <SeriesForm templates={templates} initial={editingSeries} submitLabel={SERIES.save} hint={SERIES.saveHint} onSubmit={saveSeries} onCancel={() => setEditingSeries(null)} />}
+        {editingSeries && <SeriesForm templates={templates.filter((t) => t.active || t.id === editingSeries.templateId)} initial={editingSeries} submitLabel={SERIES.save} hint={SERIES.saveHint} onSubmit={saveSeries} onCancel={() => setEditingSeries(null)} />}
       </Modal>
       <Modal
         open={deactivating !== null}
@@ -176,5 +178,17 @@ function Planner({ templates, series }: Props) {
         {SERIES.deactivateBody}
       </Modal>
     </div>
+  );
+}
+
+/** "8:00 PM guild · 11:00 PM yours" for a weekly slot, from its next occurrence so DST is judged on a real date. */
+function SeriesTime({ weekday, startTime }: { weekday: number; startTime: string }) {
+  const viewer = useViewerTimeZone();
+  if (!viewer || viewer.zone === GUILD_TIMEZONE) return <>{formatGuildClock(startTime)} {SERIES.guild}</>;
+  const next = nextOccurrence(weekday as Weekday, startTime, GUILD_TIMEZONE, new Date());
+  return (
+    <>
+      {formatGuildClock(startTime)} {SERIES.guild} · {formatClock(next, viewer.zone)} {SERIES.yours}
+    </>
   );
 }
