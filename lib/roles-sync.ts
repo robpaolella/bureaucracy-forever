@@ -37,3 +37,13 @@ function rankRoleChanges(rank: Rank): { add: string[]; remove: string[] } | null
     return null;
   }
 }
+
+/**
+ * A main's raid role feeds the composition bars, so the posted raids the member is signed
+ * up on are re-rendered (SYNC-SPEC §4: every write Discord shows queues its update).
+ */
+export async function refreshPostedRaidsFor(userId: string): Promise<number> {
+  const raids = await db.raid.findMany({ where: { status: { in: ['SCHEDULED', 'LOCKED'] }, discordThreadId: { not: null }, signups: { some: { userId } } }, select: { id: true } });
+  for (const r of raids) await enqueue('raid.update', { raidId: r.id });
+  return raids.length;
+}

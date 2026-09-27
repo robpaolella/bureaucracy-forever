@@ -19,12 +19,41 @@ export type CharacterInput = {
 
 export type ParsedCharacter = { ok: true; value: CharacterInput } | { ok: false; error: string };
 
-/** WoW names: 2–12 letters, one capital. The rest is normalised the way the game does. (× and ÷ sit inside the Latin-1 letter block and are skipped.) */
-export const NAME_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,12}$/;
+/**
+ * WoW Forever names are two parts, a first and a second name, each 2–12 letters, shown as
+ * "First Second". One part alone is still accepted for characters named before the second
+ * name existed. Each part is normalised the way the game does: one capital, the rest lower.
+ * (× and ÷ sit inside the Latin-1 letter block and are skipped.)
+ */
+export const NAME_PART = /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,12}$/;
+export const NAME_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,12}( [A-Za-zÀ-ÖØ-öø-ÿ]{2,12})?$/;
+export const NAME_ERROR = 'Character names are a first name, and a second name if the character has one, 2 to 12 letters each.';
 
 export function normaliseName(raw: string): string {
-  const name = raw.trim();
-  return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  return raw
+    .normalize('NFC')
+    .trim()
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/**
+ * "First Second" from the two parts; the second may be empty. Null when either part is not a
+ * name. The pattern is tested on the normalised form, since capitalising can leave the
+ * Latin-1 block (ÿ → Ÿ) or lengthen a name (ß → SS).
+ */
+export function fullName(first: string, second: string): string | null {
+  const a = normaliseName(first);
+  const b = normaliseName(second);
+  if (!NAME_PART.test(a) || (b && !NAME_PART.test(b))) return null;
+  return b ? `${a} ${b}` : a;
+}
+
+/** The two parts of a stored name, for the form. */
+export function splitName(name: string): { first: string; second: string } {
+  const [first = '', second = ''] = name.trim().split(/\s+/);
+  return { first, second };
 }
 
 export function specsFor(wowClass: WowClass): string[] {
@@ -38,9 +67,15 @@ export function rolesFor(wowClass: WowClass, spec: string): Role[] {
 
 export function parseCharacterInput(body: unknown): ParsedCharacter {
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
-  const raw = typeof b.name === 'string' ? b.name.trim() : '';
-  if (!NAME_PATTERN.test(raw)) return { ok: false, error: 'Character names are 2 to 12 letters.' };
-  const name = normaliseName(raw);
+  // Either the joined name or the two parts; the parts win when both are sent.
+  const joined =
+    typeof b.firstName === 'string'
+      ? fullName(b.firstName, typeof b.secondName === 'string' ? b.secondName : '')
+      : typeof b.name === 'string' && NAME_PATTERN.test(normaliseName(b.name))
+        ? normaliseName(b.name)
+        : null;
+  if (!joined) return { ok: false, error: NAME_ERROR };
+  const name = joined;
 
   const wowClass = b.wowClass;
   if (typeof wowClass !== 'string' || !(CLASSES as readonly string[]).includes(wowClass)) return { ok: false, error: 'Pick a class.' };

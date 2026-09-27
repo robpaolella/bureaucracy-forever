@@ -202,6 +202,8 @@ All under `/api/bot/`. JSON in, JSON out. 401 on bad secret. 409 on a state conf
 | POST | `/raids/:id/bench` | `{ discordId }` — opt onto the bench. 409 if already on roster. |
 | POST | `/raids/:id/attendance` | `{ byDiscordId, attended: [discordId], absent: [discordId] }`. Officers only, after `startsAt + durationMin`. |
 | GET | `/members/:discordId` | role, rank, guild membership, main character. 404 if unknown. |
+| PUT | `/members/:discordId/main` | `{ firstName, secondName, wowClass, spec, raidRole }` from the "Set my main" flow (§9.7). Creates or replaces the member's main on the roster; rank untouched. 404 unknown member, 409 name taken. |
+| GET | `/classes` | Classes, specs and the raid roles each spec fills, for the bot's menus. |
 | POST | `/members/sync` | `{ members: [{ discordId, name, avatarUrl, roles }], full }`. Upserts every member's name, avatar, site role, `inGuild` and rank from their Discord roles (§3). With `full`, anyone not listed gets `inGuild = false`. Idempotent; no Idempotency-Key needed. |
 | GET | `/health` | `{ ok: true, version }` |
 
@@ -368,6 +370,11 @@ rows only; answered rows are kept.
 6. **Roster editor** — lists everyone in the guild on Discord; a rank change (on a main, or the
    rank select on a member without one) enqueues `member.roles.sync` for the Raider, Trial and
    Social roles. Officer rank is read-only, it comes from the Discord Officer role.
+7. **Set my main (Discord)** — the panel's "Set my main" button asks class, then spec (from
+   `/classes`), then the raid role only when the spec fills two (Feral: tank or melee), then a
+   modal for the first and second name (WoW Forever names are two parts, 12 letters each), and
+   writes the main to the web roster through `PUT /members/:discordId/main`. The Discord class
+   roles are still granted as before; the web form takes the two names too.
 
 ---
 

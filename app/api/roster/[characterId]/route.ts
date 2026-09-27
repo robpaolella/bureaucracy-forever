@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Prisma } from '@/lib/generated/prisma/client';
-import { setRankFromWeb } from '@/lib/roles-sync';
+import { refreshPostedRaidsFor, setRankFromWeb } from '@/lib/roles-sync';
 import { OFFICER_RANK_ERROR } from '@/content/roster-editor';
 import { parseCharacterInput } from '@/lib/roster-edit';
 import { getSession } from '@/lib/session';
@@ -27,7 +27,7 @@ export async function PATCH(request: Request, { params }: Params) {
   const parsed = parseCharacterInput(body);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400, headers: NO_STORE });
 
-  const existing = await db.character.findUnique({ where: { id: characterId }, select: { id: true, userId: true, isMain: true, user: { select: { rank: true } } } });
+  const existing = await db.character.findUnique({ where: { id: characterId }, select: { id: true, userId: true, isMain: true, raidRole: true, user: { select: { rank: true } } } });
   if (!existing) return NextResponse.json({ error: 'No such character.' }, { status: 404, headers: NO_STORE });
   const wantsOfficer = parsed.value.rank === 'officer';
   // Officer is Discord's to give (§9.6): the form can neither grant it nor take it away.
@@ -35,6 +35,8 @@ export async function PATCH(request: Request, { params }: Params) {
   try {
     const updated = await db.character.update({ where: { id: characterId }, data: toPrismaCharacter(parsed.value), select: { id: true, name: true } });
     if (existing.isMain && !wantsOfficer) await setRankFromWeb(existing.userId, parsed.value.rank.toUpperCase() as Uppercase<typeof parsed.value.rank>);
+    // The composition bars read the main's raid role: posted raids they are on re-render.
+    if (existing.isMain && existing.raidRole.toLowerCase() !== parsed.value.role) await refreshPostedRaidsFor(existing.userId);
     return NextResponse.json(updated, { headers: NO_STORE });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {

@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { Button, Field, Input, Select } from '@/components/ui';
 import { CLASS_COLORS, CLASSES, ROLE_LABELS, type WowClass } from '@/lib/design/class-colors';
-import { parseCharacterInput, RANK_LABEL, RANKS, reconcileCharacter, rolesFor, specsFor, type CharacterInput } from '@/lib/roster-edit';
+import { parseCharacterInput, RANK_LABEL, RANKS, reconcileCharacter, rolesFor, specsFor, splitName, type CharacterInput } from '@/lib/roster-edit';
 import { EDITOR } from '@/content/roster-editor';
 
 type Props = {
@@ -17,12 +17,13 @@ type Props = {
 };
 
 /**
- * A main character: name, class, spec (narrowed by class), raid role (narrowed by spec)
- * and rank. Changing the class or spec keeps the other fields valid rather than letting
+ * A main character: first and second name (WoW Forever names are two parts), class, spec
+ * (narrowed by class), raid role (narrowed by spec) and rank. Changing the class or spec keeps the other fields valid rather than letting
  * the form submit a combination the route would refuse.
  */
 export function CharacterForm({ initial, submitLabel, onSubmit, onCancel, onRemove }: Props) {
   const [input, setInput] = useState(initial);
+  const [names, setNames] = useState(() => splitName(initial.name));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -34,7 +35,7 @@ export function CharacterForm({ initial, submitLabel, onSubmit, onCancel, onRemo
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (saving) return;
-    const parsed = parseCharacterInput(input);
+    const parsed = parseCharacterInput({ ...input, firstName: names.first, secondName: names.second });
     if (!parsed.ok) {
       setError(parsed.error);
       return;
@@ -48,9 +49,32 @@ export function CharacterForm({ initial, submitLabel, onSubmit, onCancel, onRemo
   const roles = rolesFor(input.wowClass, input.spec);
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-      <Field label={EDITOR.name}>
-        <Input value={input.name} maxLength={12} placeholder={EDITOR.namePlaceholder} autoComplete="off" onChange={(e) => update({ name: e.target.value })} />
-      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label={EDITOR.firstName} hint={EDITOR.nameHint}>
+          <Input
+            value={names.first}
+            maxLength={12}
+            placeholder={EDITOR.namePlaceholder}
+            autoComplete="off"
+            onChange={(e) => {
+              setNames((n) => ({ ...n, first: e.target.value }));
+              setError(null);
+            }}
+          />
+        </Field>
+        <Field label={EDITOR.secondName}>
+          <Input
+            value={names.second}
+            maxLength={12}
+            placeholder={EDITOR.secondNamePlaceholder}
+            autoComplete="off"
+            onChange={(e) => {
+              setNames((n) => ({ ...n, second: e.target.value }));
+              setError(null);
+            }}
+          />
+        </Field>
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <Select label={EDITOR.wowClass} options={CLASSES.map((c) => ({ value: c, label: CLASS_COLORS[c].label }))} value={input.wowClass} onChange={(e) => update({ wowClass: e.target.value as WowClass })} />
         <Select label={EDITOR.spec} options={specsFor(input.wowClass).map((s) => ({ value: s, label: s }))} value={input.spec} onChange={(e) => update({ spec: e.target.value })} />
