@@ -19,7 +19,7 @@ import {
   type SortDir,
 } from '@/lib/roster';
 import { relativeDate } from '@/lib/time';
-import { ROSTER_EMPTY, ROSTER_NO_MATCH } from '@/content/roster';
+import { ROSTER_EMPTY, ROSTER_NO_MAIN, ROSTER_NO_MATCH } from '@/content/roster';
 import { setDensity, useDensity } from './useDensity';
 
 type Props = { rows: RosterRow[] };
@@ -63,14 +63,14 @@ export function RosterTable({ rows }: Props) {
       header: 'Character',
       sortable: true,
       render: (r) => (
-        <span className="font-semibold" style={{ color: CLASS_COLORS[r.wowClass].onInk }}>
+        <span className="font-semibold" style={{ color: r.wowClass ? CLASS_COLORS[r.wowClass].onInk : undefined }}>
           {r.name}
         </span>
       ),
     },
-    { key: 'class', header: 'Class', render: (r) => CLASS_COLORS[r.wowClass].label },
-    { key: 'spec', header: 'Spec', render: (r) => <span className="text-fg-2">{r.spec}</span> },
-    { key: 'role', header: 'Role', render: (r) => <span className="text-fg-2">{ROLE_LABELS[r.role]}</span> },
+    { key: 'class', header: 'Class', render: (r) => (r.wowClass ? CLASS_COLORS[r.wowClass].label : <span className="text-fg-3">{ROSTER_NO_MAIN}</span>) },
+    { key: 'spec', header: 'Spec', render: (r) => <span className="text-fg-2">{r.spec ?? '—'}</span> },
+    { key: 'role', header: 'Role', render: (r) => <span className="text-fg-2">{r.role ? ROLE_LABELS[r.role] : '—'}</span> },
     { key: 'rank', header: 'Rank', sortable: true, render: (r) => <RankBadge rank={r.rank} /> },
     { key: 'attendance', header: 'Attendance', sortable: true, numeric: true, render: (r) => formatAttendance(r.attendance) },
     { key: 'joinedAt', header: 'Joined', sortable: true, align: 'right', render: (r) => <span className="text-fg-2">{relativeDate(new Date(r.joinedAt), now)}</span> },
@@ -162,14 +162,12 @@ export function RosterTable({ rows }: Props) {
                       <ClassAvatar name={r.name} wowClass={r.wowClass} size={28} />
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <div className="flex items-center gap-2.5">
-                          <span className="truncate text-[15px] font-semibold" style={{ color: CLASS_COLORS[r.wowClass].onInk }}>
+                          <span className="truncate text-[15px] font-semibold" style={{ color: r.wowClass ? CLASS_COLORS[r.wowClass].onInk : undefined }}>
                             {r.name}
                           </span>
                           <RankBadge rank={r.rank} />
                         </div>
-                        <span className="truncate text-[13px] text-fg-3">
-                          {CLASS_COLORS[r.wowClass].label} · {r.spec} · {ROLE_LABELS[r.role]}
-                        </span>
+                        <span className="truncate text-[13px] text-fg-3">{r.wowClass && r.role ? `${CLASS_COLORS[r.wowClass].label} · ${r.spec} · ${ROLE_LABELS[r.role]}` : ROSTER_NO_MAIN}</span>
                       </div>
                       <span className="tabular shrink-0 text-sm text-fg-2">{formatAttendance(r.attendance)}</span>
                     </li>

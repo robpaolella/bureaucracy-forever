@@ -13,16 +13,16 @@ export const metadata: Metadata = {
 };
 
 /**
- * The officer roster editor: every Discord member or officer with their main. The proxy
- * already 404s non-officers on /officers; the check here guards direct renders.
+ * The officer roster editor: everyone in the guild on Discord with their main and rank. The
+ * proxy already 404s non-officers on /officers; the check here guards direct renders.
  */
 export default async function RosterEditorPage() {
   const session = await getSession();
   if (!session || session.role !== 'officer') notFound();
 
   const users = await db.user.findMany({
-    where: { role: { in: ['MEMBER', 'OFFICER'] } },
-    select: { id: true, discordName: true, characters: { where: { isMain: true }, take: 1, select: { id: true, name: true, class: true, spec: true, raidRole: true, rank: true } } },
+    where: { inGuild: true, role: { in: ['MEMBER', 'OFFICER'] } },
+    select: { id: true, discordName: true, rank: true, characters: { where: { isMain: true }, take: 1, select: { id: true, name: true, class: true, spec: true, raidRole: true } } },
     orderBy: { discordName: 'asc' },
   });
   const members: EditorMember[] = users
@@ -31,7 +31,8 @@ export default async function RosterEditorPage() {
       return {
         userId: u.id,
         discordName: u.discordName,
-        main: c ? { id: c.id, name: c.name, wowClass: c.class.toLowerCase() as WowClass, spec: c.spec, role: c.raidRole.toLowerCase() as Role, rank: c.rank.toLowerCase() as Rank } : null,
+        rank: u.rank.toLowerCase() as Rank,
+        main: c ? { id: c.id, name: c.name, wowClass: c.class.toLowerCase() as WowClass, spec: c.spec, role: c.raidRole.toLowerCase() as Role, rank: u.rank.toLowerCase() as Rank } : null,
       };
     })
     .sort((a, b) => (a.main?.name ?? a.discordName).localeCompare(b.main?.name ?? b.discordName));

@@ -3,12 +3,14 @@
 export const ROSTER_HEAD = {
   eyebrow: 'Members',
   title: 'Roster',
-  lede: 'Everyone raiding with Bureaucracy, with their main, role and attendance. A reference table: nothing here opens anything.',
+  lede: 'Everyone in the guild on Discord, with their main, role, rank and attendance. Ranks follow the Discord Raider and Trial roles. A reference table: nothing here opens anything.',
 };
 
 export const ROSTER_EMPTY = {
   title: 'No one on the roster yet',
-  body: 'The roster syncs from the guild roster export. Officers can trigger it from the Officers menu.',
+  body: 'The roster fills from Discord within a minute of the bot seeing the server.',
 };
 
 export const ROSTER_NO_MATCH = 'Nobody matches those filters.';
+
+export const ROSTER_NO_MAIN = 'No main yet';

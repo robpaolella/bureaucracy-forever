@@ -5,7 +5,8 @@ import { useMemo, useState } from 'react';
 import { Button, ClassAvatar, CONTROL, Modal, RankBadge, Toast, type ToastData } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS, ROLE_LABELS } from '@/lib/design/class-colors';
-import { emptyCharacter, type CharacterInput } from '@/lib/roster-edit';
+import { emptyCharacter, RANK_LABEL, RANKS, type CharacterInput } from '@/lib/roster-edit';
+import type { Rank } from '@/components/ui/Badges';
 import { SAVE_FAILED } from '@/content/calendar';
 import { EDITOR, EDITOR_TOASTS } from '@/content/roster-editor';
 import { CharacterForm } from './CharacterForm';
@@ -13,6 +14,8 @@ import { CharacterForm } from './CharacterForm';
 export type EditorMember = {
   userId: string;
   discordName: string;
+  /** The member's rank; the main, when there is one, mirrors it. */
+  rank: Rank;
   main: (CharacterInput & { id: string }) | null;
 };
 
@@ -31,9 +34,10 @@ async function failureMessage(res: Response): Promise<string> {
 }
 
 /**
- * One row per Discord member with their main, or "No main yet" and an Add button. Edit
- * opens the character form in a modal; removal asks first. Every write goes through the
- * roster API and refreshes the page, so the roster and raid counts follow at once.
+ * One row per guild member with their main, or "No main yet", an Add button and a rank
+ * select, since rank is theirs whether or not a main exists. Edit opens the character form
+ * in a modal; removal asks first. Every write goes through the roster API and refreshes the
+ * page, so the roster, the raid counts and the Discord roles follow at once.
  */
 export function RosterEditor({ members }: Props) {
   const router = useRouter();
@@ -41,7 +45,24 @@ export function RosterEditor({ members }: Props) {
   const [editing, setEditing] = useState<Editing | null>(null);
   const [removing, setRemoving] = useState<(CharacterInput & { id: string }) | null>(null);
   const [busy, setBusy] = useState(false);
+  const [ranking, setRanking] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
+
+  async function setRank(m: EditorMember, rank: Rank) {
+    if (ranking || rank === m.rank) return;
+    setRanking(m.userId);
+    try {
+      const res = await send(`/api/roster/members/${m.userId}`, 'PATCH', { rank });
+      if (!res.ok) {
+        setToast({ tone: 'stop', title: await failureMessage(res) });
+        return;
+      }
+      setToast({ tone: 'ok', title: EDITOR_TOASTS.ranked(m.main?.name ?? m.discordName, RANK_LABEL[rank]) });
+      router.refresh();
+    } finally {
+      setRanking(null);
+    }
+  }
 
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -102,13 +123,25 @@ export function RosterEditor({ members }: Props) {
                   ) : (
                     <span className="text-[15px] text-fg-3">{EDITOR.noMain}</span>
                   )}
-                  {m.main && <RankBadge rank={m.main.rank} />}
+                  <RankBadge rank={m.rank} />
                 </div>
                 <span className="truncate text-[13px] text-fg-3">
                   {m.discordName}
                   {m.main && ` · ${CLASS_COLORS[m.main.wowClass].label} · ${m.main.spec} · ${ROLE_LABELS[m.main.role]}`}
                 </span>
               </div>
+              {!m.main &&
+                (m.rank === 'officer' ? (
+                  <span className="text-small text-fg-3">{EDITOR.officerRank}</span>
+                ) : (
+                  <select aria-label={EDITOR.rankFor(m.discordName)} value={m.rank} disabled={ranking === m.userId} onChange={(e) => setRank(m, e.target.value as Rank)} className={cn(CONTROL, 'h-11 w-32 px-2 text-sm')}>
+                    {RANKS.filter((r) => r !== 'officer').map((r) => (
+                      <option key={r} value={r}>
+                        {RANK_LABEL[r]}
+                      </option>
+                    ))}
+                  </select>
+                ))}
               {m.main ? (
                 <Button variant="secondary" size="sm" onClick={() => setEditing({ kind: 'edit', member: m, main: m.main! })} aria-label={`${EDITOR.edit} ${m.main.name}`}>
                   {EDITOR.edit}
@@ -126,7 +159,7 @@ export function RosterEditor({ members }: Props) {
       <Modal open={editing !== null} onClose={() => setEditing(null)} title={editing?.kind === 'add' ? `${EDITOR.addTitle} · ${editing.member.discordName}` : EDITOR.editTitle}>
         {editing && (
           <CharacterForm
-            initial={editing.kind === 'edit' ? editing.main : emptyCharacter()}
+            initial={editing.kind === 'edit' ? editing.main : { ...emptyCharacter(), rank: editing.member.rank }}
             submitLabel={editing.kind === 'add' ? EDITOR.create : EDITOR.save}
             onSubmit={save}
             onCancel={() => setEditing(null)}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countActiveFilters, EMPTY_FILTERS, filterRoster, formatAttendance, groupRoster, sortRoster, type RosterRow } from './roster';
+import { countActiveFilters, EMPTY_FILTERS, filterRoster, formatAttendance, groupRoster, NO_MAIN_GROUP, sortRoster, type RosterRow } from './roster';
 
 const row = (name: string, extra: Partial<RosterRow> = {}): RosterRow => ({
   id: name,
@@ -85,4 +85,19 @@ it('formats attendance', () => {
   expect(formatAttendance(0.946)).toBe('95%');
   expect(formatAttendance(0)).toBe('0%');
   expect(formatAttendance(null)).toBe('—');
+});
+
+describe('members without a main', () => {
+  const bare = row('Konvett', { wowClass: null, spec: null, role: null, rank: 'raider', attendance: null });
+  it('are left out of class and role filters but kept otherwise', () => {
+    expect(filterRoster([...ROWS, bare], { ...EMPTY_FILTERS, classes: ['warrior'] }).map((r) => r.name)).toEqual(['Ledgerline']);
+    expect(filterRoster([...ROWS, bare], { ...EMPTY_FILTERS, roles: ['tank'] }).map((r) => r.name)).toEqual(['Ledgerline']);
+    expect(filterRoster([...ROWS, bare], { ...EMPTY_FILTERS, rank: 'raider' }).map((r) => r.name)).toEqual(['Binder', 'Konvett']);
+  });
+  it('gather in a last group under by-role and by-class', () => {
+    const label = (x: string) => x.toUpperCase();
+    expect(groupRoster([...ROWS, bare], 'role', label, label).map((g) => g.label)).toEqual(['TANK', 'HEALER', 'RANGED', NO_MAIN_GROUP]);
+    expect(groupRoster([...ROWS, bare], 'class', label, label).at(-1)?.rows.map((r) => r.name)).toEqual(['Konvett']);
+    expect(groupRoster(ROWS, 'class', label, label).map((g) => g.label)).not.toContain(NO_MAIN_GROUP);
+  });
 });

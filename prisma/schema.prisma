@@ -106,6 +106,16 @@ model User {
   discordName  String
   avatarUrl    String?
   role         Role          @default(SOCIAL)
+  /// Roster rank. Follows the Discord Raider / Trial / Officer roles and the web roster editor,
+  /// whichever wrote last; the main character's rank mirrors it (docs/04 § Roster).
+  rank         Rank          @default(SOCIAL)
+  /// Holds Guild Member or Officer in Discord. Only these appear on the roster.
+  inGuild      Boolean       @default(false)
+  /// Set when a raider application is accepted; the two-week check-in in #officer-chat reads it.
+  trialStartedAt DateTime?
+  trialNudgedAt  DateTime?
+  /// Last time the bot's member snapshot touched this row.
+  discordSyncedAt DateTime?
   /// IANA zone the member chose; overrides browser detection (docs/01 § Time).
   timezone     String?
   characters   Character[]
