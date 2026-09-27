@@ -42,6 +42,11 @@ describe('two-part names', () => {
     expect(fullName('red', 'TAPE')).toBe('Red Tape');
     expect(fullName(' Red ', '')).toBe('Red');
     expect(fullName('R', 'Tape')).toBeNull();
+    expect(fullName('Red', '  ')).toBe('Red');
+    expect(fullName('ÿves', '')).toBeNull(); // capitalised Ÿ leaves the letter block
+    expect(fullName('ßabcdefghijk', '')).toBeNull(); // SS makes it thirteen letters
+    expect(fullName('A\u030angstrom', '')).toBe('Ångstrom'); // decomposed input is composed first
+    expect(splitName('')).toEqual({ first: '', second: '' });
     expect(fullName('Red', 'Tapeisfartoolong')).toBeNull();
     expect(splitName('Red Tape')).toEqual({ first: 'Red', second: 'Tape' });
     expect(splitName('Redtape')).toEqual({ first: 'Redtape', second: '' });
@@ -51,5 +56,7 @@ describe('two-part names', () => {
     const good = { firstName: 'red', secondName: 'tape', wowClass: 'priest', spec: 'Holy', role: 'healer', rank: 'raider' };
     expect(parseCharacterInput(good)).toMatchObject({ ok: true, value: { name: 'Red Tape' } });
     expect(parseCharacterInput({ ...good, secondName: 'x' })).toMatchObject({ ok: false });
+    expect(parseCharacterInput({ ...good, name: 'Other Name' })).toMatchObject({ ok: true, value: { name: 'Red Tape' } }); // the parts win
+    expect(parseCharacterInput({ ...good, firstName: undefined, secondName: undefined, name: 'Red  Tape' })).toMatchObject({ ok: true, value: { name: 'Red Tape' } });
   });
 });

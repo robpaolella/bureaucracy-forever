@@ -19,7 +19,7 @@ export const EDITOR = {
   secondName: 'Second name',
   namePlaceholder: 'Red',
   secondNamePlaceholder: 'Tape',
-  nameHint: 'Two names, 2 to 12 letters each, as on WoW Forever.',
+  nameHint: 'First name, and a second name if the character has one, 2 to 12 letters each.',
   wowClass: 'Class',
   spec: 'Spec',
   role: 'Raid role',

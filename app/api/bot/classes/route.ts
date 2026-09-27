@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { CLASS_COLORS, CLASSES, ROLE_LABELS, SPECS } from '@/lib/design/class-colors';
-import { authorizeBot, NO_STORE } from '../_lib';
+import { authorizeBot } from '../_lib';
 
 /**
  * GET /api/bot/classes — every class with its specs and the raid roles each spec can fill
@@ -15,6 +15,6 @@ export function GET(request: Request) {
       roles: ROLE_LABELS,
       classes: CLASSES.map((key) => ({ key, label: CLASS_COLORS[key].label, specs: SPECS[key].map((s) => ({ name: s.name, roles: s.roles })) })),
     },
-    { headers: { ...NO_STORE, 'Cache-Control': 'private, max-age=3600' } },
+    { headers: { 'Cache-Control': 'private, max-age=3600' } },
   );
 }

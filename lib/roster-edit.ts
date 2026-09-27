@@ -27,22 +27,27 @@ export type ParsedCharacter = { ok: true; value: CharacterInput } | { ok: false;
  */
 export const NAME_PART = /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,12}$/;
 export const NAME_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,12}( [A-Za-zÀ-ÖØ-öø-ÿ]{2,12})?$/;
-export const NAME_ERROR = 'Character names are a first and a second name, 2 to 12 letters each.';
+export const NAME_ERROR = 'Character names are a first name, and a second name if the character has one, 2 to 12 letters each.';
 
 export function normaliseName(raw: string): string {
   return raw
+    .normalize('NFC')
     .trim()
     .split(/\s+/)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ');
 }
 
-/** "First Second" from the two parts; the second may be empty. Null when either part is not a name. */
+/**
+ * "First Second" from the two parts; the second may be empty. Null when either part is not a
+ * name. The pattern is tested on the normalised form, since capitalising can leave the
+ * Latin-1 block (ÿ → Ÿ) or lengthen a name (ß → SS).
+ */
 export function fullName(first: string, second: string): string | null {
-  const a = first.trim();
-  const b = second.trim();
+  const a = normaliseName(first);
+  const b = normaliseName(second);
   if (!NAME_PART.test(a) || (b && !NAME_PART.test(b))) return null;
-  return normaliseName(b ? `${a} ${b}` : a);
+  return b ? `${a} ${b}` : a;
 }
 
 /** The two parts of a stored name, for the form. */
@@ -63,7 +68,12 @@ export function rolesFor(wowClass: WowClass, spec: string): Role[] {
 export function parseCharacterInput(body: unknown): ParsedCharacter {
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
   // Either the joined name or the two parts; the parts win when both are sent.
-  const joined = typeof b.firstName === 'string' ? fullName(b.firstName, typeof b.secondName === 'string' ? b.secondName : '') : typeof b.name === 'string' && NAME_PATTERN.test(b.name.trim()) ? normaliseName(b.name) : null;
+  const joined =
+    typeof b.firstName === 'string'
+      ? fullName(b.firstName, typeof b.secondName === 'string' ? b.secondName : '')
+      : typeof b.name === 'string' && NAME_PATTERN.test(normaliseName(b.name))
+        ? normaliseName(b.name)
+        : null;
   if (!joined) return { ok: false, error: NAME_ERROR };
   const name = joined;
 
