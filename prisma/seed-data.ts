@@ -247,3 +247,23 @@ export function buildApplications(): SeedApplication[] {
   );
   return apps;
 }
+
+export type SeedTemplate = { name: string; short: string; size: number; durationMin: number; requirements: { tank: number; healer: number; melee: number; ranged: number } };
+
+/**
+ * SYNC-SPEC §3: the Classic tiers. TODO: confirm sizes, lengths and role splits with the
+ * officers before launch; these are the spec's numbers, order tank/healer/melee/ranged.
+ */
+export function buildRaidTemplates(): SeedTemplate[] {
+  const forty = { tank: 4, healer: 12, melee: 10, ranged: 14 };
+  const twenty = { tank: 2, healer: 6, melee: 5, ranged: 7 };
+  return [
+    { name: 'Molten Core', short: 'MC', size: 40, durationMin: 180, requirements: forty },
+    { name: "Onyxia's Lair", short: 'Ony', size: 40, durationMin: 60, requirements: { tank: 3, healer: 12, melee: 11, ranged: 14 } },
+    { name: 'Blackwing Lair', short: 'BWL', size: 40, durationMin: 180, requirements: forty },
+    { name: "Zul'Gurub", short: 'ZG', size: 20, durationMin: 120, requirements: twenty },
+    { name: "Ruins of Ahn'Qiraj", short: 'AQ20', size: 20, durationMin: 120, requirements: twenty },
+    { name: "Temple of Ahn'Qiraj", short: 'AQ40', size: 40, durationMin: 240, requirements: forty },
+    { name: 'Naxxramas', short: 'Naxx', size: 40, durationMin: 240, requirements: forty },
+  ];
+}

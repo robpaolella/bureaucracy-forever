@@ -63,7 +63,9 @@ export default async function RaidDetailPage({ params }: Params) {
   if (!raid) notFound();
 
   const now = new Date();
-  const rows: SignupRow[] = raid.signups.map((s) => {
+  // Roster rows that have not answered yet (response null) are not listed here yet; the
+  // "Hasn't answered" card arrives with the sync's raid detail (SYNC-SPEC §9.5).
+  const rows: SignupRow[] = raid.signups.filter((s) => s.response !== null).map((s) => {
     const main = s.user.characters[0];
     return {
       userId: s.userId,
@@ -71,7 +73,7 @@ export default async function RaidDetailPage({ params }: Params) {
       wowClass: (main?.class.toLowerCase() as WowClass | undefined) ?? null,
       spec: main?.spec ?? null,
       role: (main?.raidRole.toLowerCase() as Role | undefined) ?? null,
-      response: s.response.toLowerCase() as RaidResponse,
+      response: s.response!.toLowerCase() as RaidResponse,
       source: s.source.toLowerCase() as 'web' | 'discord',
       reason: s.reason,
       setBy: s.setBy ? s.setBy.characters[0]?.name ?? s.setBy.discordName : null,
@@ -88,7 +90,7 @@ export default async function RaidDetailPage({ params }: Params) {
     cancelled: raid.cancelledAt !== null,
     requirements: parseRequirements(raid.requirements),
     counts: countAccepted(rows),
-    mine: (mine?.response.toLowerCase() as RaidResponse | undefined) ?? null,
+    mine: (mine?.response?.toLowerCase() as RaidResponse | undefined) ?? null,
   };
   const past = !isUpcoming(card, now);
   const memberOptions: MemberOption[] = members

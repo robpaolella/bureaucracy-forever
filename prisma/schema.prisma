@@ -79,6 +79,27 @@ enum NeedStatus {
   CLOSED
 }
 
+/// Sign-up rules, SYNC-SPEC §7: the roster is derived from rank; anyone else who answers is on the bench.
+enum Standing {
+  ROSTER
+  BENCH
+}
+
+/// SYNC-SPEC §3/§6: SCHEDULED until locksAt, LOCKED until an hour after the night, then DONE.
+enum RaidStatus {
+  SCHEDULED
+  LOCKED
+  DONE
+  CANCELLED
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
 model User {
   id           String        @id @default(cuid())
   discordId    String        @unique
@@ -126,73 +147,148 @@ model Availability {
   updatedAt DateTime @updatedAt
 }
 
+/// One raid tier, SYNC-SPEC §3. Seeded with the Classic tiers; officers edit on /officers/raids.
+model RaidTemplate {
+  id           String       @id @default(cuid())
+  name         String       @unique
+  /// "MC": calendar chips and Discord post titles.
+  short        String
+  size         Int
+  durationMin  Int          @default(180)
+  /// { tank, healer, melee, ranged } — sums to size.
+  requirements Json
+  active       Boolean      @default(true)
+  series       RaidSeries[]
+  raids        Raid[]
+}
+
+/// A weekly slot in guild time. tick (SYNC-SPEC §6) turns it into Raid rows horizonWeeks ahead.
+model RaidSeries {
+  id                String       @id @default(cuid())
+  templateId        String
+  template          RaidTemplate @relation(fields: [templateId], references: [id])
+  /// 0 = Sunday … 6 = Saturday, in GUILD_TZ.
+  weekday           Int
+  /// "20:00", wall clock in GUILD_TZ. Not UTC: this is what keeps 8 PM at 8 PM across DST.
+  startTime         String
+  durationMin       Int
+  notes             String?
+  postAheadDays     Int          @default(14)
+  lockMinutesBefore Int          @default(120)
+  horizonWeeks      Int          @default(4)
+  active            Boolean      @default(true)
+  /// The officer who made it; a plain id, not a relation, so the series outlives the account.
+  createdById       String
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  raids             Raid[]
+}
+
 model Raid {
-  id             String    @id @default(cuid())
-  name           String
+  id               String        @id @default(cuid())
+  name             String
   /// Absolute instant; render twice per viewer (guild zone and theirs).
-  startsAt       DateTime
-  durationMin    Int       @default(180)
-  notes          String?
-  /// Links to the bot's Discord scheduled event.
-  discordEventId String?
-  cancelledAt    DateTime?
+  startsAt         DateTime
+  durationMin      Int           @default(180)
+  notes            String?
+  /// Legacy: a Discord scheduled event id. Nullable, unused; do not build on it (SYNC-SPEC §3).
+  discordEventId   String?       @unique
+  cancelledAt      DateTime?
   /// { tank: 2, healer: 8, melee: 11, ranged: 14 }
-  requirements   Json
-  signups        Signup[]
+  requirements     Json
+  signups          Signup[]
+  templateId       String?
+  template         RaidTemplate? @relation(fields: [templateId], references: [id])
+  seriesId         String?
+  series           RaidSeries?   @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  /// Edited individually; series edits skip it.
+  detached         Boolean       @default(false)
+  status           RaidStatus    @default(SCHEDULED)
+  /// startsAt − lockMinutesBefore. Members cannot answer after this (SYNC-SPEC §7).
+  locksAt          DateTime
+  lockedAt         DateTime?
+  /// The #raid-signups forum post and its starter message.
+  discordThreadId  String?       @unique
+  discordMessageId String?
+  postedAt         DateTime?
+  /// Set when each reminder was enqueued.
+  remind72At       DateTime?
+  remind24At       DateTime?
+  /// Optimistic concurrency for officer edits.
+  updatedAt        DateTime      @updatedAt
 
   @@index([startsAt])
+  @@index([status, locksAt])
 }
 
 model Signup {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   raidId      String
-  raid        Raid     @relation(fields: [raidId], references: [id], onDelete: Cascade)
+  raid        Raid      @relation(fields: [raidId], references: [id], onDelete: Cascade)
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  response    Response
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Null while a roster member has not answered yet (SYNC-SPEC §3).
+  response    Response?
+  standing    Standing  @default(ROSTER)
+  /// Set by officers after the raid.
+  attended    Boolean?
   source      Source
   /// Optional, for ABSENT.
   reason      String?
   /// An officer answering on someone's behalf. Nulled if that account is removed.
   setByUserId String?
-  setBy       User?    @relation("signupSetBy", fields: [setByUserId], references: [id], onDelete: SetNull)
-  updatedAt   DateTime @updatedAt
+  setBy       User?     @relation("signupSetBy", fields: [setByUserId], references: [id], onDelete: SetNull)
+  updatedAt   DateTime  @updatedAt
 
   @@unique([raidId, userId])
 }
 
 model Application {
-  id              String        @id @default(cuid())
-  path            AppPath
-  status          AppStatus     @default(PENDING)
-  discordId       String
-  discordName     String
-  character       String
-  class           WowClass?
-  spec            String?
-  logsUrl         String?
+  id               String        @id @default(cuid())
+  path             AppPath
+  status           AppStatus     @default(PENDING)
+  discordId        String
+  discordName      String
+  character        String
+  class            WowClass?
+  spec             String?
+  logsUrl          String?
   /// { questionKey: answer }
-  answers         Json
+  answers          Json
   /// Drives the unread dot in the inbox.
-  readAt          DateTime?
-  decidedAt       DateTime?
-  decidedByUserId String?
-  decidedBy       User?         @relation("applicationDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
-  notes           OfficerNote[]
-  createdAt       DateTime      @default(now())
+  readAt           DateTime?
+  decidedAt        DateTime?
+  decidedByUserId  String?
+  decidedBy        User?         @relation("applicationDecidedBy", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+  notes            OfficerNote[]
+  createdAt        DateTime      @default(now())
+  /// Intake is web-only; kept for symmetry with Signup and OfficerNote.
+  source           Source        @default(WEB)
+  /// The #applications forum post and its starter message.
+  discordThreadId  String?       @unique
+  discordMessageId String?
+  reopenedAt       DateTime?
+  /// The 24 h pending nudge was sent.
+  nudgedAt         DateTime?
 
   @@index([status, createdAt])
 }
 
 /// Private to officers. Never exposed on any applicant-facing surface.
 model OfficerNote {
-  id            String      @id @default(cuid())
-  applicationId String
-  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  authorId      String
-  author        User        @relation("noteAuthor", fields: [authorId], references: [id])
-  body          String
-  createdAt     DateTime    @default(now())
+  id               String      @id @default(cuid())
+  applicationId    String
+  application      Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  authorId         String
+  author           User        @relation("noteAuthor", fields: [authorId], references: [id])
+  body             String
+  createdAt        DateTime    @default(now())
+  source           Source      @default(WEB)
+  /// Discord-origin: the thread message this note IS. Web-origin: the mirror the bot posted.
+  discordMessageId String?     @unique
+  editedAt         DateTime?
+  /// Soft delete: hidden on the web, deleted in Discord.
+  deletedAt        DateTime?
 
   @@index([applicationId])
 }
@@ -209,4 +305,30 @@ model ClassNeed {
   updatedAt DateTime   @updatedAt
 
   @@unique([class, spec])
+}
+
+/// Work for the bot (SYNC-SPEC §5). The site writes; the bot polls, runs, acks.
+model OutboxJob {
+  id        String    @id @default(cuid())
+  type      String
+  payload   Json
+  status    JobStatus @default(PENDING)
+  attempts  Int       @default(0)
+  /// Backoff: PENDING jobs are handed out only once this has passed.
+  runAfter  DateTime  @default(now())
+  lockedAt  DateTime?
+  lastError String?
+  /// What the bot reported on ack.
+  result    Json?
+  createdAt DateTime  @default(now())
+
+  @@index([status, runAfter])
+}
+
+/// Replay protection for bot writes: the Idempotency-Key and the response it first got.
+model BotRequest {
+  key        String   @id
+  statusCode Int
+  body       Json
+  createdAt  DateTime @default(now())
 }

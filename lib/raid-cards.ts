@@ -24,7 +24,7 @@ export async function loadRaidCards(since: Date, viewerDiscordId: string | null)
   });
   return raids.map((r) => {
     const signups = r.signups.map((s) => ({
-      response: s.response.toLowerCase() as RaidResponse,
+      response: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null,
       role: (s.user.characters[0]?.raidRole.toLowerCase() as Role | undefined) ?? null,
       mine: viewerDiscordId !== null && s.user.discordId === viewerDiscordId,
     }));

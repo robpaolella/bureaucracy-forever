@@ -39,8 +39,8 @@ export function parseRequirements(value: unknown): RoleCounts {
   return { tank: n('tank'), healer: n('healer'), melee: n('melee'), ranged: n('ranged') };
 }
 
-/** Accepted sign-ups per role. Members without a main have no role and are not counted. */
-export function countAccepted(signups: { response: RaidResponse; role: Role | null }[]): RoleCounts {
+/** Accepted sign-ups per role. Members without a main have no role and are not counted; an unanswered row (null) counts nothing. */
+export function countAccepted(signups: { response: RaidResponse | null; role: Role | null }[]): RoleCounts {
   const counts = { ...ZERO_COUNTS };
   for (const s of signups) if (s.response === 'accept' && s.role) counts[s.role] += 1;
   return counts;
@@ -180,6 +180,13 @@ export const RAID_NAME_MAX = 80;
 export const RAID_NOTES_MAX = 500;
 export const DURATIONS = [90, 120, 150, 180, 210, 240, 270, 300, 330, 360] as const;
 export const DEFAULT_REQUIREMENTS: RoleCounts = { tank: 2, healer: 8, melee: 9, ranged: 11 };
+
+/** SYNC-SPEC §3: sign-ups close this long before the start unless a series says otherwise. */
+export const DEFAULT_LOCK_MINUTES = 120;
+
+export function locksAtFor(startsAt: Date, lockMinutesBefore = DEFAULT_LOCK_MINUTES): Date {
+  return new Date(startsAt.getTime() - lockMinutesBefore * 60_000);
+}
 
 export type ParsedRaid = { ok: true; value: RaidInput; startsAt: Date } | { ok: false; error: string };
 

@@ -21,6 +21,16 @@ export const NOINDEX_HEADER = ['X-Robots-Tag', 'noindex, nofollow'] as const;
 /** Member-area routes that need at least `member`; everything else under /members admits socials. */
 const MEMBER_ONLY = [/^\/members\/availability(\/|$)/];
 
+/**
+ * SYNC-SPEC §2: the bot's bearer secret is honoured only under /api/bot. A bearer header
+ * anywhere else is refused outright so the secret can never be replayed against a route
+ * that was not written for it.
+ */
+export function rejectsBearer(pathname: string, authorization: string | null): boolean {
+  if (!authorization || !/^Bearer\s/i.test(authorization)) return false;
+  return !/^\/api\/bot(\/|$)/.test(pathname);
+}
+
 export function isGatedPath(pathname: string): boolean {
   return /^\/(members|officers)(\/|$)/.test(pathname);
 }

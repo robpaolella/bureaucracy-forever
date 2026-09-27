@@ -1,7 +1,6 @@
-import { after, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { parseDecision } from '@/lib/applications-decide';
-import { applicantDiscordId } from '@/lib/bot-events';
-import { notifyBot } from '@/lib/bot-notify';
+import { decideApplication } from '@/lib/decisions';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/session';
 import { ensureUser } from '@/lib/users';
@@ -36,15 +35,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   const officer = await ensureUser(session);
-  // Only a still-pending row is decided: two officers clicking at once cannot both win.
-  const decided = await db.application.updateMany({
-    where: { id: app.id, status: 'PENDING' },
-    data: { status: parsed.value.status === 'accepted' ? 'ACCEPTED' : 'DECLINED', decidedAt: new Date(), decidedByUserId: officer.id, readAt: new Date() },
-  });
-  if (decided.count === 0) return NextResponse.json({ error: 'This application was already decided.' }, { status: 409, headers: NO_STORE });
-  const status = parsed.value.status;
-  after(() =>
-    notifyBot({ type: 'application.decided', applicationId: app.id, status, path: app.path === 'SOCIAL' ? 'social' : 'raider', character: app.character, discordId: applicantDiscordId(app.discordId), discordName: app.discordName }),
-  );
-  return NextResponse.json({ id: app.id, status }, { headers: NO_STORE });
+  const outcome = await decideApplication(app.id, parsed.value.status, { userId: officer.id, name: session.name, source: 'web' });
+  if (outcome === 'conflict') return NextResponse.json({ error: 'This application was already decided.' }, { status: 409, headers: NO_STORE });
+  if (outcome === 'missing') return NextResponse.json({ error: 'No such application.' }, { status: 404, headers: NO_STORE });
+  return NextResponse.json({ id: app.id, status: parsed.value.status }, { headers: NO_STORE });
 }

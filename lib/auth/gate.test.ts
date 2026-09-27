@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { rejectsBearer } from './gate';
 import { gateDecision, isGatedPath } from './gate';
 
 describe('isGatedPath', () => {
@@ -49,5 +50,17 @@ describe('gateDecision', () => {
   it('does not treat look-alike paths as gated sub-areas', () => {
     expect(gateDecision('/members/officers-notes', '', 'member')).toEqual({ kind: 'next' });
     expect(gateDecision('/members/availability-history', '', 'social')).toEqual({ kind: 'next' });
+  });
+});
+
+describe('rejectsBearer', () => {
+  it('refuses a bearer header anywhere but the bot routes', () => {
+    expect(rejectsBearer('/api/bot/tick', 'Bearer x')).toBe(false);
+    expect(rejectsBearer('/api/bot', 'Bearer x')).toBe(false);
+    expect(rejectsBearer('/api/raids', 'Bearer x')).toBe(true);
+    expect(rejectsBearer('/api/botnet', 'Bearer x')).toBe(true);
+    expect(rejectsBearer('/members/roster', 'bearer x')).toBe(true);
+    expect(rejectsBearer('/api/raids', null)).toBe(false);
+    expect(rejectsBearer('/api/raids', 'Basic x')).toBe(false);
   });
 });

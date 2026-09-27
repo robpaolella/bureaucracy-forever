@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { gateDecision, NOINDEX_HEADER } from '@/lib/auth/gate';
+import { gateDecision, NOINDEX_HEADER, rejectsBearer } from '@/lib/auth/gate';
 import { DEV_SESSION_COOKIE, devSessionFromCookie } from '@/lib/dev-session';
 import type { Role } from '@/lib/session';
 
@@ -11,6 +11,12 @@ import type { Role } from '@/lib/session';
  */
 export default auth((req) => {
   const { pathname, search } = req.nextUrl;
+
+  // The bot's shared secret only opens /api/bot/* (SYNC-SPEC §2).
+  if (rejectsBearer(pathname, req.headers.get('authorization'))) {
+    return NextResponse.json({ error: 'Unauthorised.' }, { status: 401 });
+  }
+  if (pathname.startsWith('/api/')) return NextResponse.next();
 
   // A real login wins; the dev stub only applies when nobody is logged in (same as getSession).
   let role: Role | null = req.auth?.user?.role ?? null;
@@ -35,5 +41,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ['/members/:path*', '/officers/:path*'],
+  matcher: ['/members/:path*', '/officers/:path*', '/api/:path*'],
 };
