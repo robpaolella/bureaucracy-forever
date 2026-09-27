@@ -10,26 +10,30 @@ import { rankRoleIdsFromEnv, roleChangesForRank } from '@/lib/rank-rules';
  * main character mirrors it, and the Discord Raider / Trial / Social roles follow through
  * member.roles.sync. Officer is never touched. A no-op when the rank is already that.
  */
-export async function setRankFromWeb(userId: string, rank: Rank): Promise<{ changed: boolean }> {
+export type RankWrite = 'changed' | 'unchanged' | 'officer' | 'missing';
+
+export async function setRankFromWeb(userId: string, rank: Rank): Promise<RankWrite> {
   const user = await db.user.findUnique({ where: { id: userId }, select: { discordId: true, rank: true } });
-  if (!user) return { changed: false };
-  if (user.rank === rank) return { changed: false };
-  await db.$transaction([
-    db.user.update({ where: { id: userId }, data: { rank, trialStartedAt: rank === 'TRIAL' ? new Date() : null, trialNudgedAt: null } }),
-    db.character.updateMany({ where: { userId, isMain: true }, data: { rank } }),
-  ]);
-  await pushRankRoles(user.discordId, rank);
-  return { changed: true };
+  if (!user) return 'missing';
+  if (user.rank === rank) return 'unchanged';
+  // Officer comes from the Discord Officer role alone (§9.6): neither granted nor taken away here.
+  if (rank === 'OFFICER' || user.rank === 'OFFICER') return 'officer';
+  // The job is written with the rank, so a failure leaves neither a rank without its roles nor the reverse.
+  await db.$transaction(async (tx) => {
+    await tx.user.update({ where: { id: userId }, data: { rank, trialStartedAt: rank === 'TRIAL' ? new Date() : null, trialNudgedAt: null } });
+    await tx.character.updateMany({ where: { userId, isMain: true }, data: { rank } });
+    const changes = rankRoleChanges(rank);
+    if (changes) await enqueue('member.roles.sync', { discordId: user.discordId, ...changes }, tx);
+  });
+  return 'changed';
 }
 
-/** Queue the Discord side of a rank, if the role ids are configured. */
-export async function pushRankRoles(discordId: string, rank: Rank): Promise<void> {
-  let changes;
+/** The Discord side of a rank, or null when the role ids are not configured or nothing would change. */
+function rankRoleChanges(rank: Rank): { add: string[]; remove: string[] } | null {
   try {
-    changes = roleChangesForRank(rank, rankRoleIdsFromEnv());
+    const changes = roleChangesForRank(rank, rankRoleIdsFromEnv());
+    return changes.add.length || changes.remove.length ? changes : null;
   } catch {
-    return;
+    return null;
   }
-  if (changes.add.length === 0 && changes.remove.length === 0) return;
-  await enqueue('member.roles.sync', { discordId, ...changes });
 }

@@ -20,42 +20,53 @@ export async function decideApplication(id: string, status: DecisionStatus, by: 
   if (!app) return 'missing';
   if (app.status !== 'PENDING') return 'conflict';
   const now = new Date();
-  const decided = await db.application.updateMany({
-    where: { id: app.id, status: 'PENDING' },
-    data: { status: status === 'accepted' ? 'ACCEPTED' : 'DECLINED', decidedAt: now, decidedByUserId: by.userId, readAt: now },
-  });
-  if (decided.count === 0) return 'conflict';
   const path = app.path === 'SOCIAL' ? 'social' : 'raider';
-  // Accepting puts them on the site's roster at once: a trial for the raider path, social
-  // otherwise. The Discord roles travel with the decide job (SYNC-SPEC §5).
   let roles: { add: string[]; remove: string[] } | null = null;
-  if (status === 'accepted' && app.discordId) {
-    const rank = path === 'raider' ? 'TRIAL' : 'SOCIAL';
-    await db.user.upsert({
-      where: { discordId: app.discordId },
-      create: { discordId: app.discordId, discordName: app.discordName, role: 'MEMBER', rank, inGuild: true, trialStartedAt: rank === 'TRIAL' ? now : null },
-      update: { role: 'MEMBER', rank, inGuild: true, trialStartedAt: rank === 'TRIAL' ? now : null, trialNudgedAt: null },
-    });
+  if (status === 'accepted') {
     try {
       roles = roleChangesForAccept(path, rankRoleIdsFromEnv());
     } catch {
       roles = null;
     }
   }
-  await enqueue('application.decide', {
-    applicationId: app.id,
-    status,
-    path,
-    roles,
-    character: app.character,
-    applicantDiscordId: app.discordId || null,
-    applicantName: app.discordName,
-    decidedBy: by.name,
-    source: by.source,
-    reason,
-    dm: decisionDm(status, app.character),
+  // Status, the member's roster row and the job land together or not at all.
+  const outcome = await db.$transaction(async (tx) => {
+    const decided = await tx.application.updateMany({
+      where: { id: app.id, status: 'PENDING' },
+      data: { status: status === 'accepted' ? 'ACCEPTED' : 'DECLINED', decidedAt: now, decidedByUserId: by.userId, readAt: now },
+    });
+    if (decided.count === 0) return 'conflict' as const;
+    // Accepting puts them on the site's roster at once: a trial for the raider path, social
+    // otherwise. The Discord roles travel with the decide job (SYNC-SPEC §5).
+    if (status === 'accepted' && app.discordId) {
+      const rank = path === 'raider' ? 'TRIAL' : 'SOCIAL';
+      await tx.user.upsert({
+        where: { discordId: app.discordId },
+        create: { discordId: app.discordId, discordName: app.discordName, role: 'MEMBER', rank, inGuild: true, trialStartedAt: rank === 'TRIAL' ? now : null },
+        update: { role: 'MEMBER', rank, inGuild: true, trialStartedAt: rank === 'TRIAL' ? now : null, trialNudgedAt: null },
+      });
+      await tx.character.updateMany({ where: { user: { discordId: app.discordId }, isMain: true }, data: { rank } });
+    }
+    await enqueue(
+      'application.decide',
+      {
+        applicationId: app.id,
+        status,
+        path,
+        roles,
+        character: app.character,
+        applicantDiscordId: app.discordId || null,
+        applicantName: app.discordName,
+        decidedBy: by.name,
+        source: by.source,
+        reason,
+        dm: decisionDm(status, app.character),
+      },
+      tx,
+    );
+    return 'decided' as const;
   });
-  return 'decided';
+  return outcome;
 }
 
 /** Reopen a decided application (SYNC-SPEC §4 /reopen). 'conflict' when it is already pending. */

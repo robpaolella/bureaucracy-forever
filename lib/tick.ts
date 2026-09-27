@@ -8,6 +8,7 @@ import { instanceName, isRosterRank, missingOccurrences, occurrences } from '@/l
 import { trialCheckInDue, TRIAL_DAYS } from '@/lib/rank-rules';
 import { dueForClose, dueForLock, dueForNudge, dueForPost, HOUR_MS, reminderDue } from '@/lib/tick-rules';
 import { SITE_URL } from '@/lib/config';
+import { TRIAL_CHECK_IN } from '@/content/roster-editor';
 
 const RECONCILE_MARKER = 'tick:reconcile';
 /** DONE and FAILED jobs and idempotency keys older than this are trimmed by the hourly reconcile. */
@@ -161,7 +162,7 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
     const who = t.characters[0]?.name ?? t.discordName;
     await db.$transaction(async (tx) => {
       await tx.user.update({ where: { id: t.id }, data: { trialNudgedAt: now } });
-      await enqueue('officers.notify', { text: `${who}'s trial started ${TRIAL_DAYS} days ago. Extend it or end it on the roster editor: ${SITE_URL}/officers/roster (Raider keeps them, Social ends it).`, trialUserId: t.id }, tx);
+      await enqueue('officers.notify', { text: TRIAL_CHECK_IN(who, TRIAL_DAYS, `${SITE_URL}/officers/roster`), trialUserId: t.id }, tx);
     });
     counts.trialsRaised += 1;
   }

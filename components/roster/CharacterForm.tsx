@@ -55,7 +55,11 @@ export function CharacterForm({ initial, submitLabel, onSubmit, onCancel, onRemo
         <Select label={EDITOR.wowClass} options={CLASSES.map((c) => ({ value: c, label: CLASS_COLORS[c].label }))} value={input.wowClass} onChange={(e) => update({ wowClass: e.target.value as WowClass })} />
         <Select label={EDITOR.spec} options={specsFor(input.wowClass).map((s) => ({ value: s, label: s }))} value={input.spec} onChange={(e) => update({ spec: e.target.value })} />
         <Select label={EDITOR.role} options={roles.map((r) => ({ value: r, label: ROLE_LABELS[r] }))} value={input.role} disabled={roles.length < 2} onChange={(e) => update({ role: e.target.value as CharacterInput['role'] })} />
-        <Select label={EDITOR.rank} options={RANKS.map((r) => ({ value: r, label: RANK_LABEL[r] }))} value={input.rank} onChange={(e) => update({ rank: e.target.value as CharacterInput['rank'] })} />
+        {initial.rank === 'officer' ? (
+          <Select label={EDITOR.rank} options={[{ value: 'officer', label: RANK_LABEL.officer }]} value="officer" disabled hint={EDITOR.officerRank} onChange={() => undefined} />
+        ) : (
+          <Select label={EDITOR.rank} options={RANKS.filter((r) => r !== 'officer').map((r) => ({ value: r, label: RANK_LABEL[r] }))} value={input.rank} onChange={(e) => update({ rank: e.target.value as CharacterInput['rank'] })} />
+        )}
       </div>
       {error && (
         <p role="alert" className="text-sm text-stop">

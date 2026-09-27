@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Prisma } from '@/lib/generated/prisma/client';
 import { setRankFromWeb } from '@/lib/roles-sync';
+import { OFFICER_RANK_ERROR } from '@/content/roster-editor';
 import { parseCharacterInput } from '@/lib/roster-edit';
 import { getSession } from '@/lib/session';
 import { toPrismaCharacter } from './fields';
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
   if (!userId) return NextResponse.json({ error: 'Pick a member.' }, { status: 400, headers: NO_STORE });
   const parsed = parseCharacterInput(b);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400, headers: NO_STORE });
+  if (parsed.value.rank === 'officer') return NextResponse.json({ error: OFFICER_RANK_ERROR }, { status: 400, headers: NO_STORE });
 
   try {
     // Check and create in one serializable transaction so two officers cannot both give
@@ -39,8 +41,10 @@ export async function POST(request: Request) {
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
     if ('error' in outcome) return NextResponse.json({ error: outcome.error }, { status: outcome.status, headers: NO_STORE });
-    // The character's rank field mirrors the user's; the user's is what the roster and the Discord roles follow.
-    await setRankFromWeb(userId, parsed.value.rank.toUpperCase() as Uppercase<typeof parsed.value.rank>);
+    // The character's rank field mirrors the user's; the user's is what the roster and the Discord
+    // roles follow. An officer keeps OFFICER whatever the form said; the main mirrors that.
+    const wrote = await setRankFromWeb(userId, parsed.value.rank.toUpperCase() as Uppercase<typeof parsed.value.rank>);
+    if (wrote === 'officer') await db.character.updateMany({ where: { userId, isMain: true }, data: { rank: 'OFFICER' } });
     return NextResponse.json(outcome.created, { status: 201, headers: NO_STORE });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {

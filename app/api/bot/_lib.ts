@@ -33,6 +33,6 @@ export const str = (v: unknown, max = 2000): string | null => (typeof v === 'str
 export async function userByDiscordId(discordId: string) {
   return db.user.findUnique({
     where: { discordId },
-    select: { id: true, discordName: true, role: true, rank: true, inGuild: true, characters: { where: { isMain: true }, take: 1, select: { name: true, class: true, spec: true, raidRole: true, rank: true } } },
+    select: { id: true, discordName: true, role: true, rank: true, inGuild: true, characters: { where: { isMain: true }, take: 1, select: { name: true, class: true, spec: true, raidRole: true } } },
   });
 }

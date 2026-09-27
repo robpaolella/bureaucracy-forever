@@ -134,7 +134,7 @@ export function RosterEditor({ members }: Props) {
                 (m.rank === 'officer' ? (
                   <span className="text-small text-fg-3">{EDITOR.officerRank}</span>
                 ) : (
-                  <select aria-label={EDITOR.rankFor(m.discordName)} value={m.rank} disabled={ranking === m.userId} onChange={(e) => setRank(m, e.target.value as Rank)} className={cn(CONTROL, 'h-11 w-[120px] px-2 text-sm')}>
+                  <select aria-label={EDITOR.rankFor(m.discordName)} value={m.rank} disabled={ranking === m.userId} onChange={(e) => setRank(m, e.target.value as Rank)} className={cn(CONTROL, 'h-11 w-32 px-2 text-sm')}>
                     {RANKS.filter((r) => r !== 'officer').map((r) => (
                       <option key={r} value={r}>
                         {RANK_LABEL[r]}
@@ -159,7 +159,7 @@ export function RosterEditor({ members }: Props) {
       <Modal open={editing !== null} onClose={() => setEditing(null)} title={editing?.kind === 'add' ? `${EDITOR.addTitle} · ${editing.member.discordName}` : EDITOR.editTitle}>
         {editing && (
           <CharacterForm
-            initial={editing.kind === 'edit' ? editing.main : emptyCharacter()}
+            initial={editing.kind === 'edit' ? editing.main : { ...emptyCharacter(), rank: editing.member.rank }}
             submitLabel={editing.kind === 'add' ? EDITOR.create : EDITOR.save}
             onSubmit={save}
             onCancel={() => setEditing(null)}

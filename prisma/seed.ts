@@ -51,6 +51,8 @@ async function main() {
         discordId: m.discordId,
         discordName: m.name.toLowerCase(),
         role: m.role,
+        rank: m.rank,
+        inGuild: m.role !== 'SOCIAL',
         timezone: m.timezone,
         createdAt: new Date(now.getTime() - m.joinedDaysAgo * 86_400_000),
         characters: {

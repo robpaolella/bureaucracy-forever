@@ -5,6 +5,7 @@
  */
 import type { Rank } from '@/components/ui/Badges';
 import type { Role, WowClass } from '@/lib/design/class-colors';
+import { ROSTER_NO_MAIN } from '@/content/roster';
 
 export type RosterRow = {
   id: string;
@@ -85,7 +86,7 @@ export function sortRoster(rows: RosterRow[], key: RosterSortKey, dir: SortDir):
 export type RosterGroup = { key: string; label: string; rows: RosterRow[] };
 
 /** The group label for members who have no main yet, under by-role and by-class. */
-export const NO_MAIN_GROUP = 'No main yet';
+export const NO_MAIN_GROUP = ROSTER_NO_MAIN;
 
 /** Flat is one unnamed group; by role and by class follow the roster's canonical orders, skipping empty groups; members without a main come last. */
 export function groupRoster(rows: RosterRow[], by: GroupBy, classLabel: (c: WowClass) => string, roleLabel: (r: Role) => string): RosterGroup[] {

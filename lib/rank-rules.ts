@@ -23,11 +23,16 @@ export function rankRoleIdsFromEnv(env: Record<string, string | undefined> = pro
   return { officer, member, raider: env.DISCORD_ROLE_RAIDER || undefined, trial: env.DISCORD_ROLE_TRIAL || undefined, social: env.DISCORD_ROLE_SOCIAL || undefined, guest: env.DISCORD_ROLE_GUEST || undefined };
 }
 
-/** Officer beats Trial beats Raider; anyone else is Social. Only the `roles` array is consulted. */
-export function rankFromDiscordRoles(roles: readonly string[], ids: RankRoleIds): Rank {
+/**
+ * Officer beats Trial beats Raider; anyone else is Social. Only the `roles` array is consulted.
+ * Null when the Raider or Trial id is not configured: a half-configured site must not read
+ * everyone as Social and write that over the ranks it holds.
+ */
+export function rankFromDiscordRoles(roles: readonly string[], ids: RankRoleIds): Rank | null {
+  if (!ids.raider || !ids.trial) return null;
   if (roles.includes(ids.officer)) return 'OFFICER';
-  if (ids.trial && roles.includes(ids.trial)) return 'TRIAL';
-  if (ids.raider && roles.includes(ids.raider)) return 'RAIDER';
+  if (roles.includes(ids.trial)) return 'TRIAL';
+  if (roles.includes(ids.raider)) return 'RAIDER';
   return 'SOCIAL';
 }
 
@@ -79,7 +84,51 @@ export function parseSnapshotMember(v: unknown): SnapshotMember | null {
   if (typeof m.discordId !== 'string' || !/^\d{17,20}$/.test(m.discordId)) return null;
   const name = typeof m.name === 'string' && m.name.trim() ? m.name.trim().slice(0, 80) : null;
   if (!name) return null;
-  const roles = Array.isArray(m.roles) ? m.roles.filter((r): r is string => typeof r === 'string') : [];
+  // No roles array is a malformed entry, not a member with no roles: the two must not read alike.
+  if (!Array.isArray(m.roles)) return null;
+  const roles = m.roles.filter((r): r is string => typeof r === 'string');
   const avatarUrl = typeof m.avatarUrl === 'string' && /^https:\/\//.test(m.avatarUrl) ? m.avatarUrl.slice(0, 300) : null;
   return { discordId: m.discordId, name, avatarUrl, roles };
+}
+
+export type SiteRole = 'SOCIAL' | 'MEMBER' | 'OFFICER';
+export type MemberState = { role: SiteRole; inGuild: boolean; rank: Rank | null };
+
+/** What a snapshot entry says about a member: site role, guild membership, and rank when the ids allow. */
+export function memberState(m: SnapshotMember, ids: RankRoleIds): MemberState {
+  const role: SiteRole = m.roles.includes(ids.officer) ? 'OFFICER' : m.roles.includes(ids.member) ? 'MEMBER' : 'SOCIAL';
+  return { role, inGuild: inGuildFromDiscordRoles(m.roles, ids), rank: rankFromDiscordRoles(m.roles, ids) };
+}
+
+export type SyncedUser = { rank: Rank; role: SiteRole; inGuild: boolean; discordName: string; avatarUrl: string | null; trialStartedAt: Date | null };
+export type MemberUpdate = { discordName?: string; avatarUrl?: string | null; role?: SiteRole; inGuild?: boolean; rank?: Rank; trialStartedAt?: Date | null; trialNudgedAt?: null };
+
+/**
+ * The fields a snapshot changes on an existing user, or null when nothing differs. `holding`
+ * means a web write for this member is still travelling to Discord (an open roles or decide
+ * job), so the rank is left alone. Staying a trial keeps the trial clock; leaving one clears it.
+ */
+export function memberUpdate(existing: SyncedUser, m: SnapshotMember, state: MemberState, holding: boolean, now: Date): MemberUpdate | null {
+  const out: MemberUpdate = {};
+  if (existing.discordName !== m.name) out.discordName = m.name;
+  if (existing.avatarUrl !== m.avatarUrl) out.avatarUrl = m.avatarUrl;
+  if (existing.role !== state.role) out.role = state.role;
+  if (existing.inGuild !== state.inGuild) out.inGuild = state.inGuild;
+  if (state.rank !== null && !holding && existing.rank !== state.rank) {
+    out.rank = state.rank;
+    out.trialStartedAt = state.rank === 'TRIAL' ? existing.trialStartedAt ?? now : null;
+    if (state.rank !== 'TRIAL') out.trialNudgedAt = null;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/**
+ * A full snapshot marks everyone it leaves out as gone. Losing more than a quarter of the
+ * guild in one go is a broken snapshot (a half-filled cache, a wrong server), not a real
+ * exodus, so it is refused rather than acted on. Small guilds are exempt from the ratio.
+ */
+export function sweepAllowed(currentlyInGuild: number, wouldLeave: number): boolean {
+  if (wouldLeave === 0) return true;
+  if (currentlyInGuild < 8) return true;
+  return wouldLeave / currentlyInGuild <= 0.25;
 }
