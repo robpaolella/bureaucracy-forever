@@ -62,6 +62,9 @@ export function SiteHeader() {
                 <NavLink href={OFFICER_LINKS.roster.href} variant="menu">
                   {OFFICER_LINKS.roster.label}
                 </NavLink>
+                <NavLink href={OFFICER_LINKS.raids.href} variant="menu">
+                  {OFFICER_LINKS.raids.label}
+                </NavLink>
                 <NavLink href={OFFICER_LINKS.schedule.href} variant="menu">
                   {OFFICER_LINKS.schedule.label}
                 </NavLink>
