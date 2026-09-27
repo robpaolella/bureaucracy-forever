@@ -14,29 +14,32 @@ export const metadata: Metadata = {
 };
 
 /**
- * The guild roster (docs/04 § Roster): every main character with class, spec, role,
- * rank, attendance and join date. Socials may read it (docs/03 § Roles); the proxy sends
- * the logged-out to Discord. Officer editing arrives with the roster editor.
+ * The guild roster (docs/04 § Roster): everyone holding Guild Member or Officer in Discord,
+ * with their main's class, spec and role once officers add one, their rank, attendance and
+ * join date. Socials may read it (docs/03 § Roles); the proxy sends the logged-out to Discord.
  */
 export default async function RosterPage() {
   const session = await getSession();
   if (!session) notFound();
 
-  const mains = await db.character.findMany({
-    where: { isMain: true },
-    select: { id: true, name: true, class: true, spec: true, raidRole: true, rank: true, attendance: true, joinedAt: true },
-    orderBy: { name: 'asc' },
+  const users = await db.user.findMany({
+    where: { inGuild: true, role: { in: ['MEMBER', 'OFFICER'] } },
+    select: { id: true, discordName: true, rank: true, createdAt: true, characters: { where: { isMain: true }, take: 1, select: { name: true, class: true, spec: true, raidRole: true, attendance: true, joinedAt: true } } },
+    orderBy: { discordName: 'asc' },
   });
-  const rows: RosterRow[] = mains.map((c) => ({
-    id: c.id,
-    name: c.name,
-    wowClass: c.class.toLowerCase() as WowClass,
-    spec: c.spec,
-    role: c.raidRole.toLowerCase() as Role,
-    rank: c.rank.toLowerCase() as Rank,
-    attendance: c.attendance,
-    joinedAt: c.joinedAt.toISOString(),
-  }));
+  const rows: RosterRow[] = users.map((u) => {
+    const c = u.characters[0];
+    return {
+      id: u.id,
+      name: c?.name ?? u.discordName,
+      wowClass: (c?.class.toLowerCase() as WowClass | undefined) ?? null,
+      spec: c?.spec ?? null,
+      role: (c?.raidRole.toLowerCase() as Role | undefined) ?? null,
+      rank: u.rank.toLowerCase() as Rank,
+      attendance: c?.attendance ?? null,
+      joinedAt: (c?.joinedAt ?? u.createdAt).toISOString(),
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6 px-4 pb-12 pt-8 md:px-12 md:pt-11">
