@@ -3,11 +3,9 @@ import { orderedAnswers, PATH_LABEL, STATUS_LABEL, STATUS_TONE } from '@/lib/app
 import type { ApplicationDetail } from '@/lib/applications-data';
 import { rolesOfSpec } from '@/lib/class-needs';
 import { CLASS_COLORS, ROLE_LABELS } from '@/lib/design/class-colors';
-import { formatGuildRangeShort, relativeDate, WEEKDAY_NAMES } from '@/lib/time';
+import { relativeDate } from '@/lib/time';
 import { DETAIL } from '@/content/applications';
-import { RAID_NIGHTS } from '@/content/schedule';
 import { DecisionBar } from './DecisionBar';
-import { NightsLocal } from './NightsLocal';
 import { NoteComposer } from './NoteComposer';
 
 type Props = {
@@ -18,13 +16,11 @@ type Props = {
   standaloneUrl?: string | null;
 };
 
-const PROGRESSION = RAID_NIGHTS.filter((n) => !n.optional);
-
 /**
  * docs/04 § Application detail: head with the character in class colour and the meta row,
- * one block per answer, the logs link with its host visible, the availability answer with
- * guild and local times, then the private officer notes with their composer, and the
- * decision bar pinned to the bottom while the application is pending.
+ * one block per answer, the logs link with its host visible, then the private officer
+ * notes with their composer, and the decision bar pinned to the bottom while the
+ * application is pending.
  */
 export function ApplicationView({ app, now, threadUrl = null, standaloneUrl = null }: Props) {
   const at = new Date(now);
@@ -80,12 +76,6 @@ export function ApplicationView({ app, now, threadUrl = null, standaloneUrl = nu
             <div key={a.key} className="flex flex-col gap-1.5 py-4">
               <dt className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">{a.label}</dt>
               <dd className="whitespace-pre-line text-[15px] leading-[1.65]">{a.answer}</dd>
-              {a.key === 'availability' && (
-                <dd className="tabular text-sm text-fg-3">
-                  {DETAIL.guildTime} {PROGRESSION.map((n) => WEEKDAY_NAMES[n.day]).join(' and ')}, {formatGuildRangeShort(PROGRESSION[0].start, PROGRESSION[0].end)} guild
-                  <NightsLocal night={PROGRESSION[0]} />
-                </dd>
-              )}
             </div>
           ))}
           {answers.length === 0 && !app.logsUrl && <p className="py-4 text-sm text-fg-3">{DETAIL.noAnswers}</p>}

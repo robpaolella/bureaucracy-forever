@@ -5,21 +5,11 @@ import { useActionState, useEffect, useId, useRef, useState, useTransition, type
 import { submitApplication } from '@/app/(site)/recruitment/actions';
 import { INITIAL_STATE, type ApplicationPath } from '@/components/recruitment/form-state';
 import { useSiteSession } from '@/components/shell/SiteSessionProvider';
-import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { Button, Choice, ChoiceGroup, Field, Input, Select, Textarea } from '@/components/ui';
 import { FORM } from '@/content/recruitment';
 import { HONEYPOT_FIELD } from '@/lib/applications';
-import { RAID_NIGHTS } from '@/content/schedule';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS, CLASSES, SPECS, type WowClass } from '@/lib/design/class-colors';
-import { formatRangeShort, formatGuildRangeShort, minutesBetween, nextOccurrence, WEEKDAY_NAMES } from '@/lib/time';
-
-/** The progression nights, derived from the schedule so the question tracks the real times. */
-const PROGRESSION = RAID_NIGHTS.filter((n) => !n.optional);
-const AVAILABILITY_QUESTION = `Can you make ${PROGRESSION.map((n) => WEEKDAY_NAMES[n.day]).join(' and ')}, ${formatGuildRangeShort(
-  PROGRESSION[0].start,
-  PROGRESSION[0].end,
-)} guild time?`;
 
 function PathCard({ value, title, text, checked, onChange }: { value: ApplicationPath; title: string; text: string; checked: boolean; onChange: () => void }) {
   return (
@@ -35,19 +25,6 @@ function PathCard({ value, title, text, checked, onChange }: { value: Applicatio
       <span className="text-base font-semibold">{title}</span>
       <span className={cn('text-[13px] leading-[1.5]', checked ? 'text-teal-text' : 'text-fg-2')}>{text}</span>
     </label>
-  );
-}
-
-function LocalNightsLine() {
-  const viewer = useViewerTimeZone();
-  if (!viewer) return <span className="text-teal">&nbsp;</span>;
-  const night = PROGRESSION[0];
-  const start = nextOccurrence(night.day, night.start);
-  const end = new Date(start.getTime() + minutesBetween(night.start, night.end) * 60_000);
-  return (
-    <span className="text-teal">
-      Your local time: <span className="tabular">{formatRangeShort(start, end, viewer.zone)}</span>, {viewer.zone}.
-    </span>
   );
 }
 
@@ -150,7 +127,7 @@ export function ApplicationForm({ discordHandle: known, initialPath = 'raider' }
             <Input name="logs" type="url" placeholder="https://" inputMode="url" required />
           </Field>
 
-          <ChoiceGroup legend={AVAILABILITY_QUESTION} row error={e.availability} hint={<LocalNightsLine />}>
+          <ChoiceGroup legend={FORM.availabilityQuestion} row error={e.availability} hint={FORM.availabilityHint}>
             {FORM.availabilityOptions.map((opt) => (
               <Choice key={opt} card type="radio" name="availability" value={opt} label={opt} className="w-auto px-4" required />
             ))}

@@ -28,7 +28,6 @@ export const DETAIL = {
   submitted: 'Submitted',
   logs: 'Logs',
   noAnswers: 'The applicant left every question blank.',
-  guildTime: 'Progression nights run',
   notes: 'Officer notes',
   notesPrivate: 'Only officers see this. Applicants never do.',
   notesSynced: 'Synced with #applications',

@@ -1,15 +1,14 @@
 import type { Metadata } from 'next';
-import { RunOfNight } from '@/components/schedule/RunOfNight';
-import { WeekStrip } from '@/components/schedule/WeekStrip';
 import { AccentLink } from '@/components/site/SectionHead';
 import { TimezoneBar } from '@/components/time/TimezoneBar';
 import { Card } from '@/components/ui';
-import { RUN_OF_NIGHT, SCHEDULE_ASIDES, SCHEDULE_HEAD } from '@/content/schedule';
+import { RAID_WEEK, SCHEDULE_ASIDES, SCHEDULE_HEAD } from '@/content/schedule';
+import { cn } from '@/lib/cn';
 import { MEMBER_LINKS } from '@/lib/nav';
 
 export const metadata: Metadata = {
   title: 'Raid schedule',
-  description: 'Three raid nights a week, shown in guild time and yours. How a night runs, attendance and sign-ups.',
+  description: 'Two progression nights a week plus an optional farm and alt night. Days and times to be announced. Attendance and sign-ups.',
 };
 
 const GUTTER = 'px-4 md:px-gutter';
@@ -28,30 +27,39 @@ export default function SchedulePage() {
       </section>
 
       <section className={`${GUTTER} pb-14`}>
-        <WeekStrip />
+        {/* Pre-launch stand-in for the week strip: the slots are known, the days and times are not. */}
+        <ol className="grid grid-cols-1 gap-3 md:grid-cols-3" aria-label="Raid week">
+          {RAID_WEEK.map((slot) => (
+            <li
+              key={slot.day}
+              className={cn(
+                'flex flex-col gap-2.5 rounded-card border px-5 py-[26px]',
+                slot.optional ? 'border-line-strong bg-ink-850' : 'border-sand-dim bg-ink-800',
+              )}
+            >
+              <span className={cn('text-[13px] font-semibold uppercase tracking-[0.1em]', slot.optional ? 'text-fg-2' : 'text-sand')}>{slot.day}</span>
+              <span className="text-base font-semibold">{slot.kind}</span>
+              <span className="mt-3 text-[15px] font-semibold">TBD</span>
+            </li>
+          ))}
+        </ol>
       </section>
 
-      <section className={`${GUTTER} grid grid-cols-1 items-start gap-10 pb-20 lg:grid-cols-[minmax(0,1fr)_420px]`}>
-        <div className="flex flex-col gap-[22px]">
-          <h2 className="font-display text-[28px] font-medium leading-[1.1] md:text-[34px]">{RUN_OF_NIGHT.title}</h2>
-          <RunOfNight />
-        </div>
-        <div className="flex flex-col gap-4">
-          <Card className="flex flex-col gap-3 p-[26px]">
-            <h3 className="text-[17px] font-semibold">{SCHEDULE_ASIDES.attendance.title}</h3>
-            <p className="text-sm leading-[1.65] text-fg-2">{SCHEDULE_ASIDES.attendance.text}</p>
-          </Card>
-          <Card className="flex flex-col gap-3 p-[26px]">
-            <h3 className="text-[17px] font-semibold">{SCHEDULE_ASIDES.signups.title}</h3>
-            <p className="text-sm leading-[1.65] text-fg-2">{SCHEDULE_ASIDES.signups.text}</p>
-            <AccentLink href={MEMBER_LINKS.calendar.href} className="self-start">
-              {SCHEDULE_ASIDES.signups.linkLabel}
-            </AccentLink>
-          </Card>
-          <div className="flex flex-col gap-3 rounded-card border border-teal-line bg-teal-wash p-[26px]">
-            <h3 className="text-[17px] font-semibold">{SCHEDULE_ASIDES.availability.title}</h3>
-            <p className="text-sm leading-[1.65] text-teal-text">{SCHEDULE_ASIDES.availability.text}</p>
-          </div>
+      <section className={`${GUTTER} grid grid-cols-1 items-start gap-4 pb-20 lg:grid-cols-3`}>
+        <Card className="flex flex-col gap-3 p-[26px]">
+          <h2 className="text-[17px] font-semibold">{SCHEDULE_ASIDES.attendance.title}</h2>
+          <p className="text-sm leading-[1.65] text-fg-2">{SCHEDULE_ASIDES.attendance.text}</p>
+        </Card>
+        <Card className="flex flex-col gap-3 p-[26px]">
+          <h2 className="text-[17px] font-semibold">{SCHEDULE_ASIDES.signups.title}</h2>
+          <p className="text-sm leading-[1.65] text-fg-2">{SCHEDULE_ASIDES.signups.text}</p>
+          <AccentLink href={MEMBER_LINKS.calendar.href} className="self-start">
+            {SCHEDULE_ASIDES.signups.linkLabel}
+          </AccentLink>
+        </Card>
+        <div className="flex flex-col gap-3 rounded-card border border-teal-line bg-teal-wash p-[26px]">
+          <h2 className="text-[17px] font-semibold">{SCHEDULE_ASIDES.availability.title}</h2>
+          <p className="text-sm leading-[1.65] text-teal-text">{SCHEDULE_ASIDES.availability.text}</p>
         </div>
       </section>
     </>
