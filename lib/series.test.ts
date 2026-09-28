@@ -45,6 +45,12 @@ describe('series occurrences', () => {
     expect(guildDateKey(new Date('2026-11-20T04:00:00.000Z'))).toBe('2026-11-19');
   });
 
+  it('never regenerates a guild date whose raid an officer deleted', () => {
+    const wanted = occurrences(series, from);
+    const deleted = guildDateKey(wanted[1]);
+    expect(missingOccurrences(wanted, [wanted[0], wanted[2]], [deleted]).map((d) => d.toISOString())).toEqual([wanted[3].toISOString()]);
+  });
+
   it('moves an instance to the series rule within its own guild week', () => {
     // Thu Nov 19 2026 8 PM PST → the same week's Friday at 7:30 PM PST.
     const thu = new Date('2026-11-20T04:00:00.000Z');

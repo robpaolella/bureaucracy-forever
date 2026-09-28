@@ -44,10 +44,11 @@ export function guildDateKey(date: Date, zone: string = GUILD_TIMEZONE): string 
 /**
  * Which occurrences have no raid yet, by guild date (§6 step 1: "skip dates that already
  * have a raid for the series"). Matching by instant would regenerate a raid whose time was
- * moved, next to the one that moved.
+ * moved, next to the one that moved. `skipped` holds the guild dates whose raid an officer
+ * deleted, so a deleted instance stays deleted.
  */
-export function missingOccurrences(wanted: Date[], existing: Date[], zone: string = GUILD_TIMEZONE): Date[] {
-  const have = new Set(existing.map((d) => guildDateKey(d, zone)));
+export function missingOccurrences(wanted: Date[], existing: Date[], skipped: readonly string[] = [], zone: string = GUILD_TIMEZONE): Date[] {
+  const have = new Set([...existing.map((d) => guildDateKey(d, zone)), ...skipped]);
   return wanted.filter((d) => !have.has(guildDateKey(d, zone)));
 }
 
