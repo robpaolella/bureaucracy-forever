@@ -31,7 +31,7 @@ export const ACCOLADES = {
   title: 'Our time in Classic',
   cards: [
     {
-      eyebrow: 'Server first',
+      eyebrow: 'Progression',
       title: 'Server firsts',
       text: 'First on Smolderweb to clear Blackwing Lair and AQ40.',
     },
