@@ -3,16 +3,13 @@ import type { Metadata } from 'next';
 import { HeroContours } from '@/components/home/HeroContours';
 import { ApplyButton } from '@/components/recruitment/ApplyModal';
 import { AccentLink, SectionHead } from '@/components/site/SectionHead';
-import { NightTimes } from '@/components/time/NightTimes';
 import { ButtonLink, Card, StatusPill } from '@/components/ui';
-import { CLOSING, HERO, PEDIGREE, PROGRESSION, type ProgressionRow } from '@/content/home';
+import { CLOSING, HERO, PEDIGREE, PROGRESSION, RAID_WEEK, type ProgressionRow } from '@/content/home';
 import { NEED_LABEL, teaserNeeds } from '@/content/recruitment';
 import { getClassNeeds } from '@/lib/class-needs-data';
-import { RAID_NIGHTS } from '@/content/schedule';
 import { cn } from '@/lib/cn';
 import { SITE_NAME } from '@/lib/config';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
-import { WEEKDAY_NAMES } from '@/lib/time';
 
 const TITLE = 'Bureaucracy | WoW Forever Raiding Guild, US Alliance PvP';
 const DESCRIPTION =
@@ -140,16 +137,13 @@ function TheWeek() {
     <div className="flex flex-col gap-6">
       <SectionHead eyebrow="The week" title="Raid schedule" />
       <div className="flex flex-col gap-3">
-        {RAID_NIGHTS.map((night) => (
-          <Card key={night.day} className="flex items-center justify-between px-[22px] py-5">
+        {RAID_WEEK.map((slot) => (
+          <Card key={slot.day} className="flex items-center justify-between px-[22px] py-5">
             <div className="flex flex-col gap-1">
-              <span className="text-base font-semibold">{WEEKDAY_NAMES[night.day]}</span>
-              <span className="text-[13px] text-fg-3">
-                {night.kind}
-                {night.optional && ' · optional'}
-              </span>
+              <span className="text-base font-semibold">{slot.day}</span>
+              <span className="text-[13px] text-fg-3">{slot.kind}</span>
             </div>
-            <NightTimes night={night} />
+            <span className="text-[15px] font-semibold">TBD</span>
           </Card>
         ))}
       </div>
