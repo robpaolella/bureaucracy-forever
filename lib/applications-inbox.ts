@@ -69,10 +69,15 @@ export const STATUS_LABEL: Record<AppStatus, string> = { pending: 'Pending', acc
 export const STATUS_TONE: Record<AppStatus, 'warn' | 'ok' | 'stop'> = { pending: 'warn', accepted: 'ok', declined: 'stop' };
 export const PATH_LABEL: Record<ApplicationPath, string> = { raider: 'Raider', social: 'Social' };
 
-/** The answer keys the form writes, in display order, with their questions. */
+/**
+ * The answer keys the form writes, in display order, with their questions. The bot shows
+ * these labels too. `wipe` is the closing question before it became `pitch`; its label says
+ * so, so an old answer is never read as a reply to the new question.
+ */
 export const QUESTIONS: { key: string; label: string }[] = [
   { key: 'availability', label: 'Can you make the progression nights?' },
-  { key: 'wipe', label: 'A wipe you caused and what you changed' },
+  { key: 'pitch', label: "Why you'd be a good addition to our team" },
+  { key: 'wipe', label: 'Earlier form: a wipe you caused and what you changed' },
   { key: 'note', label: 'Anything we should know?' },
 ];
 

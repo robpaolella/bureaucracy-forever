@@ -147,8 +147,8 @@ export function ApplicationForm({ discordHandle: known }: { discordHandle?: stri
             ))}
           </ChoiceGroup>
 
-          <Field label={FORM.wipeQuestion} error={e.wipe}>
-            <Textarea name="wipe" rows={5} placeholder={FORM.wipePlaceholder} required />
+          <Field label={FORM.pitchQuestion} error={e.pitch}>
+            <Textarea name="pitch" rows={5} placeholder={FORM.pitchPlaceholder} required />
           </Field>
 
           <div className="flex flex-col gap-1.5">

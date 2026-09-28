@@ -14,7 +14,10 @@ export type ApplicationInput = {
   wowClass: WowClass | null;
   spec: string | null;
   logsUrl: string | null;
-  /** { availability, wipe } for raiders, { note } for socials. */
+  /**
+   * { availability, pitch } for raiders, { note } for socials. Applications sent before
+   * the closing question changed carry `wipe` instead of `pitch`.
+   */
   answers: Record<string, string>;
 };
 
@@ -83,9 +86,9 @@ export function parseApplication(data: FormData, sessionHandle: string | null): 
     if (!(FORM.availabilityOptions as readonly string[]).includes(availability)) errors.availability = 'Pick one.';
     else answers.availability = availability;
 
-    const wipe = text(data, 'wipe');
-    if (wipe.length < 20) errors.wipe = 'A few honest sentences.';
-    else answers.wipe = wipe.slice(0, ANSWER_MAX);
+    const pitch = text(data, 'pitch');
+    if (pitch.length < 20) errors.pitch = 'A few honest sentences.';
+    else answers.pitch = pitch.slice(0, ANSWER_MAX);
 
     if (data.get('agree') !== 'on') errors.agree = 'Read the loot rules and the expectations first.';
   } else {

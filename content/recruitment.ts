@@ -104,8 +104,8 @@ export const FORM = {
   logsHint: 'Any recent raid. We care more about deaths avoided than damage done.',
   /** The question itself is derived from content/schedule.ts in the form. */
   availabilityOptions: ['Both nights', 'One of them', 'Neither'] as const,
-  wipeQuestion: 'Tell us about a wipe you caused and what you changed',
-  wipePlaceholder: 'Short and honest beats long and polished.',
+  pitchQuestion: "Please tell us why you'd be a good addition to our team.",
+  pitchPlaceholder: 'Short and honest beats long and polished.',
   /** PLACEHOLDER: the Social path's one open field is not drawn in the artboard. */
   socialQuestion: 'Anything we should know?',
   socialPlaceholder: 'How you found us, who you know here, what you play.',

@@ -15,7 +15,7 @@ const raider = {
   spec: 'Holy',
   logs: 'https://logs.example.com/r/1',
   availability: 'Both nights',
-  wipe: 'Pulled early on Garr, now I wait for the count.',
+  pitch: 'I read every fight before the night and I never miss a pull.',
   agree: 'on',
 };
 
@@ -25,7 +25,7 @@ describe('parseApplication', () => {
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.value).toMatchObject({ path: 'raider', character: 'Redtape', discord: 'redtape', wowClass: 'priest', spec: 'Holy', logsUrl: 'https://logs.example.com/r/1' });
-      expect(r.value.answers).toEqual({ availability: 'Both nights', wipe: raider.wipe });
+      expect(r.value.answers).toEqual({ availability: 'Both nights', pitch: raider.pitch });
     }
   });
 
@@ -36,9 +36,9 @@ describe('parseApplication', () => {
   });
 
   it('names every failing field', () => {
-    const r = parseApplication(form({ path: 'raider', character: 'x', discord: '!', class: 'monk', spec: '', logs: 'ftp://x', availability: 'Maybe', wipe: 'short' }), null);
+    const r = parseApplication(form({ path: 'raider', character: 'x', discord: '!', class: 'monk', spec: '', logs: 'ftp://x', availability: 'Maybe', pitch: 'short' }), null);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(['agree', 'availability', 'character', 'class', 'discord', 'logs', 'wipe']);
+    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(['agree', 'availability', 'character', 'class', 'discord', 'logs', 'pitch']);
   });
 
   it('asks a social for almost nothing', () => {

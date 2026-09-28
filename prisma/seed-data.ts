@@ -220,15 +220,15 @@ export type SeedApplication = {
 /** Seven pending applications (the officer stub's badge count) plus a few decided ones. */
 export function buildApplications(): SeedApplication[] {
   const pending: Array<[string, WowClassKey, string, string]> = [
-    ['Footnote', 'priest', 'Holy', 'Pulled early on Vael. Now I wait for the call, every time.'],
-    ['Loophole', 'warrior', 'Protection', 'Taunted off the wrong tank on Broodlord. I read the swap order out loud now.'],
-    ['Indexcard', 'shaman', 'Restoration', 'Stood in the wrong spot on Firemaw. I moved my camera and never did it again.'],
-    ['Smallprint', 'druid', 'Restoration', 'Went oom on Ebonroc because I panic-healed. I learned to hold cooldowns.'],
-    ['Backlog', 'priest', 'Shadow', 'Missed a dispel on Chromaggus. I made a dispel macro that night.'],
-    ['Redline', 'warlock', 'Destruction', 'Pulled aggro on trash three times. I started watching threat instead of the meter.'],
-    ['Fineprint', 'mage', 'Frost', 'Decursed the wrong target set. I sorted my raid frames by group.'],
+    ['Footnote', 'priest', 'Holy', 'I heal to the plan, not the meter, and I never miss a raid night.'],
+    ['Loophole', 'warrior', 'Protection', 'Tanked every Classic tier. I know the swap orders and I call my own taunts.'],
+    ['Indexcard', 'shaman', 'Restoration', 'Chain heal, totems on time, and I read the fight before I show up.'],
+    ['Smallprint', 'druid', 'Restoration', 'I manage mana well and I am happy on innervate duty for the whole night.'],
+    ['Backlog', 'priest', 'Shadow', 'Shadow weaving uptime is my job and I take it seriously. Dispels too.'],
+    ['Redline', 'warlock', 'Destruction', 'I watch threat before damage, and I bring my own consumables every week.'],
+    ['Fineprint', 'mage', 'Frost', 'Fast decurses, sorted raid frames and a calm voice on comms.'],
   ];
-  const apps: SeedApplication[] = pending.map(([character, wowClass, spec, wipe], i) => ({
+  const apps: SeedApplication[] = pending.map(([character, wowClass, spec, pitch], i) => ({
     path: 'RAIDER',
     status: 'PENDING',
     discordName: character.toLowerCase(),
@@ -236,14 +236,14 @@ export function buildApplications(): SeedApplication[] {
     wowClass,
     spec,
     logsUrl: `https://logs.example.com/reports/${character.toLowerCase()}`,
-    answers: { availability: i % 5 === 4 ? 'One of them' : 'Both nights', wipe },
+    answers: { availability: i % 5 === 4 ? 'One of them' : 'Both nights', pitch },
     daysAgo: i,
     read: i > 3,
   }));
   apps.push(
     { path: 'SOCIAL', status: 'PENDING', discordName: 'sidebar', character: 'Sidebar', wowClass: null, spec: null, logsUrl: null, answers: { note: 'Friend of Paperclip. Alt runs on weekends.' }, daysAgo: 2, read: true },
-    { path: 'RAIDER', status: 'ACCEPTED', discordName: 'stapler', character: 'Stapler', wowClass: 'mage', spec: 'Frost', logsUrl: 'https://logs.example.com/reports/stapler', answers: { availability: 'Both nights', wipe: 'Stood in a void zone. Once.' }, daysAgo: 12, read: true },
-    { path: 'RAIDER', status: 'DECLINED', discordName: 'typo', character: 'Typo', wowClass: 'rogue', spec: 'Combat', logsUrl: 'https://logs.example.com/reports/typo', answers: { availability: 'Neither', wipe: 'n/a' }, daysAgo: 20, read: true },
+    { path: 'RAIDER', status: 'ACCEPTED', discordName: 'stapler', character: 'Stapler', wowClass: 'mage', spec: 'Frost', logsUrl: 'https://logs.example.com/reports/stapler', answers: { availability: 'Both nights', pitch: 'I show up prepared and I stay out of the void zones.' }, daysAgo: 12, read: true },
+    { path: 'RAIDER', status: 'DECLINED', discordName: 'typo', character: 'Typo', wowClass: 'rogue', spec: 'Combat', logsUrl: 'https://logs.example.com/reports/typo', answers: { availability: 'Neither', pitch: 'n/a' }, daysAgo: 20, read: true },
   );
   return apps;
 }
