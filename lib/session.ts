@@ -12,6 +12,8 @@ export type Role = 'social' | 'member' | 'officer';
 export type Session = {
   discordId: string;
   role: Role;
+  /** Holds the Guild Master or Administrator Discord role: may delete raid templates. Grants nothing else. */
+  templateAdmin: boolean;
   /** Display name: guild nickname, else Discord display name. */
   name: string;
   /** From the member's main character once the roster exists (step 5). */
@@ -60,6 +62,7 @@ export const getSession = cache(async function getSession(): Promise<Session | n
   return {
     discordId: session.user.id,
     role: session.user.role,
+    templateAdmin: session.user.templateAdmin === true,
     name: session.user.name ?? 'Member',
     avatarUrl: session.user.image ?? undefined,
     rank: RANK_FOR_ROLE[session.user.role],

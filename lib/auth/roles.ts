@@ -14,6 +14,11 @@
  * field on the guild-member object entirely. There is no DISCORD_ROLE_ADMIN variable.
  *
  * Confirmed with Robert 2026-09-25. If this looks like a bug to you, it is not.
+ *
+ * One narrow exception, added by Robert 2026-09-28: the Guild Master role and the
+ * Administrator role (by role id, DISCORD_ROLE_GUILD_MASTER / DISCORD_ROLE_ADMINISTRATOR,
+ * never by permission bits) may delete raid templates. That is all they unlock. They do
+ * not change the access level above, and the planner page stays officer-only.
  */
 
 import type { Role } from '@/lib/session';
@@ -41,4 +46,17 @@ export function roleFromDiscordRoles(discordRoleIds: readonly string[], ids: Rol
   if (discordRoleIds.includes(ids.officer)) return 'officer';
   if (discordRoleIds.includes(ids.member)) return 'member';
   return 'social';
+}
+
+/**
+ * The Guild Master and Administrator role ids, whichever are set. Both are optional:
+ * with neither set, nobody can delete templates, and sign-in still works.
+ */
+export function templateAdminIdsFromEnv(env: Record<string, string | undefined> = process.env): string[] {
+  return [env.DISCORD_ROLE_GUILD_MASTER, env.DISCORD_ROLE_ADMINISTRATOR].filter((id): id is string => Boolean(id));
+}
+
+/** Whether these Discord roles may delete raid templates. Role ids only, matched exactly. */
+export function isTemplateAdmin(discordRoleIds: readonly string[], templateAdminIds: readonly string[]): boolean {
+  return templateAdminIds.some((id) => discordRoleIds.includes(id));
 }
