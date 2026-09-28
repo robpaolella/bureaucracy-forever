@@ -4,14 +4,21 @@ import { EYEBROW, SectionHead } from '@/components/site/SectionHead';
 import { Card } from '@/components/ui';
 import { ABOUT_HEAD, ACCOLADES, HISTORY, HOW_WE_RUN, OFFICERS } from '@/content/about';
 import { cn } from '@/lib/cn';
+import { SITE_NAME } from '@/lib/config';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
 import { initials } from '@/lib/format';
 import { MEMBER_LINKS } from '@/lib/nav';
 
+const TITLE = 'About Bureaucracy | WoW Forever Raiding Guild';
+const DESCRIPTION =
+  'Bureaucracy has raided together since 2011. #1 on Smolderweb in Classic with server firsts and a top 100 world Naxx clear. Now recruiting for WoW Forever.';
+
+/** Root layout's openGraph/twitter are whole-object overrides, not merged — repeat siteName/locale/card here too. */
 export const metadata: Metadata = {
-  title: 'About',
-  description:
-    'A competitive 40-player raiding guild from Smolderweb: server firsts, fastest clears, top 500 through Naxxramas. How we run a night, and who to ask.',
+  title: { absolute: TITLE },
+  description: DESCRIPTION,
+  openGraph: { type: 'website', siteName: SITE_NAME, locale: 'en_US', title: TITLE, description: DESCRIPTION },
+  twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
 };
 
 const SECTION = 'border-b border-line-faint px-4 py-16 md:px-gutter md:py-20';
@@ -64,7 +71,6 @@ function History() {
       <div className="flex flex-col gap-3.5">
         <span className={EYEBROW}>{HISTORY.eyebrow}</span>
         <h2 className="font-display text-[32px] font-medium leading-[1.1] md:text-[42px]">{HISTORY.title}</h2>
-        <p className="text-[15px] leading-[1.7] text-fg-3">{HISTORY.note}</p>
       </div>
       <ol className="flex flex-col">
         {HISTORY.entries.map((e, i) => (
@@ -99,7 +105,7 @@ function Officers() {
   const cols = OFFICER_GRID[Math.min(Math.max(OFFICERS.length, 1), 4)];
   return (
     <section className="flex flex-col gap-8 px-4 py-16 md:px-gutter md:py-20">
-      <SectionHead eyebrow="Officers" title="Who to ask" size="lg" link={{ href: MEMBER_LINKS.roster.href, label: 'Full roster →' }} />
+      <SectionHead eyebrow="Leadership" title="Meet the leadership" size="lg" link={{ href: MEMBER_LINKS.roster.href, label: 'Full roster →' }} />
       <div className={cn('grid grid-cols-2 gap-4', cols)}>
         {OFFICERS.map((o, i) => {
           const color = CLASS_COLORS[o.wowClass].onInk;
@@ -119,11 +125,8 @@ function Officers() {
                 <span className="text-lg font-semibold" style={{ color }}>
                   {o.name}
                 </span>
-                <span className="text-[13px] text-fg-3">
-                  {CLASS_COLORS[o.wowClass].label} · {o.title}
-                </span>
+                <span className="text-[13px] text-fg-3">{o.title}</span>
               </div>
-              <span className="text-[13px] leading-[1.6] text-fg-2">{o.blurb}</span>
             </Card>
           );
         })}

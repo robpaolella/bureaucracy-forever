@@ -1,49 +1,49 @@
 /**
- * About page copy. The three accolades are the guild's real claims. Officer names and
- * the history entries are PLACEHOLDER (design-handover/CLAUDE.md) except the real
- * 4 November 2026 launch.
+ * About page copy. The accolades and history are the guild's real record. Officer names
+ * are real founding members; only Konvett and Feraldog have cards for now.
  */
 import type { WowClass } from '@/lib/design/class-colors';
 
 export const ABOUT_HEAD = {
   eyebrow: 'About the guild',
-  title: 'A small guild with a long memory',
+  title: 'The story of Bureaucracy',
   paragraphs: [
-    "Bureaucracy started on Smolderweb in Classic with a simple bargain: everybody reads the fight, everybody brings their own consumables, and nobody has to be carried. That bargain took us to multiple server firsts, the server's fastest clear times, and into the top 500 guilds worldwide to clear Naxxramas at release.",
-    "We are not a large guild and we don't want to be. Forty people who know each other's pulls is worth more than a bench of two hundred. The roster turns over slowly, officers have been in the same seats for years, and most nights end with people still in voice long after the last boss.",
-    'WoW Forever is a fresh start on ground we know. Same standards, same three nights, same people — and room for a handful more.',
+    'Bureaucracy has been raiding together since 2011. Our best run in retail came in Warlords of Draenor, where we cleared Mythic Highmaul, Blackrock Foundry, and Hellfire Citadel.',
+    "When WoW Classic launched, four of our founding members, Konvett, Celsian, Sylv, and Feraldog, came back together on Smolderweb with one goal: build the best raiding guild on the server. We started from behind. Other guilds had already cleared Molten Core, and we weren't even 60 yet.",
+    "We put a strong group together, started doing speed clears, and set the fastest Molten Core time on the server. From that point on, Bureaucracy was the top raiding guild on Smolderweb. We took server firsts in Blackwing Lair and AQ40, held the server's fastest clear times, and finished as one of the top 100 guilds in the world to clear Naxxramas.",
+    "What made it work was that everyone wanted the same thing: to be the best, and to do it alongside the best. That shared goal built one of the strongest raid teams on the server and a community that has stuck together ever since. Now we're taking it to WoW Forever.",
   ],
 };
 
 export const HOW_WE_RUN = {
-  title: 'How we run a night',
+  title: 'How we raid',
   points: [
-    'Invites ten minutes before the hour. First pull on the hour.',
-    'Strategy is posted in Discord before the night, not explained at the summoning stone.',
-    'One officer calls. Everyone else listens, then talks between pulls.',
-    'We stop on time. Nobody is asked to choose between a kill and their morning.',
+    'We work out strats together as a guild.',
+    'We review our logs after every raid to find where we can get better.',
+    'Everyone shows up prepared, with consumables, enchants, and gear ready to go.',
+    'Once content is on farm, we shift our focus to faster clear times.',
   ],
 };
 
 /** Real claims. Use as written. */
 export const ACCOLADES = {
   eyebrow: 'Classic · Smolderweb',
-  title: 'What we did last time',
+  title: 'Our time in Classic',
   cards: [
     {
       eyebrow: 'Server first',
-      title: 'Multiple first kills',
-      text: "Across the tier list on Smolderweb — the kind that get announced in trade chat before you've finished looting.",
+      title: 'Server firsts',
+      text: 'First on Smolderweb to clear Blackwing Lair and AQ40.',
     },
     {
       eyebrow: 'Speed',
-      title: 'Fastest clear times',
-      text: 'Server-best clears, set by preparation rather than by raiding more nights than anyone else.',
+      title: 'Fastest clears',
+      text: "Set the server's fastest clear times in Molten Core, Blackwing Lair, and AQ40.",
     },
     {
       eyebrow: 'Worldwide',
-      title: 'Top 500 Naxxramas',
-      text: 'Among the first 500 guilds on any realm to clear Naxxramas at release.',
+      title: 'Top 100 Naxxramas',
+      text: 'One of the top 100 guilds in the world to clear Naxxramas.',
     },
   ],
 };
@@ -53,43 +53,45 @@ export type HistoryEntry = { era: string; title: string; text: string; highlight
 /** Era labels are words, not dates, except the real launch (docs/04 § About). */
 export const HISTORY = {
   eyebrow: 'History',
-  title: 'The short version',
-  note: 'Add a line here each time something happens. The component takes an era label, a title and a paragraph.',
+  title: 'Guild history',
   entries: [
     {
-      era: 'Classic launch',
-      title: 'Formed on Smolderweb',
-      text: "A core of people who had raided together before, plus a rule that nobody joins a pull they haven't read about.",
+      era: 'Classic launch · 2019',
+      title: 'Back together on Smolderweb',
+      text: 'Four founding members came back together for WoW Classic with the goal of building the best raiding guild on the server.',
     },
     {
-      era: 'Molten Core & Onyxia',
-      title: 'First server-first kills',
-      text: 'Forty people on time, three nights a week, turned into the first of the server firsts that followed.',
+      era: 'Molten Core',
+      title: 'Fastest Molten Core on the server',
+      text: "We started behind the other guilds on Smolderweb and finished with the server's fastest Molten Core clear.",
     },
     {
-      era: 'Blackwing Lair & AQ40',
-      title: 'Fastest clears on the realm',
-      text: 'Clear nights stopped being progression and started being a time trial.',
+      era: 'Blackwing Lair',
+      title: 'Server first Blackwing Lair',
+      text: "First guild on Smolderweb to clear Blackwing Lair, along with the server's fastest clear time.",
+    },
+    {
+      era: "Ahn'Qiraj",
+      title: 'Server first AQ40',
+      text: 'First guild on Smolderweb to clear AQ40, and the fastest clear time on the server again.',
     },
     {
       era: 'Naxxramas',
-      title: 'Top 500 worldwide at release',
-      text: 'The high-water mark of Classic for us, and the standard every night since has been measured against.',
+      title: 'Top 100 in the world',
+      text: 'One of the top 100 guilds in the world to clear Naxxramas, and the #1 raiding guild on Smolderweb from Molten Core through Naxx.',
       highlight: true,
     },
     {
-      era: '4 November 2026',
+      era: 'November 4, 2026',
       title: 'WoW Forever',
-      text: 'Same guild, fresh realm, new zones to read about before anyone else does.',
+      text: 'Bureaucracy heads to WoW Forever on US Alliance PvP with the same goal we had on Smolderweb.',
     },
   ] satisfies HistoryEntry[],
 };
 
-export type Officer = { name: string; wowClass: WowClass; title: string; guildMaster?: boolean; blurb: string };
+export type Officer = { name: string; wowClass: WowClass; title: string; guildMaster?: boolean };
 
-/** PLACEHOLDER names. An officer card is a roster row with a sentence attached. */
 export const OFFICERS: Officer[] = [
-  { name: 'Ledgerline', wowClass: 'warrior', title: 'Guild Master', guildMaster: true, blurb: 'Raid lead and final word on loot.' },
-  { name: 'Redtape', wowClass: 'priest', title: 'Healing officer', blurb: 'Assignments, cooldowns, and the healer roster.' },
-  { name: 'Subclause', wowClass: 'warlock', title: 'Recruitment', blurb: 'Reads every application and answers it.' },
+  { name: 'Konvett', wowClass: 'warlock', title: 'Guild Master', guildMaster: true },
+  { name: 'Feraldog', wowClass: 'druid', title: 'Officer' },
 ];

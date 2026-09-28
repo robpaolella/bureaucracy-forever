@@ -17,7 +17,7 @@ export const HERO = {
   eyebrow: 'US · Alliance · PvP',
   headline: ["Smolderweb's #1 raiding guild.", 'Now on WoW Forever.'],
   lede:
-    "Bureaucracy has been raiding together since 2013. On Smolderweb we were the top guild from Molten Core through Naxx, with server firsts, the fastest clears, and a top 100 world Naxx clear. We're bringing the same crew to WoW Forever and building on what we did there.",
+    "Bureaucracy has been raiding together since 2011. On Smolderweb we were the top guild from Molten Core through Naxx, with server firsts, the fastest clears, and a top 100 world Naxx clear. We're bringing the same crew to WoW Forever and building on what we did there.",
   primary: { label: 'Apply to raid', href: '/recruitment' },
   secondary: { label: 'Join our Discord', href: DISCORD_INVITE_URL },
 };
