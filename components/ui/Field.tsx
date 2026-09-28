@@ -17,10 +17,12 @@ export const FIELD_LABEL = 'text-xs font-semibold uppercase tracking-[0.08em] te
 
 /**
  * Shared control surface: ink-700 fill, line-strong border, 15px text. Error state via
- * the arbitrary aria variant: Tailwind 3.4 ships no `aria-invalid:` shorthand.
+ * the arbitrary aria variant: Tailwind 3.4 ships no `aria-invalid:` shorthand. docs/02
+ * draws the error border in `stop-line`, which reads as grey on ink; Robert asked for
+ * errors that are plainly red, so the border is `stop` over a `stop-wash` fill.
  */
 export const CONTROL =
-  'w-full rounded-control border border-line-strong bg-ink-700 text-[15px] text-fg placeholder:text-fg-3 aria-[invalid=true]:border-stop-line';
+  'w-full rounded-control border border-line-strong bg-ink-700 text-[15px] text-fg placeholder:text-fg-3 aria-[invalid=true]:border-stop aria-[invalid=true]:bg-stop-wash';
 
 /**
  * A field pre-filled from Discord and not editable. Applied only to Input: the CSS

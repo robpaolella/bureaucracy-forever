@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useActionState, useId, useState } from 'react';
+import { useActionState, useEffect, useId, useRef, useState, useTransition, type FormEvent } from 'react';
 import { submitApplication } from '@/app/(site)/recruitment/actions';
 import { INITIAL_STATE, type ApplicationPath } from '@/components/recruitment/form-state';
 import { useSiteSession } from '@/components/shell/SiteSessionProvider';
@@ -62,8 +62,26 @@ export function ApplicationForm({ discordHandle: known }: { discordHandle?: stri
   const [path, setPath] = useState<ApplicationPath>(params.get('path') === 'social' ? 'social' : 'raider');
   const [wowClass, setWowClass] = useState<WowClass | ''>('');
   const [state, formAction, pending] = useActionState(submitApplication, INITIAL_STATE);
+  const [, startTransition] = useTransition();
+  const formRef = useRef<HTMLFormElement>(null);
   const agreeErrorId = useId();
   const e = state.errors;
+
+  // React resets a form after its `action` runs, which wiped every answer when the server
+  // sent back an error. Submitting through a transition instead keeps what was typed; the
+  // `action` prop stays so the form still posts before hydration.
+  function onSubmit(ev: FormEvent<HTMLFormElement>) {
+    ev.preventDefault();
+    const data = new FormData(ev.currentTarget);
+    startTransition(() => formAction(data));
+  }
+
+  // After a rejected submit, take the applicant to the first field that needs fixing.
+  useEffect(() => {
+    const first = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    const target = first?.matches('fieldset') ? first.querySelector<HTMLElement>('input') : first;
+    target?.focus();
+  }, [state]);
 
   const classOptions = [{ value: '', label: 'Choose a class' }, ...CLASSES.map((c) => ({ value: c, label: CLASS_COLORS[c].label }))];
   const specOptions = [
@@ -72,7 +90,7 @@ export function ApplicationForm({ discordHandle: known }: { discordHandle?: stri
   ];
 
   return (
-    <form action={formAction} noValidate className="relative flex flex-col gap-6 rounded-card border border-line bg-ink-850 p-6 md:p-10">
+    <form ref={formRef} action={formAction} onSubmit={onSubmit} noValidate className="relative flex flex-col gap-6 rounded-card border border-line bg-ink-850 p-6 md:p-10">
       {/* Honeypot: off-screen and out of the tab order; people never see it, bots fill it. */}
       <div aria-hidden className="absolute -left-[9999px] h-px w-px overflow-hidden">
         <label>
@@ -140,6 +158,7 @@ export function ApplicationForm({ discordHandle: known }: { discordHandle?: stri
               required
               aria-describedby={e.agree ? agreeErrorId : undefined}
               aria-invalid={e.agree ? true : undefined}
+              className={cn(e.agree && 'text-stop')}
               label={
                 <>
                   I have read the{' '}
