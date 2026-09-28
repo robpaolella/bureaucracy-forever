@@ -35,7 +35,7 @@ export default async function RosterEditorPage() {
         main: c ? { id: c.id, name: c.name, wowClass: c.class.toLowerCase() as WowClass, spec: c.spec, role: c.raidRole.toLowerCase() as Role, rank: u.rank.toLowerCase() as Rank } : null,
       };
     })
-    .sort((a, b) => (a.main?.name ?? a.discordName).localeCompare(b.main?.name ?? b.discordName));
+    .sort((a, b) => a.discordName.localeCompare(b.discordName));
 
   return (
     <div className="flex flex-col gap-6 px-4 pb-12 pt-8 md:px-12 md:pt-11">

@@ -57,7 +57,7 @@ export function RosterEditor({ members }: Props) {
         setToast({ tone: 'stop', title: await failureMessage(res) });
         return;
       }
-      setToast({ tone: 'ok', title: EDITOR_TOASTS.ranked(m.main?.name ?? m.discordName, RANK_LABEL[rank]) });
+      setToast({ tone: 'ok', title: EDITOR_TOASTS.ranked(m.discordName, RANK_LABEL[rank]) });
       router.refresh();
     } finally {
       setRanking(null);
@@ -113,21 +113,16 @@ export function RosterEditor({ members }: Props) {
         <ul className="divide-y divide-line-faint rounded-card border border-line bg-ink-900">
           {shown.map((m) => (
             <li key={m.userId} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-              <ClassAvatar name={m.main?.name ?? m.discordName} wowClass={m.main?.wowClass} size={28} />
+              <ClassAvatar name={m.discordName} wowClass={m.main?.wowClass} size={28} />
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <div className="flex flex-wrap items-center gap-2.5">
-                  {m.main ? (
-                    <span className="truncate text-[15px] font-semibold" style={{ color: CLASS_COLORS[m.main.wowClass].onInk }}>
-                      {m.main.name}
-                    </span>
-                  ) : (
-                    <span className="text-[15px] text-fg-3">{EDITOR.noMain}</span>
-                  )}
+                  <span className="truncate text-[15px] font-semibold" style={{ color: m.main ? CLASS_COLORS[m.main.wowClass].onInk : undefined }}>
+                    {m.discordName}
+                  </span>
                   <RankBadge rank={m.rank} />
                 </div>
                 <span className="truncate text-[13px] text-fg-3">
-                  {m.discordName}
-                  {m.main && ` · ${CLASS_COLORS[m.main.wowClass].label} · ${m.main.spec} · ${ROLE_LABELS[m.main.role]}`}
+                  {m.main ? `${m.main.name} · ${CLASS_COLORS[m.main.wowClass].label} · ${m.main.spec} · ${ROLE_LABELS[m.main.role]}` : EDITOR.noMain}
                 </span>
               </div>
               {!m.main &&
