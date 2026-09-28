@@ -10,8 +10,8 @@ Flag each violation with file:line and the concrete failure.
   accept a Bearer token.
 
 ## Time handling
-- Availability is stored in member-local time (weekday + local time + IANA zone) and
-  converted on read. Flag any UTC normalisation of availability slots. It shifts painted
+- Availability is stored in member-local time: one row per member, `slots` keyed `day:slot`
+  (day 0 = Monday, 48 half-hour slots) in that member's own `timezone`, converted on read. Flag any UTC normalisation of availability slots. It shifts painted
   weeks when US and EU clocks change on different dates.
 - Every time renders twice, guild time and the viewer's local time, each labelled. Flag any
   bare time render.

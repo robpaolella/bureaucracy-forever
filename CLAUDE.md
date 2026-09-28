@@ -31,12 +31,12 @@ cp .env.example .env.local   # fill in; never commit .env.local
 npm run dev                  # http://localhost:3000
 ```
 In development, `/dev/session` sets a dev-session cookie that stands in for a real login
-(out / member / officer). It's ignored in production.
+(out / member / member-unsubmitted / officer). The whole `/dev` tree returns 404 in production.
 
 ## Layout
 - `app/(home)`, `app/(site)` — public pages, plus `members/` and `officers/` areas.
 - `app/api/` — route handlers; `app/api/bot/*` is the bot's signed API (SYNC-SPEC).
-- `app/actions/` — server actions. `app/dev/` — component and foundation playground.
+- `app/actions/` — server actions. `app/dev/` — dev-only playground (components, foundations, shell) and the session stub.
 - `proxy.ts` + `lib/auth/gate.ts` — route gating by role. `lib/auth/roles.ts` — Discord role → access.
 - `lib/` — domain logic with co-located `*.test.ts`. `lib/config.ts` holds `GUILD_TIMEZONE`.
 - `components/` — UI by feature. `content/` — page copy.
@@ -47,7 +47,7 @@ In development, `/dev/session` sets a dev-session cookie that stands in for a re
 Vercel with the GitHub integration: a merge to `main` deploys production, and branches get
 previews. `vercel.json` runs `npm run build:vercel`, which runs `prisma migrate deploy` on
 production builds only. Env vars (see `.env.example`) live in Vercel. `BOT_SHARED_SECRET`
-must match the bot's `.env`.
+must match the bot's `.env`. GitHub branch protection on `main` requires the `CI` check.
 
 ## Watch out for
 - Get a go-ahead before changing migrations, auth, or anything under `design-handover/`.
