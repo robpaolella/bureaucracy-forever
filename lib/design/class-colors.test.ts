@@ -29,6 +29,12 @@ describe('class colors', () => {
     expect(lifted.sort()).toEqual(['priest', 'shaman', 'warlock']);
   });
 
+  it('lists every Classic talent tree, Survival and Subtlety included', () => {
+    expect(SPECS.hunter.map((s) => s.name)).toEqual(['Marksmanship', 'Beast Mastery', 'Survival']);
+    expect(SPECS.rogue.map((s) => s.name)).toEqual(['Combat', 'Assassination', 'Subtlety']);
+    for (const cls of CLASSES) expect(SPECS[cls].length).toBe(3);
+  });
+
   it('gives every class at least one spec', () => {
     for (const cls of CLASSES) expect(SPECS[cls].length).toBeGreaterThan(0);
   });

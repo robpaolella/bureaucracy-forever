@@ -50,8 +50,8 @@ export const ROLE_SHORT: Record<Role, string> = {
 export const SPECS: Record<WowClass, { name: string; roles: Role[] }[]> = {
   warrior: [{ name: 'Protection', roles: ['tank'] }, { name: 'Fury', roles: ['melee'] }, { name: 'Arms', roles: ['melee'] }],
   paladin: [{ name: 'Holy', roles: ['healer'] }, { name: 'Protection', roles: ['tank'] }, { name: 'Retribution', roles: ['melee'] }],
-  hunter:  [{ name: 'Marksmanship', roles: ['ranged'] }, { name: 'Beast Mastery', roles: ['ranged'] }],
-  rogue:   [{ name: 'Combat', roles: ['melee'] }, { name: 'Assassination', roles: ['melee'] }],
+  hunter:  [{ name: 'Marksmanship', roles: ['ranged'] }, { name: 'Beast Mastery', roles: ['ranged'] }, { name: 'Survival', roles: ['ranged'] }],
+  rogue:   [{ name: 'Combat', roles: ['melee'] }, { name: 'Assassination', roles: ['melee'] }, { name: 'Subtlety', roles: ['melee'] }],
   priest:  [{ name: 'Holy', roles: ['healer'] }, { name: 'Discipline', roles: ['healer'] }, { name: 'Shadow', roles: ['ranged'] }],
   shaman:  [{ name: 'Restoration', roles: ['healer'] }, { name: 'Elemental', roles: ['ranged'] }, { name: 'Enhancement', roles: ['melee'] }],
   mage:    [{ name: 'Frost', roles: ['ranged'] }, { name: 'Fire', roles: ['ranged'] }, { name: 'Arcane', roles: ['ranged'] }],
