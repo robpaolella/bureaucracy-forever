@@ -119,7 +119,7 @@ function Planner({ templates, series, canDeleteTemplates }: Props) {
         <ul className="divide-y divide-line-faint rounded-card border border-line bg-ink-900">
           {templates.map((t) => (
             <li key={t.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-              <div className="flex min-w-0 flex-1 flex-col">
+              <div className="flex min-w-[14rem] flex-1 flex-col">
                 <span className="text-[15px] font-semibold">
                   {t.name} <span className="text-fg-3">· {t.short}</span>
                 </span>
@@ -154,7 +154,7 @@ function Planner({ templates, series, canDeleteTemplates }: Props) {
           <ul className="divide-y divide-line-faint rounded-card border border-line bg-ink-900">
             {series.map((s) => (
               <li key={s.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-                <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex min-w-[14rem] flex-1 flex-col">
                   <span className="text-[15px] font-semibold">
                     {s.templateName} <span className="text-fg-3">· {WEEKDAY_LABELS[s.weekday]}s <SeriesTime weekday={s.weekday} startTime={s.startTime} /></span>
                   </span>
