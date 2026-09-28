@@ -51,7 +51,9 @@ describe('inbox', () => {
   });
 
   it('orders answers by the form’s questions and keeps unknown keys', () => {
-    expect(orderedAnswers({ wipe: 'Stood in fire.', availability: 'Both nights', extra: 'x', empty: '  ' }).map((a) => a.key)).toEqual(['availability', 'wipe', 'extra']);
+    expect(orderedAnswers({ pitch: 'I read the fights.', availability: 'Both nights', extra: 'x', empty: '  ' }).map((a) => a.key)).toEqual(['availability', 'pitch', 'extra']);
+    // An answer to the old closing question keeps a label that says which question it was.
+    expect(orderedAnswers({ wipe: 'Stood in fire.' })[0].label).toMatch(/^Earlier form/);
     expect(orderedAnswers(null)).toEqual([]);
   });
 });

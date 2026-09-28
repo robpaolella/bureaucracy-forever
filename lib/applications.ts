@@ -5,33 +5,32 @@
 import type { ApplicationPath } from '@/components/recruitment/form-state';
 import { FORM } from '@/content/recruitment';
 import { CLASSES, SPECS, type WowClass } from '@/lib/design/class-colors';
+import { NAME_PART, normaliseName } from '@/lib/roster-edit';
 
 export type ApplicationInput = {
   path: ApplicationPath;
+  /** "First Second": WoW Forever names are two parts, and applicants give both. */
   character: string;
   /** The Discord handle as typed, lower-cased; from the session when logged in. */
   discord: string;
   wowClass: WowClass | null;
   spec: string | null;
   logsUrl: string | null;
-  /** { availability, wipe } for raiders, { note } for socials. */
+  /**
+   * { availability, pitch } for raiders, { note } for socials. Applications sent before
+   * the closing question changed carry `wipe` instead of `pitch`.
+   */
   answers: Record<string, string>;
 };
 
 export type ParsedApplication = { ok: true; value: ApplicationInput } | { ok: false; errors: Record<string, string> };
 
-// Letters only, any script; the Latin-1 range would let × and ÷ through.
-const CHARACTER = /^\p{L}{2,12}$/u;
 // Discord usernames: 2–32 of letters, digits, underscore, full stop; legacy tags may carry #1234.
 const DISCORD = /^[\p{L}\p{N}_.]{2,32}(#\d{4})?$/u;
 export const ANSWER_MAX = 2000;
 
 /** The honeypot field: bots fill it, people never see it. */
 export const HONEYPOT_FIELD = 'website';
-
-export function normaliseCharacter(raw: string): string {
-  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
-}
 
 function text(data: FormData, key: string): string {
   const v = data.get(key);
@@ -43,8 +42,11 @@ export function parseApplication(data: FormData, sessionHandle: string | null): 
   const errors: Record<string, string> = {};
   const path: ApplicationPath = text(data, 'path') === 'social' ? 'social' : 'raider';
 
-  const rawCharacter = text(data, 'character');
-  if (!CHARACTER.test(rawCharacter)) errors.character = 'Character names are 2–12 letters, exactly as in game.';
+  // Each part normalised the way the game does, then tested: capitalising can change length.
+  const first = normaliseName(text(data, 'firstName'));
+  const second = normaliseName(text(data, 'secondName'));
+  if (!NAME_PART.test(first)) errors.firstName = 'Your first name, 2–12 letters, exactly as in game.';
+  if (!NAME_PART.test(second)) errors.secondName = 'Your second name, 2–12 letters, exactly as in game.';
 
   // Logged in: the session name is a guild nickname or display name, which Discord lets
   // contain spaces and symbols, and the field is read-only, so it is trusted as given.
@@ -83,9 +85,9 @@ export function parseApplication(data: FormData, sessionHandle: string | null): 
     if (!(FORM.availabilityOptions as readonly string[]).includes(availability)) errors.availability = 'Pick one.';
     else answers.availability = availability;
 
-    const wipe = text(data, 'wipe');
-    if (wipe.length < 20) errors.wipe = 'A few honest sentences.';
-    else answers.wipe = wipe.slice(0, ANSWER_MAX);
+    const pitch = text(data, 'pitch');
+    if (pitch.length < 20) errors.pitch = 'A few honest sentences.';
+    else answers.pitch = pitch.slice(0, ANSWER_MAX);
 
     if (data.get('agree') !== 'on') errors.agree = 'Read the loot rules and the expectations first.';
   } else {
@@ -94,7 +96,7 @@ export function parseApplication(data: FormData, sessionHandle: string | null): 
   }
 
   if (Object.keys(errors).length > 0) return { ok: false, errors };
-  return { ok: true, value: { path, character: normaliseCharacter(rawCharacter), discord, wowClass, spec, logsUrl, answers } };
+  return { ok: true, value: { path, character: `${first} ${second}`, discord, wowClass, spec, logsUrl, answers } };
 }
 
 /** Whether the hidden field was filled: a bot, answered with a quiet redirect and no row. */

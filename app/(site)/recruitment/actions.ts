@@ -69,6 +69,6 @@ export async function submitApplication(_prev: ApplicationState, data: FormData)
     else throw e;
   }
   if (duplicate === 'account') return { ok: false, errors: {}, message: FORM.duplicateAccount };
-  if (duplicate) return { ok: false, errors: { character: FORM.duplicate } };
+  if (duplicate) return { ok: false, errors: { firstName: FORM.duplicate } };
   redirect(`/recruitment/submitted?${submittedSearch(value)}`);
 }
