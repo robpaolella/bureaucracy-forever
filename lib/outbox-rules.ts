@@ -21,6 +21,7 @@ export type JobType =
   | 'raid.lock'
   | 'raid.cancel'
   | 'raid.close'
+  | 'raid.delete'
   | 'member.roles.sync'
   | 'officers.notify';
 
