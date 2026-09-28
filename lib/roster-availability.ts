@@ -32,13 +32,13 @@ async function loadRosterAvailability(): Promise<HeatMember[]> {
       discordName: true,
       timezone: true,
       availability: { select: { timezone: true, slots: true } },
-      characters: { where: { isMain: true }, take: 1, select: { name: true, class: true, raidRole: true } },
+      characters: { where: { isMain: true }, take: 1, select: { class: true, raidRole: true } },
     },
   });
   return users.map((u) => {
     const main = u.characters[0];
     return {
-      name: main?.name ?? u.discordName,
+      name: u.discordName,
       wowClass: main ? (main.class.toLowerCase() as WowClass) : null,
       role: (main?.raidRole ?? 'MELEE').toLowerCase() as HeatRole,
       timezone: u.availability?.timezone ?? u.timezone ?? GUILD_TIMEZONE,
