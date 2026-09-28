@@ -66,14 +66,14 @@ export default async function RaidDetailPage({ params }: Params) {
             reason: true,
             updatedAt: true,
             user: { select: { discordId: true, discordName: true, characters: MAIN } },
-            setBy: { select: { discordName: true, characters: { where: { isMain: true }, take: 1, select: { name: true } } } },
+            setBy: { select: { discordName: true } },
           },
         },
       },
     }),
     db.user.findUnique({ where: { discordId: session.discordId }, select: { characters: { where: { isMain: true }, take: 1, select: { raidRole: true } } } }),
     officer
-      ? db.user.findMany({ where: { role: { in: ['MEMBER', 'OFFICER'] } }, select: { id: true, discordName: true, characters: { where: { isMain: true }, take: 1, select: { name: true } } }, orderBy: { discordName: 'asc' } })
+      ? db.user.findMany({ where: { role: { in: ['MEMBER', 'OFFICER'] } }, select: { id: true, discordName: true }, orderBy: { discordName: 'asc' } })
       : Promise.resolve([]),
   ]);
   if (!raid) notFound();
@@ -83,7 +83,8 @@ export default async function RaidDetailPage({ params }: Params) {
     const main = s.user.characters[0];
     return {
       userId: s.userId,
-      name: main?.name ?? s.user.discordName,
+      name: s.user.discordName,
+      character: main?.name ?? null,
       wowClass: (main?.class.toLowerCase() as WowClass | undefined) ?? null,
       spec: main?.spec ?? null,
       role: (main?.raidRole.toLowerCase() as Role | undefined) ?? null,
@@ -92,7 +93,7 @@ export default async function RaidDetailPage({ params }: Params) {
       attended: s.attended,
       source: s.source.toLowerCase() as 'web' | 'discord',
       reason: s.reason,
-      setBy: s.setBy ? s.setBy.characters[0]?.name ?? s.setBy.discordName : null,
+      setBy: s.setBy?.discordName ?? null,
       updatedAt: s.updatedAt.toISOString(),
     };
   });
@@ -119,7 +120,7 @@ export default async function RaidDetailPage({ params }: Params) {
   const listed = new Set(rows.map((r) => r.userId));
   const memberOptions: MemberOption[] = members
     .filter((m) => !listed.has(m.id))
-    .map((m) => ({ id: m.id, label: m.characters[0]?.name ?? m.discordName }))
+    .map((m) => ({ id: m.id, label: m.discordName }))
     .sort((a, b) => a.label.localeCompare(b.label));
   const answered = rows.filter((r) => r.response !== null);
 

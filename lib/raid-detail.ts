@@ -11,7 +11,10 @@ export type Standing = 'ROSTER' | 'BENCH';
 /** One Signup row as the detail page shows it. Roster members who have not answered have `response: null`. */
 export type DetailRow = {
   userId: string;
+  /** The member's Discord name: people are named by it, not by their main. */
   name: string;
+  /** The main character's name, shown beside class and spec. Null until officers add a main. */
+  character: string | null;
   wowClass: WowClass | null;
   spec: string | null;
   role: Role | null;

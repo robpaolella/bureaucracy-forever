@@ -4,6 +4,7 @@ import { attendanceCandidates, groupByRole, signupsClosed, splitStanding, type D
 const row = (over: Partial<DetailRow>): DetailRow => ({
   userId: over.name ?? 'u',
   name: 'Redtape',
+  character: 'Redtape',
   wowClass: 'warrior',
   spec: 'Protection',
   role: 'tank',
