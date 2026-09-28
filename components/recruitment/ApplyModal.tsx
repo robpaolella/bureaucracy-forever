@@ -35,7 +35,7 @@ export function ApplyModalProvider({ children }: { children: ReactNode }) {
   // Nothing renders inside the dialog until the first open; after that it stays, so a closed form keeps its answers.
   const [touched, setTouched] = useState(false);
   const [gate, setGate] = useState<ApplyGate | null>(null);
-  // The path the form was mounted with, and a counter that remounts it after a submit.
+  // The path the last apply button asked for, and a counter that remounts the form after a submit.
   const [formPath, setFormPath] = useState<ApplicationPath>('raider');
   const [epoch, setEpoch] = useState(0);
   const [returnTo, setReturnTo] = useState('/');
@@ -129,7 +129,7 @@ export function ApplyModalProvider({ children }: { children: ReactNode }) {
       {children}
       <dialog
         ref={ref}
-        aria-label={FORM.title}
+        aria-label={showForm ? FORM.title : gate?.kind === 'signin' ? APPLY_GATE.signInTitle : gate?.kind === 'join' ? APPLY_GATE.joinTitle : APPLY_GATE.eyebrow}
         onCancel={(e) => {
           e.preventDefault();
           close();
@@ -153,7 +153,7 @@ export function ApplyModalProvider({ children }: { children: ReactNode }) {
               </Button>
             </div>
             {showForm ? (
-              <ApplicationForm key={`${formPath}:${epoch}`} discordHandle={gate.name} initialPath={formPath} />
+              <ApplicationForm key={epoch} discordHandle={gate.name} initialPath={formPath} />
             ) : (
               <GatePanel gate={gate} returnTo={returnTo} onRetry={() => check(formPath)} />
             )}

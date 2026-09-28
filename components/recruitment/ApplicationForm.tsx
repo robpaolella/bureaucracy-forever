@@ -58,6 +58,13 @@ export function ApplicationForm({ discordHandle: known, initialPath = 'raider' }
   const clientName = useSiteSession().session?.name;
   const discordHandle = known ?? clientName;
   const [path, setPath] = useState<ApplicationPath>(initialPath);
+  // The apply modal keeps one form mounted: another apply button switches its path and keeps
+  // the answers both paths share.
+  const [requestedPath, setRequestedPath] = useState(initialPath);
+  if (requestedPath !== initialPath) {
+    setRequestedPath(initialPath);
+    setPath(initialPath);
+  }
   const [wowClass, setWowClass] = useState<WowClass | ''>('');
   const [state, formAction, pending] = useActionState(submitApplication, INITIAL_STATE);
   const [, startTransition] = useTransition();
