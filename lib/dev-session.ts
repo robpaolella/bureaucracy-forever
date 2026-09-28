@@ -16,6 +16,7 @@ const STUBS: Record<Exclude<DevSessionState, 'out'>, Session> = {
   member: {
     discordId: '100000000010007919',
     role: 'member',
+    templateAdmin: false,
     name: 'Redtape',
     wowClass: 'priest',
     rank: 'raider',
@@ -25,6 +26,7 @@ const STUBS: Record<Exclude<DevSessionState, 'out'>, Session> = {
   'member-unsubmitted': {
     discordId: 'dev-member-unsubmitted',
     role: 'member',
+    templateAdmin: false,
     name: 'Redtape',
     wowClass: 'priest',
     rank: 'raider',
@@ -34,6 +36,7 @@ const STUBS: Record<Exclude<DevSessionState, 'out'>, Session> = {
   officer: {
     discordId: '100000000010000000',
     role: 'officer',
+    templateAdmin: true,
     name: 'Ledgerline',
     wowClass: 'warrior',
     rank: 'officer',

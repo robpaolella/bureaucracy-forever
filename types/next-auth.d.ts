@@ -7,6 +7,8 @@ declare module 'next-auth' {
       /** Discord user id. */
       id: string;
       role: Role;
+      /** Guild Master or Administrator: may delete raid templates. */
+      templateAdmin: boolean;
     } & DefaultSession['user'];
   }
 }

@@ -25,7 +25,7 @@ export default async function RaidsPlannerPage() {
         <h1 className="font-display text-[34px] font-medium leading-[1.05] tracking-[-0.02em] md:text-[44px]">{PLANNER_HEAD.title}</h1>
         <p className="max-w-[640px] text-[15px] leading-[1.65] text-fg-2">{PLANNER_HEAD.lede}</p>
       </section>
-      <RaidPlanner templates={templateRows} series={seriesRows} />
+      <RaidPlanner templates={templateRows} series={seriesRows} canDeleteTemplates={session.templateAdmin} />
     </div>
   );
 }

@@ -21,6 +21,13 @@ export const TEMPLATES = {
   save: 'Save template',
   cancel: 'Cancel',
   saved: (name: string) => `Saved ${name}`,
+  delete: 'Delete',
+  deleteTitle: 'Delete this template?',
+  deleteBody: 'The template is removed for good. Raids already made from it stay on the calendar as they are. This cannot be undone.',
+  deleteConfirm: 'Delete the template',
+  deleted: (name: string) => `Deleted ${name}`,
+  inUse: (n: number) => `${n === 1 ? 'A series uses' : `${n} series use`} this template. Delete ${n === 1 ? 'it' : 'them'} first, under Series below.`,
+  close: 'Close',
 };
 
 export const SERIES = {
@@ -60,4 +67,9 @@ export const SERIES = {
   hours: (minutes: number) => (minutes % 60 ? `${Math.floor(minutes / 60)}½ hours` : `${minutes / 60} hours`),
   deactivated: 'Series deactivated',
   reactivated: 'Series reactivated',
+  delete: 'Delete',
+  deleteTitle: 'Delete this series?',
+  deleteBody: 'The series is removed for good. Future raids that are not posted yet go with it; posted and past raids stay on the calendar as one-off raids. This cannot be undone.',
+  deleteConfirm: 'Delete the series',
+  deleted: 'Series deleted',
 };

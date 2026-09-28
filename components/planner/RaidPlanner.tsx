@@ -16,7 +16,12 @@ import { TemplateForm } from './TemplateForm';
 export type TemplateRow = TemplateInput & { id: string };
 export type SeriesRow = SeriesInput & { id: string; templateName: string; raids: number };
 
-type Props = { templates: TemplateRow[]; series: SeriesRow[] };
+type Props = {
+  templates: TemplateRow[];
+  series: SeriesRow[];
+  /** Guild Master or Administrator: shows Delete on templates (lib/auth/roles.ts). */
+  canDeleteTemplates: boolean;
+};
 
 async function send(url: string, method: string, body: unknown): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> {
   const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' });
@@ -27,22 +32,26 @@ async function send(url: string, method: string, body: unknown): Promise<{ ok: b
 const failure = (r: { status: number; json: Record<string, unknown> }) => (r.status === 400 || r.status === 409 ? String(r.json.error ?? SAVE_FAILED) : SAVE_FAILED);
 
 /** /officers/raids (SYNC-SPEC §9.3): the template table, the series list and the new-series form. */
-export function RaidPlanner({ templates, series }: Props) {
+export function RaidPlanner(props: Props) {
   return (
     <ToastHost>
-      <Planner templates={templates} series={series} />
+      <Planner {...props} />
     </ToastHost>
   );
 }
 
-function Planner({ templates, series }: Props) {
+function Planner({ templates, series, canDeleteTemplates }: Props) {
   const router = useRouter();
   const toast = useToast();
   const [editingTemplate, setEditingTemplate] = useState<TemplateRow | null>(null);
   const [editingSeries, setEditingSeries] = useState<SeriesRow | null>(null);
   const [deactivating, setDeactivating] = useState<SeriesRow | null>(null);
+  const [deletingSeries, setDeletingSeries] = useState<SeriesRow | null>(null);
+  const [deletingTemplate, setDeletingTemplate] = useState<TemplateRow | null>(null);
   const [busy, setBusy] = useState(false);
   const activeTemplates = templates.filter((t) => t.active);
+  // Series still on the template being deleted: the route refuses those, so the modal says so up front.
+  const templatesInUse = deletingTemplate ? series.filter((s) => s.templateId === deletingTemplate.id).length : 0;
   const blank: SeriesInput = { templateId: activeTemplates[0]?.id ?? '', weekday: 4, startTime: '20:00', durationMin: activeTemplates[0]?.durationMin ?? 180, notes: '', postAheadDays: 14, lockMinutesBefore: 120, horizonWeeks: 4, active: true };
 
   async function saveTemplate(input: TemplateInput): Promise<string | null> {
@@ -79,6 +88,24 @@ function Planner({ templates, series }: Props) {
     toast(r.ok ? { tone: 'ok', title: active ? SERIES.reactivated : SERIES.deactivated } : { tone: 'stop', title: failure(r) });
     router.refresh();
   }
+  async function deleteTemplate(row: TemplateRow) {
+    if (busy) return;
+    setBusy(true);
+    const r = await send(`/api/raid-templates/${row.id}`, 'DELETE', {});
+    setBusy(false);
+    setDeletingTemplate(null);
+    toast(r.ok || r.status === 404 ? { tone: 'ok', title: TEMPLATES.deleted(row.name) } : { tone: 'stop', title: failure(r) });
+    router.refresh();
+  }
+  async function deleteSeries(row: SeriesRow) {
+    if (busy) return;
+    setBusy(true);
+    const r = await send(`/api/raid-series/${row.id}`, 'DELETE', {});
+    setBusy(false);
+    setDeletingSeries(null);
+    toast(r.ok || r.status === 404 ? { tone: 'ok', title: SERIES.deleted } : { tone: 'stop', title: failure(r) });
+    router.refresh();
+  }
 
   return (
     <div className="flex flex-col gap-10">
@@ -92,7 +119,7 @@ function Planner({ templates, series }: Props) {
         <ul className="divide-y divide-line-faint rounded-card border border-line bg-ink-900">
           {templates.map((t) => (
             <li key={t.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-              <div className="flex min-w-0 flex-1 flex-col">
+              <div className="flex min-w-[14rem] flex-1 flex-col">
                 <span className="text-[15px] font-semibold">
                   {t.name} <span className="text-fg-3">· {t.short}</span>
                 </span>
@@ -104,6 +131,11 @@ function Planner({ templates, series }: Props) {
               <Button variant="secondary" size="sm" onClick={() => setEditingTemplate(t)} aria-label={`${TEMPLATES.edit} ${t.name}`}>
                 {TEMPLATES.edit}
               </Button>
+              {canDeleteTemplates && (
+                <Button variant="ghost" size="sm" className="text-stop" onClick={() => setDeletingTemplate(t)} aria-label={`${TEMPLATES.delete} ${t.name}`}>
+                  {TEMPLATES.delete}
+                </Button>
+              )}
             </li>
           ))}
         </ul>
@@ -122,7 +154,7 @@ function Planner({ templates, series }: Props) {
           <ul className="divide-y divide-line-faint rounded-card border border-line bg-ink-900">
             {series.map((s) => (
               <li key={s.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-                <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex min-w-[14rem] flex-1 flex-col">
                   <span className="text-[15px] font-semibold">
                     {s.templateName} <span className="text-fg-3">· {WEEKDAY_LABELS[s.weekday]}s <SeriesTime weekday={s.weekday} startTime={s.startTime} /></span>
                   </span>
@@ -144,6 +176,9 @@ function Planner({ templates, series }: Props) {
                     {SERIES.reactivate}
                   </Button>
                 )}
+                <Button variant="ghost" size="sm" className="text-stop" onClick={() => setDeletingSeries(s)} aria-label={`${SERIES.delete} ${s.templateName} ${WEEKDAY_LABELS[s.weekday]}`}>
+                  {SERIES.delete}
+                </Button>
               </li>
             ))}
           </ul>
@@ -176,6 +211,46 @@ function Planner({ templates, series }: Props) {
         }
       >
         {SERIES.deactivateBody}
+      </Modal>
+      <Modal
+        open={deletingTemplate !== null}
+        onClose={() => setDeletingTemplate(null)}
+        title={TEMPLATES.deleteTitle}
+        actions={
+          templatesInUse > 0 ? (
+            <Button variant="ghost" onClick={() => setDeletingTemplate(null)}>
+              {TEMPLATES.close}
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => setDeletingTemplate(null)}>
+                {SERIES.keep}
+              </Button>
+              <Button variant="danger" loading={busy} onClick={() => deletingTemplate && deleteTemplate(deletingTemplate)}>
+                {TEMPLATES.deleteConfirm}
+              </Button>
+            </>
+          )
+        }
+      >
+        {templatesInUse > 0 ? TEMPLATES.inUse(templatesInUse) : TEMPLATES.deleteBody}
+      </Modal>
+      <Modal
+        open={deletingSeries !== null}
+        onClose={() => setDeletingSeries(null)}
+        title={SERIES.deleteTitle}
+        actions={
+          <>
+            <Button variant="ghost" onClick={() => setDeletingSeries(null)}>
+              {SERIES.keep}
+            </Button>
+            <Button variant="danger" loading={busy} onClick={() => deletingSeries && deleteSeries(deletingSeries)}>
+              {SERIES.deleteConfirm}
+            </Button>
+          </>
+        }
+      >
+        {SERIES.deleteBody}
       </Modal>
     </div>
   );
