@@ -63,7 +63,7 @@ export function RosterByRole({ raidId, rows, now, canAnswerFor, showAttendance }
 
 function Row({ raidId, row, at, canAnswerFor, showAttendance }: { raidId: string; row: DetailRow; at: Date; canAnswerFor: boolean; showAttendance: boolean }) {
   const color = row.wowClass ? CLASS_COLORS[row.wowClass].onInk : undefined;
-  const meta = row.wowClass ? [CLASS_COLORS[row.wowClass].label, row.spec].filter(Boolean).join(' · ') : UNKNOWN_MAIN;
+  const meta = row.wowClass ? [row.character, CLASS_COLORS[row.wowClass].label, row.spec].filter(Boolean).join(' · ') : UNKNOWN_MAIN;
   return (
     <li className={cn('flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2', row.response === 'absent' && 'opacity-60')}>
       <ClassAvatar name={row.name} wowClass={row.wowClass} />

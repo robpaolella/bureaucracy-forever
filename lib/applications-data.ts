@@ -58,12 +58,12 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
       readAt: true,
       createdAt: true,
       decidedAt: true,
-      decidedBy: { select: { discordName: true, characters: { where: { isMain: true }, take: 1, select: { name: true } } } },
+      decidedBy: { select: { discordName: true } },
       discordThreadId: true,
       notes: {
         where: { deletedAt: null },
         orderBy: { createdAt: 'asc' },
-        select: { id: true, body: true, createdAt: true, source: true, discordMessageId: true, editedAt: true, author: { select: { discordName: true, characters: { where: { isMain: true }, take: 1, select: { name: true, class: true } } } } },
+        select: { id: true, body: true, createdAt: true, source: true, discordMessageId: true, editedAt: true, author: { select: { discordName: true, characters: { where: { isMain: true }, take: 1, select: { class: true } } } } },
       },
     },
   });
@@ -82,11 +82,11 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
     createdAt: r.createdAt.toISOString(),
     unread: r.readAt === null,
     decidedAt: r.decidedAt?.toISOString() ?? null,
-    decidedBy: r.decidedBy ? r.decidedBy.characters[0]?.name ?? r.decidedBy.discordName : null,
+    decidedBy: r.decidedBy?.discordName ?? null,
     discordThreadId: r.discordThreadId,
     notes: r.notes.map((n) => ({
       id: n.id,
-      author: n.author.characters[0]?.name ?? n.author.discordName,
+      author: n.author.discordName,
       authorClass: (n.author.characters[0]?.class.toLowerCase() as WowClass | undefined) ?? null,
       body: n.body,
       createdAt: n.createdAt.toISOString(),

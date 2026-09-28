@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { id } = await params;
   // Same guard as the page: an applicant's name never leaks into a title for non-officers.
   const app = session?.role === 'officer' ? await loadApplication(id) : null;
-  return { title: app?.character ?? 'Application', robots: { index: false, follow: false } };
+  return { title: app?.discordName ?? 'Application', robots: { index: false, follow: false } };
 }
 
 /** docs/04 § Application detail: the right pane of the inbox as its own page, where phones land. */

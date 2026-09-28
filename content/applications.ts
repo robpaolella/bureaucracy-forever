@@ -36,6 +36,7 @@ export const DETAIL = {
   edited: 'edited',
   noNotes: 'No notes yet.',
   composer: 'Add a note',
+  character: 'Character',
   noAccount: 'Applied without logging in: reach them by handle.',
   decided: (status: string, by: string | null) => (by ? `${status} by ${by}` : status),
 };

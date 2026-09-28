@@ -112,15 +112,15 @@ export function Inbox({ items, selectedId, now, children }: Props) {
                     className={cn('flex min-h-[72px] items-center gap-3 px-4 py-3 transition-colors duration-[120ms] hover:bg-ink-850', selected && 'bg-teal-wash')}
                   >
                     <span aria-hidden className={cn('h-1.5 w-1.5 shrink-0 rounded-full', a.unread ? 'bg-sand' : 'bg-transparent')} />
-                    <ClassAvatar name={a.character} wowClass={a.wowClass} size={28} />
+                    <ClassAvatar name={a.discordName} wowClass={a.wowClass} size={28} />
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="flex items-center gap-2">
                         <span className="truncate text-[15px] font-semibold" style={{ color: a.wowClass ? CLASS_COLORS[a.wowClass].onInk : undefined }}>
-                          {a.character}
+                          {a.discordName}
                         </span>
                         {a.unread && <span className="sr-only">{INBOX.unread}</span>}
                       </span>
-                      <span className="truncate text-[13px] text-fg-3">{a.wowClass ? `${CLASS_COLORS[a.wowClass].label} · ${a.spec}` : a.discordName}</span>
+                      <span className="truncate text-[13px] text-fg-3">{a.wowClass ? `${a.character} · ${CLASS_COLORS[a.wowClass].label} · ${a.spec}` : a.character}</span>
                     </span>
                     <span className="flex shrink-0 flex-col items-end gap-1">
                       <Tag>{PATH_LABEL[a.path]}</Tag>

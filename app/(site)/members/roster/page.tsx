@@ -31,7 +31,8 @@ export default async function RosterPage() {
     const c = u.characters[0];
     return {
       id: u.id,
-      name: c?.name ?? u.discordName,
+      name: u.discordName,
+      character: c?.name ?? null,
       wowClass: (c?.class.toLowerCase() as WowClass | undefined) ?? null,
       spec: c?.spec ?? null,
       role: (c?.raidRole.toLowerCase() as Role | undefined) ?? null,

@@ -6,7 +6,7 @@ import { Button, Modal, useToast } from '@/components/ui';
 import { SAVE_FAILED } from '@/content/calendar';
 import { ACTIONS } from '@/content/applications';
 
-type Props = { id: string; character: string; path: 'raider' | 'social'; pending: boolean };
+type Props = { id: string; /** The applicant's Discord name. */ name: string; path: 'raider' | 'social'; pending: boolean };
 
 type Pending = 'accepted' | 'declined' | null;
 
@@ -23,7 +23,7 @@ async function failureMessage(res: Response): Promise<string> {
  * who fits better there. After a decision the page refreshes: the pill updates and the
  * row leaves the Pending filter.
  */
-export function DecisionBar({ id, character, path, pending }: Props) {
+export function DecisionBar({ id, name, path, pending }: Props) {
   const router = useRouter();
   const [confirming, setConfirming] = useState<Pending>(null);
   const [busy, setBusy] = useState(false);
@@ -64,7 +64,7 @@ export function DecisionBar({ id, character, path, pending }: Props) {
           {ACTIONS.decline}
         </Button>
         {path === 'raider' && (
-          <Button variant="ghost" loading={busy && confirming === null} onClick={() => send({ path: 'social' }, ACTIONS.movedToSocial(character))}>
+          <Button variant="ghost" loading={busy && confirming === null} onClick={() => send({ path: 'social' }, ACTIONS.movedToSocial(name))}>
             {ACTIONS.toSocial}
           </Button>
         )}
@@ -73,18 +73,18 @@ export function DecisionBar({ id, character, path, pending }: Props) {
       <Modal
         open={confirm !== null}
         onClose={() => setConfirming(null)}
-        title={confirm === 'declined' ? ACTIONS.declineTitle(character) : ACTIONS.acceptTitle(character)}
+        title={confirm === 'declined' ? ACTIONS.declineTitle(name) : ACTIONS.acceptTitle(name)}
         actions={
           <>
             <Button variant="ghost" onClick={() => setConfirming(null)}>
               {ACTIONS.keep}
             </Button>
             {confirm === 'declined' ? (
-              <Button variant="danger" loading={busy} onClick={() => send({ status: 'declined' }, ACTIONS.declined(character))}>
+              <Button variant="danger" loading={busy} onClick={() => send({ status: 'declined' }, ACTIONS.declined(name))}>
                 {ACTIONS.declineConfirm}
               </Button>
             ) : (
-              <Button loading={busy} onClick={() => send({ status: 'accepted' }, ACTIONS.accepted(character))}>
+              <Button loading={busy} onClick={() => send({ status: 'accepted' }, ACTIONS.accepted(name))}>
                 {ACTIONS.acceptConfirm}
               </Button>
             )}

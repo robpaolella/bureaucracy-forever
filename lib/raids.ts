@@ -136,7 +136,7 @@ export type SignupSource = 'web' | 'discord';
 /** One sign-up as the raid detail lists it (docs/04 § Raid detail § Sign-up list). */
 export type SignupRow = {
   userId: string;
-  /** The member's main, or their Discord name until the roster knows one. */
+  /** The member's Discord name. */
   name: string;
   wowClass: WowClass | null;
   spec: string | null;

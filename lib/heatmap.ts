@@ -14,6 +14,7 @@ export type RoleCounts = Record<HeatRole, number>;
 
 /** One roster member as the aggregation needs them. `slots` is null when they never saved. */
 export type HeatMember = {
+  /** The member's Discord name. */
   name: string;
   /** null when the member has no main character on the roster yet. */
   wowClass: WowClass | null;

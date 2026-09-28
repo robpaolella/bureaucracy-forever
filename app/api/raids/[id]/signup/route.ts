@@ -46,7 +46,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const user = await db.user.upsert({
     where: { discordId: session.discordId },
     create: { discordId: session.discordId, discordName: session.name, role: session.role.toUpperCase() as 'MEMBER' | 'OFFICER' },
-    update: { discordName: session.name, role: session.role.toUpperCase() as 'MEMBER' | 'OFFICER' },
+    // The name only on create: the bot's member snapshot keeps it current (lib/users.ts).
+    update: { role: session.role.toUpperCase() as 'MEMBER' | 'OFFICER' },
     select: { id: true },
   });
 

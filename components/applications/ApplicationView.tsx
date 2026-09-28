@@ -17,10 +17,10 @@ type Props = {
 };
 
 /**
- * docs/04 § Application detail: head with the character in class colour and the meta row,
- * one block per answer, the logs link with its host visible, then the private officer
- * notes with their composer, and the decision bar pinned to the bottom while the
- * application is pending.
+ * docs/04 § Application detail: head with the applicant's Discord name in class colour,
+ * the meta row and their character, one block per answer, the logs link with its host
+ * visible, then the private officer notes with their composer, and the decision bar
+ * pinned to the bottom while the application is pending.
  */
 export function ApplicationView({ app, now, threadUrl = null, standaloneUrl = null }: Props) {
   const at = new Date(now);
@@ -35,9 +35,9 @@ export function ApplicationView({ app, now, threadUrl = null, standaloneUrl = nu
       <article className="flex flex-col gap-6" aria-labelledby="application-title">
         <header className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <ClassAvatar name={app.character} wowClass={app.wowClass} size={32} />
+            <ClassAvatar name={app.discordName} wowClass={app.wowClass} size={32} />
             <h2 id="application-title" className="font-display text-[30px] font-medium leading-none" style={{ color }}>
-              {app.character}
+              {app.discordName}
             </h2>
             {standaloneUrl && (
               <a href={standaloneUrl} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex min-h-11 items-center gap-1 text-sm text-fg-3 underline-offset-4 hover:text-fg hover:underline">
@@ -54,8 +54,8 @@ export function ApplicationView({ app, now, threadUrl = null, standaloneUrl = nu
             <StatusPill tone={STATUS_TONE[app.status]}>{app.status === 'pending' ? STATUS_LABEL.pending : DETAIL.decided(STATUS_LABEL[app.status], app.decidedBy)}</StatusPill>
           </div>
           <p className="text-sm text-fg-2">
-            <span className="text-fg-3">Discord </span>
-            <span className="font-semibold text-fg">{app.discordName}</span>
+            <span className="text-fg-3">{DETAIL.character} </span>
+            <span className="font-semibold text-fg">{app.character}</span>
             {!app.discordId && <span className="text-fg-3"> · {DETAIL.noAccount}</span>}
           </p>
         </header>
@@ -123,7 +123,7 @@ export function ApplicationView({ app, now, threadUrl = null, standaloneUrl = nu
           <NoteComposer applicationId={app.id} />
         </section>
 
-        <DecisionBar id={app.id} character={app.character} path={app.path} pending={app.status === 'pending'} />
+        <DecisionBar id={app.id} name={app.discordName} path={app.path} pending={app.status === 'pending'} />
       </article>
     </ToastHost>
   );

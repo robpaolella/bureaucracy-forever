@@ -7,13 +7,16 @@ import type { Session } from '@/lib/session';
  * The User row for the current session, created on first write. JWT sessions do not
  * create one on login; the first thing a member or officer writes does (the same rule
  * the availability and sign-up routes follow inline).
+ *
+ * The Discord name is written only on create. After that the bot's member snapshot keeps
+ * it current; the session's copy is frozen at sign-in and would put an old name back.
  */
 export async function ensureUser(session: Session): Promise<{ id: string }> {
   const role = session.role.toUpperCase() as 'SOCIAL' | 'MEMBER' | 'OFFICER';
   return db.user.upsert({
     where: { discordId: session.discordId },
     create: { discordId: session.discordId, discordName: session.name, role },
-    update: { discordName: session.name, role },
+    update: { role },
     select: { id: true },
   });
 }

@@ -25,8 +25,9 @@ export function NotSubmitted({ members }: { members: HeatmapMember[] }) {
         <p className="text-small text-fg-2">Everyone on the roster has painted a week.</p>
       ) : (
         <ul className="flex flex-col">
-          {rows.map((m) => (
-            <li key={m.name} className="flex items-center justify-between border-b border-line-faint py-[9px] last:border-b-0">
+          {rows.map((m, i) => (
+            // Discord names are not unique; the list never reorders, so the index is stable.
+            <li key={i} className="flex items-center justify-between border-b border-line-faint py-[9px] last:border-b-0">
               <span className="text-sm font-semibold" style={{ color: m.wowClass ? CLASS_COLORS[m.wowClass].onInk : undefined }}>
                 {m.name}
               </span>

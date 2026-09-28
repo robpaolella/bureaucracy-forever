@@ -60,7 +60,7 @@ export function RosterTable({ rows }: Props) {
   const columns: Column<RosterRow>[] = [
     {
       key: 'name',
-      header: 'Character',
+      header: 'Member',
       sortable: true,
       render: (r) => (
         <span className="font-semibold" style={{ color: r.wowClass ? CLASS_COLORS[r.wowClass].onInk : undefined }}>
@@ -68,6 +68,7 @@ export function RosterTable({ rows }: Props) {
         </span>
       ),
     },
+    { key: 'character', header: 'Main', render: (r) => <span className="text-fg-2">{r.character ?? '—'}</span> },
     { key: 'class', header: 'Class', render: (r) => (r.wowClass ? CLASS_COLORS[r.wowClass].label : <span className="text-fg-3">{ROSTER_NO_MAIN}</span>) },
     { key: 'spec', header: 'Spec', render: (r) => <span className="text-fg-2">{r.spec ?? '—'}</span> },
     { key: 'role', header: 'Role', render: (r) => <span className="text-fg-2">{r.role ? ROLE_LABELS[r.role] : '—'}</span> },
@@ -91,8 +92,8 @@ export function RosterTable({ rows }: Props) {
           type="search"
           value={filters.search}
           onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-          placeholder="Search characters"
-          aria-label="Search characters"
+          placeholder="Search members"
+          aria-label="Search members"
           className={cn(CONTROL, 'h-11 px-3.5 md:w-[220px]')}
         />
         <MultiSelect label="Class" plural="classes" options={CLASSES.map((c) => ({ value: c, label: CLASS_COLORS[c].label }))} values={filters.classes} onChange={(classes: WowClass[]) => setFilters({ ...filters, classes })} className="md:w-[176px]" />
@@ -167,7 +168,7 @@ export function RosterTable({ rows }: Props) {
                           </span>
                           <RankBadge rank={r.rank} />
                         </div>
-                        <span className="truncate text-[13px] text-fg-3">{r.wowClass && r.role ? `${CLASS_COLORS[r.wowClass].label} · ${r.spec} · ${ROLE_LABELS[r.role]}` : ROSTER_NO_MAIN}</span>
+                        <span className="truncate text-[13px] text-fg-3">{r.wowClass && r.role ? `${r.character} · ${CLASS_COLORS[r.wowClass].label} · ${r.spec} · ${ROLE_LABELS[r.role]}` : ROSTER_NO_MAIN}</span>
                       </div>
                       <span className="tabular shrink-0 text-sm text-fg-2">{formatAttendance(r.attendance)}</span>
                     </li>
