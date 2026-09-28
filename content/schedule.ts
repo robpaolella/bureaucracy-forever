@@ -38,8 +38,8 @@ export const LOCKOUT_RESET = { day: 2 as Weekday, time: '08:00' };
 
 export const SCHEDULE_HEAD = {
   eyebrow: 'Raid schedule',
-  title: 'Three nights, nine hours, no overtime',
-  lede: 'Every time on this page is written twice: guild time, and the time on your own clock. Neither is ever the one you have to convert.',
+  title: 'Two progression nights. Days to be announced.',
+  lede: 'Raid days and times get set before launch, around when the roster can actually play. When they land, every time on this page is written twice: guild time, and the time on your own clock.',
 };
 
 export const WEEK_NOTE_PREFIX = 'Raid nights are shown in bronze. Lockouts reset';
@@ -67,7 +67,7 @@ export const SCHEDULE_ASIDES = {
     linkLabel: 'Open the calendar →',
   },
   availability: {
-    title: "Can't make these hours?",
-    text: 'Paint your week on the availability page after you log in. Officers schedule around what the roster actually has.',
+    title: 'Help us pick the days',
+    text: 'Paint your week on the availability page after you log in. Officers set raid days around what the roster actually has.',
   },
 };
