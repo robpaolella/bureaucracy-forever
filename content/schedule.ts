@@ -21,6 +21,15 @@ export const RAID_NIGHTS: RaidNight[] = [
   { day: 0, start: '19:00', end: '22:00', kind: 'Clear night', optional: true },
 ];
 
+export type RaidWeekSlot = { day: string; kind: string; optional: boolean };
+
+/** Pre-launch: raid days and times aren't set, so the public pages name slots, not weekdays. */
+export const RAID_WEEK: RaidWeekSlot[] = [
+  { day: 'Day 1', kind: 'Progression', optional: false },
+  { day: 'Day 2', kind: 'Progression', optional: false },
+  { day: 'Optional Day', kind: 'Farm/Alt Runs', optional: true },
+];
+
 /** Week strip order: Monday first, as drawn in Schedule.html. */
 export const WEEK_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0];
 

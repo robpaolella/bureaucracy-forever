@@ -47,13 +47,6 @@ export const PROGRESSION: ProgressionRow[] = [
   { name: "Onyxia's Lair", size: '40-player', state: 'locked', killed: 0, total: 0 },
 ];
 
-/** Pre-launch: raid days and times aren't set, so the home week names slots, not weekdays. */
-export const RAID_WEEK = [
-  { day: 'Day 1', kind: 'Progression' },
-  { day: 'Day 2', kind: 'Progression' },
-  { day: 'Optional Day', kind: 'Farm/Alt Runs' },
-];
-
 export const CLOSING = {
   headline: 'Are you ready to take your game to the next level?',
   text: "Bureaucracy is always recruiting talented players to join our core team. If you're a competitive player who wants to keep climbing, fill out an application. We read every application and will respond within a few days.",
