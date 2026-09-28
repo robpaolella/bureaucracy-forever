@@ -146,7 +146,7 @@ export function ApplyModalProvider({ children }: { children: ReactNode }) {
         {touched && (
           <div className="relative">
             <div className="sticky top-0 z-10 flex h-0 justify-end">
-              <Button variant="ghost" iconOnly aria-label="Close" onClick={close} className="mr-2 mt-2 md:mr-3 md:mt-3">
+              <Button variant="ghost" iconOnly aria-label="Close" onClick={close} className="mr-2 mt-2 bg-ink-850 md:mr-3 md:mt-3">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
                   <path d="M2 2l10 10M12 2L2 12" />
                 </svg>
