@@ -40,12 +40,11 @@ export type ProgressionRow = {
   total: number;
 };
 
-/** PLACEHOLDER kill counts. The real table reads from logs (docs/04 § Home). */
+/** Pre-launch: nothing is released yet, so every tier is locked with an unknown boss count. */
 export const PROGRESSION: ProgressionRow[] = [
-  { name: 'Molten Core', size: '40-player', state: 'cleared', killed: 10, total: 10 },
-  { name: "Onyxia's Lair", size: '40-player', state: 'cleared', killed: 1, total: 1 },
-  { name: 'Blackwing Lair', size: '40-player', state: 'current', killed: 6, total: 8 },
-  { name: 'The Barrow Deeps', size: 'Not yet released', state: 'locked', killed: 0, total: 0 },
+  { name: 'The Barrow Deeps', size: '10-player', state: 'locked', killed: 0, total: 0 },
+  { name: 'Hyjal Summit', size: '20-player', state: 'locked', killed: 0, total: 0 },
+  { name: "Onyxia's Lair", size: '40-player', state: 'locked', killed: 0, total: 0 },
 ];
 
 export const CLOSING = {
