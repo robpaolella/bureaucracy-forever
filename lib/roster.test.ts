@@ -4,6 +4,7 @@ import { countActiveFilters, EMPTY_FILTERS, filterRoster, formatAttendance, grou
 const row = (name: string, extra: Partial<RosterRow> = {}): RosterRow => ({
   id: name,
   name,
+  character: `${name}main`,
   wowClass: 'warrior',
   spec: 'Fury',
   role: 'melee',
@@ -24,6 +25,7 @@ const ROWS: RosterRow[] = [
 describe('filterRoster', () => {
   it('matches name substrings case-insensitively and combines filters with AND', () => {
     expect(filterRoster(ROWS, { ...EMPTY_FILTERS, search: 'RED' }).map((r) => r.name)).toEqual(['Redtape']);
+    expect(filterRoster(ROWS, { ...EMPTY_FILTERS, search: 'bindermain' }).map((r) => r.name)).toEqual(['Binder']);
     expect(filterRoster(ROWS, { ...EMPTY_FILTERS, classes: ['mage'] }).map((r) => r.name)).toEqual(['Binder', 'Addendum']);
     expect(filterRoster(ROWS, { ...EMPTY_FILTERS, classes: ['mage'], rank: 'trial' }).map((r) => r.name)).toEqual(['Addendum']);
     expect(filterRoster(ROWS, { ...EMPTY_FILTERS, roles: ['healer', 'tank'] }).length).toBe(3);
@@ -88,7 +90,7 @@ it('formats attendance', () => {
 });
 
 describe('members without a main', () => {
-  const bare = row('Konvett', { wowClass: null, spec: null, role: null, rank: 'raider', attendance: null });
+  const bare = row('Konvett', { character: null, wowClass: null, spec: null, role: null, rank: 'raider', attendance: null });
   it('are left out of class and role filters but kept otherwise', () => {
     expect(filterRoster([...ROWS, bare], { ...EMPTY_FILTERS, classes: ['warrior'] }).map((r) => r.name)).toEqual(['Ledgerline']);
     expect(filterRoster([...ROWS, bare], { ...EMPTY_FILTERS, roles: ['tank'] }).map((r) => r.name)).toEqual(['Ledgerline']);

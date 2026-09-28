@@ -9,8 +9,10 @@ import { ROSTER_NO_MAIN } from '@/content/roster';
 
 export type RosterRow = {
   id: string;
-  /** The main's name, or the Discord name until officers add a main. */
+  /** The member's Discord name: people are named by it, not by their main. */
   name: string;
+  /** The main character's name. Null until the member has a main on the site. */
+  character: string | null;
   /** Null until the member has a main on the site. */
   wowClass: WowClass | null;
   spec: string | null;
@@ -47,7 +49,7 @@ export function filterRoster(rows: RosterRow[], f: RosterFilters): RosterRow[] {
   const q = f.search.trim().toLowerCase();
   return rows.filter(
     (r) =>
-      (!q || r.name.toLowerCase().includes(q)) &&
+      (!q || r.name.toLowerCase().includes(q) || (r.character?.toLowerCase().includes(q) ?? false)) &&
       (f.classes.length === 0 || (r.wowClass !== null && f.classes.includes(r.wowClass))) &&
       (f.roles.length === 0 || (r.role !== null && f.roles.includes(r.role))) &&
       (!f.rank || r.rank === f.rank),
