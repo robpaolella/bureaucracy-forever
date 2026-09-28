@@ -17,10 +17,10 @@ type Props = {
 };
 
 /**
- * docs/04 § Application detail: head with the character in class colour and the meta row,
- * one block per answer, the logs link with its host visible, then the private officer
- * notes with their composer, and the decision bar pinned to the bottom while the
- * application is pending.
+ * docs/04 § Application detail: head with the applicant's Discord name in class colour,
+ * the meta row and their character, one block per answer, the logs link with its host
+ * visible, then the private officer notes with their composer, and the decision bar
+ * pinned to the bottom while the application is pending.
  */
 export function ApplicationView({ app, now, threadUrl = null, standaloneUrl = null }: Props) {
   const at = new Date(now);
