@@ -2,6 +2,7 @@ import { after, NextResponse } from 'next/server';
 import { enqueue } from '@/lib/outbox';
 import { db } from '@/lib/db';
 import { locksAtFor, parseRaidInput } from '@/lib/raids';
+import { skippedDatesFor } from '@/lib/series';
 import { getSession } from '@/lib/session';
 
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
@@ -59,4 +60,44 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   });
   if (updated.discordThreadId) after(() => enqueue('raid.update', { raidId: raid.id }));
   return NextResponse.json({ id: updated.id, name: updated.name, startsAt: updated.startsAt.toISOString() }, { headers: NO_STORE });
+}
+
+/**
+ * DELETE /api/raids/[id] — remove a raid and its sign-ups for good (officers). Unlike cancel,
+ * nothing is announced: the bot takes the #raid-signups post and thread down quietly. A
+ * series instance's guild date is remembered on the series so tick does not generate it again.
+ */
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'Log in first.' }, { status: 401, headers: NO_STORE });
+  if (session.role !== 'officer') return NextResponse.json({ error: 'Officers manage raids.' }, { status: 403, headers: NO_STORE });
+
+  const { id } = await params;
+  const raid = await db.raid.findUnique({ where: { id }, select: { id: true, name: true, startsAt: true, seriesId: true, discordThreadId: true, discordMessageId: true } });
+  if (!raid) return NextResponse.json({ error: 'No such raid.' }, { status: 404, headers: NO_STORE });
+
+  try {
+    await db.$transaction(async (tx) => {
+      if (raid.seriesId) {
+        const series = await tx.raidSeries.findUnique({ where: { id: raid.seriesId }, select: { weekday: true, startTime: true, skippedDates: true } });
+        if (series) {
+          const add = skippedDatesFor(raid.startsAt, series).filter((d) => !series.skippedDates.includes(d));
+          if (add.length > 0) await tx.raidSeries.update({ where: { id: raid.seriesId }, data: { skippedDates: { push: add } } });
+        }
+      }
+      // Jobs still waiting on this raid have nothing left to act on. RUNNING ones are left to
+      // the ack path (lib/outbox.ts): a late raid.post takes its post down again, and any
+      // other raid job that fails against the missing raid is closed rather than retried.
+      await tx.outboxJob.updateMany({ where: { status: 'PENDING', type: { startsWith: 'raid.' }, payload: { path: ['raidId'], equals: raid.id } }, data: { status: 'DONE', lastError: 'raid deleted' } });
+      await tx.raid.delete({ where: { id: raid.id } });
+      if (raid.discordThreadId || raid.discordMessageId) {
+        await enqueue('raid.delete', { raidId: raid.id, threadId: raid.discordThreadId, messageId: raid.discordMessageId }, tx);
+      }
+    });
+  } catch (error) {
+    // Another officer deleted it first.
+    if ((error as { code?: string }).code === 'P2025') return NextResponse.json({ error: 'No such raid.' }, { status: 404, headers: NO_STORE });
+    throw error;
+  }
+  return NextResponse.json({ id: raid.id, name: raid.name, deleted: true }, { headers: NO_STORE });
 }

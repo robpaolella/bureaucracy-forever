@@ -44,10 +44,11 @@ export function guildDateKey(date: Date, zone: string = GUILD_TIMEZONE): string 
 /**
  * Which occurrences have no raid yet, by guild date (§6 step 1: "skip dates that already
  * have a raid for the series"). Matching by instant would regenerate a raid whose time was
- * moved, next to the one that moved.
+ * moved, next to the one that moved. `skipped` holds the guild dates whose raid an officer
+ * deleted, so a deleted instance stays deleted.
  */
-export function missingOccurrences(wanted: Date[], existing: Date[], zone: string = GUILD_TIMEZONE): Date[] {
-  const have = new Set(existing.map((d) => guildDateKey(d, zone)));
+export function missingOccurrences(wanted: Date[], existing: Date[], skipped: readonly string[] = [], zone: string = GUILD_TIMEZONE): Date[] {
+  const have = new Set([...existing.map((d) => guildDateKey(d, zone)), ...skipped]);
   return wanted.filter((d) => !have.has(guildDateKey(d, zone)));
 }
 
@@ -60,6 +61,15 @@ export function occurrenceInWeekOf(startsAt: Date, series: Pick<SeriesShape, 'we
   const p = zonedParts(startsAt, zone);
   const cal = new Date(Date.UTC(p.year, p.month - 1, p.day - p.weekday + series.weekday));
   return zonedTimeToUtc(cal.getUTCFullYear(), cal.getUTCMonth() + 1, cal.getUTCDate(), hour, minute, zone);
+}
+
+/**
+ * The guild dates to skip when an officer deletes a series instance: the date it sits on,
+ * and the series' own occurrence in that guild week. An instance edited onto another day
+ * still stands for its week's slot, and tick matches slots by date, so both are needed.
+ */
+export function skippedDatesFor(startsAt: Date, series: Pick<SeriesShape, 'weekday' | 'startTime'>, zone: string = GUILD_TIMEZONE): string[] {
+  return [...new Set([guildDateKey(startsAt, zone), guildDateKey(occurrenceInWeekOf(startsAt, series, zone), zone)])];
 }
 
 /** "Molten Core — Thu Oct 15", the post title and the raid name for a generated instance. */

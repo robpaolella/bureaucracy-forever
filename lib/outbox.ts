@@ -64,12 +64,21 @@ export async function ackJob(id: string, ack: AckBody, now = new Date()): Promis
     await db.outboxJob.update({ where: { id }, data: { status: 'DONE', result: (ack.result ?? {}) as Prisma.InputJsonValue, lockedAt: null, lastError: null } });
     return { status: 'DONE', applied };
   }
+  // A raid job that failed because an officer deleted the raid has nothing left to retry.
+  if (job.type.startsWith('raid.') && job.type !== 'raid.delete' && !(await raidExists((job.payload ?? {}) as Record<string, unknown>))) {
+    await db.outboxJob.update({ where: { id }, data: { status: 'DONE', lockedAt: null, lastError: `raid deleted: ${ack.error}` } });
+    return { status: 'DONE' };
+  }
   const next = nextAttempt(job.attempts, now);
   await db.outboxJob.update({ where: { id }, data: { status: next.status, attempts: next.attempts, runAfter: next.runAfter, lockedAt: null, lastError: ack.error } });
   if (next.status === 'FAILED') {
     await enqueue('officers.notify', { text: `Sync job ${job.type} failed after ${next.attempts} attempts: ${ack.error}`, jobId: id });
   }
   return { status: next.status };
+}
+
+async function raidExists(payload: Record<string, unknown>): Promise<boolean> {
+  return (await db.raid.count({ where: { id: String(payload.raidId ?? '') } })) > 0;
 }
 
 const str = (v: unknown) => (typeof v === 'string' && v ? v : null);
@@ -83,7 +92,12 @@ async function applyResult(type: JobType, payload: Record<string, unknown>, resu
     return 'application ids stored';
   }
   if (type === 'raid.post' && threadId) {
-    await db.raid.updateMany({ where: { id: String(payload.raidId) }, data: { discordThreadId: threadId, discordMessageId: messageId } });
+    const stored = await db.raid.updateMany({ where: { id: String(payload.raidId) }, data: { discordThreadId: threadId, discordMessageId: messageId } });
+    // Deleted while the bot was posting it: take the post down again.
+    if (stored.count === 0) {
+      await enqueue('raid.delete', { raidId: String(payload.raidId), threadId, messageId });
+      return 'raid gone, post removed';
+    }
     return 'raid ids stored';
   }
   if (type === 'application.note.post' && messageId) {

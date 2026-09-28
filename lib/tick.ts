@@ -44,7 +44,7 @@ export async function generateInstances(now: Date, roster: string[], seriesId?: 
   const seriesList = await db.raidSeries.findMany({ where: { id: seriesId, active: true, template: { active: true } }, include: { template: true, raids: { select: { startsAt: true } } } });
   for (const s of seriesList) {
     const wanted = occurrences({ weekday: s.weekday, startTime: s.startTime, horizonWeeks: s.horizonWeeks }, now);
-    for (const startsAt of missingOccurrences(wanted, s.raids.map((r) => r.startsAt))) {
+    for (const startsAt of missingOccurrences(wanted, s.raids.map((r) => r.startsAt), s.skippedDates)) {
       try {
         await db.raid.create({
           data: {

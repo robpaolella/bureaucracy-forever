@@ -17,6 +17,8 @@ type Props = {
   past: boolean;
   /** The #raid-signups thread, once the bot has posted the raid. */
   threadUrl: string | null;
+  /** Generated from a weekly series: deleting it skips that week. */
+  fromSeries: boolean;
 };
 
 const RESPONSE_LABEL: Record<RaidResponse, string> = { accept: 'Accept', tentative: 'Tentative', absent: 'Absent' };
@@ -37,14 +39,16 @@ async function failureMessage(res: Response): Promise<string> {
  * the link to the Discord thread once the bot has posted it, Cancel raid with a reason
  * (SYNC-SPEC §9.5), and answering for someone who has no row yet, which the route records
  * as `setBy`. Edit opens the schedule form prefilled; Cancel asks first and can be undone
- * with Restore. On phones the row collapses into one button that opens a sheet.
+ * with Restore; Delete removes the raid for good, quietly. On phones the row collapses
+ * into one button that opens a sheet.
  */
-export function OfficerActions({ raid, members, past, threadUrl }: Props) {
+export function OfficerActions({ raid, members, past, threadUrl, fromSeries }: Props) {
   const router = useRouter();
   const setToast = useToast();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const sheetId = useId();
@@ -77,6 +81,26 @@ export function OfficerActions({ raid, members, past, threadUrl }: Props) {
       setOpen(false);
       setReason('');
       setToast({ tone: 'ok', title: cancelled ? RAID_TOASTS.cancelled(raid.name) : RAID_TOASTS.restored(raid.name) });
+      router.refresh();
+    } catch {
+      setToast({ tone: 'stop', title: SAVE_FAILED });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteRaid() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/raids/${raid.id}`, { method: 'DELETE', credentials: 'same-origin' });
+      // 404: someone else deleted it first, which is the outcome asked for.
+      if (!res.ok && res.status !== 404) {
+        setDeleting(false);
+        setToast({ tone: 'stop', title: await failureMessage(res) });
+        return;
+      }
+      router.replace('/members/calendar');
       router.refresh();
     } catch {
       setToast({ tone: 'stop', title: SAVE_FAILED });
@@ -127,6 +151,16 @@ export function OfficerActions({ raid, members, past, threadUrl }: Props) {
             {OFFICER_ACTIONS.cancel}
           </Button>
         )}
+        <Button
+          variant="danger"
+          size="sm"
+          onClick={() => {
+            setOpen(false);
+            setDeleting(true);
+          }}
+        >
+          {OFFICER_ACTIONS.delete}
+        </Button>
       </div>
       {!past && !raid.cancelled && <OnBehalfForm raidId={raid.id} members={members} onToast={setToast} onDone={() => setOpen(false)} />}
     </div>
@@ -168,6 +202,27 @@ export function OfficerActions({ raid, members, past, threadUrl }: Props) {
           <Field label={OFFICER_ACTIONS.cancelReason} hint={OFFICER_ACTIONS.cancelReasonHint} id={reasonId}>
             <Textarea id={reasonId} rows={2} maxLength={500} value={reason} placeholder={OFFICER_ACTIONS.cancelReasonPlaceholder} onChange={(e) => setReason(e.target.value)} />
           </Field>
+        </div>
+      </Modal>
+
+      <Modal
+        open={deleting}
+        onClose={() => setDeleting(false)}
+        title={OFFICER_ACTIONS.deleteTitle}
+        actions={
+          <>
+            <Button variant="ghost" onClick={() => setDeleting(false)}>
+              {OFFICER_ACTIONS.keep}
+            </Button>
+            <Button variant="danger" loading={busy} onClick={deleteRaid}>
+              {OFFICER_ACTIONS.deleteConfirm}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p>{OFFICER_ACTIONS.deleteBody}</p>
+          {fromSeries && <p className="text-fg-3">{OFFICER_ACTIONS.deleteSeries}</p>}
         </div>
       </Modal>
     </section>
