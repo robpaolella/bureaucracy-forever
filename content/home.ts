@@ -18,7 +18,8 @@ export const HERO = {
   headline: ["Smolderweb's #1 raiding guild.", 'Now on WoW Forever.'],
   lede:
     "Bureaucracy has been raiding together since 2011. On Smolderweb we were the top guild from Molten Core through Naxx, with server firsts, the fastest clears, and a top 100 world Naxx clear. We're bringing the same crew to WoW Forever and building on what we did there.",
-  primary: { label: 'Apply to raid', href: '/recruitment' },
+  /** Opens the apply modal on the Raider path. */
+  primary: { label: 'Apply to raid', path: 'raider' as const },
   secondary: { label: 'Join our Discord', href: DISCORD_INVITE_URL },
 };
 
@@ -50,6 +51,7 @@ export const PROGRESSION: ProgressionRow[] = [
 export const CLOSING = {
   headline: 'Are you ready to take your game to the next level?',
   text: "Bureaucracy is always recruiting talented players to join our core team. If you're a competitive player who wants to keep climbing, fill out an application. We read every application and will respond within a few days.",
-  primary: { label: 'Apply to raid', href: '/recruitment' },
-  secondary: { label: 'Join as a social member', href: '/recruitment?path=social' },
+  /** Both open the apply modal, one path each. */
+  primary: { label: 'Apply to raid', path: 'raider' as const },
+  secondary: { label: 'Join as a social member', path: 'social' as const },
 };

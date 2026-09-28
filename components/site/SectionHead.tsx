@@ -2,16 +2,13 @@ import Link from 'next/link';
 import type { ComponentProps, ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
+/** The teal "Something →" link look, as a class string, for links that are not AccentLink (the apply modal's). */
+export const ACCENT_LINK = 'flex min-h-11 items-center text-sm font-semibold text-teal transition-[filter] duration-[120ms] hover:brightness-110';
+
 /** The teal "Something →" link used beside section heads. 44px hit box on 14px text. */
 export function AccentLink({ className, children, ...props }: ComponentProps<typeof Link>) {
   return (
-    <Link
-      {...props}
-      className={cn(
-        'flex min-h-11 items-center text-sm font-semibold text-teal transition-[filter] duration-[120ms] hover:brightness-110',
-        className,
-      )}
-    >
+    <Link {...props} className={cn(ACCENT_LINK, className)}>
       {children}
     </Link>
   );

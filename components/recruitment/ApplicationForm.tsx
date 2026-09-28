@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { useActionState, useEffect, useId, useRef, useState, useTransition, type FormEvent } from 'react';
 import { submitApplication } from '@/app/(site)/recruitment/actions';
 import { INITIAL_STATE, type ApplicationPath } from '@/components/recruitment/form-state';
@@ -52,14 +51,20 @@ function LocalNightsLine() {
   );
 }
 
-export function ApplicationForm({ discordHandle: known }: { discordHandle?: string } = {}) {
-  const params = useSearchParams();
+export function ApplicationForm({ discordHandle: known, initialPath = 'raider' }: { discordHandle?: string; initialPath?: ApplicationPath } = {}) {
   // From the session when logged in; the field is then read-only. Read on the client so
   // the page stays static.
   // The server-gated /apply page passes the name it already knows; the client context is the fallback.
   const clientName = useSiteSession().session?.name;
   const discordHandle = known ?? clientName;
-  const [path, setPath] = useState<ApplicationPath>(params.get('path') === 'social' ? 'social' : 'raider');
+  const [path, setPath] = useState<ApplicationPath>(initialPath);
+  // The apply modal keeps one form mounted: another apply button switches its path and keeps
+  // the answers both paths share.
+  const [requestedPath, setRequestedPath] = useState(initialPath);
+  if (requestedPath !== initialPath) {
+    setRequestedPath(initialPath);
+    setPath(initialPath);
+  }
   const [wowClass, setWowClass] = useState<WowClass | ''>('');
   const [state, formAction, pending] = useActionState(submitApplication, INITIAL_STATE);
   const [, startTransition] = useTransition();

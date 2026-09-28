@@ -118,7 +118,7 @@ export const FORM = {
   tooMany: 'That is a lot of applications from one place. Wait an hour, or ask in #recruitment.',
   duplicate: 'An application for this character is already waiting on an officer.',
   duplicateAccount: 'You already have an application waiting on an officer.',
-  signInRequired: 'Sign in with Discord first; the form is on /apply.',
+  signInRequired: 'Sign in with Discord first, then submit again.',
 };
 
 /** docs/04 § Application submitted. */
@@ -143,13 +143,14 @@ export const APPLY_GATE = {
   joinBody: "Join the server first, then come back to this page. Officers decide applications in Discord and reach you there.",
   join: 'Join Discord',
   retry: "I've joined — try again",
+  checking: 'Checking your Discord sign-in…',
 };
 
-/** The recruitment page's apply section: two doors to /apply (SYNC-SPEC §9.1). */
+/** The recruitment page's apply section: two doors to the apply modal (SYNC-SPEC §9.1). */
 export const APPLY_LINKS = {
-  raider: { label: 'Apply as a Raider', href: '/apply?path=raider' },
-  social: { label: 'Apply as Social', href: '/apply?path=social' },
-  note: "You'll sign in with Discord on the next page, so join the server first.",
+  raider: { label: 'Apply as a Raider', path: 'raider' as const },
+  social: { label: 'Apply as Social', path: 'social' as const },
+  note: "You'll sign in with Discord before the form opens, so join the server first.",
 };
 
 export const NEXT_STEPS = {

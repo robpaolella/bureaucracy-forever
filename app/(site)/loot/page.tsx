@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { LootToc } from '@/components/loot/LootToc';
-import { AccentLink } from '@/components/site/SectionHead';
+import { ApplyLink } from '@/components/recruitment/ApplyModal';
+import { ACCENT_LINK } from '@/components/site/SectionHead';
 import { Card } from '@/components/ui';
 import { LOOT_ASIDE, LOOT_FAQ, LOOT_HEAD, LOOT_SUMMARY, LOOT_TOC, LOOT_TRIALS, LOOT_WEIGH, LOOT_WHO } from '@/content/loot';
 import { cn } from '@/lib/cn';
@@ -104,9 +105,9 @@ export default function LootPage() {
           <Card className="flex flex-col gap-2.5">
             <span className="text-[15px] font-semibold">{LOOT_ASIDE.applying.title}</span>
             <p className="text-[13px] leading-[1.6] text-fg-2">{LOOT_ASIDE.applying.text}</p>
-            <AccentLink href="/recruitment#apply" className="self-start">
+            <ApplyLink path="raider" className={cn(ACCENT_LINK, 'self-start')}>
               {LOOT_ASIDE.applying.linkLabel}
-            </AccentLink>
+            </ApplyLink>
           </Card>
         </div>
       </section>

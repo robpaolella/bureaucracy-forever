@@ -10,4 +10,7 @@ export type ApplicationState = {
   message?: string;
 };
 
+/** What an applicant sees in place of the form (SYNC-SPEC §9.1): sign in, join the server, or the form itself. */
+export type ApplyGate = { kind: 'signin' } | { kind: 'join' } | { kind: 'form'; name: string };
+
 export const INITIAL_STATE: ApplicationState = { ok: false, errors: {} };

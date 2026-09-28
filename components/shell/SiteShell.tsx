@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { ApplyModalProvider } from '@/components/recruitment/ApplyModal';
 import type { Session } from '@/lib/session';
 import { Footer } from './Footer';
 import { SiteHeader } from './SiteHeader';
@@ -20,12 +21,15 @@ export function SiteShell({
 }) {
   return (
     <SiteSessionProvider initial={initialSession}>
-      <div className="flex min-h-screen flex-col">
-        {above}
-        <SiteHeader />
-        <main className="flex flex-1 flex-col">{children}</main>
-        <Footer />
-      </div>
+      {/* Apply buttons anywhere in the shell open the application form over the page. */}
+      <ApplyModalProvider>
+        <div className="flex min-h-screen flex-col">
+          {above}
+          <SiteHeader />
+          <main className="flex flex-1 flex-col">{children}</main>
+          <Footer />
+        </div>
+      </ApplyModalProvider>
     </SiteSessionProvider>
   );
 }
