@@ -85,7 +85,7 @@ export const EXPECTATIONS = {
   title: 'What we expect of a raider',
   note: 'None of this is unusual. All of it is enforced.',
   items: [
-    { title: 'Both progression nights', text: 'Tuesday and Wednesday, roughly 90% of the tier. Life happens — tell us before the day.' },
+    { title: 'Both progression nights', text: 'Days to be announced. Make roughly 90% of the tier. Life happens — tell us before the day.' },
     { title: 'Read the fight first', text: 'Strategy goes up in Discord before the night. Come knowing your job, not asking what it is.' },
     { title: 'Your own consumables', text: 'Flasks, potions, world buffs where they matter. The guild bank covers repairs, not your flasks.' },
     { title: 'Voice and an addon pack', text: 'In Discord for every pull. Boss timers and a logging client running — we review the logs, not our memories.' },
