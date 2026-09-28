@@ -156,13 +156,12 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
   }
 
   // 6b. Trials: two weeks in, ask officers whether to extend or end it (docs/04 § Roster).
-  const trials = await db.user.findMany({ where: { rank: 'TRIAL', inGuild: true, trialStartedAt: { not: null }, trialNudgedAt: null }, select: { id: true, rank: true, discordName: true, trialStartedAt: true, trialNudgedAt: true, characters: { where: { isMain: true }, take: 1, select: { name: true } } } });
+  const trials = await db.user.findMany({ where: { rank: 'TRIAL', inGuild: true, trialStartedAt: { not: null }, trialNudgedAt: null }, select: { id: true, rank: true, discordName: true, trialStartedAt: true, trialNudgedAt: true } });
   for (const t of trials) {
     if (!trialCheckInDue(t, now)) continue;
-    const who = t.characters[0]?.name ?? t.discordName;
     await db.$transaction(async (tx) => {
       await tx.user.update({ where: { id: t.id }, data: { trialNudgedAt: now } });
-      await enqueue('officers.notify', { text: TRIAL_CHECK_IN(who, TRIAL_DAYS, `${SITE_URL}/officers/roster`), trialUserId: t.id }, tx);
+      await enqueue('officers.notify', { text: TRIAL_CHECK_IN(t.discordName, TRIAL_DAYS, `${SITE_URL}/officers/roster`), trialUserId: t.id }, tx);
     });
     counts.trialsRaised += 1;
   }

@@ -14,7 +14,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!isSnowflake(by)) return reply(400, { error: 'byDiscordId must be a Discord id.' });
     const officer = await userByDiscordId(by);
     if (!officer || officer.role !== 'OFFICER') return reply(403, { error: 'Only officers reopen applications.' });
-    const outcome = await reopenApplication(id, { userId: officer.id, name: officer.characters[0]?.name ?? officer.discordName, source: 'discord' });
+    const outcome = await reopenApplication(id, { userId: officer.id, name: officer.discordName, source: 'discord' });
     if (outcome === 'missing') return reply(404, { error: 'No such application.' });
     if (outcome === 'conflict') return reply(409, { reason: 'This application is already pending.' });
     return reply(200, { id, status: 'pending' });

@@ -16,7 +16,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!isSnowflake(by)) return reply(400, { error: 'byDiscordId must be a Discord id.' });
     const officer = await userByDiscordId(by);
     if (!officer || officer.role !== 'OFFICER') return reply(403, { error: 'Only officers decide applications.' });
-    const outcome = await decideApplication(id, status, { userId: officer.id, name: officer.characters[0]?.name ?? officer.discordName, source: 'discord' }, str(read.body.reason, 500));
+    const outcome = await decideApplication(id, status, { userId: officer.id, name: officer.discordName, source: 'discord' }, str(read.body.reason, 500));
     if (outcome === 'missing') return reply(404, { error: 'No such application.' });
     if (outcome === 'conflict') return reply(409, { reason: 'This application was already decided.' });
     return reply(200, { id, status });
