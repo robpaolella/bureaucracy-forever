@@ -46,7 +46,8 @@ export function ChoiceGroup({ legend, children, hint, error, className, row = fa
   return (
     <fieldset className={cn('flex flex-col gap-2.5', className)} aria-describedby={note ? noteId : undefined} aria-invalid={error ? true : undefined}>
       <legend className={cn(FIELD_LABEL, 'mb-2.5')}>{legend}</legend>
-      <div className={cn('flex gap-2.5', row ? 'flex-wrap' : 'flex-col')}>{children}</div>
+      {/* An unanswered group outlines its cards in red, as a text control does. */}
+      <div className={cn('flex gap-2.5', row ? 'flex-wrap' : 'flex-col', Boolean(error) && '[&>label]:border-stop')}>{children}</div>
       {note && (
         <span id={noteId} className={cn('text-xs', error ? 'text-stop' : 'text-fg-3')}>
           {note}
