@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { ApplyButton } from '@/components/recruitment/ApplyModal';
 import { NeedsTable } from '@/components/recruitment/NeedsTable';
 import { AccentLink, EYEBROW } from '@/components/site/SectionHead';
 import { ButtonLink, Card } from '@/components/ui';
@@ -80,12 +81,12 @@ export default async function RecruitmentPage() {
             <p className="text-[15px] leading-[1.65] text-fg-2">{FORM.lede}</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <ButtonLink href={APPLY_LINKS.raider.href} size="lg" className="font-bold">
+            <ApplyButton path={APPLY_LINKS.raider.path} size="lg" className="font-bold">
               {APPLY_LINKS.raider.label}
-            </ButtonLink>
-            <ButtonLink href={APPLY_LINKS.social.href} size="lg" variant="secondary">
+            </ApplyButton>
+            <ApplyButton path={APPLY_LINKS.social.path} size="lg" variant="secondary">
               {APPLY_LINKS.social.label}
-            </ButtonLink>
+            </ApplyButton>
           </div>
           <p className="text-[13px] text-fg-3">{APPLY_LINKS.note}</p>
         </Card>

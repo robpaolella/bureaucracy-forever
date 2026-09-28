@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import type { Metadata } from 'next';
 import { HeroContours } from '@/components/home/HeroContours';
+import { ApplyButton } from '@/components/recruitment/ApplyModal';
 import { AccentLink, SectionHead } from '@/components/site/SectionHead';
 import { NightTimes } from '@/components/time/NightTimes';
 import { ButtonLink, Card, StatusPill } from '@/components/ui';
@@ -50,9 +51,9 @@ function Hero() {
         </h1>
         <p className="max-w-[620px] text-[17px] leading-[1.6] text-fg-2 md:text-[19px]">{HERO.lede}</p>
         <div className="flex flex-wrap items-center gap-4 pt-2">
-          <ButtonLink href={HERO.primary.href} size="lg" className="font-bold">
+          <ApplyButton path={HERO.primary.path} size="lg" className="font-bold">
             {HERO.primary.label}
-          </ButtonLink>
+          </ApplyButton>
           <ButtonLink href={HERO.secondary.href} size="lg" variant="secondary" target="_blank" rel="noopener noreferrer">
             {HERO.secondary.label}
           </ButtonLink>
@@ -190,12 +191,12 @@ function ClosingCta() {
         <h2 className="font-display text-[34px] font-medium leading-[1.08] tracking-[-0.02em] md:text-[48px]">{CLOSING.headline}</h2>
         <p className="text-[17px] leading-[1.65] text-fg-2">{CLOSING.text}</p>
         <div className="flex flex-wrap items-center gap-4 pt-2">
-          <ButtonLink href={CLOSING.primary.href} size="lg" className="font-bold">
+          <ApplyButton path={CLOSING.primary.path} size="lg" className="font-bold">
             {CLOSING.primary.label}
-          </ButtonLink>
-          <ButtonLink href={CLOSING.secondary.href} size="lg" variant="secondary">
+          </ApplyButton>
+          <ApplyButton path={CLOSING.secondary.path} size="lg" variant="secondary">
             {CLOSING.secondary.label}
-          </ButtonLink>
+          </ApplyButton>
         </div>
       </div>
       <Image src="/brand/mark.png" alt="" aria-hidden width={176} height={200} className="hidden opacity-[0.14] lg:block" />
