@@ -16,7 +16,12 @@ import { TemplateForm } from './TemplateForm';
 export type TemplateRow = TemplateInput & { id: string };
 export type SeriesRow = SeriesInput & { id: string; templateName: string; raids: number };
 
-type Props = { templates: TemplateRow[]; series: SeriesRow[] };
+type Props = {
+  templates: TemplateRow[];
+  series: SeriesRow[];
+  /** Guild Master or Administrator: shows Delete on templates (lib/auth/roles.ts). */
+  canDeleteTemplates: boolean;
+};
 
 async function send(url: string, method: string, body: unknown): Promise<{ ok: boolean; status: number; json: Record<string, unknown> }> {
   const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' });
@@ -27,23 +32,26 @@ async function send(url: string, method: string, body: unknown): Promise<{ ok: b
 const failure = (r: { status: number; json: Record<string, unknown> }) => (r.status === 400 || r.status === 409 ? String(r.json.error ?? SAVE_FAILED) : SAVE_FAILED);
 
 /** /officers/raids (SYNC-SPEC §9.3): the template table, the series list and the new-series form. */
-export function RaidPlanner({ templates, series }: Props) {
+export function RaidPlanner(props: Props) {
   return (
     <ToastHost>
-      <Planner templates={templates} series={series} />
+      <Planner {...props} />
     </ToastHost>
   );
 }
 
-function Planner({ templates, series }: Props) {
+function Planner({ templates, series, canDeleteTemplates }: Props) {
   const router = useRouter();
   const toast = useToast();
   const [editingTemplate, setEditingTemplate] = useState<TemplateRow | null>(null);
   const [editingSeries, setEditingSeries] = useState<SeriesRow | null>(null);
   const [deactivating, setDeactivating] = useState<SeriesRow | null>(null);
   const [deletingSeries, setDeletingSeries] = useState<SeriesRow | null>(null);
+  const [deletingTemplate, setDeletingTemplate] = useState<TemplateRow | null>(null);
   const [busy, setBusy] = useState(false);
   const activeTemplates = templates.filter((t) => t.active);
+  // Series still on the template being deleted: the route refuses those, so the modal says so up front.
+  const templatesInUse = deletingTemplate ? series.filter((s) => s.templateId === deletingTemplate.id).length : 0;
   const blank: SeriesInput = { templateId: activeTemplates[0]?.id ?? '', weekday: 4, startTime: '20:00', durationMin: activeTemplates[0]?.durationMin ?? 180, notes: '', postAheadDays: 14, lockMinutesBefore: 120, horizonWeeks: 4, active: true };
 
   async function saveTemplate(input: TemplateInput): Promise<string | null> {
@@ -80,6 +88,15 @@ function Planner({ templates, series }: Props) {
     toast(r.ok ? { tone: 'ok', title: active ? SERIES.reactivated : SERIES.deactivated } : { tone: 'stop', title: failure(r) });
     router.refresh();
   }
+  async function deleteTemplate(row: TemplateRow) {
+    if (busy) return;
+    setBusy(true);
+    const r = await send(`/api/raid-templates/${row.id}`, 'DELETE', {});
+    setBusy(false);
+    setDeletingTemplate(null);
+    toast(r.ok || r.status === 404 ? { tone: 'ok', title: TEMPLATES.deleted(row.name) } : { tone: 'stop', title: failure(r) });
+    router.refresh();
+  }
   async function deleteSeries(row: SeriesRow) {
     if (busy) return;
     setBusy(true);
@@ -114,6 +131,11 @@ function Planner({ templates, series }: Props) {
               <Button variant="secondary" size="sm" onClick={() => setEditingTemplate(t)} aria-label={`${TEMPLATES.edit} ${t.name}`}>
                 {TEMPLATES.edit}
               </Button>
+              {canDeleteTemplates && (
+                <Button variant="ghost" size="sm" className="text-stop" onClick={() => setDeletingTemplate(t)} aria-label={`${TEMPLATES.delete} ${t.name}`}>
+                  {TEMPLATES.delete}
+                </Button>
+              )}
             </li>
           ))}
         </ul>
@@ -189,6 +211,29 @@ function Planner({ templates, series }: Props) {
         }
       >
         {SERIES.deactivateBody}
+      </Modal>
+      <Modal
+        open={deletingTemplate !== null}
+        onClose={() => setDeletingTemplate(null)}
+        title={TEMPLATES.deleteTitle}
+        actions={
+          templatesInUse > 0 ? (
+            <Button variant="ghost" onClick={() => setDeletingTemplate(null)}>
+              {TEMPLATES.close}
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => setDeletingTemplate(null)}>
+                {SERIES.keep}
+              </Button>
+              <Button variant="danger" loading={busy} onClick={() => deletingTemplate && deleteTemplate(deletingTemplate)}>
+                {TEMPLATES.deleteConfirm}
+              </Button>
+            </>
+          )
+        }
+      >
+        {templatesInUse > 0 ? TEMPLATES.inUse(templatesInUse) : TEMPLATES.deleteBody}
       </Modal>
       <Modal
         open={deletingSeries !== null}
