@@ -106,7 +106,9 @@ export const FORM = {
   secondName: 'Second name',
   nameHint: 'Both parts, exactly as in game.',
   logsHint: 'Any recent raid. We care more about deaths avoided than damage done.',
-  /** The question itself is derived from content/schedule.ts in the form. */
+  /** Pre-launch: no raid days yet, so the question names none. */
+  availabilityQuestion: "Can you make both progression nights once they're set?",
+  availabilityHint: "Days and times are still TBD. Officers pick them from members' availability.",
   availabilityOptions: ['Both nights', 'One of them', 'Neither'] as const,
   pitchQuestion: "Please tell us why you'd be a good addition to our team.",
   pitchPlaceholder: 'Short and honest beats long and polished.',
