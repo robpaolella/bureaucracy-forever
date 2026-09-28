@@ -48,6 +48,12 @@ export const OFFICER_ACTIONS = {
   cancelReasonPlaceholder: 'Not enough healers this week',
   cancelConfirm: 'Cancel the raid',
   keep: 'Keep it',
+  delete: 'Delete raid',
+  deleteTitle: 'Delete this raid?',
+  deleteBody:
+    'The raid and every sign-up on it are removed for good. Nobody is told: the Discord post and its thread simply disappear. If people should hear about it, cancel the raid instead. This cannot be undone.',
+  deleteSeries: 'It came from a weekly series: this week is skipped and the series carries on.',
+  deleteConfirm: 'Delete the raid',
   finished: 'This raid has finished.',
   restoreFirst: 'Restore the raid to edit it.',
   onBehalf: 'Answer for someone not listed',

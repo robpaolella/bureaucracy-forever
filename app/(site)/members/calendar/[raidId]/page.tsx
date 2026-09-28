@@ -55,6 +55,7 @@ export default async function RaidDetailPage({ params }: Params) {
         status: true,
         locksAt: true,
         discordThreadId: true,
+        seriesId: true,
         template: { select: { short: true } },
         signups: {
           select: {
@@ -149,7 +150,7 @@ export default async function RaidDetailPage({ params }: Params) {
 
         <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_380px] md:items-start">
           <div className="order-2 flex flex-col gap-6 md:order-1">
-            {officer && <OfficerActions raid={card} members={memberOptions} past={past} threadUrl={discordThreadUrl(raid.discordThreadId)} />}
+            {officer && <OfficerActions raid={card} members={memberOptions} past={past} threadUrl={discordThreadUrl(raid.discordThreadId)} fromSeries={raid.seriesId !== null} />}
             {officer && past && !card.cancelled && <AttendanceForm raidId={raid.id} rows={rows} />}
             <RosterByRole raidId={raid.id} rows={roster} now={now.toISOString()} canAnswerFor={officer && !past && !card.cancelled} showAttendance={past} />
           </div>
