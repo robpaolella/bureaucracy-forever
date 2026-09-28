@@ -63,6 +63,15 @@ export function occurrenceInWeekOf(startsAt: Date, series: Pick<SeriesShape, 'we
   return zonedTimeToUtc(cal.getUTCFullYear(), cal.getUTCMonth() + 1, cal.getUTCDate(), hour, minute, zone);
 }
 
+/**
+ * The guild dates to skip when an officer deletes a series instance: the date it sits on,
+ * and the series' own occurrence in that guild week. An instance edited onto another day
+ * still stands for its week's slot, and tick matches slots by date, so both are needed.
+ */
+export function skippedDatesFor(startsAt: Date, series: Pick<SeriesShape, 'weekday' | 'startTime'>, zone: string = GUILD_TIMEZONE): string[] {
+  return [...new Set([guildDateKey(startsAt, zone), guildDateKey(occurrenceInWeekOf(startsAt, series, zone), zone)])];
+}
+
 /** "Molten Core — Thu Oct 15", the post title and the raid name for a generated instance. */
 export function instanceName(templateName: string, startsAt: Date, zone: string = GUILD_TIMEZONE): string {
   const p = zonedParts(startsAt, zone);

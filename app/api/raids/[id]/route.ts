@@ -2,7 +2,7 @@ import { after, NextResponse } from 'next/server';
 import { enqueue } from '@/lib/outbox';
 import { db } from '@/lib/db';
 import { locksAtFor, parseRaidInput } from '@/lib/raids';
-import { guildDateKey } from '@/lib/series';
+import { skippedDatesFor } from '@/lib/series';
 import { getSession } from '@/lib/session';
 
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
@@ -78,9 +78,16 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
   try {
     await db.$transaction(async (tx) => {
-      if (raid.seriesId) await tx.raidSeries.update({ where: { id: raid.seriesId }, data: { skippedDates: { push: guildDateKey(raid.startsAt) } } });
-      // Jobs still waiting on this raid have nothing left to act on. One the bot is already
-      // running fails against the missing raid and is closed on ack (lib/outbox.ts).
+      if (raid.seriesId) {
+        const series = await tx.raidSeries.findUnique({ where: { id: raid.seriesId }, select: { weekday: true, startTime: true, skippedDates: true } });
+        if (series) {
+          const add = skippedDatesFor(raid.startsAt, series).filter((d) => !series.skippedDates.includes(d));
+          if (add.length > 0) await tx.raidSeries.update({ where: { id: raid.seriesId }, data: { skippedDates: { push: add } } });
+        }
+      }
+      // Jobs still waiting on this raid have nothing left to act on. RUNNING ones are left to
+      // the ack path (lib/outbox.ts): a late raid.post takes its post down again, and any
+      // other raid job that fails against the missing raid is closed rather than retried.
       await tx.outboxJob.updateMany({ where: { status: 'PENDING', type: { startsWith: 'raid.' }, payload: { path: ['raidId'], equals: raid.id } }, data: { status: 'DONE', lastError: 'raid deleted' } });
       await tx.raid.delete({ where: { id: raid.id } });
       if (raid.discordThreadId || raid.discordMessageId) {

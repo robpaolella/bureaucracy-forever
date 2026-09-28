@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { zonedParts } from './time';
-import { guildDateKey, instanceName, isRosterRank, missingOccurrences, occurrenceInWeekOf, occurrences } from './series';
+import { guildDateKey, instanceName, isRosterRank, missingOccurrences, occurrenceInWeekOf, occurrences, skippedDatesFor } from './series';
 
 describe('series occurrences', () => {
   // Thursday 8 PM Pacific, four weeks, starting Wednesday 14 Oct 2026 (PDT).
@@ -49,6 +49,16 @@ describe('series occurrences', () => {
     const wanted = occurrences(series, from);
     const deleted = guildDateKey(wanted[1]);
     expect(missingOccurrences(wanted, [wanted[0], wanted[2]], [deleted]).map((d) => d.toISOString())).toEqual([wanted[3].toISOString()]);
+  });
+
+  it('skips the week\'s own slot when the deleted instance had been moved to another day', () => {
+    const wanted = occurrences(series, from);
+    // Thu Oct 22 moved to Sat Oct 24 at 6 PM Pacific, then deleted.
+    const moved = new Date('2026-10-25T01:00:00.000Z');
+    expect(skippedDatesFor(wanted[1], series)).toEqual(['2026-10-22']);
+    const skipped = skippedDatesFor(moved, series);
+    expect(skipped).toEqual(['2026-10-24', '2026-10-22']);
+    expect(missingOccurrences(wanted, [wanted[0], wanted[2], wanted[3]], skipped)).toEqual([]);
   });
 
   it('moves an instance to the series rule within its own guild week', () => {
