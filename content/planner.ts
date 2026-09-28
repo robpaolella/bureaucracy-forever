@@ -60,4 +60,9 @@ export const SERIES = {
   hours: (minutes: number) => (minutes % 60 ? `${Math.floor(minutes / 60)}½ hours` : `${minutes / 60} hours`),
   deactivated: 'Series deactivated',
   reactivated: 'Series reactivated',
+  delete: 'Delete',
+  deleteTitle: 'Delete this series?',
+  deleteBody: 'The series is removed for good. Future raids that are not posted yet go with it; posted and past raids stay on the calendar as one-off raids. This cannot be undone.',
+  deleteConfirm: 'Delete the series',
+  deleted: 'Series deleted',
 };

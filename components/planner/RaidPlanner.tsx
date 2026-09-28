@@ -41,6 +41,7 @@ function Planner({ templates, series }: Props) {
   const [editingTemplate, setEditingTemplate] = useState<TemplateRow | null>(null);
   const [editingSeries, setEditingSeries] = useState<SeriesRow | null>(null);
   const [deactivating, setDeactivating] = useState<SeriesRow | null>(null);
+  const [deletingSeries, setDeletingSeries] = useState<SeriesRow | null>(null);
   const [busy, setBusy] = useState(false);
   const activeTemplates = templates.filter((t) => t.active);
   const blank: SeriesInput = { templateId: activeTemplates[0]?.id ?? '', weekday: 4, startTime: '20:00', durationMin: activeTemplates[0]?.durationMin ?? 180, notes: '', postAheadDays: 14, lockMinutesBefore: 120, horizonWeeks: 4, active: true };
@@ -77,6 +78,15 @@ function Planner({ templates, series }: Props) {
     setBusy(false);
     setDeactivating(null);
     toast(r.ok ? { tone: 'ok', title: active ? SERIES.reactivated : SERIES.deactivated } : { tone: 'stop', title: failure(r) });
+    router.refresh();
+  }
+  async function deleteSeries(row: SeriesRow) {
+    if (busy) return;
+    setBusy(true);
+    const r = await send(`/api/raid-series/${row.id}`, 'DELETE', {});
+    setBusy(false);
+    setDeletingSeries(null);
+    toast(r.ok || r.status === 404 ? { tone: 'ok', title: SERIES.deleted } : { tone: 'stop', title: failure(r) });
     router.refresh();
   }
 
@@ -144,6 +154,9 @@ function Planner({ templates, series }: Props) {
                     {SERIES.reactivate}
                   </Button>
                 )}
+                <Button variant="ghost" size="sm" className="text-stop" onClick={() => setDeletingSeries(s)} aria-label={`${SERIES.delete} ${s.templateName} ${WEEKDAY_LABELS[s.weekday]}`}>
+                  {SERIES.delete}
+                </Button>
               </li>
             ))}
           </ul>
@@ -176,6 +189,23 @@ function Planner({ templates, series }: Props) {
         }
       >
         {SERIES.deactivateBody}
+      </Modal>
+      <Modal
+        open={deletingSeries !== null}
+        onClose={() => setDeletingSeries(null)}
+        title={SERIES.deleteTitle}
+        actions={
+          <>
+            <Button variant="ghost" onClick={() => setDeletingSeries(null)}>
+              {SERIES.keep}
+            </Button>
+            <Button variant="danger" loading={busy} onClick={() => deletingSeries && deleteSeries(deletingSeries)}>
+              {SERIES.deleteConfirm}
+            </Button>
+          </>
+        }
+      >
+        {SERIES.deleteBody}
       </Modal>
     </div>
   );

@@ -69,3 +69,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const generated = await generateInstances(now, await rosterUserIds(), id);
   return NextResponse.json({ id, moved, dropped: 0, generated }, { headers: NO_STORE });
 }
+
+/**
+ * DELETE /api/raid-series/:id — remove a series for good (officers). Like deactivating, its
+ * future unposted instances go; posted and past raids stay on the calendar as one-off raids
+ * (their seriesId is cleared by the relation). Frees its template to be deleted.
+ */
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireOfficer();
+  if ('deny' in auth) return auth.deny;
+  const { id } = await params;
+  const now = new Date();
+  try {
+    const dropped = await db.$transaction(async (tx) => {
+      const gone = await tx.raid.deleteMany({ where: { seriesId: id, status: 'SCHEDULED', startsAt: { gt: now }, postedAt: null, detached: false } });
+      await tx.raidSeries.delete({ where: { id } });
+      return gone.count;
+    });
+    return NextResponse.json({ id, dropped }, { headers: NO_STORE });
+  } catch (error) {
+    if ((error as { code?: string }).code === 'P2025') return NextResponse.json({ error: 'No such series.' }, { status: 404, headers: NO_STORE });
+    throw error;
+  }
+}
