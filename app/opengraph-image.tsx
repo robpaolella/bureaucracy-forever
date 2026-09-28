@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
 import { SITE_DESCRIPTION, SITE_NAME } from '@/lib/config';
 
-export const alt = `${SITE_NAME} — ${SITE_DESCRIPTION}`;
+export const alt = 'Bureaucracy, a WoW Forever raiding guild';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
