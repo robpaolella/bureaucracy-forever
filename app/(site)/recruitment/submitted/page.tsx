@@ -20,7 +20,8 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
  */
 export default async function SubmittedPage({ searchParams }: { searchParams: SearchParams }) {
   const p = await searchParams;
-  const character = one(p.character).slice(0, 12);
+  // Two names of up to twelve letters and the space between them.
+  const character = one(p.character).slice(0, 25);
   const cls = one(p.class);
   const wowClass = (CLASSES as readonly string[]).includes(cls) ? (cls as WowClass) : null;
   const spec = one(p.spec).slice(0, 40);

@@ -109,15 +109,11 @@ export function ApplicationForm({ discordHandle: known }: { discordHandle?: stri
       </fieldset>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <Field label="Character name" error={e.character}>
-          <Input name="character" placeholder="As it appears in game" autoComplete="off" required />
+        <Field label={FORM.firstName} hint={FORM.nameHint} error={e.firstName}>
+          <Input name="firstName" maxLength={12} autoComplete="off" required />
         </Field>
-        <Field
-          label="Discord handle"
-          hint={discordHandle ? 'From your Discord login.' : "So an officer can reach you. Log in with Discord to fill it in automatically."}
-          error={e.discord}
-        >
-          <Input key={discordHandle ?? 'anon'} name="discord" defaultValue={discordHandle} readOnly={Boolean(discordHandle)} placeholder="yourhandle" autoComplete="off" required />
+        <Field label={FORM.secondName} error={e.secondName}>
+          <Input name="secondName" maxLength={12} autoComplete="off" required />
         </Field>
         {path === 'raider' && (
           <>
@@ -133,6 +129,14 @@ export function ApplicationForm({ discordHandle: known }: { discordHandle?: stri
             <Select label="Main spec" name="spec" options={specOptions} error={e.spec} key={wowClass} required />
           </>
         )}
+        <Field
+          label="Discord handle"
+          hint={discordHandle ? 'From your Discord login.' : "So an officer can reach you. Log in with Discord to fill it in automatically."}
+          error={e.discord}
+          className="sm:col-span-2"
+        >
+          <Input key={discordHandle ?? 'anon'} name="discord" defaultValue={discordHandle} readOnly={Boolean(discordHandle)} placeholder="yourhandle" autoComplete="off" required />
+        </Field>
       </div>
 
       {path === 'raider' ? (
