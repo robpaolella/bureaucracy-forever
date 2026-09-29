@@ -1,12 +1,14 @@
 /**
  * Seed: wipes and refills the database with the deterministic roster, availability,
  * raids, sign-ups, class needs and applications from ./seed-data. Run with
- * `npm run db:seed` (prisma db seed → tsx prisma/seed.ts). Refuses to run against a
- * production build unless SEED_FORCE=1, because it deletes everything first.
+ * `npm run db:seed` (prisma db seed → tsx prisma/seed.ts) for a local database, or
+ * `npm run db:staging:seed` for staging. It deletes everything first, so it refuses any
+ * other target; see ./write-guard.ts.
  */
 import { config as loadEnv } from 'dotenv';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@/lib/generated/prisma/client';
+import { assertWriteTarget } from './write-guard';
 import { buildApplications, buildClassNeeds, buildRaids, buildRaidTemplates, buildRoster, paintWeek, rng } from './seed-data';
 
 loadEnv({ path: '.env.local' });
@@ -19,11 +21,10 @@ const CLASS = {
 const RAID_ROLE = { tank: 'TANK', healer: 'HEALER', melee: 'MELEE', ranged: 'RANGED' } as const;
 
 async function main() {
-  if (process.env.NODE_ENV === 'production' && process.env.SEED_FORCE !== '1') {
-    throw new Error('Refusing to seed a production database. Set SEED_FORCE=1 if you really mean it.');
-  }
-  const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+  const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
   if (!connectionString) throw new Error('DATABASE_URL must be set');
+  const target = assertWriteTarget(connectionString);
+  console.log(`Seeding the ${target} database.`);
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
   const now = new Date();
   const random = rng(20261104);
