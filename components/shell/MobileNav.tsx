@@ -111,9 +111,6 @@ export function MobileNav() {
               <NavLink href={OFFICER_LINKS.raids.href} variant="drawer" onNavigate={close}>
                 {OFFICER_LINKS.raids.label}
               </NavLink>
-              <NavLink href={OFFICER_LINKS.schedule.href} variant="drawer" onNavigate={close}>
-                {OFFICER_LINKS.schedule.label}
-              </NavLink>
               <NavLink href={OFFICER_LINKS.needs.href} variant="drawer" onNavigate={close}>
                 {OFFICER_LINKS.needs.label}
               </NavLink>

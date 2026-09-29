@@ -36,6 +36,7 @@ describe('outbox rules', () => {
     expect(entityKey('raid.update', { raidId: 'r1' })).toBe('raid:r1');
     expect(entityKey('application.note.post', { applicationId: 'a1', noteId: 'n1' })).toBe('application:a1');
     expect(entityKey('member.roles.sync', { discordId: '1' })).toBe('member:1');
+    expect(entityKey('trial.checkin', { userId: 'u1', discordId: '1', name: 'Konvett', startedAt: '2026-10-01T00:00:00.000Z', extended: false })).toBe('member:1');
     expect(entityKey('officers.notify', {})).toBe('officers');
   });
 });

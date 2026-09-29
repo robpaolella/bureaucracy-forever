@@ -13,7 +13,7 @@ describe('isActive', () => {
   });
 
   it('never marks an action link with a query or hash as current', () => {
-    expect(isActive('/members/calendar', OFFICER_LINKS.schedule.href)).toBe(false);
+    expect(isActive('/members/calendar', '/members/calendar?new=1')).toBe(false);
     expect(isActive('/recruitment', OFFICER_LINKS.needs.href)).toBe(false);
     expect(isActive('/members/calendar', MEMBER_LINKS.calendar.href)).toBe(true);
   });
@@ -25,5 +25,16 @@ describe('isActive', () => {
 
   it('keeps the four public links in the documented order', () => {
     expect(PUBLIC_LINKS.map((l) => l.href)).toEqual(['/about', '/schedule', '/recruitment', '/loot']);
+    expect(PUBLIC_LINKS.map((l) => l.label)).toEqual(['About', 'Raiding', 'Recruitment', 'Loot rules']);
+  });
+
+  it('labels the officer links in menu order', () => {
+    expect(Object.values(OFFICER_LINKS).map((l) => l.label)).toEqual([
+      'Applications',
+      'Availability',
+      'Roster management',
+      'Raid management',
+      'Recruitment management',
+    ]);
   });
 });

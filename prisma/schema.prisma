@@ -111,9 +111,13 @@ model User {
   rank         Rank          @default(SOCIAL)
   /// Holds Guild Member or Officer in Discord. Only these appear on the roster.
   inGuild      Boolean       @default(false)
-  /// Set when a raider application is accepted; the two-week check-in in #officer-chat reads it.
+  /// When the trial began: a raider application accepted, or the Trial role or rank set.
+  /// Tick posts the trial check-in to #officers (Promote / Extend) from it (SYNC-SPEC §3).
   trialStartedAt DateTime?
+  /// When the trial check-in was posted; cleared by an extension so it comes back.
   trialNudgedAt  DateTime?
+  /// When the next trial check-in is due; null means trialStartedAt + TRIAL_DAYS.
+  trialCheckInAt DateTime?
   /// Last time the bot's member snapshot touched this row.
   discordSyncedAt DateTime?
   /// IANA zone the member chose; overrides browser detection (docs/01 § Time).
@@ -318,6 +322,8 @@ model ClassNeed {
   spec      String
   roles     RaidRole[]
   status    NeedStatus @default(CLOSED)
+  /// Shown first on the home page, starred. At most one row, and only while HIGH.
+  featured  Boolean    @default(false)
   updatedAt DateTime   @updatedAt
 
   @@unique([class, spec])

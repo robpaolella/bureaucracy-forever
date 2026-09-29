@@ -13,7 +13,8 @@ export async function GET() {
 /**
  * PUT /api/class-needs — set one spec's status (officers). Body `{ wowClass, spec, status }`.
  * Upserts the row and expires the needs cache so the recruitment page and the home teaser
- * follow; the bot's /recruitment sets needs the same way through PUT /api/bot/needs.
+ * follow; a spec that leaves high need loses its home-page star. The bot's /recruitment sets
+ * needs the same way through PUT /api/bot/needs.
  */
 export async function PUT(request: Request) {
   const session = await getSession();

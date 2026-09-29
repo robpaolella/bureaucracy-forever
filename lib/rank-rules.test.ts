@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inGuildFromDiscordRoles, memberState, memberUpdate, parseSnapshotMember, rankFromDiscordRoles, rankRoleIdsFromEnv, roleChangesForAccept, roleChangesForRank, sweepAllowed, trialCheckInDue, type RankRoleIds, type SyncedUser } from './rank-rules';
+import { extendedCheckInAt, inGuildFromDiscordRoles, memberState, memberUpdate, parseSnapshotMember, parseTrialAction, rankFromDiscordRoles, rankRoleIdsFromEnv, roleChangesForAccept, roleChangesForRank, sweepAllowed, trialCheckInDue, type RankRoleIds, type SyncedUser } from './rank-rules';
 
 const IDS: RankRoleIds = { officer: 'O', member: 'M', raider: 'R', trial: 'T', social: 'S', guest: 'G' };
 
@@ -41,12 +41,42 @@ describe('roles from rank', () => {
 
 describe('trial check-in', () => {
   const now = new Date('2026-10-15T00:00:00Z');
+  const trial = (over: Partial<Parameters<typeof trialCheckInDue>[0]> = {}) => ({ rank: 'TRIAL' as const, trialStartedAt: new Date('2026-10-01T00:00:00Z'), trialNudgedAt: null, trialCheckInAt: null, ...over });
+
   it('is due fourteen days after the start, once, and only while the rank is still Trial', () => {
-    expect(trialCheckInDue({ rank: 'TRIAL', trialStartedAt: new Date('2026-10-01T00:00:00Z'), trialNudgedAt: null }, now)).toBe(true);
-    expect(trialCheckInDue({ rank: 'TRIAL', trialStartedAt: new Date('2026-10-02T00:00:01Z'), trialNudgedAt: null }, now)).toBe(false);
-    expect(trialCheckInDue({ rank: 'TRIAL', trialStartedAt: new Date('2026-10-01T00:00:00Z'), trialNudgedAt: new Date() }, now)).toBe(false);
-    expect(trialCheckInDue({ rank: 'RAIDER', trialStartedAt: new Date('2026-10-01T00:00:00Z'), trialNudgedAt: null }, now)).toBe(false);
-    expect(trialCheckInDue({ rank: 'TRIAL', trialStartedAt: null, trialNudgedAt: null }, now)).toBe(false);
+    expect(trialCheckInDue(trial(), now)).toBe(true);
+    expect(trialCheckInDue(trial({ trialStartedAt: new Date('2026-10-02T00:00:01Z') }), now)).toBe(false);
+    expect(trialCheckInDue(trial({ trialNudgedAt: new Date() }), now)).toBe(false);
+    expect(trialCheckInDue(trial({ rank: 'RAIDER' }), now)).toBe(false);
+    expect(trialCheckInDue(trial({ trialStartedAt: null }), now)).toBe(false);
+  });
+
+  it('waits for an extended check-in date instead of the fourteen days', () => {
+    expect(trialCheckInDue(trial({ trialCheckInAt: new Date('2026-10-18T00:00:00Z') }), now)).toBe(false);
+    expect(trialCheckInDue(trial({ trialCheckInAt: new Date('2026-10-15T00:00:00Z') }), now)).toBe(true);
+    // An extension can land before the fourteen days are up; its date is the one that counts.
+    expect(trialCheckInDue(trial({ trialStartedAt: new Date('2026-10-10T00:00:00Z'), trialCheckInAt: new Date('2026-10-14T00:00:00Z') }), now)).toBe(true);
+    expect(trialCheckInDue(trial({ trialCheckInAt: new Date('2026-10-14T00:00:00Z'), trialNudgedAt: new Date() }), now)).toBe(false);
+  });
+});
+
+describe('trial check-in answers', () => {
+  it('reads promote, and extend with 1 to 7 whole days', () => {
+    expect(parseTrialAction({ action: 'promote' })).toEqual({ ok: true, value: { action: 'promote' } });
+    expect(parseTrialAction({ action: 'promote', days: 99 })).toEqual({ ok: true, value: { action: 'promote' } });
+    expect(parseTrialAction({ action: 'extend', days: 1 })).toEqual({ ok: true, value: { action: 'extend', days: 1 } });
+    expect(parseTrialAction({ action: 'extend', days: 7 })).toEqual({ ok: true, value: { action: 'extend', days: 7 } });
+    expect(parseTrialAction({ action: 'extend', days: '3' })).toEqual({ ok: true, value: { action: 'extend', days: 3 } });
+  });
+
+  it('refuses anything else', () => {
+    expect(parseTrialAction({}).ok).toBe(false);
+    expect(parseTrialAction({ action: 'demote' }).ok).toBe(false);
+    for (const days of [undefined, 0, 8, 2.5, -1, '', 'x', '1e1', null, true]) expect(parseTrialAction({ action: 'extend', days }).ok).toBe(false);
+  });
+
+  it('puts the next check-in whole days from now', () => {
+    expect(extendedCheckInAt(new Date('2026-10-15T12:00:00Z'), 3)).toEqual(new Date('2026-10-18T12:00:00Z'));
   });
 });
 
@@ -89,16 +119,16 @@ describe('applying a snapshot entry', () => {
     expect(memberUpdate(base, entry(['M']), memberState(entry(['M']), partial), false, now)).toBeNull();
   });
 
-  it('starts the trial clock on entering Trial, keeps it while staying, clears it and the nudge on leaving', () => {
-    expect(memberUpdate(base, entry(['M', 'R', 'T']), memberState(entry(['M', 'R', 'T']), IDS), false, now)).toEqual({ rank: 'TRIAL', trialStartedAt: now });
+  it('starts the trial clock on entering Trial, keeps it while staying, clears it, the nudge and any extension on leaving', () => {
+    expect(memberUpdate(base, entry(['M', 'R', 'T']), memberState(entry(['M', 'R', 'T']), IDS), false, now)).toEqual({ rank: 'TRIAL', trialStartedAt: now, trialCheckInAt: null });
     const started = new Date('2026-09-20T00:00:00Z');
     const trial: SyncedUser = { ...base, rank: 'TRIAL', trialStartedAt: started };
     expect(memberUpdate(trial, entry(['M', 'R', 'T']), memberState(entry(['M', 'R', 'T']), IDS), false, now)).toBeNull();
-    expect(memberUpdate(trial, entry(['M', 'R']), memberState(entry(['M', 'R']), IDS), false, now)).toEqual({ rank: 'RAIDER', trialStartedAt: null, trialNudgedAt: null });
+    expect(memberUpdate(trial, entry(['M', 'R']), memberState(entry(['M', 'R']), IDS), false, now)).toEqual({ rank: 'RAIDER', trialStartedAt: null, trialNudgedAt: null, trialCheckInAt: null });
   });
 
   it('records a leaver as out of the guild and social', () => {
-    expect(memberUpdate(base, entry([]), memberState(entry([]), IDS), false, now)).toEqual({ role: 'SOCIAL', inGuild: false, rank: 'SOCIAL', trialStartedAt: null, trialNudgedAt: null });
+    expect(memberUpdate(base, entry([]), memberState(entry([]), IDS), false, now)).toEqual({ role: 'SOCIAL', inGuild: false, rank: 'SOCIAL', trialStartedAt: null, trialNudgedAt: null, trialCheckInAt: null });
   });
 
   it('refuses a sweep that would drop more than a quarter of a guild of eight or more', () => {

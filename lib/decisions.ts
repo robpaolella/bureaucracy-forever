@@ -43,7 +43,7 @@ export async function decideApplication(id: string, status: DecisionStatus, by: 
       await tx.user.upsert({
         where: { discordId: app.discordId },
         create: { discordId: app.discordId, discordName: app.discordName, role: 'MEMBER', rank, inGuild: true, trialStartedAt: rank === 'TRIAL' ? now : null },
-        update: { role: 'MEMBER', rank, inGuild: true, trialStartedAt: rank === 'TRIAL' ? now : null, trialNudgedAt: null },
+        update: { role: 'MEMBER', rank, inGuild: true, trialStartedAt: rank === 'TRIAL' ? now : null, trialNudgedAt: null, trialCheckInAt: null },
       });
       await tx.character.updateMany({ where: { user: { discordId: app.discordId }, isMain: true }, data: { rank } });
     }
