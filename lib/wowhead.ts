@@ -48,12 +48,18 @@ export async function fetchItem(id: number, source: ItemSource, fetcher: typeof 
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Runs `fn` over `ids` one at a time with `gapMs` between calls. */
-export async function throttled<T>(ids: readonly number[], fn: (id: number) => Promise<T>, gapMs = WOWHEAD_GAP_MS): Promise<T[]> {
+/**
+ * Runs `fn` over `ids` one at a time with `gapMs` between calls. `fn` returning `'skip'`
+ * made no request, so no gap follows it.
+ */
+export async function throttled<T>(ids: readonly number[], fn: (id: number) => Promise<T | 'skip'>, gapMs = WOWHEAD_GAP_MS): Promise<T[]> {
   const out: T[] = [];
-  for (const [i, id] of ids.entries()) {
-    if (i > 0) await wait(gapMs);
-    out.push(await fn(id));
+  let requested = false;
+  for (const id of ids) {
+    if (requested) await wait(gapMs);
+    const r = await fn(id);
+    requested = r !== 'skip';
+    if (r !== 'skip') out.push(r);
   }
   return out;
 }
