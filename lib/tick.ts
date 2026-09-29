@@ -156,7 +156,7 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
   }
 
   // 6b. Trials: two weeks in, ask officers whether to extend or end it (docs/04 § Roster).
-  const trials = await db.user.findMany({ where: { rank: 'TRIAL', inGuild: true, trialStartedAt: { not: null }, trialNudgedAt: null }, select: { id: true, rank: true, discordName: true, trialStartedAt: true, trialNudgedAt: true } });
+  const trials = await db.user.findMany({ where: { rank: 'TRIAL', inGuild: true, trialStartedAt: { not: null }, trialNudgedAt: null }, select: { id: true, rank: true, discordName: true, trialStartedAt: true, trialNudgedAt: true, trialCheckInAt: true } });
   for (const t of trials) {
     if (!trialCheckInDue(t, now)) continue;
     await db.$transaction(async (tx) => {

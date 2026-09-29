@@ -66,13 +66,18 @@ export function roleChangesForAccept(path: 'raider' | 'social', ids: RankRoleIds
   return { add: [ids.member, ...rank.add], remove: [...(ids.guest ? [ids.guest] : []), ...rank.remove] };
 }
 
-/** How long a trial runs before officers are asked to extend or end it. */
+/** How long a trial runs before officers are asked to promote or extend it. */
 export const TRIAL_DAYS = 14;
+const DAY_MS = 24 * 3_600_000;
 
-/** A trial that started TRIAL_DAYS ago and has not been raised in #officer-chat yet. */
-export function trialCheckInDue(user: { rank: Rank; trialStartedAt: Date | null; trialNudgedAt: Date | null }, now: Date): boolean {
+/**
+ * A trial whose check-in is due and not posted yet: at `trialCheckInAt` when an officer
+ * extended it, otherwise TRIAL_DAYS after it started (SYNC-SPEC §3).
+ */
+export function trialCheckInDue(user: { rank: Rank; trialStartedAt: Date | null; trialNudgedAt: Date | null; trialCheckInAt: Date | null }, now: Date): boolean {
   if (user.rank !== 'TRIAL' || !user.trialStartedAt || user.trialNudgedAt) return false;
-  return now.getTime() - user.trialStartedAt.getTime() >= TRIAL_DAYS * 24 * 3_600_000;
+  const dueAt = user.trialCheckInAt?.getTime() ?? user.trialStartedAt.getTime() + TRIAL_DAYS * DAY_MS;
+  return now.getTime() >= dueAt;
 }
 
 /** The snapshot's names, so a member's row reads the way Discord shows them. */
@@ -101,12 +106,13 @@ export function memberState(m: SnapshotMember, ids: RankRoleIds): MemberState {
 }
 
 export type SyncedUser = { rank: Rank; role: SiteRole; inGuild: boolean; discordName: string; avatarUrl: string | null; trialStartedAt: Date | null };
-export type MemberUpdate = { discordName?: string; avatarUrl?: string | null; role?: SiteRole; inGuild?: boolean; rank?: Rank; trialStartedAt?: Date | null; trialNudgedAt?: null };
+export type MemberUpdate = { discordName?: string; avatarUrl?: string | null; role?: SiteRole; inGuild?: boolean; rank?: Rank; trialStartedAt?: Date | null; trialNudgedAt?: null; trialCheckInAt?: null };
 
 /**
  * The fields a snapshot changes on an existing user, or null when nothing differs. `holding`
  * means a web write for this member is still travelling to Discord (an open roles or decide
- * job), so the rank is left alone. Staying a trial keeps the trial clock; leaving one clears it.
+ * job), so the rank is left alone. Staying a trial keeps the trial clock; leaving one clears it,
+ * and any rank change drops an extended check-in date so a new trial starts fresh.
  */
 export function memberUpdate(existing: SyncedUser, m: SnapshotMember, state: MemberState, holding: boolean, now: Date): MemberUpdate | null {
   const out: MemberUpdate = {};
@@ -118,6 +124,7 @@ export function memberUpdate(existing: SyncedUser, m: SnapshotMember, state: Mem
     out.rank = state.rank;
     out.trialStartedAt = state.rank === 'TRIAL' ? existing.trialStartedAt ?? now : null;
     if (state.rank !== 'TRIAL') out.trialNudgedAt = null;
+    out.trialCheckInAt = null;
   }
   return Object.keys(out).length ? out : null;
 }

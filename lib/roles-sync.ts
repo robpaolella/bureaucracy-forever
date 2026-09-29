@@ -20,7 +20,7 @@ export async function setRankFromWeb(userId: string, rank: Rank): Promise<RankWr
   if (rank === 'OFFICER' || user.rank === 'OFFICER') return 'officer';
   // The job is written with the rank, so a failure leaves neither a rank without its roles nor the reverse.
   await db.$transaction(async (tx) => {
-    await tx.user.update({ where: { id: userId }, data: { rank, trialStartedAt: rank === 'TRIAL' ? new Date() : null, trialNudgedAt: null } });
+    await tx.user.update({ where: { id: userId }, data: { rank, trialStartedAt: rank === 'TRIAL' ? new Date() : null, trialNudgedAt: null, trialCheckInAt: null } });
     await tx.character.updateMany({ where: { userId, isMain: true }, data: { rank } });
     const changes = rankRoleChanges(rank);
     if (changes) await enqueue('member.roles.sync', { discordId: user.discordId, ...changes }, tx);
