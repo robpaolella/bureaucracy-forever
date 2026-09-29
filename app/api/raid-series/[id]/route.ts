@@ -35,7 +35,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   await db.raidSeries.update({ where: { id }, data: value });
 
   if (!value.active) {
-    const gone = await db.raid.deleteMany({ where: { seriesId: id, status: 'SCHEDULED', startsAt: { gt: now }, postedAt: null, detached: false } });
+    const gone = await db.raid.deleteMany({ where: { seriesId: id, status: 'SCHEDULED', startsAt: { gt: now }, postedAt: null, detached: false, lootAwards: { none: {} } } });
     return NextResponse.json({ id, moved: 0, dropped: gone.count, generated: 0 }, { headers: NO_STORE });
   }
 
@@ -82,7 +82,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const now = new Date();
   try {
     const dropped = await db.$transaction(async (tx) => {
-      const gone = await tx.raid.deleteMany({ where: { seriesId: id, status: 'SCHEDULED', startsAt: { gt: now }, postedAt: null, detached: false } });
+      const gone = await tx.raid.deleteMany({ where: { seriesId: id, status: 'SCHEDULED', startsAt: { gt: now }, postedAt: null, detached: false, lootAwards: { none: {} } } });
       await tx.raidSeries.delete({ where: { id } });
       return gone.count;
     });
