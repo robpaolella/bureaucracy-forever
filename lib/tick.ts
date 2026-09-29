@@ -159,11 +159,15 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
   for (const t of trials) {
     const startedAt = t.trialStartedAt;
     if (!startedAt || !trialCheckInDue(t, now)) continue;
-    await db.$transaction(async (tx) => {
-      await tx.user.update({ where: { id: t.id }, data: { trialNudgedAt: now } });
+    // Conditional on the row as read: an Extend or a rank change that landed since then wins,
+    // and an overlapping tick cannot queue the same check-in twice.
+    const raised = await db.$transaction(async (tx) => {
+      const marked = await tx.user.updateMany({ where: { id: t.id, rank: 'TRIAL', trialNudgedAt: null, trialCheckInAt: t.trialCheckInAt }, data: { trialNudgedAt: now } });
+      if (marked.count === 0) return false;
       await enqueue('trial.checkin', { userId: t.id, discordId: t.discordId, name: t.discordName, startedAt: startedAt.toISOString(), extended: t.trialCheckInAt !== null }, tx);
+      return true;
     });
-    counts.trialsRaised += 1;
+    if (raised) counts.trialsRaised += 1;
   }
 
   // 7. Reconcile once an hour: re-render everything the bot has posted whose state implies
