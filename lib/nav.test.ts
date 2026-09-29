@@ -13,7 +13,7 @@ describe('isActive', () => {
   });
 
   it('never marks an action link with a query or hash as current', () => {
-    expect(isActive('/members/calendar', OFFICER_LINKS.schedule.href)).toBe(false);
+    expect(isActive('/members/calendar', '/members/calendar?new=1')).toBe(false);
     expect(isActive('/recruitment', OFFICER_LINKS.needs.href)).toBe(false);
     expect(isActive('/members/calendar', MEMBER_LINKS.calendar.href)).toBe(true);
   });
