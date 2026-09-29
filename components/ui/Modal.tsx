@@ -20,6 +20,7 @@ export function ModalPanel({ title, titleId, children, actions, className }: Pan
   return (
     <div
       className={cn(
+        // Leaves 16px of scrim above and below.
         'flex max-h-[calc(100dvh-32px)] w-full flex-col overflow-hidden rounded-modal border border-line-strong bg-ink-800 text-fg shadow-modal',
         className,
       )}
@@ -27,9 +28,9 @@ export function ModalPanel({ title, titleId, children, actions, className }: Pan
       <h2 id={titleId} className="shrink-0 px-6 pb-1.5 pt-6 font-display text-[22px] font-medium">
         {title}
       </h2>
-      {/* pt-1 leaves room for a focus ring on the first control. */}
-      <div className={cn('min-h-0 overflow-y-auto overscroll-contain px-6 pt-1 text-sm leading-relaxed text-fg-2', !actions && 'pb-6')}>{children}</div>
-      {actions && <div className="flex shrink-0 justify-end gap-2.5 px-6 pb-6 pt-5">{actions}</div>}
+      {/* py-1 leaves room for focus rings on the first and last controls. */}
+      <div className={cn('min-h-0 overflow-y-auto overscroll-contain px-6 py-1 text-sm leading-relaxed text-fg-2', !actions && 'pb-6')}>{children}</div>
+      {actions && <div className="flex shrink-0 justify-end gap-2.5 px-6 pb-6 pt-4">{actions}</div>}
     </div>
   );
 }

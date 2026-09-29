@@ -38,7 +38,7 @@ export function DayListModal({ day, week, offsetSlots, onSet, onClose }: Props) 
       {day && (
         <div className="flex flex-col">
           <p className="pb-3">Set each half-hour. Times are yours; guild time follows in grey.</p>
-          <div className="-mx-2 max-h-[60vh] overflow-y-auto">
+          <div className="-mx-2">
             {Array.from({ length: SLOTS }, (_, slot) => {
               const key = slotKey(day.day, slot);
               const current = week[key] ?? 'off';
