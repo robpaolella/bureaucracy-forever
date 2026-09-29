@@ -1,6 +1,6 @@
 /**
  * Recruitment. The needs table is the single source of truth for the recruitment page,
- * the home-page teaser and (later) the Discord bot's /recruiting reply. Statuses,
+ * the home-page teaser and the Discord bot's /recruitment command. Statuses,
  * expectations and form copy are PLACEHOLDER per design-handover/CLAUDE.md; officers
  * will edit needs once the data layer exists.
  */
@@ -77,7 +77,7 @@ export const RECRUITMENT_HEAD = {
 
 export const NEEDS_SECTION = {
   title: 'Open needs by class and role',
-  note: "Officers set each row from the Officers menu. A change reaches this table, the home page strip and the bot's /recruiting reply within a minute.",
+  note: 'Officers set each row from the Officers menu or with /recruitment in Discord. A change reaches this table and the home page strip within a minute.',
 };
 
 export const EXPECTATIONS = {

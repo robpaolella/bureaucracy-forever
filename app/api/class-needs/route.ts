@@ -5,15 +5,15 @@ import { getSession } from '@/lib/session';
 
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
 
-/** GET /api/class-needs — the grouped needs table, public (docs/06 § API routes; the bot's /recruiting reads it). */
+/** GET /api/class-needs — the grouped needs table, public (docs/06 § API routes). The bot reads /api/bot/needs instead. */
 export async function GET() {
   return NextResponse.json({ needs: await getClassNeeds() }, { headers: { 'Cache-Control': 'public, max-age=60' } });
 }
 
 /**
  * PUT /api/class-needs — set one spec's status (officers). Body `{ wowClass, spec, status }`.
- * Upserts the row and expires the needs cache so the recruitment page, the home teaser
- * and the bot see it together.
+ * Upserts the row and expires the needs cache so the recruitment page and the home teaser
+ * follow; the bot's /recruitment sets needs the same way through PUT /api/bot/needs.
  */
 export async function PUT(request: Request) {
   const session = await getSession();

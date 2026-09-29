@@ -6,7 +6,7 @@ import { allSpecRows, groupNeeds, rolesOfSpec, type NeedRow } from '@/lib/class-
 import { db } from '@/lib/db';
 import type { WowClass } from '@/lib/design/class-colors';
 
-/** Cache tag for anything drawn from ClassNeed rows. PUT /api/class-needs expires it. */
+/** Cache tag for anything drawn from ClassNeed rows. setClassNeed expires it on every write. */
 export const CLASS_NEEDS_TAG = 'class-needs';
 
 async function loadNeedRows(): Promise<NeedRow[]> {
@@ -24,7 +24,7 @@ async function loadNeedRows(): Promise<NeedRow[]> {
 export const getNeedRows = unstable_cache(loadNeedRows, ['class-needs-rows'], { revalidate: 60, tags: [CLASS_NEEDS_TAG] });
 
 /**
- * The grouped table for the recruitment page, the home teaser and the bot. Every spec
+ * The grouped table for the recruitment page, the home teaser and GET /api/class-needs. Every spec
  * appears, closed unless an officer said otherwise: "a closed spec means closed".
  */
 export async function getClassNeeds(): Promise<ClassNeed[]> {
