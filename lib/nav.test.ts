@@ -35,6 +35,7 @@ describe('isActive', () => {
       'Roster management',
       'Raid management',
       'Recruitment management',
+      'Loot tables',
     ]);
   });
 });

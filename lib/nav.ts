@@ -34,4 +34,6 @@ export const OFFICER_LINKS = {
   roster: { href: '/officers/roster', label: 'Roster management' },
   raids: { href: '/officers/raids', label: 'Raid management' },
   needs: { href: '/officers/needs', label: 'Recruitment management' },
+  /** Shown only while LOOT_ENABLED is on (Session.loot). */
+  lootTables: { href: '/officers/loot', label: 'Loot tables' },
 } satisfies Record<string, NavItem>;

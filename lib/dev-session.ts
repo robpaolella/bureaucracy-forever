@@ -22,6 +22,7 @@ const STUBS: Record<Exclude<DevSessionState, 'out'>, Session> = {
     rank: 'raider',
     availabilitySubmitted: true,
     pendingApplications: 0,
+    loot: false,
   },
   'member-unsubmitted': {
     discordId: 'dev-member-unsubmitted',
@@ -32,6 +33,7 @@ const STUBS: Record<Exclude<DevSessionState, 'out'>, Session> = {
     rank: 'raider',
     availabilitySubmitted: false,
     pendingApplications: 0,
+    loot: false,
   },
   officer: {
     discordId: '100000000010000000',
@@ -42,6 +44,7 @@ const STUBS: Record<Exclude<DevSessionState, 'out'>, Session> = {
     rank: 'officer',
     availabilitySubmitted: true,
     pendingApplications: 7,
+    loot: false,
   },
 };
 
