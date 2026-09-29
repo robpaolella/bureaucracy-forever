@@ -10,7 +10,7 @@ import { RESERVES } from '@/content/reserves';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
 import type { LootTableView, ReserveTargetRow, ReserveView } from '@/lib/loot-data';
-import type { ReserveKind } from '@/lib/loot-rules';
+import { reserveCounts, type ReserveKind } from '@/lib/loot-rules';
 import { ItemName } from './ItemName';
 
 /** A member whose reserves the viewer may set: themselves, or anyone eligible for an officer. */
@@ -77,16 +77,7 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
   const [busy, setBusy] = useState(false);
 
   // Counts for the option labels, without this member's own saved reserves.
-  const counts = useMemo(() => {
-    const out = new Map<number, Record<ReserveKind, number>>();
-    for (const r of reserves) {
-      if (r.userId === target.userId) continue;
-      const c = out.get(r.itemId) ?? { HR: 0, SR: 0 };
-      c[r.kind] += 1;
-      out.set(r.itemId, c);
-    }
-    return out;
-  }, [reserves, target.userId]);
+  const counts = useMemo(() => reserveCounts(reserves.filter((r) => r.userId !== target.userId)), [reserves, target.userId]);
   const blocked = new Set(target.blockedHr[characterId] ?? []);
 
   async function save(next: { hr: number | null; sr: number | null }) {
@@ -103,6 +94,10 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
       if (!res.ok) {
         toast({ tone: 'stop', title: body?.error ?? SAVE_FAILED });
         return;
+      }
+      if (next.hr === null && next.sr === null) {
+        setHr(null);
+        setSr(null);
       }
       toast({ tone: 'ok', title: next.hr === null && next.sr === null ? RESERVES.cleared : target.self ? RESERVES.saved : RESERVES.savedFor(target.name) });
       router.refresh();
@@ -161,7 +156,16 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
           </Field>
         )}
         <Field label={RESERVES.character}>
-          <select className={select} value={characterId} onChange={(e) => setCharacterId(e.target.value)}>
+          <select
+            className={select}
+            value={characterId}
+            onChange={(e) => {
+              const next = e.target.value;
+              setCharacterId(next);
+              // This character may not hard-reserve an item it already won with HR.
+              if (hr !== null && (target.blockedHr[next] ?? []).includes(hr)) setHr(null);
+            }}
+          >
             {target.characters.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} · {CLASS_COLORS[c.wowClass].label}
@@ -211,7 +215,11 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
 /** Everyone's reserves by item, hard reserves first. */
 function ReserveList({ table, reserves }: { table: LootTableView; reserves: ReserveView[] }) {
   const byItem = new Map<number, ReserveView[]>();
-  for (const r of reserves) byItem.set(r.itemId, [...(byItem.get(r.itemId) ?? []), r]);
+  for (const r of reserves) {
+    const list = byItem.get(r.itemId) ?? [];
+    list.push(r);
+    byItem.set(r.itemId, list);
+  }
   const rows = [...byItem.entries()]
     .filter(([id]) => table.items[id])
     .sort(([a, ra], [b, rb]) => rb.filter((r) => r.kind === 'HR').length - ra.filter((r) => r.kind === 'HR').length || table.items[a].name.localeCompare(table.items[b].name));
@@ -236,7 +244,7 @@ function ReserveList({ table, reserves }: { table: LootTableView; reserves: Rese
 }
 
 function Holders({ kind, list }: { kind: ReserveKind; list: ReserveView[] }) {
-  if (list.length === 0) return <span className="hidden md:block" aria-hidden />;
+  if (list.length === 0) return <span className="hidden md:block" />;
   return (
     <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
       <span className={cn('font-semibold', kind === 'HR' ? 'text-sand' : 'text-teal')}>

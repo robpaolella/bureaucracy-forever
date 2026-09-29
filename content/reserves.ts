@@ -26,5 +26,4 @@ export const RESERVES = {
   listEmpty: 'No reserves yet.',
   hrShort: 'HR',
   srShort: 'SR',
-  item: 'Item',
 };
