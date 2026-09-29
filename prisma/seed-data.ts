@@ -170,11 +170,13 @@ export function paintWeek(zone: string, random: () => number, from = new Date())
   return week;
 }
 
-export type SeedRaid = { name: string; startsAt: Date; durationMin: number; requirements: Record<RaidRoleKey, number>; notes: string | null };
+/** `template` names the SeedTemplate the raid belongs to, so reserves and the loot log have a table. */
+export type SeedRaid = { name: string; template: string; startsAt: Date; durationMin: number; requirements: Record<RaidRoleKey, number>; notes: string | null };
 
 /** Three weeks of raids from `from`: the progression nights plus the optional Sunday. */
 export function buildRaids(from = new Date()): SeedRaid[] {
   const names: Record<number, string> = { 2: 'Blackwing Lair', 3: 'Blackwing Lair', 0: 'Molten Core clear' };
+  const templates: Record<number, string> = { 2: 'Blackwing Lair', 3: 'Blackwing Lair', 0: 'Molten Core' };
   const raids: SeedRaid[] = [];
   for (let week = 0; week < 3; week++) {
     for (const night of RAID_NIGHTS) {
@@ -182,6 +184,7 @@ export function buildRaids(from = new Date()): SeedRaid[] {
       const startsAt = new Date(first.getTime() + week * 7 * 24 * 3600_000);
       raids.push({
         name: names[night.day] ?? night.kind,
+        template: templates[night.day] ?? 'Blackwing Lair',
         startsAt,
         durationMin: minutesBetween(night.start, night.end),
         requirements: night.optional ? { tank: 2, healer: 6, melee: 8, ranged: 10 } : { tank: 2, healer: 8, melee: 11, ranged: 14 },
