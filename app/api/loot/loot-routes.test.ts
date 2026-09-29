@@ -88,17 +88,20 @@ describe('POST /api/loot/bosses/[bossId]/items', () => {
     expect(mocks.createEntry).toHaveBeenCalledWith({ data: { bossId: 'b1', itemId: 17076, position: 3 } });
   });
 
-  it('skips Wowhead for an item cached from the same database', async () => {
-    mocks.item.mockResolvedValue({ source: 'FOREVER', id: 5, name: 'X' });
+  it('reuses a cached item, even from the other database, unless a link names one', async () => {
+    mocks.item.mockResolvedValue({ source: 'CLASSIC', id: 5, name: 'X' });
     expect((await itemCall({ ref: '5', source: 'FOREVER' })).status).toBe(201);
     expect(mocks.refresh).not.toHaveBeenCalled();
+    mocks.refresh.mockResolvedValue({ saved: [5], failed: [], notReached: [] });
+    expect((await itemCall({ ref: 'https://www.wowhead.com/forever/item=5' })).status).toBe(201);
+    expect(mocks.refresh).toHaveBeenCalledWith(expect.anything(), [{ id: 5, source: 'FOREVER' }], { gapMs: 0 });
   });
 
   it('reports what Wowhead said, and refuses duplicates and bad references', async () => {
     mocks.item.mockResolvedValue(null);
     mocks.refresh.mockResolvedValue({ saved: [], failed: [{ id: 5, error: 'Entity not found' }] });
     const res = await itemCall({ ref: '5', source: 'FOREVER' });
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: 'Wowhead: Entity not found' });
     expect(mocks.createEntry).not.toHaveBeenCalled();
 

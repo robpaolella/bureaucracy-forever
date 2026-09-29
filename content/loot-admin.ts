@@ -1,4 +1,5 @@
 /** Copy for /officers/loot: the loot table for each raid tier. */
+import { REFRESH_BATCH } from '@/lib/loot-table-rules';
 
 export const LOOT_ADMIN_HEAD = {
   eyebrow: 'Officers',
@@ -35,6 +36,7 @@ export const LOOT_EDIT = {
   save: 'Save',
   cancel: 'Cancel',
   saved: 'Saved',
+  moved: (name: string) => `Moved ${name}`,
   delete: 'Delete',
   deleteTitle: (name: string) => `Delete ${name}?`,
   deleteBody: 'Its item list goes with it. Loot already recorded from this boss keeps the name; reserves are per item and stay.',
@@ -54,8 +56,8 @@ export const LOOT_EDIT = {
   refreshItem: (item: string) => `Refresh ${item} from Wowhead`,
   refreshed: (item: string) => `Refreshed ${item}`,
   refreshAll: 'Refresh items from Wowhead',
-  refreshAllHint: 'Thirty at a time, about half a minute each: Wowhead limits how fast we may ask.',
-  refreshMore: (n: number) => `Refresh the next ${Math.min(n, 30)} of ${n}`,
+  refreshAllHint: `${REFRESH_BATCH} items per click, about half a minute per batch: Wowhead limits how fast we may ask.`,
+  refreshMore: (n: number) => `Refresh the next ${Math.min(n, REFRESH_BATCH)} of ${n}`,
   refreshDone: (saved: number, failed: number) => `Refreshed ${saved} ${saved === 1 ? 'item' : 'items'}${failed ? `, ${failed} failed` : ''}`,
   failedIds: (ids: number[]) => `Wowhead had nothing for ${ids.map((id) => `#${id}`).join(', ')}.`,
 };
