@@ -70,6 +70,13 @@ describe('decideReserve', () => {
     expect(decideReserve({ role: 'officer' }, raid, pick, ctx, late)).toMatchObject({ ok: false, reason: REASONS.locked });
     expect(decideReserve({ role: 'officer' }, raid, pick, ctx, late, true)).toEqual({ ok: true });
     expect(decideReserve({ role: 'officer' }, { ...raid, cancelled: true }, pick, ctx, late, true)).toMatchObject({ reason: REASONS.cancelled });
+    expect(decideReserve(member, raid, pick, ctx, late, true)).toMatchObject({ ok: false, reason: REASONS.locked });
+  });
+
+  it('lets a member who is no longer eligible clear their reserves before the lock', () => {
+    const absent = { ...ctx, response: 'absent' as const };
+    expect(decideReserve(member, raid, { characterId: 'c1', hr: null, sr: null }, absent, now)).toEqual({ ok: true });
+    expect(decideReserve(member, raid, { characterId: 'c1', hr: null, sr: null }, absent, new Date('2026-10-16T02:00:00.000Z'))).toMatchObject({ reason: REASONS.locked });
   });
 });
 
@@ -140,7 +147,7 @@ describe('parseItemRef', () => {
     expect(parseItemRef(text)).toEqual(expected);
   });
 
-  it.each(['', 'abc', '0', '-5', 'https://www.wowhead.com/classic/spell=21153', '99999999999'])('refuses %j', (text) => {
+  it.each(['', 'abc', '0', '-5', 'item=abc', 'notitem=5', 'item=17076abc', '10000000', 'https://www.wowhead.com/classic/spell=21153', '99999999999'])('refuses %j', (text) => {
     expect(parseItemRef(text)).toBeNull();
   });
 });
@@ -163,6 +170,8 @@ describe('parseAwardInput', () => {
     [{ itemId: 100, characterId: 'c1', method: 'COUNCIL' }, 'Pick how it was handed out.'],
     [{ itemId: 100, characterId: 'c1', method: 'HR', roll: 101 }, 'A roll is 1 to 100.'],
     [{ itemId: 100, characterId: 'c1', method: 'HR', roll: 2.5 }, 'A roll is 1 to 100.'],
+    [{ itemId: true, characterId: 'c1', method: 'HR' }, 'Pick an item.'],
+    [{ itemId: 100, characterId: 'c1', method: 'HR', roll: true }, 'A roll is 1 to 100.'],
   ])('refuses %j', (body, error) => {
     expect(parseAwardInput(body)).toEqual({ ok: false, error });
   });

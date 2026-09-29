@@ -74,7 +74,9 @@ export function decideReserve(actor: { role: 'social' | 'member' | 'officer' }, 
   if (actor.role === 'social') return { ok: false, status: 403, reason: REASONS.social };
   if (raid.cancelled) return { ok: false, status: 409, reason: REASONS.cancelled };
   if (!raid.hasLootTable) return { ok: false, status: 409, reason: REASONS.noTable };
-  if (reservesLocked(raid.startsAt, now) && !officerOverride) return { ok: false, status: 409, reason: REASONS.locked };
+  if (reservesLocked(raid.startsAt, now) && !(officerOverride && actor.role === 'officer')) return { ok: false, status: 409, reason: REASONS.locked };
+  // Clearing is always allowed before the lock, so a member who turned Absent can take theirs back.
+  if (input.hr === null && input.sr === null) return { ok: true };
   if (!isEligible(ctx.response)) return { ok: false, status: 409, reason: REASONS.notEligible };
   if (!ctx.ownCharacterIds.includes(input.characterId)) return { ok: false, status: 403, reason: REASONS.notYourCharacter };
   for (const id of [input.hr, input.sr]) if (id !== null && !ctx.tableItemIds.has(id)) return { ok: false, status: 409, reason: REASONS.notInTable };
@@ -131,7 +133,7 @@ const MAX_ITEM_ID = 10_000_000;
  */
 export function parseItemRef(text: string): { id: number; source?: ItemSource } | null {
   const t = text.trim();
-  const m = /^(\d+)$/.exec(t) ?? /[?&/]?item=(\d+)/.exec(t);
+  const m = /^(\d+)$/.exec(t) ?? /(?:^|[?&/])item=(\d+)(?![\d\w])/.exec(t);
   if (!m) return null;
   const id = Number(m[1]);
   if (!Number.isSafeInteger(id) || id < 1 || id >= MAX_ITEM_ID) return null;
@@ -145,7 +147,8 @@ type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 /** The loot log's record form. Rolls are /roll 1–100; disenchant/bank has no character. */
 export function parseAwardInput(body: unknown): Parsed<AwardInput> {
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
-  const itemId = typeof b.itemId === 'number' ? b.itemId : Number(b.itemId);
+  const num = (v: unknown) => (typeof v === 'number' ? v : typeof v === 'string' && v.trim() ? Number(v) : NaN);
+  const itemId = num(b.itemId);
   if (!Number.isSafeInteger(itemId) || itemId < 1) return { ok: false, error: 'Pick an item.' };
   const method = typeof b.method === 'string' && (LOOT_METHODS as readonly string[]).includes(b.method) ? (b.method as LootMethod) : null;
   if (!method) return { ok: false, error: 'Pick how it was handed out.' };
@@ -153,7 +156,7 @@ export function parseAwardInput(body: unknown): Parsed<AwardInput> {
   if (method !== 'DISENCHANT_BANK' && !characterId) return { ok: false, error: 'Pick who won it.' };
   let roll: number | null = null;
   if (b.roll !== undefined && b.roll !== null && b.roll !== '') {
-    roll = typeof b.roll === 'number' ? b.roll : Number(b.roll);
+    roll = num(b.roll);
     if (!Number.isInteger(roll) || roll < 1 || roll > 100) return { ok: false, error: 'A roll is 1 to 100.' };
   }
   const bossId = typeof b.bossId === 'string' && b.bossId ? b.bossId : null;
