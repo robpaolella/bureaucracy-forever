@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inGuildFromDiscordRoles, memberState, memberUpdate, parseSnapshotMember, rankFromDiscordRoles, rankRoleIdsFromEnv, roleChangesForAccept, roleChangesForRank, sweepAllowed, trialCheckInDue, type RankRoleIds, type SyncedUser } from './rank-rules';
+import { extendedCheckInAt, inGuildFromDiscordRoles, memberState, memberUpdate, parseSnapshotMember, parseTrialAction, rankFromDiscordRoles, rankRoleIdsFromEnv, roleChangesForAccept, roleChangesForRank, sweepAllowed, trialCheckInDue, type RankRoleIds, type SyncedUser } from './rank-rules';
 
 const IDS: RankRoleIds = { officer: 'O', member: 'M', raider: 'R', trial: 'T', social: 'S', guest: 'G' };
 
@@ -57,6 +57,26 @@ describe('trial check-in', () => {
     // An extension can land before the fourteen days are up; its date is the one that counts.
     expect(trialCheckInDue(trial({ trialStartedAt: new Date('2026-10-10T00:00:00Z'), trialCheckInAt: new Date('2026-10-14T00:00:00Z') }), now)).toBe(true);
     expect(trialCheckInDue(trial({ trialCheckInAt: new Date('2026-10-14T00:00:00Z'), trialNudgedAt: new Date() }), now)).toBe(false);
+  });
+});
+
+describe('trial check-in answers', () => {
+  it('reads promote, and extend with 1 to 7 whole days', () => {
+    expect(parseTrialAction({ action: 'promote' })).toEqual({ ok: true, value: { action: 'promote' } });
+    expect(parseTrialAction({ action: 'promote', days: 99 })).toEqual({ ok: true, value: { action: 'promote' } });
+    expect(parseTrialAction({ action: 'extend', days: 1 })).toEqual({ ok: true, value: { action: 'extend', days: 1 } });
+    expect(parseTrialAction({ action: 'extend', days: 7 })).toEqual({ ok: true, value: { action: 'extend', days: 7 } });
+    expect(parseTrialAction({ action: 'extend', days: '3' })).toEqual({ ok: true, value: { action: 'extend', days: 3 } });
+  });
+
+  it('refuses anything else', () => {
+    expect(parseTrialAction({}).ok).toBe(false);
+    expect(parseTrialAction({ action: 'demote' }).ok).toBe(false);
+    for (const days of [undefined, 0, 8, 2.5, -1, '', 'x', '1e1', null, true]) expect(parseTrialAction({ action: 'extend', days }).ok).toBe(false);
+  });
+
+  it('puts the next check-in whole days from now', () => {
+    expect(extendedCheckInAt(new Date('2026-10-15T12:00:00Z'), 3)).toEqual(new Date('2026-10-18T12:00:00Z'));
   });
 });
 

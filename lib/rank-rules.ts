@@ -80,6 +80,30 @@ export function trialCheckInDue(user: { rank: Rank; trialStartedAt: Date | null;
   return now.getTime() >= dueAt;
 }
 
+/** The longest single extension the Discord check-in offers, in days. */
+export const TRIAL_EXTEND_MAX_DAYS = 7;
+
+export type TrialAction = { action: 'promote' } | { action: 'extend'; days: number };
+
+/**
+ * An answer to the trial check-in (SYNC-SPEC §4 POST /members/:discordId/trial): promote, or
+ * extend by a whole number of days from 1 to TRIAL_EXTEND_MAX_DAYS. `days` may arrive as a
+ * number or a numeric string (a Discord select value); it is ignored for promote.
+ */
+export function parseTrialAction(body: Record<string, unknown>): { ok: true; value: TrialAction } | { ok: false; error: string } {
+  if (body.action === 'promote') return { ok: true, value: { action: 'promote' } };
+  if (body.action !== 'extend') return { ok: false, error: 'action must be promote or extend.' };
+  const raw = body.days;
+  const days = typeof raw === 'number' ? raw : typeof raw === 'string' && /^\d{1,2}$/.test(raw.trim()) ? Number(raw.trim()) : NaN;
+  if (!Number.isInteger(days) || days < 1 || days > TRIAL_EXTEND_MAX_DAYS) return { ok: false, error: `days must be a whole number from 1 to ${TRIAL_EXTEND_MAX_DAYS}.` };
+  return { ok: true, value: { action: 'extend', days } };
+}
+
+/** When an extended trial's check-in comes back. */
+export function extendedCheckInAt(now: Date, days: number): Date {
+  return new Date(now.getTime() + days * DAY_MS);
+}
+
 /** The snapshot's names, so a member's row reads the way Discord shows them. */
 export type SnapshotMember = { discordId: string; name: string; avatarUrl: string | null; roles: string[] };
 
