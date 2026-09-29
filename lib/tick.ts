@@ -5,10 +5,8 @@ import type { Prisma } from '@/lib/generated/prisma/client';
 import { enqueue } from '@/lib/outbox';
 import { locksAtFor, parseRequirements } from '@/lib/raids';
 import { instanceName, isRosterRank, missingOccurrences, occurrences } from '@/lib/series';
-import { trialCheckInDue, TRIAL_DAYS } from '@/lib/rank-rules';
+import { trialCheckInDue } from '@/lib/rank-rules';
 import { dueForClose, dueForLock, dueForNudge, dueForPost, HOUR_MS, reminderDue } from '@/lib/tick-rules';
-import { SITE_URL } from '@/lib/config';
-import { TRIAL_CHECK_IN } from '@/content/roster-editor';
 
 const RECONCILE_MARKER = 'tick:reconcile';
 /** DONE and FAILED jobs and idempotency keys older than this are trimmed by the hourly reconcile. */
@@ -155,13 +153,15 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
     counts.nudged += 1;
   }
 
-  // 6b. Trials: two weeks in, ask officers whether to extend or end it (docs/04 § Roster).
-  const trials = await db.user.findMany({ where: { rank: 'TRIAL', inGuild: true, trialStartedAt: { not: null }, trialNudgedAt: null }, select: { id: true, rank: true, discordName: true, trialStartedAt: true, trialNudgedAt: true, trialCheckInAt: true } });
+  // 6b. Trials: two weeks in (or when an extension runs out), the bot asks officers in
+  // #officers to promote or extend, answered through POST /members/:discordId/trial (SYNC-SPEC §3).
+  const trials = await db.user.findMany({ where: { rank: 'TRIAL', inGuild: true, trialStartedAt: { not: null }, trialNudgedAt: null }, select: { id: true, discordId: true, rank: true, discordName: true, trialStartedAt: true, trialNudgedAt: true, trialCheckInAt: true } });
   for (const t of trials) {
-    if (!trialCheckInDue(t, now)) continue;
+    const startedAt = t.trialStartedAt;
+    if (!startedAt || !trialCheckInDue(t, now)) continue;
     await db.$transaction(async (tx) => {
       await tx.user.update({ where: { id: t.id }, data: { trialNudgedAt: now } });
-      await enqueue('officers.notify', { text: TRIAL_CHECK_IN(t.discordName, TRIAL_DAYS, `${SITE_URL}/officers/roster`), trialUserId: t.id }, tx);
+      await enqueue('trial.checkin', { userId: t.id, discordId: t.discordId, name: t.discordName, startedAt: startedAt.toISOString(), extended: t.trialCheckInAt !== null }, tx);
     });
     counts.trialsRaised += 1;
   }
