@@ -16,19 +16,26 @@ export function toItemView(row: { id: number; name: string; quality: number; ico
 }
 
 export type RefreshTarget = { id: number; source: ItemSource };
-export type RefreshResult = { saved: number[]; failed: { id: number; error: string }[] };
+export type RefreshResult = { saved: number[]; failed: { id: number; error: string }[]; notReached: number[] };
 
-/** Fetches each item from Wowhead in turn and upserts it. One failure never stops the rest. */
+/**
+ * Fetches each item from Wowhead in turn and upserts it. One failure never stops the rest.
+ * With `deadline` (epoch ms) no new fetch starts after it; those ids come back as `notReached`.
+ */
 export async function refreshItems(
   client: Pick<PrismaClient, 'lootItem'>,
   targets: readonly RefreshTarget[],
-  opts: { fetcher?: typeof fetch; gapMs?: number; now?: () => Date } = {},
+  opts: { fetcher?: typeof fetch; gapMs?: number; now?: () => Date; deadline?: number } = {},
 ): Promise<RefreshResult> {
   const sourceOf = new Map(targets.map((t) => [t.id, t.source]));
-  const out: RefreshResult = { saved: [], failed: [] };
+  const out: RefreshResult = { saved: [], failed: [], notReached: [] };
   await throttled(
     [...sourceOf.keys()],
     async (id) => {
+      if (opts.deadline !== undefined && Date.now() >= opts.deadline) {
+        out.notReached.push(id);
+        return 'skip' as const;
+      }
       const source = sourceOf.get(id)!;
       const res = await fetchItem(id, source, opts.fetcher);
       if (!res.ok) {
