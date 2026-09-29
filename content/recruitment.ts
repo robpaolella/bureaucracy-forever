@@ -4,7 +4,7 @@
  * expectations and form copy are PLACEHOLDER per design-handover/CLAUDE.md; officers
  * will edit needs once the data layer exists.
  */
-import { CLASS_COLORS, type Role, type WowClass } from '@/lib/design/class-colors';
+import type { Role, WowClass } from '@/lib/design/class-colors';
 
 export type NeedStatus = 'high' | 'medium' | 'closed';
 
@@ -38,31 +38,6 @@ export const CLASS_NEEDS: ClassNeed[] = [
   { wowClass: 'hunter', specs: ['Marksmanship'], roles: ['ranged'], status: 'closed' },
   { wowClass: 'rogue', specs: ['Combat'], roles: ['melee'], status: 'closed' },
 ];
-
-export type TeaserCard = { wowClass: WowClass; label: string; specs: string[]; status: NeedStatus };
-
-const RANK: Record<NeedStatus, number> = { high: 0, medium: 1, closed: 2 };
-
-/**
- * Home-page teaser: one card per class with an open need, specs joined, showing the
- * most urgent status. Capped to `limit`, most urgent first, table order within a status.
- */
-export function teaserNeeds(needs: ClassNeed[] = CLASS_NEEDS, limit = 4): TeaserCard[] {
-  const byClass = new Map<WowClass, TeaserCard>();
-  for (const n of needs) {
-    if (n.status === 'closed') continue;
-    const card = byClass.get(n.wowClass) ?? {
-      wowClass: n.wowClass,
-      label: CLASS_COLORS[n.wowClass].label,
-      specs: [],
-      status: n.status,
-    };
-    card.specs.push(...n.specs);
-    if (RANK[n.status] < RANK[card.status]) card.status = n.status;
-    byClass.set(n.wowClass, card);
-  }
-  return [...byClass.values()].sort((a, b) => RANK[a.status] - RANK[b.status]).slice(0, limit);
-}
 
 export const RECRUITMENT_HEAD = {
   eyebrow: 'Recruitment',

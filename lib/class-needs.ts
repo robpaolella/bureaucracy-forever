@@ -5,7 +5,7 @@
  * pages draw and validate what officers may write.
  */
 import type { ClassNeed, NeedStatus } from '@/content/recruitment';
-import { CLASSES, SPECS, type Role, type WowClass } from '@/lib/design/class-colors';
+import { CLASS_COLORS, CLASSES, ROLES, SPECS, type Role, type WowClass } from '@/lib/design/class-colors';
 
 /** `featured`: the one high-need spec an officer starred for the home page. */
 export type NeedRow = { wowClass: WowClass; spec: string; status: NeedStatus; featured?: boolean };
@@ -30,6 +30,38 @@ export function allSpecRows(stored: NeedRow[]): NeedRow[] {
       return { wowClass, spec: s.name, status: row?.status ?? 'closed', featured: row?.featured === true && row.status === 'high' };
     }),
   );
+}
+
+export type HomeNeed = { wowClass: WowClass; label: string; spec: string; roles: Role[]; status: NeedStatus; featured: boolean };
+
+/**
+ * The home page strip: one card per class and spec at high need, capped at `limit`.
+ * The starred spec leads; the rest go tanks, healers, melee, ranged (the order raids
+ * run short), then class and spec order. With nothing at high need it shows the medium
+ * specs instead, so the strip is never empty while anything is open.
+ */
+export function homeNeeds(rows: NeedRow[], limit = 4): HomeNeed[] {
+  const open = (status: NeedStatus) => rows.filter((r) => r.status === status);
+  const pick = open('high').length > 0 ? open('high') : open('medium');
+  const cards = pick.map((r) => ({
+    wowClass: r.wowClass,
+    label: CLASS_COLORS[r.wowClass].label,
+    spec: r.spec,
+    roles: rolesOfSpec(r.wowClass, r.spec),
+    status: r.status,
+    featured: r.featured === true && r.status === 'high',
+  }));
+  const roleRank = (c: HomeNeed) => Math.min(...c.roles.map((role) => ROLES.indexOf(role)), ROLES.length);
+  const specRank = (c: HomeNeed) => SPECS[c.wowClass].findIndex((s) => s.name === c.spec);
+  return cards
+    .sort(
+      (a, b) =>
+        Number(b.featured) - Number(a.featured) ||
+        roleRank(a) - roleRank(b) ||
+        CLASSES.indexOf(a.wowClass) - CLASSES.indexOf(b.wowClass) ||
+        specRank(a) - specRank(b),
+    )
+    .slice(0, limit);
 }
 
 /**

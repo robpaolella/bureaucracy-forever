@@ -27,3 +27,4 @@ export { FilterBar } from './FilterBar';
 export { Sheet } from './Sheet';
 export { ClassAvatar } from './ClassAvatar';
 export { ProgressTrack } from './ProgressTrack';
+export { StarIcon } from './StarIcon';
