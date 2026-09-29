@@ -53,6 +53,27 @@ describe('gateDecision', () => {
   });
 });
 
+describe('gateDecision with the loot flag', () => {
+  it('404s loot routes for everyone while the flag is off', () => {
+    for (const path of ['/officers/loot', '/officers/loot/t1', '/members/loot', '/members/loot/c1']) {
+      expect(gateDecision(path, '', 'officer')).toEqual({ kind: 'notFound' });
+      expect(gateDecision(path, '', null, { loot: false })).toEqual({ kind: 'notFound' });
+    }
+  });
+
+  it('gates loot routes like their area once the flag is on', () => {
+    expect(gateDecision('/officers/loot', '', 'officer', { loot: true })).toEqual({ kind: 'next' });
+    expect(gateDecision('/officers/loot', '', 'member', { loot: true })).toEqual({ kind: 'notFound' });
+    expect(gateDecision('/members/loot', '', 'member', { loot: true })).toEqual({ kind: 'next' });
+    expect(gateDecision('/members/loot', '', null, { loot: true })).toMatchObject({ kind: 'redirect' });
+  });
+
+  it('leaves look-alike paths alone', () => {
+    expect(gateDecision('/officers/lootish', '', 'officer')).toEqual({ kind: 'next' });
+    expect(gateDecision('/loot', '', 'officer')).toEqual({ kind: 'next' });
+  });
+});
+
 describe('rejectsBearer', () => {
   it('refuses a bearer header anywhere but the bot routes', () => {
     expect(rejectsBearer('/api/bot/tick', 'Bearer x')).toBe(false);
