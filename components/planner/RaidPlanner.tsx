@@ -29,6 +29,9 @@ async function send(url: string, method: string, body: unknown): Promise<{ ok: b
   return { ok: res.ok, status: res.status, json };
 }
 
+/** A new template starts at 40 players and three hours, with the four needs left for the officer to fill. */
+const BLANK_TEMPLATE: TemplateInput = { name: '', short: '', size: 40, durationMin: 180, requirements: { tank: 0, healer: 0, melee: 0, ranged: 0 }, active: true };
+
 const failure = (r: { status: number; json: Record<string, unknown> }) => (r.status === 400 || r.status === 409 ? String(r.json.error ?? SAVE_FAILED) : SAVE_FAILED);
 
 /** /officers/raids (SYNC-SPEC §9.3): the template table, the series list and the new-series form. */
@@ -44,6 +47,7 @@ function Planner({ templates, series, canDeleteTemplates }: Props) {
   const router = useRouter();
   const toast = useToast();
   const [editingTemplate, setEditingTemplate] = useState<TemplateRow | null>(null);
+  const [addingTemplate, setAddingTemplate] = useState(false);
   const [editingSeries, setEditingSeries] = useState<SeriesRow | null>(null);
   const [deactivating, setDeactivating] = useState<SeriesRow | null>(null);
   const [deletingSeries, setDeletingSeries] = useState<SeriesRow | null>(null);
@@ -54,6 +58,14 @@ function Planner({ templates, series, canDeleteTemplates }: Props) {
   const templatesInUse = deletingTemplate ? series.filter((s) => s.templateId === deletingTemplate.id).length : 0;
   const blank: SeriesInput = { templateId: activeTemplates[0]?.id ?? '', weekday: 4, startTime: '20:00', durationMin: activeTemplates[0]?.durationMin ?? 180, notes: '', postAheadDays: 14, lockMinutesBefore: 120, horizonWeeks: 4, active: true };
 
+  async function createTemplate(input: TemplateInput): Promise<string | null> {
+    const r = await send('/api/raid-templates', 'POST', input);
+    if (!r.ok) return failure(r);
+    toast({ tone: 'ok', title: TEMPLATES.created(input.name) });
+    setAddingTemplate(false);
+    router.refresh();
+    return null;
+  }
   async function saveTemplate(input: TemplateInput): Promise<string | null> {
     if (!editingTemplate) return null;
     const r = await send(`/api/raid-templates/${editingTemplate.id}`, 'PATCH', input);
@@ -110,35 +122,44 @@ function Planner({ templates, series, canDeleteTemplates }: Props) {
   return (
     <div className="flex flex-col gap-10">
       <section className="flex flex-col gap-3" aria-labelledby="templates">
-        <div className="flex flex-col gap-1">
-          <h2 id="templates" className="font-display text-2xl font-medium">
-            {TEMPLATES.heading}
-          </h2>
-          <p className="text-sm text-fg-2">{TEMPLATES.lede}</p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <h2 id="templates" className="font-display text-2xl font-medium">
+              {TEMPLATES.heading}
+            </h2>
+            <p className="text-sm text-fg-2">{TEMPLATES.lede}</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => setAddingTemplate(true)}>
+            {TEMPLATES.add}
+          </Button>
         </div>
-        <ul className="divide-y divide-line-faint rounded-card border border-line bg-ink-900">
-          {templates.map((t) => (
-            <li key={t.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-              <div className="flex min-w-[14rem] flex-1 flex-col">
-                <span className="text-[15px] font-semibold">
-                  {t.name} <span className="text-fg-3">· {t.short}</span>
-                </span>
-                <span className="tabular text-[13px] text-fg-3">
-                  {t.size}-player · {t.durationMin} min · {ROLES.map((r) => t.requirements[r]).join(' / ')}
-                </span>
-              </div>
-              <StatusPill tone={t.active ? 'ok' : 'closed'}>{t.active ? TEMPLATES.active : TEMPLATES.inactive}</StatusPill>
-              <Button variant="secondary" size="sm" onClick={() => setEditingTemplate(t)} aria-label={`${TEMPLATES.edit} ${t.name}`}>
-                {TEMPLATES.edit}
-              </Button>
-              {canDeleteTemplates && (
-                <Button variant="ghost" size="sm" className="text-stop" onClick={() => setDeletingTemplate(t)} aria-label={`${TEMPLATES.delete} ${t.name}`}>
-                  {TEMPLATES.delete}
+        {templates.length === 0 ? (
+          <p className="rounded-card border border-dashed border-line-strong px-6 py-8 text-center text-sm text-fg-2">{TEMPLATES.empty}</p>
+        ) : (
+          <ul className="divide-y divide-line-faint rounded-card border border-line bg-ink-900">
+            {templates.map((t) => (
+              <li key={t.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+                <div className="flex min-w-[14rem] flex-1 flex-col">
+                  <span className="text-[15px] font-semibold">
+                    {t.name} <span className="text-fg-3">· {t.short}</span>
+                  </span>
+                  <span className="tabular text-[13px] text-fg-3">
+                    {t.size}-player · {t.durationMin} min · {ROLES.map((r) => t.requirements[r]).join(' / ')}
+                  </span>
+                </div>
+                <StatusPill tone={t.active ? 'ok' : 'closed'}>{t.active ? TEMPLATES.active : TEMPLATES.inactive}</StatusPill>
+                <Button variant="secondary" size="sm" onClick={() => setEditingTemplate(t)} aria-label={`${TEMPLATES.edit} ${t.name}`}>
+                  {TEMPLATES.edit}
                 </Button>
-              )}
-            </li>
-          ))}
-        </ul>
+                {canDeleteTemplates && (
+                  <Button variant="ghost" size="sm" className="text-stop" onClick={() => setDeletingTemplate(t)} aria-label={`${TEMPLATES.delete} ${t.name}`}>
+                    {TEMPLATES.delete}
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="flex flex-col gap-3" aria-labelledby="series">
@@ -189,6 +210,9 @@ function Planner({ templates, series, canDeleteTemplates }: Props) {
         </Card>
       </section>
 
+      <Modal open={addingTemplate} onClose={() => setAddingTemplate(false)} title={TEMPLATES.newTitle}>
+        {addingTemplate && <TemplateForm initial={BLANK_TEMPLATE} onSubmit={createTemplate} onCancel={() => setAddingTemplate(false)} />}
+      </Modal>
       <Modal open={editingTemplate !== null} onClose={() => setEditingTemplate(null)} title={TEMPLATES.editTitle}>
         {editingTemplate && <TemplateForm initial={editingTemplate} onSubmit={saveTemplate} onCancel={() => setEditingTemplate(null)} />}
       </Modal>
