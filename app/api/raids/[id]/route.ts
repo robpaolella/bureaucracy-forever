@@ -6,6 +6,7 @@ import { skippedDatesFor } from '@/lib/series';
 import { getSession } from '@/lib/session';
 
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
+const LOOT_RECORDED = 'This raid has loot recorded. Cancel it instead.';
 
 /**
  * PATCH /api/raids/[id] — edit or cancel a raid (officers; docs/04 § Raid detail officer
@@ -75,6 +76,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const { id } = await params;
   const raid = await db.raid.findUnique({ where: { id }, select: { id: true, name: true, startsAt: true, seriesId: true, discordThreadId: true, discordMessageId: true } });
   if (!raid) return NextResponse.json({ error: 'No such raid.' }, { status: 404, headers: NO_STORE });
+  // Loot records are never deleted, so neither is their raid (the foreign key restricts it too).
+  if ((await db.lootAward.count({ where: { raidId: raid.id } })) > 0) return NextResponse.json({ error: LOOT_RECORDED }, { status: 409, headers: NO_STORE });
 
   try {
     await db.$transaction(async (tx) => {
@@ -97,6 +100,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   } catch (error) {
     // Another officer deleted it first.
     if ((error as { code?: string }).code === 'P2025') return NextResponse.json({ error: 'No such raid.' }, { status: 404, headers: NO_STORE });
+    // Loot was recorded between the check and the delete.
+    if ((error as { code?: string }).code === 'P2003') return NextResponse.json({ error: LOOT_RECORDED }, { status: 409, headers: NO_STORE });
     throw error;
   }
   return NextResponse.json({ id: raid.id, name: raid.name, deleted: true }, { headers: NO_STORE });
