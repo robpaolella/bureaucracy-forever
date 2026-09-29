@@ -14,18 +14,13 @@ export function isActive(pathname: string, href: string): boolean {
 /** Public links never move between session states. */
 export const PUBLIC_LINKS: NavItem[] = [
   { href: '/about', label: 'About' },
-  { href: '/schedule', label: 'Raid schedule' },
+  { href: '/schedule', label: 'Raiding' },
   { href: '/recruitment', label: 'Recruitment' },
   { href: '/loot', label: 'Loot rules' },
 ];
 
-/** Footer uses the short labels. */
-export const FOOTER_LINKS: NavItem[] = [
-  { href: '/about', label: 'About' },
-  { href: '/schedule', label: 'Schedule' },
-  { href: '/recruitment', label: 'Recruitment' },
-  { href: '/loot', label: 'Loot rules' },
-];
+/** The footer repeats the public links. */
+export const FOOTER_LINKS = PUBLIC_LINKS;
 
 export const MEMBER_LINKS = {
   availability: { href: '/members/availability', label: 'My availability' },
@@ -35,9 +30,8 @@ export const MEMBER_LINKS = {
 
 export const OFFICER_LINKS = {
   applications: { href: '/officers/applications', label: 'Applications' },
-  heatmap: { href: '/officers/availability', label: 'Availability heatmap' },
-  roster: { href: '/officers/roster', label: 'Edit the roster' },
-  raids: { href: '/officers/raids', label: 'Raids and series' },
-  schedule: { href: '/members/calendar?new=1', label: 'Schedule a raid' },
-  needs: { href: '/officers/needs', label: 'Edit class needs' },
+  heatmap: { href: '/officers/availability', label: 'Availability' },
+  roster: { href: '/officers/roster', label: 'Roster management' },
+  raids: { href: '/officers/raids', label: 'Raid management' },
+  needs: { href: '/officers/needs', label: 'Recruitment management' },
 } satisfies Record<string, NavItem>;
