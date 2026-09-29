@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { gateDecision, NOINDEX_HEADER, rejectsBearer } from '@/lib/auth/gate';
 import { DEV_SESSION_COOKIE, devSessionFromCookie } from '@/lib/dev-session';
+import { lootEnabled } from '@/lib/flags';
 import type { Role } from '@/lib/session';
 
 /**
@@ -25,7 +26,7 @@ export default auth((req) => {
     if (stub !== undefined) role = stub?.role ?? null;
   }
 
-  const decision = gateDecision(pathname, search, role);
+  const decision = gateDecision(pathname, search, role, { loot: lootEnabled() });
   const response =
     decision.kind === 'redirect'
       ? NextResponse.redirect(new URL(decision.to, req.url))

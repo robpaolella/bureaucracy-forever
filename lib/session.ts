@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import type { Rank } from '@/components/ui/Badges';
 import type { WowClass } from '@/lib/design/class-colors';
 import { DEV_SESSION_COOKIE, devSessionFromCookie } from '@/lib/dev-session';
+import { lootEnabled } from '@/lib/flags';
 
 /** Access level, derived from Discord guild roles at sign-in (docs/03 § Roles). */
 export type Role = 'social' | 'member' | 'officer';
@@ -25,6 +26,8 @@ export type Session = {
   availabilitySubmitted: boolean;
   /** Officers only: pending applications, shown as a count badge. Real value with step 9. */
   pendingApplications: number;
+  /** LOOT_ENABLED (lib/flags.ts), so the client-side nav can show the loot links. */
+  loot: boolean;
 };
 
 const RANK_FOR_ROLE: Record<Role, Rank> = { officer: 'officer', member: 'raider', social: 'social' };
@@ -54,7 +57,7 @@ export const getSession = cache(async function getSession(): Promise<Session | n
     if (stub !== undefined) {
       if (!stub) return null;
       const [availabilitySubmitted, pendingApplications] = await counts(stub.discordId, stub.role);
-      return { ...stub, availabilitySubmitted, pendingApplications };
+      return { ...stub, availabilitySubmitted, pendingApplications, loot: lootEnabled() };
     }
     return null;
   }
@@ -68,6 +71,7 @@ export const getSession = cache(async function getSession(): Promise<Session | n
     rank: RANK_FOR_ROLE[session.user.role],
     availabilitySubmitted,
     pendingApplications,
+    loot: lootEnabled(),
   };
 });
 
