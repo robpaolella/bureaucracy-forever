@@ -100,52 +100,78 @@ enum JobStatus {
   FAILED
 }
 
+/// Hard reserve: the holder rolls before anyone else. Soft reserve: rolls when nobody hard-reserved.
+enum ReserveKind {
+  HR
+  SR
+}
+
+/// How a drop was handed out. DISENCHANT_BANK has no character.
+enum LootMethod {
+  HR
+  SR
+  MAIN_SPEC
+  OFF_SPEC
+  OPEN_ROLL
+  DISENCHANT_BANK
+}
+
+/// Which Wowhead database an item's details come from.
+enum ItemSource {
+  CLASSIC
+  FOREVER
+}
+
 model User {
-  id           String        @id @default(cuid())
-  discordId    String        @unique
-  discordName  String
-  avatarUrl    String?
-  role         Role          @default(SOCIAL)
+  id              String        @id @default(cuid())
+  discordId       String        @unique
+  discordName     String
+  avatarUrl       String?
+  role            Role          @default(SOCIAL)
   /// Roster rank. Follows the Discord Raider / Trial / Officer roles and the web roster editor,
   /// whichever wrote last; the main character's rank mirrors it (docs/04 § Roster).
-  rank         Rank          @default(SOCIAL)
+  rank            Rank          @default(SOCIAL)
   /// Holds Guild Member or Officer in Discord. Only these appear on the roster.
-  inGuild      Boolean       @default(false)
+  inGuild         Boolean       @default(false)
   /// When the trial began: a raider application accepted, or the Trial role or rank set.
   /// Tick posts the trial check-in to #officers (Promote / Extend) from it (SYNC-SPEC §3).
-  trialStartedAt DateTime?
+  trialStartedAt  DateTime?
   /// When the trial check-in was posted; cleared by an extension so it comes back.
-  trialNudgedAt  DateTime?
+  trialNudgedAt   DateTime?
   /// When the next trial check-in is due; null means trialStartedAt + TRIAL_DAYS.
-  trialCheckInAt DateTime?
+  trialCheckInAt  DateTime?
   /// Last time the bot's member snapshot touched this row.
   discordSyncedAt DateTime?
   /// IANA zone the member chose; overrides browser detection (docs/01 § Time).
-  timezone     String?
-  characters   Character[]
-  availability Availability?
-  signups      Signup[]
-  notes        OfficerNote[] @relation("noteAuthor")
+  timezone        String?
+  characters      Character[]
+  availability    Availability?
+  signups         Signup[]
+  notes           OfficerNote[] @relation("noteAuthor")
   /// Sign-ups this officer answered on someone's behalf.
-  signupsSet   Signup[]      @relation("signupSetBy")
+  signupsSet      Signup[]      @relation("signupSetBy")
   /// Applications this officer accepted or declined.
-  decisions    Application[] @relation("applicationDecidedBy")
-  createdAt    DateTime      @default(now())
+  decisions       Application[] @relation("applicationDecidedBy")
+  reserves        Reserve[]
+  lootAwards      LootAward[]
+  createdAt       DateTime      @default(now())
 }
 
 model Character {
-  id         String   @id @default(cuid())
+  id         String      @id @default(cuid())
   userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name       String   @unique
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String      @unique
   class      WowClass
   spec       String
   raidRole   RaidRole
-  rank       Rank     @default(TRIAL)
-  isMain     Boolean  @default(true)
+  rank       Rank        @default(TRIAL)
+  isMain     Boolean     @default(true)
   /// 0–1, computed from Signup history.
   attendance Float?
-  joinedAt   DateTime @default(now())
+  joinedAt   DateTime    @default(now())
+  reserves   Reserve[]
+  lootAwards LootAward[]
 
   @@index([userId])
 }
@@ -174,6 +200,7 @@ model RaidTemplate {
   active       Boolean      @default(true)
   series       RaidSeries[]
   raids        Raid[]
+  lootBosses   LootBoss[]
 }
 
 /// A weekly slot in guild time. tick (SYNC-SPEC §6) turns it into Raid rows horizonWeeks ahead.
@@ -234,11 +261,13 @@ model Raid {
   remind24At       DateTime?
   /// Optimistic concurrency for officer edits.
   updatedAt        DateTime      @updatedAt
+  reserves         Reserve[]
+  lootAwards       LootAward[]
 
-  @@index([startsAt])
-  @@index([status, locksAt])
   /// One instance per series per instant: the officer's request and the bot's tick can both generate.
   @@unique([seriesId, startsAt])
+  @@index([startsAt])
+  @@index([status, locksAt])
 }
 
 model Signup {
@@ -354,4 +383,102 @@ model BotRequest {
   statusCode Int
   body       Json
   createdAt  DateTime @default(now())
+}
+
+/// Cached item details from Wowhead, keyed by the WoW item id. Filled only by the import
+/// script and the officer refresh action, never on a page view (lib/loot-items.ts).
+model LootItem {
+  id          Int              @id
+  name        String
+  /// 0 poor … 5 legendary, as Wowhead reports it.
+  quality     Int
+  /// Icon file name, e.g. "inv_sword_12"; the image lives on wow.zamimg.com.
+  icon        String
+  /// Wowhead's tooltip HTML after the allowlist in lib/tooltip-sanitize.ts. Sanitized again on render.
+  tooltipHtml String
+  source      ItemSource
+  fetchedAt   DateTime
+  entries     LootTableEntry[]
+  reserves    Reserve[]
+  awards      LootAward[]
+}
+
+/// One boss (or the trash entry) in a raid tier's loot table, in kill order.
+model LootBoss {
+  id         String           @id @default(cuid())
+  templateId String
+  template   RaidTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  name       String
+  position   Int
+  isTrash    Boolean          @default(false)
+  entries    LootTableEntry[]
+  awards     LootAward[]
+
+  @@unique([templateId, name])
+}
+
+/// An item a boss can drop. The same item can sit on several bosses.
+model LootTableEntry {
+  bossId   String
+  boss     LootBoss @relation(fields: [bossId], references: [id], onDelete: Cascade)
+  itemId   Int
+  item     LootItem @relation(fields: [itemId], references: [id])
+  position Int
+
+  @@id([bossId, itemId])
+  @@index([itemId])
+}
+
+/// A member's hard or soft reserve for one raid (lib/loot-rules.ts). One of each per member
+/// per raid, never on the same item: both enforced here as well as in the rules.
+model Reserve {
+  id          String      @id @default(cuid())
+  raidId      String
+  raid        Raid        @relation(fields: [raidId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  characterId String
+  character   Character   @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  itemId      Int
+  item        LootItem    @relation(fields: [itemId], references: [id])
+  kind        ReserveKind
+  /// An officer who set it on the member's behalf; a plain id so it outlives the account.
+  setById     String?
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([raidId, userId, kind])
+  @@unique([raidId, userId, itemId])
+  @@index([raidId, itemId])
+}
+
+/// A drop handed out on a raid. Never deleted: a correction voids it. Character and boss
+/// names are copied so the record survives roster and loot-table edits.
+model LootAward {
+  id            String     @id @default(cuid())
+  /// Restrict: a raid with loot recorded cannot be deleted, only cancelled.
+  raidId        String
+  raid          Raid       @relation(fields: [raidId], references: [id], onDelete: Restrict)
+  bossId        String?
+  boss          LootBoss?  @relation(fields: [bossId], references: [id], onDelete: SetNull)
+  bossName      String?
+  itemId        Int
+  item          LootItem   @relation(fields: [itemId], references: [id])
+  /// Null only for DISENCHANT_BANK (a CHECK constraint in the migration).
+  characterId   String?
+  character     Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
+  characterName String?
+  userId        String?
+  user          User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  method        LootMethod
+  roll          Int?
+  note          String?
+  /// Plain ids, not relations, so the record outlives the officer's account.
+  recordedById  String
+  createdAt     DateTime   @default(now())
+  voidedAt      DateTime?
+  voidedById    String?
+  voidReason    String?
+
+  @@index([raidId])
+  @@index([characterId, itemId])
 }

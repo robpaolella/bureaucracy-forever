@@ -35,6 +35,9 @@ async function main() {
   await db.officerNote.deleteMany();
   await db.application.deleteMany();
   await db.signup.deleteMany();
+  // Loot tables go with their templates; the item cache stays, it only mirrors Wowhead.
+  await db.lootAward.deleteMany();
+  await db.reserve.deleteMany();
   await db.raid.deleteMany();
   await db.raidSeries.deleteMany();
   await db.raidTemplate.deleteMany();
