@@ -19,7 +19,11 @@ export type GateDecision =
 
 export const NOINDEX_HEADER = ['X-Robots-Tag', 'noindex, nofollow'] as const;
 
-/** Loot pages (lib/flags.ts lootEnabled): they do not exist while the flag is off. */
+/**
+ * Loot pages (lib/flags.ts lootEnabled): they do not exist while the flag is off. This gives
+ * the real 404 status; each loot page and route still checks lootEnabled() itself, which is
+ * the guard that counts (a percent-encoded path can slip past this regex).
+ */
 const LOOT_ROUTES = /^\/(members|officers)\/loot(\/|$)/;
 
 /** Member-area routes that need at least `member`; everything else under /members admits socials. */
