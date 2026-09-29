@@ -1,8 +1,6 @@
-import { revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
-import { parseNeedInput, rolesOfSpec } from '@/lib/class-needs';
-import { CLASS_NEEDS_TAG, getClassNeeds } from '@/lib/class-needs-data';
-import { db } from '@/lib/db';
+import { parseNeedInput } from '@/lib/class-needs';
+import { getClassNeeds, setClassNeed } from '@/lib/class-needs-data';
 import { getSession } from '@/lib/session';
 
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
@@ -24,16 +22,7 @@ export async function PUT(request: Request) {
 
   const parsed = parseNeedInput(await request.json().catch(() => null));
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400, headers: NO_STORE });
+  await setClassNeed(parsed.value);
   const { wowClass, spec, status } = parsed.value;
-  const cls = wowClass.toUpperCase() as Uppercase<typeof wowClass>;
-  const st = status.toUpperCase() as Uppercase<typeof status>;
-  const roles = rolesOfSpec(wowClass, spec).map((r) => r.toUpperCase() as Uppercase<typeof r>);
-
-  await db.classNeed.upsert({
-    where: { class_spec: { class: cls, spec } },
-    create: { class: cls, spec, roles, status: st },
-    update: { status: st, roles },
-  });
-  revalidateTag(CLASS_NEEDS_TAG, 'max');
   return NextResponse.json({ wowClass, spec, status }, { headers: NO_STORE });
 }

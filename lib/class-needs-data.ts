@@ -1,8 +1,8 @@
 import 'server-only';
 
-import { unstable_cache } from 'next/cache';
+import { revalidateTag, unstable_cache } from 'next/cache';
 import { CLASS_NEEDS, type ClassNeed, type NeedStatus } from '@/content/recruitment';
-import { allSpecRows, groupNeeds, type NeedRow } from '@/lib/class-needs';
+import { allSpecRows, groupNeeds, rolesOfSpec, type NeedRow } from '@/lib/class-needs';
 import { db } from '@/lib/db';
 import type { WowClass } from '@/lib/design/class-colors';
 
@@ -43,4 +43,21 @@ export async function getClassNeeds(): Promise<ClassNeed[]> {
 /** Every class and spec with its status, for the editor. */
 export async function getAllNeedRows(): Promise<NeedRow[]> {
   return allSpecRows(await getNeedRows());
+}
+
+/**
+ * Set one spec's status: upsert the row (with the spec's roles, kept current for the bot)
+ * and expire the needs cache so the recruitment page, the home teaser and the editor
+ * follow. The row must already be validated by parseNeedInput.
+ */
+export async function setClassNeed({ wowClass, spec, status }: NeedRow): Promise<void> {
+  const cls = wowClass.toUpperCase() as Uppercase<typeof wowClass>;
+  const st = status.toUpperCase() as Uppercase<typeof status>;
+  const roles = rolesOfSpec(wowClass, spec).map((r) => r.toUpperCase() as Uppercase<typeof r>);
+  await db.classNeed.upsert({
+    where: { class_spec: { class: cls, spec } },
+    create: { class: cls, spec, roles, status: st },
+    update: { status: st, roles },
+  });
+  revalidateTag(CLASS_NEEDS_TAG, 'max');
 }
