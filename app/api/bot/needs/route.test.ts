@@ -2,8 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const store = vi.hoisted(() => ({ roles: new Map<string, string>(), rows: [] as { wowClass: string; spec: string; status: string }[], setNeed: vi.fn() }));
 
+const keys = vi.hoisted(() => new Map<string, { key: string; statusCode: number; body: unknown }>());
+
 vi.mock('@/lib/db', () => ({
-  db: { user: { findUnique: async ({ where }: { where: { discordId: string } }) => (store.roles.has(where.discordId) ? { id: where.discordId, role: store.roles.get(where.discordId), characters: [] } : null) } },
+  db: {
+    user: { findUnique: async ({ where }: { where: { discordId: string } }) => (store.roles.has(where.discordId) ? { id: where.discordId, role: store.roles.get(where.discordId), characters: [] } : null) },
+    botRequest: {
+      findUnique: async ({ where }: { where: { key: string } }) => keys.get(where.key) ?? null,
+      create: async ({ data }: { data: { key: string; statusCode: number; body: unknown } }) => keys.set(data.key, data),
+    },
+  },
 }));
 vi.mock('@/lib/class-needs-data', () => ({ readNeedRowsUncached: async () => store.rows, setClassNeed: store.setNeed }));
 
@@ -13,8 +21,8 @@ const OFFICER = '100000000000000001';
 const MEMBER = '100000000000000002';
 const STRANGER = '100000000000000009';
 
-const request = (method: string, body?: Record<string, unknown>, secret = 'test-secret') =>
-  new Request('https://example.test/api/bot/needs', { method, headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+const request = (method: string, body?: Record<string, unknown>, secret = 'test-secret', extra: Record<string, string> = {}) =>
+  new Request('https://example.test/api/bot/needs', { method, headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json', ...extra }, body: body ? JSON.stringify(body) : undefined });
 
 describe('/api/bot/needs', () => {
   beforeEach(() => {
@@ -22,6 +30,7 @@ describe('/api/bot/needs', () => {
     store.roles = new Map([[OFFICER, 'OFFICER'], [MEMBER, 'MEMBER']]);
     store.rows = [{ wowClass: 'warrior', spec: 'Protection', status: 'high' }];
     store.setNeed.mockReset().mockResolvedValue(undefined);
+    keys.clear();
   });
 
   it('needs the bot secret', async () => {
@@ -63,5 +72,16 @@ describe('/api/bot/needs', () => {
     ];
     for (const body of bad) expect((await PUT(request('PUT', body))).status).toBe(400);
     expect(store.setNeed).not.toHaveBeenCalled();
+  });
+
+  it('replays a repeated Idempotency-Key without writing twice', async () => {
+    const body = { wowClass: 'warrior', spec: 'Arms', status: 'high', byDiscordId: OFFICER };
+    const first = await PUT(request('PUT', body, 'test-secret', { 'idempotency-key': 'interaction-1' }));
+    const again = await PUT(request('PUT', body, 'test-secret', { 'idempotency-key': 'interaction-1' }));
+    expect(first.status).toBe(200);
+    expect(again.status).toBe(200);
+    expect(again.headers.get('idempotent-replay')).toBe('true');
+    expect(await again.json()).toEqual({ wowClass: 'warrior', spec: 'Arms', status: 'high' });
+    expect(store.setNeed).toHaveBeenCalledTimes(1);
   });
 });
