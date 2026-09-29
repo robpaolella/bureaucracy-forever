@@ -40,6 +40,15 @@ export async function getClassNeeds(): Promise<ClassNeed[]> {
   }
 }
 
+/**
+ * The stored rows straight from the database, skipping the cache. For the bot's
+ * /recruitment: `revalidateTag(…, 'max')` marks the cache stale rather than emptying it,
+ * so the first cached read after a write would still show the old status.
+ */
+export async function readNeedRowsUncached(): Promise<NeedRow[]> {
+  return loadNeedRows();
+}
+
 /** Every class and spec with its status, for the editor. */
 export async function getAllNeedRows(): Promise<NeedRow[]> {
   return allSpecRows(await getNeedRows());

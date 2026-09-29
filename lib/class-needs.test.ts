@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { SPECS } from '@/lib/design/class-colors';
-import { allSpecRows, groupNeeds, parseNeedInput, rolesOfSpec, type NeedRow } from './class-needs';
+import { CLASSES, SPECS } from '@/lib/design/class-colors';
+import { allSpecRows, groupNeeds, needsForBot, parseNeedInput, rolesOfSpec, type NeedRow } from './class-needs';
 
 describe('class needs', () => {
   const stored: NeedRow[] = [
@@ -38,5 +38,16 @@ describe('class needs', () => {
     expect(parseNeedInput({ wowClass: 'priest', spec: 'Fire', status: 'high' })).toMatchObject({ ok: false, error: /spec/ });
     expect(parseNeedInput({ wowClass: 'priest', spec: 'Holy', status: 'urgent' })).toMatchObject({ ok: false, error: /Status/ });
     expect(parseNeedInput({ wowClass: 'monk', spec: 'Holy', status: 'high' })).toMatchObject({ ok: false, error: /class/ });
+  });
+
+  it('shapes every class and spec for the bot, in canonical order', () => {
+    const out = needsForBot(stored);
+    expect(out.statuses).toEqual(['high', 'medium', 'closed']);
+    expect(out.classes.map((c) => c.key)).toEqual([...CLASSES]);
+    const warrior = out.classes.find((c) => c.key === 'warrior');
+    expect(warrior).toEqual({ key: 'warrior', label: 'Warrior', specs: SPECS.warrior.map((s) => ({ name: s.name, status: s.name === 'Protection' ? 'high' : 'closed' })) });
+    expect(out.classes.find((c) => c.key === 'druid')?.specs.find((s) => s.name === 'Restoration')).toEqual({ name: 'Restoration', status: 'medium' });
+    for (const c of out.classes) expect(c.specs.map((s) => s.name)).toEqual(SPECS[c.key].map((s) => s.name));
+    expect(needsForBot([]).classes.every((c) => c.specs.every((s) => s.status === 'closed'))).toBe(true);
   });
 });
