@@ -3,14 +3,14 @@ import type { Metadata } from 'next';
 import { HeroContours } from '@/components/home/HeroContours';
 import { ApplyButton } from '@/components/recruitment/ApplyModal';
 import { AccentLink, SectionHead } from '@/components/site/SectionHead';
-import { ButtonLink, Card, StatusPill } from '@/components/ui';
+import { ButtonLink, Card, StarIcon, StatusPill } from '@/components/ui';
 import { CLOSING, HERO, PEDIGREE, PROGRESSION, type ProgressionRow } from '@/content/home';
-import { NEED_LABEL, teaserNeeds } from '@/content/recruitment';
-import { getClassNeeds } from '@/lib/class-needs-data';
+import { NEED_LABEL } from '@/content/recruitment';
+import { getHomeNeeds } from '@/lib/class-needs-data';
 import { RAID_WEEK } from '@/content/schedule';
 import { cn } from '@/lib/cn';
 import { SITE_NAME } from '@/lib/config';
-import { CLASS_COLORS } from '@/lib/design/class-colors';
+import { CLASS_COLORS, ROLE_LABELS } from '@/lib/design/class-colors';
 
 const TITLE = 'Bureaucracy | WoW Forever Raiding Guild, US Alliance PvP';
 const DESCRIPTION =
@@ -157,19 +157,28 @@ function TheWeek() {
 
 const PILL_TONE = { high: 'ok', medium: 'warn', closed: 'closed' } as const;
 
+/** One card per high-need spec, at most four; the officers' starred spec leads in sand. */
 async function RecruitmentTeaser() {
-  const cards = teaserNeeds(await getClassNeeds());
+  const cards = await getHomeNeeds();
   return (
     <section className={cn(SECTION, 'flex flex-col gap-7 py-16 md:py-[88px]')}>
       <SectionHead eyebrow="Recruitment" title="Current recruitment needs" link={{ href: '/recruitment', label: 'Every class and spec →' }} />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {cards.map((c) => (
-          <Card key={c.wowClass} className="flex flex-col gap-3.5">
+          <Card key={`${c.wowClass}/${c.spec}`} className={cn('flex flex-col gap-3.5', c.featured && 'border-sand bg-sand-wash')}>
+            {c.featured && (
+              <span className="-mb-1 inline-flex items-center gap-1.5 font-eyebrow text-label font-semibold uppercase tracking-[0.2em] text-sand">
+                <StarIcon filled size={14} />
+                Featured
+              </span>
+            )}
             <span className="text-lg font-semibold" style={{ color: CLASS_COLORS[c.wowClass].onInk }}>
               {c.label}
             </span>
-            <span className="text-[13px] text-fg-2">{c.specs.join(' · ')}</span>
-            <StatusPill tone={PILL_TONE[c.status]} className="self-start">
+            <span className="text-[13px] text-fg-2">
+              {c.spec} · {c.roles.map((r) => ROLE_LABELS[r]).join(' / ')}
+            </span>
+            <StatusPill tone={PILL_TONE[c.status]} className="mt-auto self-start">
               {NEED_LABEL[c.status]}
             </StatusPill>
           </Card>

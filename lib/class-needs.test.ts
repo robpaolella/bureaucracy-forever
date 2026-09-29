@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SPECS } from '@/lib/design/class-colors';
-import { allSpecRows, groupNeeds, parseNeedInput, rolesOfSpec, type NeedRow } from './class-needs';
+import { allSpecRows, groupNeeds, homeNeeds, parseFeatureInput, parseNeedInput, rolesOfSpec, type NeedRow } from './class-needs';
 
 describe('class needs', () => {
   const stored: NeedRow[] = [
@@ -38,5 +38,58 @@ describe('class needs', () => {
     expect(parseNeedInput({ wowClass: 'priest', spec: 'Fire', status: 'high' })).toMatchObject({ ok: false, error: /spec/ });
     expect(parseNeedInput({ wowClass: 'priest', spec: 'Holy', status: 'urgent' })).toMatchObject({ ok: false, error: /Status/ });
     expect(parseNeedInput({ wowClass: 'monk', spec: 'Holy', status: 'high' })).toMatchObject({ ok: false, error: /class/ });
+  });
+
+  it('keeps a star only on a high-need spec', () => {
+    const all = allSpecRows([
+      { wowClass: 'priest', spec: 'Holy', status: 'high', featured: true },
+      { wowClass: 'mage', spec: 'Fire', status: 'medium', featured: true },
+    ]);
+    expect(all.find((r) => r.wowClass === 'priest' && r.spec === 'Holy')?.featured).toBe(true);
+    expect(all.find((r) => r.wowClass === 'mage' && r.spec === 'Fire')?.featured).toBe(false);
+  });
+
+  it('validates a feature toggle', () => {
+    expect(parseFeatureInput({ wowClass: 'priest', spec: 'Holy', featured: true })).toMatchObject({ ok: true });
+    expect(parseFeatureInput({ wowClass: 'priest', spec: 'Holy', featured: 'yes' })).toMatchObject({ ok: false, error: /Featured/ });
+    expect(parseFeatureInput({ wowClass: 'priest', spec: 'Fire', featured: true })).toMatchObject({ ok: false, error: /spec/ });
+  });
+});
+
+describe('homeNeeds', () => {
+  const row = (wowClass: NeedRow['wowClass'], spec: string, status: NeedRow['status'], featured = false): NeedRow => ({ wowClass, spec, status, featured });
+
+  it('lists each high-need spec on its own, not every spec of the class', () => {
+    const cards = homeNeeds([row('priest', 'Holy', 'high'), row('priest', 'Shadow', 'medium'), row('priest', 'Discipline', 'closed')]);
+    expect(cards).toEqual([{ wowClass: 'priest', label: 'Priest', spec: 'Holy', roles: ['healer'], status: 'high', featured: false }]);
+  });
+
+  it('caps at four: tanks, healers, melee, ranged, then class order', () => {
+    const cards = homeNeeds([
+      row('mage', 'Frost', 'high'),
+      row('rogue', 'Combat', 'high'),
+      row('priest', 'Holy', 'high'),
+      row('warrior', 'Protection', 'high'),
+      row('shaman', 'Restoration', 'high'),
+      row('druid', 'Restoration', 'high'),
+    ]);
+    expect(cards.map((c) => `${c.wowClass} ${c.spec}`)).toEqual(['warrior Protection', 'priest Holy', 'shaman Restoration', 'druid Restoration']);
+  });
+
+  it('puts the starred spec first even when it would be cut', () => {
+    const cards = homeNeeds([
+      row('warrior', 'Protection', 'high'),
+      row('priest', 'Holy', 'high'),
+      row('shaman', 'Restoration', 'high'),
+      row('druid', 'Restoration', 'high'),
+      row('mage', 'Frost', 'high', true),
+    ]);
+    expect(cards[0]).toMatchObject({ wowClass: 'mage', spec: 'Frost', featured: true });
+    expect(cards).toHaveLength(4);
+  });
+
+  it('shows medium needs only when nothing is high, and nothing when all is closed', () => {
+    expect(homeNeeds([row('mage', 'Fire', 'medium'), row('rogue', 'Combat', 'closed')]).map((c) => c.spec)).toEqual(['Fire']);
+    expect(homeNeeds([row('rogue', 'Combat', 'closed')])).toEqual([]);
   });
 });
