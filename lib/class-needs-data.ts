@@ -1,12 +1,12 @@
 import 'server-only';
 
-import { unstable_cache } from 'next/cache';
+import { revalidateTag, unstable_cache } from 'next/cache';
 import { CLASS_NEEDS, type ClassNeed, type NeedStatus } from '@/content/recruitment';
-import { allSpecRows, groupNeeds, homeNeeds, type HomeNeed, type NeedRow } from '@/lib/class-needs';
+import { allSpecRows, groupNeeds, homeNeeds, rolesOfSpec, type HomeNeed, type NeedRow } from '@/lib/class-needs';
 import { db } from '@/lib/db';
 import type { WowClass } from '@/lib/design/class-colors';
 
-/** Cache tag for anything drawn from ClassNeed rows. PUT /api/class-needs expires it. */
+/** Cache tag for anything drawn from ClassNeed rows. setClassNeed expires it on every write. */
 export const CLASS_NEEDS_TAG = 'class-needs';
 
 async function loadNeedRows(): Promise<NeedRow[]> {
@@ -24,7 +24,7 @@ async function loadNeedRows(): Promise<NeedRow[]> {
 export const getNeedRows = unstable_cache(loadNeedRows, ['class-needs-rows'], { revalidate: 60, tags: [CLASS_NEEDS_TAG] });
 
 /**
- * The grouped table for the recruitment page, the home teaser and the bot. Every spec
+ * The grouped table for the recruitment page, the home teaser and GET /api/class-needs. Every spec
  * appears, closed unless an officer said otherwise: "a closed spec means closed".
  */
 export async function getClassNeeds(): Promise<ClassNeed[]> {
@@ -34,6 +34,15 @@ export async function getClassNeeds(): Promise<ClassNeed[]> {
     logFallback(error);
     return CLASS_NEEDS;
   }
+}
+
+/**
+ * The stored rows straight from the database, skipping the cache. For the bot's
+ * /recruitment: `revalidateTag(…, 'max')` marks the cache stale rather than emptying it,
+ * so the first cached read after a write would still show the old status.
+ */
+export async function readNeedRowsUncached(): Promise<NeedRow[]> {
+  return loadNeedRows();
 }
 
 /** The home page strip (see homeNeeds). Falls back to the hand-written table like the page. */
@@ -57,4 +66,23 @@ function logFallback(error: unknown) {
 /** Every class and spec with its status, for the editor. */
 export async function getAllNeedRows(): Promise<NeedRow[]> {
   return allSpecRows(await getNeedRows());
+}
+
+/**
+ * Set one spec's status: upsert the row (with the spec's roles, kept current for the bot)
+ * and expire the needs cache so the recruitment page, the home teaser and the editor
+ * follow. A spec that leaves high need loses its home-page star. The row must already be
+ * validated by parseNeedInput.
+ */
+export async function setClassNeed({ wowClass, spec, status }: NeedRow): Promise<void> {
+  const cls = wowClass.toUpperCase() as Uppercase<typeof wowClass>;
+  const st = status.toUpperCase() as Uppercase<typeof status>;
+  const roles = rolesOfSpec(wowClass, spec).map((r) => r.toUpperCase() as Uppercase<typeof r>);
+  await db.classNeed.upsert({
+    where: { class_spec: { class: cls, spec } },
+    create: { class: cls, spec, roles, status: st },
+    // A spec that leaves high need loses its home-page star.
+    update: { status: st, roles, ...(st !== 'HIGH' && { featured: false }) },
+  });
+  revalidateTag(CLASS_NEEDS_TAG, 'max');
 }

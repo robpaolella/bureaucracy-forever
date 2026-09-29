@@ -1,6 +1,6 @@
 /**
  * Class needs (docs/04 § Recruitment: the needs table is the single source of truth for
- * the recruitment page, the home teaser and the bot's /recruiting reply). The database
+ * the recruitment page, the home teaser and the bot's /recruitment command). The database
  * holds one row per class and spec; these helpers turn that into the grouped rows the
  * pages draw and validate what officers may write.
  */
@@ -124,4 +124,25 @@ export function parseNeedInput(body: unknown): ParsedNeed {
   if (!isSpecOf(wowClass as WowClass, spec)) return { ok: false, error: 'Pick a spec for that class.' };
   if (!isNeedStatus(b.status)) return { ok: false, error: 'Status is high, medium or closed.' };
   return { ok: true, value: { wowClass: wowClass as WowClass, spec, status: b.status } };
+}
+
+export type BotNeeds = {
+  statuses: NeedStatus[];
+  classes: { key: WowClass; label: string; specs: { name: string; status: NeedStatus }[] }[];
+};
+
+/**
+ * GET /api/bot/needs (SYNC-SPEC §4, §9.8): every class in canonical order with every spec
+ * and its status, closed unless an officer set it, for the bot's /recruitment menus.
+ */
+export function needsForBot(stored: NeedRow[]): BotNeeds {
+  const rows = allSpecRows(stored);
+  return {
+    statuses: [...NEED_STATUSES],
+    classes: CLASSES.map((key) => ({
+      key,
+      label: CLASS_COLORS[key].label,
+      specs: rows.filter((r) => r.wowClass === key).map((r) => ({ name: r.spec, status: r.status })),
+    })),
+  };
 }

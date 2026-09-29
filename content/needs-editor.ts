@@ -3,7 +3,7 @@
 export const NEEDS_EDITOR_HEAD = {
   eyebrow: 'Officers',
   title: 'Edit class needs',
-  lede: 'Set a status per spec. The recruitment page, the home teaser and the bot’s /recruiting reply update within a minute. Star one high-need spec to lead the home page.',
+  lede: 'Set a status per spec here, or with /recruitment in Discord. The recruitment page and the home teaser update within a minute. Star one high-need spec to lead the home page.',
 };
 
 export const NEEDS_EDITOR = {
