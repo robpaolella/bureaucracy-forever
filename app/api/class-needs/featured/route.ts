@@ -23,11 +23,12 @@ export async function PUT(request: Request) {
   const key = { class_spec: { class: wowClass.toUpperCase() as Uppercase<typeof wowClass>, spec } };
 
   if (featured) {
+    // Star only while the row is at high need, checked in the same statement that sets it,
+    // then clear every other star.
     const starred = await db.$transaction(async (tx) => {
-      const row = await tx.classNeed.findUnique({ where: key, select: { status: true } });
-      if (row?.status !== 'HIGH') return false;
-      await tx.classNeed.updateMany({ where: { featured: true }, data: { featured: false } });
-      await tx.classNeed.update({ where: key, data: { featured: true } });
+      const { count } = await tx.classNeed.updateMany({ where: { ...key.class_spec, status: 'HIGH' }, data: { featured: true } });
+      if (count === 0) return false;
+      await tx.classNeed.updateMany({ where: { featured: true, NOT: key.class_spec }, data: { featured: false } });
       return true;
     });
     if (!starred) return NextResponse.json({ error: 'Only a high-need spec can be featured.' }, { status: 409, headers: NO_STORE });

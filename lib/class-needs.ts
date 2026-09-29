@@ -103,7 +103,7 @@ export function rolesOfSpec(wowClass: WowClass, spec: string): Role[] {
 
 export type ParsedFeature = { ok: true; value: { wowClass: WowClass; spec: string; featured: boolean } } | { ok: false; error: string };
 
-/** Body of POST /api/class-needs/featured: `{ wowClass, spec, featured }`. */
+/** Body of PUT /api/class-needs/featured: `{ wowClass, spec, featured }`. */
 export function parseFeatureInput(body: unknown): ParsedFeature {
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
   const wowClass = b.wowClass;

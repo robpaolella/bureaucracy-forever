@@ -1,10 +1,10 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { cn } from '@/lib/cn';
 import { Button, SegmentedControl, StarIcon, Toast, type Segment, type ToastData } from '@/components/ui';
 import { NEED_LABEL, type NeedStatus } from '@/content/recruitment';
 import { rolesOfSpec, type NeedRow } from '@/lib/class-needs';
+import { cn } from '@/lib/cn';
 import { CLASS_COLORS, CLASSES, ROLE_LABELS } from '@/lib/design/class-colors';
 import { SAVE_FAILED } from '@/content/calendar';
 import { NEEDS_EDITOR } from '@/content/needs-editor';
@@ -44,7 +44,8 @@ export function NeedsEditor({ rows }: Props) {
     generation.current.set(key(row), seq);
     setStatus((m) => new Map(m).set(key(row), next));
     // The server drops the star from a spec that leaves high need; mirror it.
-    if (next !== 'high') setFeatured((f) => (f === key(row) ? null : f));
+    const lostStar = next !== 'high' && featured === key(row);
+    if (lostStar) setFeatured(null);
     try {
       const res = await fetch('/api/class-needs', {
         method: 'PUT',
@@ -58,6 +59,7 @@ export function NeedsEditor({ rows }: Props) {
     } catch {
       if (generation.current.get(key(row)) !== seq) return;
       setStatus((m) => new Map(m).set(key(row), previous));
+      if (lostStar) setFeatured((f) => f ?? key(row));
       setToast({ tone: 'stop', title: SAVE_FAILED });
     }
   }
