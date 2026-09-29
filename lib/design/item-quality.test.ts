@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ITEM_QUALITIES, itemQuality } from './item-quality';
+import { ITEM_QUALITIES, itemQuality, TOOLTIP_COLORS, tooltipColorVars } from './item-quality';
 
 /** The popover surface, the darkest place a quality color is not shown on. */
 const INK_800 = '#141922';
@@ -20,6 +20,14 @@ function contrast(a: string, b: string): number {
 describe('item quality colors', () => {
   it.each(ITEM_QUALITIES.map((q) => [q.label, q.onInk]))('%s onInk meets 4.5:1 on the popover surface', (_label, color) => {
     expect(contrast(color, INK_800)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(Object.entries(TOOLTIP_COLORS))('tooltip %s meets 4.5:1 on the popover surface', (_label, color) => {
+    expect(contrast(color, INK_800)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('exposes every color to the tooltip CSS', () => {
+    expect(tooltipColorVars()).toMatchObject({ '--wh-q4': '#B866F5', '--wh-q0': '#9D9D9D', '--wh-yellow': '#FFD100', '--wh-copper': '#EDA55F' });
   });
 
   it('maps Wowhead numbers and falls back to Common', () => {

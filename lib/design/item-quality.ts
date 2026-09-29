@@ -24,3 +24,17 @@ export const ITEM_QUALITIES: readonly ItemQuality[] = [
 export function itemQuality(quality: number): ItemQuality {
   return ITEM_QUALITIES[quality] ?? ITEM_QUALITIES[1];
 }
+
+/** Wowhead tooltip colors that are not a quality: the gold "q" lines and money suffixes. */
+export const TOOLTIP_COLORS = { yellow: '#FFD100', gold: '#FFD100', silver: '#C7C7CF', copper: '#EDA55F' } as const;
+
+/**
+ * CSS variables for the tooltip rules in app/globals.css, set inline on the tooltip so the
+ * hex values live only here (and the contrast test covers them).
+ */
+export function tooltipColorVars(): Record<string, string> {
+  const vars: Record<string, string> = {};
+  ITEM_QUALITIES.forEach((q, i) => (vars[`--wh-q${i}`] = q.onInk));
+  for (const [k, v] of Object.entries(TOOLTIP_COLORS)) vars[`--wh-${k}`] = v;
+  return vars;
+}
