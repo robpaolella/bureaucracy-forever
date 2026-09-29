@@ -25,5 +25,16 @@ describe('isActive', () => {
 
   it('keeps the four public links in the documented order', () => {
     expect(PUBLIC_LINKS.map((l) => l.href)).toEqual(['/about', '/schedule', '/recruitment', '/loot']);
+    expect(PUBLIC_LINKS.map((l) => l.label)).toEqual(['About', 'Raiding', 'Recruitment', 'Loot rules']);
+  });
+
+  it('labels the officer links in menu order', () => {
+    expect(Object.values(OFFICER_LINKS).map((l) => l.label)).toEqual([
+      'Applications',
+      'Availability',
+      'Roster management',
+      'Raid management',
+      'Recruitment management',
+    ]);
   });
 });
