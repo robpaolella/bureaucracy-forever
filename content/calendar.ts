@@ -18,7 +18,7 @@ export const AVAILABILITY_PROMPT = 'You have not painted your availability yet. 
 
 export const SCHEDULE_RAID = 'Schedule a raid';
 
-/** The schedule form (docs/04 § Raid calendar head; docs/03 § Officer nav "Schedule a raid"). */
+/** The schedule form (docs/04 § Raid calendar head). */
 export const SCHEDULE_FORM = {
   title: 'Schedule a raid',
   name: 'Raid',

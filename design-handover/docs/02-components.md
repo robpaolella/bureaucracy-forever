@@ -147,8 +147,10 @@ bottom border.
 
 Group menus are 260–288px popovers on `ink-800` / `line-strong` / `shadow-pop`, 4px radius
 rows. Members holds My availability (with a "Not submitted" warn note when true), Roster,
-Raid calendar. Officers holds Applications (count), Availability heatmap, Schedule a raid,
-Edit class needs.
+Raid calendar. Officers holds Applications (count), Availability, Roster management, Raid
+management, Recruitment management. *Build note (Sept 2026):* "Schedule a raid" left the
+menu; the button on the raid calendar opens the form. The public "Raid schedule" link reads
+"Raiding".
 
 The avatar pill is a 28px circle with initials in the member's class color, their name in
 class color beside it, inside a `line` pill with full radius.

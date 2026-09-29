@@ -24,7 +24,7 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 /**
- * `?new=1` opens the schedule form (the officer nav link); `day` (0 = Sunday), `time`
+ * `?new=1` opens the schedule form (the heatmap's window finder links here); `day` (0 = Sunday), `time`
  * (HH:MM guild) and `length` (minutes) prefill it from a heatmap window.
  */
 function scheduleFrom(params: Record<string, string | string[] | undefined>) {
