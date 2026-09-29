@@ -24,5 +24,24 @@ case "$BRANCH" in
 MSG
     exit 1
     ;;
+  staging)
+    # Staging moves only by merging a feature branch or main into it. A merge
+    # commit is allowed (git runs pre-merge-commit, not this hook, for a clean
+    # merge; MERGE_HEAD marks a conflicted one being concluded).
+    if [ -z "$(git rev-parse -q --verify MERGE_HEAD 2>/dev/null)" ]; then
+      cat >&2 <<MSG
+
+  Commit refused: 'staging' is a deploy target, never committed to directly.
+
+  Commit on a feature branch, then merge it in:
+
+      git switch staging && git merge --no-ff <branch> && git push
+
+  See .claude/rules/git-workflow.md.
+
+MSG
+      exit 1
+    fi
+    ;;
 esac
 exit 0

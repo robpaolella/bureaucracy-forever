@@ -14,6 +14,26 @@ These rules apply to every change in this repository. They are not suggestions.
 - Keep branches short-lived. If a branch is more than a couple of days old,
   rebase it onto `main` rather than letting it drift.
 
+## The `staging` branch
+
+`staging` is a long-lived deploy target, not a unit of work. It deploys to
+https://staging.bureauguild.com (Vercel Authentication, Neon branch `staging`,
+migrations run on every deploy).
+
+- It is the one exception to the branch-naming rule.
+- Never commit to it directly (`.githooks/pre-commit` refuses). It moves only by
+  merging a feature branch or `main` into it:
+  `git switch staging && git pull && git merge --no-ff <branch> && git push`
+- Never force-push it, rebase it or reset it. If it drifts, merge `main` in.
+- Feature branches still ship to `main` by PR as usual. Merging into `staging` is
+  for trying work on a real deployment first; it is never a substitute for the PR.
+- Reset or reseed its database with `npm run db:staging:reset` and
+  `npm run db:staging:seed` (they read `.env.staging`). Seeding and
+  `prisma migrate reset` refuse any database that is not local or staging.
+- The staging badge and the staging migrations key off Vercel's system variables
+  (`VERCEL_ENV`, `VERCEL_GIT_COMMIT_REF`); keep "Automatically expose System
+  Environment Variables" on in the Vercel project.
+
 ## Commits
 
 - Use Conventional Commits: `<type>(<scope>): <subject>`
