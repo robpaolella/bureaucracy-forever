@@ -8,6 +8,10 @@
 /* next/font loads the three families and exposes them as CSS variables on <html>.
    Point the token families at those so tokens.css stays a verbatim copy of the handover. */
 :root {
+  /* Dark theme only: native controls (date and time picker icons, radios, checkboxes,
+     select menus, scrollbars) draw their dark variants instead of black on ink. */
+  color-scheme: dark;
+
   --font-display: var(--font-newsreader), Georgia, 'Times New Roman', serif;
   --font-eyebrow: var(--font-cinzel), Georgia, serif;
   --font-ui: var(--font-archivo), system-ui, -apple-system, sans-serif;
