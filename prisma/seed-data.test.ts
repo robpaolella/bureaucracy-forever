@@ -86,7 +86,8 @@ describe('raids, needs, applications', () => {
     expect(new Set(keys).size).toBe(keys.length);
     expect(rows.find((r) => r.wowClass === 'warrior' && r.spec === 'Arms')?.status).toBe('CLOSED');
     expect(rows.find((r) => r.wowClass === 'priest' && r.spec === 'Holy')?.status).toBe('HIGH');
-    expect(rows.find((r) => r.wowClass === 'druid' && r.spec === 'Feral')?.roles).toEqual(['tank', 'melee']);
+    expect(rows.find((r) => r.wowClass === 'druid' && r.spec === 'Feral Tank')).toMatchObject({ roles: ['tank'], status: 'CLOSED' });
+    expect(rows.find((r) => r.wowClass === 'druid' && r.spec === 'Feral Melee DPS')).toMatchObject({ roles: ['melee'], status: 'CLOSED' });
   });
 
   it('seeds seven pending raider applications for the inbox badge', () => {

@@ -2,7 +2,7 @@ import 'server-only';
 
 import { revalidateTag, unstable_cache } from 'next/cache';
 import { CLASS_NEEDS, type ClassNeed, type NeedStatus } from '@/content/recruitment';
-import { allSpecRows, groupNeeds, homeNeeds, rolesOfSpec, type HomeNeed, type NeedRow } from '@/lib/class-needs';
+import { allSpecRows, groupNeeds, homeNeeds, NEED_SPECS, needRoles, type HomeNeed, type NeedRow } from '@/lib/class-needs';
 import { db } from '@/lib/db';
 import type { WowClass } from '@/lib/design/class-colors';
 
@@ -51,7 +51,13 @@ export async function getHomeNeeds(): Promise<HomeNeed[]> {
     return homeNeeds(allSpecRows(await getNeedRows()));
   } catch (error) {
     logFallback(error);
-    return homeNeeds(CLASS_NEEDS.flatMap((n) => n.specs.map((spec) => ({ wowClass: n.wowClass, spec, status: n.status }))));
+    return homeNeeds(
+      CLASS_NEEDS.flatMap((n) =>
+        NEED_SPECS[n.wowClass]
+          .filter((s) => n.specs.includes(s.spec) && s.roles.some((r) => n.roles.includes(r)))
+          .map((s) => ({ wowClass: n.wowClass, spec: s.name, status: n.status })),
+      ),
+    );
   }
 }
 
@@ -69,7 +75,7 @@ export async function getAllNeedRows(): Promise<NeedRow[]> {
 }
 
 /**
- * Set one spec's status: upsert the row (with the spec's roles, kept current for the bot)
+ * Set one need spec's status: upsert the row (with its roles, kept current for the bot)
  * and expire the needs cache so the recruitment page, the home teaser and the editor
  * follow. A spec that leaves high need loses its home-page star. The row must already be
  * validated by parseNeedInput.
@@ -77,7 +83,7 @@ export async function getAllNeedRows(): Promise<NeedRow[]> {
 export async function setClassNeed({ wowClass, spec, status }: NeedRow): Promise<void> {
   const cls = wowClass.toUpperCase() as Uppercase<typeof wowClass>;
   const st = status.toUpperCase() as Uppercase<typeof status>;
-  const roles = rolesOfSpec(wowClass, spec).map((r) => r.toUpperCase() as Uppercase<typeof r>);
+  const roles = needRoles(wowClass, spec).map((r) => r.toUpperCase() as Uppercase<typeof r>);
   await db.classNeed.upsert({
     where: { class_spec: { class: cls, spec } },
     create: { class: cls, spec, roles, status: st },

@@ -313,9 +313,10 @@ model OfficerNote {
   @@index([applicationId])
 }
 
-/// One row per class+spec. Drives the recruitment table, the home teaser and the bot's
-/// /recruiting reply. All three read this; none duplicate it. `roles` is a list because a
-/// spec can fill two seats (Feral: tank and melee).
+/// One row per class+need spec. Drives the recruitment table, the home teaser and the bot's
+/// /recruiting reply. All three read this; none duplicate it. A spec that fills two seats is
+/// two need specs with their own status (`spec` 'Feral Tank' and 'Feral Melee DPS'); `roles`
+/// holds the one role each recruits.
 model ClassNeed {
   id        String     @id @default(cuid())
   class     WowClass

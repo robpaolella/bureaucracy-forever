@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import { Button, SegmentedControl, StarIcon, Toast, type Segment, type ToastData } from '@/components/ui';
 import { NEED_LABEL, type NeedStatus } from '@/content/recruitment';
-import { rolesOfSpec, type NeedRow } from '@/lib/class-needs';
+import { needSpec, type NeedRow } from '@/lib/class-needs';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS, CLASSES, ROLE_LABELS } from '@/lib/design/class-colors';
 import { SAVE_FAILED } from '@/content/calendar';
@@ -100,8 +100,8 @@ export function NeedsEditor({ rows }: Props) {
               {mine.map((row) => (
                 <li key={key(row)} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 md:flex md:gap-6">
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="text-[15px] font-semibold">{row.spec}</span>
-                    <span className="text-[13px] text-fg-3">{rolesOfSpec(row.wowClass, row.spec).map((r) => ROLE_LABELS[r]).join(' · ')}</span>
+                    <span className="text-[15px] font-semibold">{needSpec(row.wowClass, row.spec)?.spec ?? row.spec}</span>
+                    <span className="text-[13px] text-fg-3">{needSpec(row.wowClass, row.spec)?.roles.map((r) => ROLE_LABELS[r]).join(' · ')}</span>
                   </div>
                   <FeatureToggle
                     who={`${CLASS_COLORS[wowClass].label} ${row.spec}`}

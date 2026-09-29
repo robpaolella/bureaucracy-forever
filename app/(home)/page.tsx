@@ -165,7 +165,7 @@ async function RecruitmentTeaser() {
       <SectionHead eyebrow="Recruitment" title="Current recruitment needs" link={{ href: '/recruitment', label: 'Every class and spec →' }} />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {cards.map((c) => (
-          <Card key={`${c.wowClass}/${c.spec}`} className={cn('flex flex-col gap-3.5', c.featured && 'border-sand bg-sand-wash')}>
+          <Card key={`${c.wowClass}/${c.name}`} className={cn('flex flex-col gap-3.5', c.featured && 'border-sand bg-sand-wash')}>
             {c.featured && (
               <span className="-mb-1 inline-flex items-center gap-1.5 font-eyebrow text-label font-semibold uppercase tracking-[0.2em] text-sand">
                 <StarIcon filled size={14} />
