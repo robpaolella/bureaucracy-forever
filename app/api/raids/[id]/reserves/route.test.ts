@@ -1,0 +1,112 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Prisma } from '@/lib/generated/prisma/client';
+
+const mocks = vi.hoisted(() => ({
+  session: null as { role: string; discordId: string } | null,
+  loot: true,
+  raid: vi.fn(),
+  user: vi.fn(),
+  signup: vi.fn(),
+  items: vi.fn(),
+  awards: vi.fn(),
+  deleteMany: vi.fn(),
+  createMany: vi.fn(),
+  transaction: vi.fn(),
+}));
+
+vi.mock('@/lib/session', () => ({ getSession: async () => mocks.session }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.loot }));
+vi.mock('@/lib/users', () => ({ ensureUser: async () => ({ id: 'officer-user' }) }));
+vi.mock('@/lib/loot-data', async () => {
+  const real = await vi.importActual<typeof import('@/lib/loot-data')>('@/lib/loot-data');
+  return { signupAnswer: real.signupAnswer, tableItemIds: mocks.items, hrAwardsFor: mocks.awards };
+});
+vi.mock('@/lib/db', () => ({
+  db: {
+    raid: { findUnique: mocks.raid },
+    user: { findUnique: mocks.user },
+    signup: { findUnique: mocks.signup },
+    reserve: { deleteMany: mocks.deleteMany, createMany: mocks.createMany },
+    $transaction: mocks.transaction,
+  },
+}));
+
+import { PUT } from './route';
+
+const HOUR = 3600_000;
+const call = (body: unknown) => PUT(new Request('https://example.test', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }), { params: Promise.resolve({ id: 'r1' }) });
+const BODY = { characterId: 'c1', hr: 100, sr: 200 };
+
+beforeEach(() => {
+  mocks.session = { role: 'member', discordId: 'd1' };
+  mocks.loot = true;
+  for (const m of [mocks.raid, mocks.user, mocks.signup, mocks.items, mocks.awards, mocks.deleteMany, mocks.createMany, mocks.transaction]) m.mockReset();
+  mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: null, templateId: 't1' });
+  mocks.user.mockResolvedValue({ id: 'u1', characters: [{ id: 'c1' }, { id: 'c2' }] });
+  mocks.signup.mockResolvedValue({ response: 'ACCEPT' });
+  mocks.items.mockResolvedValue(new Set([100, 200, 300]));
+  mocks.awards.mockResolvedValue([]);
+  mocks.deleteMany.mockReturnValue('delete');
+  mocks.createMany.mockImplementation((args) => args);
+  mocks.transaction.mockResolvedValue([]);
+});
+
+describe('PUT /api/raids/[id]/reserves', () => {
+  it('replaces the member’s reserves with the new pair', async () => {
+    const res = await call(BODY);
+    expect(res.status).toBe(200);
+    expect(mocks.deleteMany).toHaveBeenCalledWith({ where: { raidId: 'r1', userId: 'u1' } });
+    expect(mocks.createMany.mock.calls[0][0].data).toEqual([
+      { kind: 'HR', itemId: 100, raidId: 'r1', userId: 'u1', characterId: 'c1', setById: null },
+      { kind: 'SR', itemId: 200, raidId: 'r1', userId: 'u1', characterId: 'c1', setById: null },
+    ]);
+  });
+
+  it('clears with two nulls', async () => {
+    expect((await call({ characterId: 'c1', hr: null, sr: null })).status).toBe(200);
+    expect(mocks.createMany.mock.calls[0][0].data).toEqual([]);
+  });
+
+  it('is a 404 while the loot flag is off, and needs a login', async () => {
+    mocks.loot = false;
+    expect((await call(BODY)).status).toBe(404);
+    mocks.loot = true;
+    mocks.session = null;
+    expect((await call(BODY)).status).toBe(401);
+  });
+
+  it.each([
+    ['an absent sign-up', () => mocks.signup.mockResolvedValue({ response: 'ABSENT' }), 409, 'Sign up as Accept or Tentative to reserve.'],
+    ['no sign-up', () => mocks.signup.mockResolvedValue(null), 409, 'Sign up as Accept or Tentative to reserve.'],
+    ['a cancelled raid', () => mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: new Date(), templateId: 't1' }), 409, 'This raid was cancelled.'],
+    ['a locked raid', () => mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1' }), 409, 'Reserves are locked. Ask an officer to change them.'],
+    ['a raid without a table', () => mocks.items.mockResolvedValue(new Set()), 409, 'This raid has no loot table yet.'],
+    ['an HR already won', () => mocks.awards.mockResolvedValue([{ characterId: 'c1', itemId: 100 }]), 409, 'This character already received that item through a hard reserve.'],
+  ])('refuses %s', async (_label, arrange, status, error) => {
+    arrange();
+    const res = await call(BODY);
+    expect(res.status).toBe(status);
+    expect(await res.json()).toEqual({ error });
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it('refuses the same item twice, a character that is not theirs and a bad body', async () => {
+    expect((await call({ ...BODY, sr: 100 })).status).toBe(409);
+    expect((await call({ ...BODY, characterId: 'someone-else' })).status).toBe(403);
+    expect((await call({ characterId: 'c1', hr: 'sword', sr: null })).status).toBe(400);
+  });
+
+  it('lets only officers set someone else’s, and past the lock', async () => {
+    expect((await call({ ...BODY, forUserId: 'u2' })).status).toBe(403);
+    mocks.session = { role: 'officer', discordId: 'd9' };
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1' });
+    expect((await call({ ...BODY, forUserId: 'u2' })).status).toBe(200);
+    expect(mocks.user).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'u2' } }));
+    expect(mocks.createMany.mock.calls[0][0].data[0]).toMatchObject({ setById: 'officer-user' });
+  });
+
+  it('answers 409 when the database unique index catches a race', async () => {
+    mocks.transaction.mockRejectedValue(new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' }));
+    expect((await call(BODY)).status).toBe(409);
+  });
+});
