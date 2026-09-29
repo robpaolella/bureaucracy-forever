@@ -12,22 +12,24 @@ type PanelProps = {
   className?: string;
 };
 
-/** The visible box. Exported so the dev page can show it at rest, outside a dialog. */
+/**
+ * The visible box. Title and actions stay put; only the body scrolls, so the frame is
+ * always whole however tall the content. Exported so the dev page can show it at rest.
+ */
 export function ModalPanel({ title, titleId, children, actions, className }: PanelProps) {
   return (
     <div
       className={cn(
-        'w-full overflow-hidden rounded-modal border border-line-strong bg-ink-800 text-fg shadow-modal',
+        'flex max-h-[calc(100dvh-32px)] w-full flex-col overflow-hidden rounded-modal border border-line-strong bg-ink-800 text-fg shadow-modal',
         className,
       )}
     >
-      <div className="flex flex-col gap-2.5 px-6 pt-6">
-        <h2 id={titleId} className="font-display text-[22px] font-medium">
-          {title}
-        </h2>
-        <div className="text-sm leading-relaxed text-fg-2">{children}</div>
-      </div>
-      {actions && <div className="flex justify-end gap-2.5 px-6 pb-6 pt-5">{actions}</div>}
+      <h2 id={titleId} className="shrink-0 px-6 pb-1.5 pt-6 font-display text-[22px] font-medium">
+        {title}
+      </h2>
+      {/* pt-1 leaves room for a focus ring on the first control. */}
+      <div className={cn('min-h-0 overflow-y-auto overscroll-contain px-6 pt-1 text-sm leading-relaxed text-fg-2', !actions && 'pb-6')}>{children}</div>
+      {actions && <div className="flex shrink-0 justify-end gap-2.5 px-6 pb-6 pt-5">{actions}</div>}
     </div>
   );
 }
@@ -64,7 +66,7 @@ export function Modal({ open, onClose, title, children, actions, className }: Mo
         // Only the backdrop is the dialog element itself; clicks inside land on the panel.
         if (e.target === e.currentTarget) onClose();
       }}
-      className="m-auto w-[calc(100%-32px)] max-w-[480px] bg-transparent p-0"
+      className="m-auto max-h-none w-[calc(100%-32px)] max-w-[480px] overflow-visible bg-transparent p-0"
     >
       <ModalPanel title={title} titleId={titleId} actions={actions} className={className}>
         {children}
