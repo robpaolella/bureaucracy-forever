@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Archivo, Cinzel, Newsreader } from 'next/font/google';
+import { StagingBadge } from '@/components/shell/StagingBadge';
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/config';
 import './globals.css';
 
@@ -42,7 +43,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${cinzel.variable} ${newsreader.variable} ${archivo.variable}`}>
-      <body className="min-h-screen bg-ink-950 text-fg font-sans antialiased">{children}</body>
+      <body className="min-h-screen bg-ink-950 text-fg font-sans antialiased">
+        {children}
+        <StagingBadge />
+      </body>
     </html>
   );
 }

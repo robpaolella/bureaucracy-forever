@@ -3,3 +3,4 @@ export { Footer } from './Footer';
 export { Wordmark } from './Wordmark';
 export { SiteShell } from './SiteShell';
 export { AnnouncementBar } from './AnnouncementBar';
+export { StagingBadge } from './StagingBadge';
