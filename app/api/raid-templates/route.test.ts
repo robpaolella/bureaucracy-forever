@@ -24,6 +24,13 @@ describe('POST /api/raid-templates', () => {
     expect(mocks.create).toHaveBeenCalledWith({ data: BODY, select: { id: true, name: true } });
   });
 
+  it('writes the trimmed names and refuses a body that is not JSON', async () => {
+    await POST(request({ ...BODY, name: '  Blackwing Lair  ', short: ' BWL ' }));
+    expect(mocks.create.mock.calls[0][0].data).toMatchObject({ name: 'Blackwing Lair', short: 'BWL' });
+    const bad = await POST(new Request('https://example.test/api/raid-templates', { method: 'POST', body: '{' }));
+    expect(bad.status).toBe(400);
+  });
+
   it('refuses anyone but an officer', async () => {
     mocks.session = null;
     expect((await POST(request(BODY))).status).toBe(401);
