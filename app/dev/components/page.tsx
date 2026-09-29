@@ -19,7 +19,23 @@ import {
   Textarea,
   TextLink,
 } from '@/components/ui';
+import { ItemName } from '@/components/loot/ItemName';
+import { toItemView } from '@/lib/loot-items';
 import { LoadingButtonDemo, ModalDemo, TableDemo, ToggleDemo, RosterPrimitivesDemo } from './demos';
+
+// A stored Wowhead tooltip (classic item 17076), trimmed, for the loot item demo.
+const DEMO_ITEMS = [
+  {
+    id: 17076,
+    name: "Bonereaver's Edge",
+    quality: 4,
+    icon: 'inv_sword_12',
+    tooltipHtml:
+      '<table><tr><td><b class="q4">Bonereaver\'s Edge</b><br />Item Level 77<br />Binds when picked up<table width="100%"><tr><td>Two-Hand</td><th><span class="q1">Sword</span></th></tr></table><table width="100%"><tr><td>206 - 310 Damage</td><th>Speed 3.40</th></tr></table>(75.88 damage per second)<br />+16 Stamina<br />Durability 120 / 120</td></tr></table><table><tr><td>Requires Level 60<br /><span class="q2">Chance on hit: Your attacks ignore 700 of your enemies\' armor for 10 sec.</span><br /><div class="whtt-sellprice">Sell Price: <span class="moneygold">19</span> <span class="moneysilver">42</span></div></td></tr></table>',
+  },
+  { id: 18823, name: 'Aged Core Leather Gloves', quality: 4, icon: 'inv_gauntlets_23', tooltipHtml: '<b class="q4">Aged Core Leather Gloves</b><br />Binds when picked up' },
+  { id: 17010, name: 'Fiery Core', quality: 3, icon: 'spell_fire_flamebolt', tooltipHtml: '<b class="q3">Fiery Core</b>' },
+].map(toItemView);
 
 /**
  * Build-order step 2. Mirrors design-handover/reference/Components.html so the
@@ -228,6 +244,15 @@ export default function ComponentsPage() {
             </div>
             <ModalDemo />
           </div>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <SectionHead title="Loot item" code="<ItemName item> — Wowhead icon, quality color, tooltip on hover or tap" />
+          <Card className="flex flex-col gap-1 p-5">
+            {DEMO_ITEMS.map((item) => (
+              <ItemName key={item.id} item={item} />
+            ))}
+          </Card>
         </div>
 
         <div className="flex flex-col gap-4">

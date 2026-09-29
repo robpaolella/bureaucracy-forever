@@ -47,7 +47,10 @@ Adjust freely if the repo already disagrees with any of this. The design does no
 
 1. **No Blizzard or World of Warcraft assets.** No official logos, artwork, fonts or
    screenshots. The one borrowed convention is the class colors, and only for names and
-   role counts — never as a background fill.
+   role counts — never as a background fill. *Exception (Robert, Sept 2026):* the loot
+   pages (reserves, loot tables, loot log, loot history) show Wowhead's item icons, its
+   sanitized tooltips and item quality colors (`lib/design/item-quality.ts`, text only,
+   always with the quality word for screen readers). Nowhere else.
 2. **Dark theme only** for v1. There is no light theme; don't build the toggle.
 3. **Every time is shown twice** — realm time and the viewer's local time, each labelled.
    Never render a bare time. See `docs/01 § Time`. *Build note (Sept 2026):* WoW Forever

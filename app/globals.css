@@ -36,6 +36,27 @@
     background: rgb(6 8 11 / 0.72);
   }
 
+  /* Wowhead item tooltips (components/loot/ItemName.tsx). The markup is Wowhead's, cut down
+     by lib/tooltip-sanitize.ts. The --wh-* colors are set inline from
+     lib/design/item-quality.ts, which is where their contrast is tested. */
+  .wh-tooltip table { width: 100%; border-collapse: collapse; }
+  .wh-tooltip td, .wh-tooltip th { padding: 0; vertical-align: top; text-align: left; font-weight: 400; }
+  .wh-tooltip th { text-align: right; padding-left: 12px; }
+  .wh-tooltip b { font-size: 14px; }
+  .wh-tooltip .q { color: var(--wh-yellow); }
+  .wh-tooltip .q0 { color: var(--wh-q0); }
+  .wh-tooltip .q1 { color: var(--wh-q1); }
+  .wh-tooltip .q2 { color: var(--wh-q2); }
+  .wh-tooltip .q3 { color: var(--wh-q3); }
+  .wh-tooltip .q4 { color: var(--wh-q4); }
+  .wh-tooltip .q5 { color: var(--wh-q5); }
+  .wh-tooltip .q6 { color: var(--wh-q6); }
+  .wh-tooltip .q7 { color: var(--wh-q7); }
+  .wh-tooltip .whtt-sellprice { color: var(--fg-2); }
+  .wh-tooltip .moneygold::after { content: 'g'; color: var(--wh-gold); margin-left: 1px; }
+  .wh-tooltip .moneysilver::after { content: 's'; color: var(--wh-silver); margin-left: 1px; }
+  .wh-tooltip .moneycopper::after { content: 'c'; color: var(--wh-copper); margin-left: 1px; }
+
   /* The one moving thing on the site besides hover: the loading skeleton. */
   .skeleton {
     animation: skeleton-pulse 1.6s ease-in-out infinite;
