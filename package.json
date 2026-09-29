@@ -16,8 +16,10 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "loot:import": "tsx prisma/import-loot.ts",
     "db:staging:reset": "tsx prisma/with-staging-env.ts prisma migrate reset --force",
     "db:staging:seed": "tsx prisma/with-staging-env.ts tsx prisma/seed.ts",
+    "db:staging:loot": "tsx prisma/with-staging-env.ts tsx prisma/import-loot.ts",
     "db:studio": "prisma studio"
   },
   "dependencies": {
