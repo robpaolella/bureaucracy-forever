@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Archivo, Cinzel, Newsreader } from 'next/font/google';
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/config';
 import './globals.css';
@@ -26,6 +26,9 @@ const archivo = Archivo({
   display: 'swap',
   variable: '--font-archivo',
 });
+
+/** Dark only: tells the browser before the stylesheet loads, so the canvas never flashes white. */
+export const viewport: Viewport = { colorScheme: 'dark' };
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
