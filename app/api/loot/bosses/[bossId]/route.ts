@@ -21,7 +21,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
     await db.$transaction(async (tx) => {
       if (name !== undefined || isTrash !== undefined) await tx.lootBoss.update({ where: { id: bossId }, data: { name, isTrash } });
       if (move) {
-        const order = (await tx.lootBoss.findMany({ where: { templateId: boss.templateId }, orderBy: { position: 'asc' }, select: { id: true } })).map((b) => b.id);
+        const order = (await tx.lootBoss.findMany({ where: { templateId: boss.templateId }, orderBy: [{ position: 'asc' }, { id: 'asc' }], select: { id: true } })).map((b) => b.id);
         const next = moveId(order, bossId, move);
         // Renumber the whole tier: positions stay dense however they drifted.
         for (const [position, id] of next.entries()) await tx.lootBoss.update({ where: { id }, data: { position } });

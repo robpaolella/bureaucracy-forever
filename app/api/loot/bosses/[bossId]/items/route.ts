@@ -7,8 +7,7 @@ import { jsonBody, NO_STORE } from '../../../../_officer';
 
 /**
  * POST /api/loot/bosses/[bossId]/items — add an item by id or Wowhead link, at the end of
- * the boss's list. An item not yet cached (or cached from the other database) is fetched
- * from Wowhead first: one request.
+ * the boss's list. An item not yet cached is fetched from Wowhead first: one request.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ bossId: string }> }) {
   const auth = await requireLootOfficer();
@@ -18,12 +17,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ bos
   const { bossId } = await params;
   const boss = await db.lootBoss.findUnique({ where: { id: bossId }, select: { id: true } });
   if (!boss) return NextResponse.json({ error: 'No such boss.' }, { status: 404, headers: NO_STORE });
-  const { id, source } = parsed.value;
+  const { id, source, explicit } = parsed.value;
 
+  // A cached item is reused as it is, whatever the picker says: other tiers may use it. Only
+  // a link that names the other database replaces it.
   const cached = await db.lootItem.findUnique({ where: { id }, select: { source: true } });
-  if (cached?.source !== source) {
+  if (!cached || (explicit && cached.source !== source)) {
     const res = await refreshItems(db, [{ id, source }], { gapMs: 0 });
-    if (res.failed.length > 0) return NextResponse.json({ error: `Wowhead: ${res.failed[0].error}` }, { status: 409, headers: NO_STORE });
+    if (res.failed.length > 0) return NextResponse.json({ error: `Wowhead: ${res.failed[0].error}` }, { status: 502, headers: NO_STORE });
   }
 
   const last = await db.lootTableEntry.findFirst({ where: { bossId }, orderBy: { position: 'desc' }, select: { position: true } });

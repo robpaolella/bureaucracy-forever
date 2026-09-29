@@ -24,8 +24,8 @@ export default async function LootTablePage({ params }: { params: Promise<{ temp
     select: {
       name: true,
       lootBosses: {
-        orderBy: { position: 'asc' },
-        select: { id: true, name: true, isTrash: true, entries: { orderBy: { position: 'asc' }, select: { item: true } } },
+        orderBy: [{ position: 'asc' }, { id: 'asc' }],
+        select: { id: true, name: true, isTrash: true, entries: { orderBy: [{ position: 'asc' }, { itemId: 'asc' }], select: { item: true } } },
       },
     },
   });

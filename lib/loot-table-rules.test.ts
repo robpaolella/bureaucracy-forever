@@ -29,8 +29,8 @@ describe('moveId', () => {
 
 describe('parseItemInput', () => {
   it('takes the source from a link, else the picker', () => {
-    expect(parseItemInput({ ref: 'https://www.wowhead.com/classic/item=17076', source: 'FOREVER' })).toEqual({ ok: true, value: { id: 17076, source: 'CLASSIC' } });
-    expect(parseItemInput({ ref: '17076', source: 'FOREVER' })).toEqual({ ok: true, value: { id: 17076, source: 'FOREVER' } });
+    expect(parseItemInput({ ref: 'https://www.wowhead.com/classic/item=17076', source: 'FOREVER' })).toEqual({ ok: true, value: { id: 17076, source: 'CLASSIC', explicit: true } });
+    expect(parseItemInput({ ref: '17076', source: 'FOREVER' })).toEqual({ ok: true, value: { id: 17076, source: 'FOREVER', explicit: false } });
   });
 
   it('refuses a bad reference or a missing source', () => {
