@@ -27,19 +27,20 @@ export function parseTooltipJson(id: number, body: unknown): FetchResult {
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
   if (typeof b.error === 'string') return { ok: false, id, error: b.error };
   const { name, quality, icon, tooltip } = b;
-  if (typeof name !== 'string' || !name || typeof quality !== 'number' || typeof icon !== 'string' || typeof tooltip !== 'string') {
+  if (typeof name !== 'string' || !name || !Number.isInteger(quality) || typeof icon !== 'string' || typeof tooltip !== 'string') {
     return { ok: false, id, error: 'Unexpected response from Wowhead.' };
   }
   // The icon name ends up in an image URL; keep it to Wowhead's own shape.
   if (!/^[a-z0-9_-]+$/i.test(icon)) return { ok: false, id, error: 'Unexpected icon name from Wowhead.' };
-  return { ok: true, item: { id, name, quality, icon: icon.toLowerCase(), tooltip } };
+  return { ok: true, item: { id, name, quality: quality as number, icon: icon.toLowerCase(), tooltip } };
 }
 
 export async function fetchItem(id: number, source: ItemSource, fetcher: typeof fetch = fetch): Promise<FetchResult> {
   try {
     const res = await fetcher(tooltipUrl(id, source), { signal: AbortSignal.timeout(TIMEOUT_MS), headers: { accept: 'application/json' }, cache: 'no-store' });
     if (!res.ok && res.status !== 404) return { ok: false, id, error: `Wowhead answered ${res.status}.` };
-    return parseTooltipJson(id, await res.json());
+    const body: unknown = await res.json().catch(() => null);
+    return parseTooltipJson(id, body);
   } catch (e) {
     return { ok: false, id, error: e instanceof Error && e.name === 'TimeoutError' ? 'Wowhead did not answer in time.' : 'Could not reach Wowhead.' };
   }

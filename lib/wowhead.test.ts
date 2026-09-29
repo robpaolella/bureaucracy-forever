@@ -20,6 +20,7 @@ describe('wowhead', () => {
     [{ ...BODY, name: '' }, 'Unexpected response from Wowhead.'],
     [null, 'Unexpected response from Wowhead.'],
     [{ ...BODY, icon: '../../evil' }, 'Unexpected icon name from Wowhead.'],
+    [{ ...BODY, quality: 4.5 }, 'Unexpected response from Wowhead.'],
   ])('refuses %j', (body, error) => {
     expect(parseTooltipJson(1, body)).toEqual({ ok: false, id: 1, error });
   });
@@ -28,6 +29,8 @@ describe('wowhead', () => {
     expect(await fetchItem(17076, 'CLASSIC', respond(200, BODY))).toMatchObject({ ok: true });
     expect(await fetchItem(1, 'FOREVER', respond(404, { error: 'Entity not found' }))).toEqual({ ok: false, id: 1, error: 'Entity not found' });
     expect(await fetchItem(1, 'CLASSIC', respond(503, {}))).toEqual({ ok: false, id: 1, error: 'Wowhead answered 503.' });
+    const html = vi.fn(async () => new Response('<html>blocked</html>', { status: 200 })) as unknown as typeof fetch;
+    expect(await fetchItem(1, 'CLASSIC', html)).toEqual({ ok: false, id: 1, error: 'Unexpected response from Wowhead.' });
     const down = vi.fn(async () => {
       throw new TypeError('fetch failed');
     }) as unknown as typeof fetch;

@@ -27,7 +27,7 @@ export async function refreshItems(
   const sourceOf = new Map(targets.map((t) => [t.id, t.source]));
   const out: RefreshResult = { saved: [], failed: [] };
   await throttled(
-    targets.map((t) => t.id),
+    [...sourceOf.keys()],
     async (id) => {
       const source = sourceOf.get(id)!;
       const res = await fetchItem(id, source, opts.fetcher);
@@ -36,8 +36,12 @@ export async function refreshItems(
         return;
       }
       const data = { name: res.item.name, quality: res.item.quality, icon: res.item.icon, tooltipHtml: sanitizeTooltip(res.item.tooltip), source, fetchedAt: (opts.now ?? (() => new Date()))() };
-      await client.lootItem.upsert({ where: { id }, create: { id, ...data }, update: data });
-      out.saved.push(id);
+      try {
+        await client.lootItem.upsert({ where: { id }, create: { id, ...data }, update: data });
+        out.saved.push(id);
+      } catch {
+        out.failed.push({ id, error: 'Could not save it.' });
+      }
     },
     opts.gapMs ?? WOWHEAD_GAP_MS,
   );

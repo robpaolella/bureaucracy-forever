@@ -32,6 +32,9 @@ describe('sanitizeTooltip', () => {
     ['<a href="javascript:alert(1)">x</a>', '<span>x</span>'],
     ['<iframe src="https://evil.test"></iframe><svg><script>1</script></svg>', ''],
     ['<style>body{display:none}</style>text', 'text'],
+    ['&lt;script&gt;alert(1)&lt;/script&gt;', '&lt;script&gt;alert(1)&lt;/script&gt;'],
+    ['<math><mtext><table><mglyph><style><img src=x onerror=alert(1)></style></mglyph></table></mtext></math>', ''],
+    ['<noscript><p title="</noscript><img src=x onerror=alert(1)>">', ''],
     ['<table width="100%" onmouseover="x" background="y"><tr><td>a</td></tr></table>', '<table width="100%"><tr><td>a</td></tr></table>'],
   ])('neutralises %s', (input, expected) => {
     expect(sanitizeTooltip(input)).toBe(expected);

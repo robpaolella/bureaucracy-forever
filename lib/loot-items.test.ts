@@ -22,6 +22,14 @@ describe('loot items', () => {
     expect(vi.mocked(fetcher).mock.calls.map((c) => c[0])).toEqual(['https://nether.wowhead.com/classic/tooltip/item/17076', 'https://nether.wowhead.com/forever/tooltip/item/5']);
   });
 
+  it('keeps going when a save fails, and fetches a repeated id once', async () => {
+    const upsert = vi.fn().mockRejectedValueOnce(new Error('db down')).mockResolvedValue({});
+    const fetcher = fakeFetch({ 1: { name: 'A', quality: 2, icon: 'a', tooltip: '' }, 2: { name: 'B', quality: 2, icon: 'b', tooltip: '' } });
+    const res = await refreshItems({ lootItem: { upsert } } as never, [{ id: 1, source: 'CLASSIC' }, { id: 2, source: 'CLASSIC' }, { id: 2, source: 'CLASSIC' }], { fetcher, gapMs: 0 });
+    expect(res).toEqual({ saved: [2], failed: [{ id: 1, error: 'Could not save it.' }] });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
   it('sanitizes stored tooltips again on the way to a page', () => {
     expect(toItemView({ id: 1, name: 'X', quality: 3, icon: 'i', tooltipHtml: '<span onclick="x" class="q3">X</span>' }).tooltipHtml).toBe('<span class="q3">X</span>');
   });
