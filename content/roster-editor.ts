@@ -46,6 +46,3 @@ export const EDITOR_TOASTS = {
 };
 
 export const OFFICER_RANK_ERROR = 'Officer rank comes from the Discord Officer role and cannot be set here.';
-
-/** The two-week check-in tick posts to #officer-chat (docs/04 § Roster, trials). */
-export const TRIAL_CHECK_IN = (who: string, days: number, rosterUrl: string) => `${who}'s trial started ${days} days ago. Decide on the roster editor: Raider keeps them, Social ends it. ${rosterUrl}`;

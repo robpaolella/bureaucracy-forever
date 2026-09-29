@@ -23,6 +23,7 @@ export type JobType =
   | 'raid.close'
   | 'raid.delete'
   | 'member.roles.sync'
+  | 'trial.checkin'
   | 'officers.notify';
 
 /** `{ ok: false }` acks: PENDING again after 2^attempts minutes, FAILED after the fifth try. */
@@ -67,6 +68,6 @@ export function oneJobPerEntity<T extends { entity: string }>(candidates: T[], b
 export function entityKey(type: JobType, payload: Record<string, unknown>): string {
   if (type.startsWith('application.')) return `application:${String(payload.applicationId ?? '')}`;
   if (type.startsWith('raid.')) return `raid:${String(payload.raidId ?? '')}`;
-  if (type === 'member.roles.sync') return `member:${String(payload.discordId ?? '')}`;
+  if (type === 'member.roles.sync' || type === 'trial.checkin') return `member:${String(payload.discordId ?? '')}`;
   return 'officers';
 }
