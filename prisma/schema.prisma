@@ -318,6 +318,8 @@ model ClassNeed {
   spec      String
   roles     RaidRole[]
   status    NeedStatus @default(CLOSED)
+  /// Shown first on the home page, starred. At most one row, and only while HIGH.
+  featured  Boolean    @default(false)
   updatedAt DateTime   @updatedAt
 
   @@unique([class, spec])

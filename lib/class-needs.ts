@@ -7,7 +7,8 @@
 import type { ClassNeed, NeedStatus } from '@/content/recruitment';
 import { CLASSES, SPECS, type Role, type WowClass } from '@/lib/design/class-colors';
 
-export type NeedRow = { wowClass: WowClass; spec: string; status: NeedStatus };
+/** `featured`: the one high-need spec an officer starred for the home page. */
+export type NeedRow = { wowClass: WowClass; spec: string; status: NeedStatus; featured?: boolean };
 
 export const NEED_STATUSES: readonly NeedStatus[] = ['high', 'medium', 'closed'];
 const RANK: Record<NeedStatus, number> = { high: 0, medium: 1, closed: 2 };
@@ -22,8 +23,13 @@ export function isSpecOf(wowClass: WowClass, spec: string): boolean {
 
 /** Every class and spec in canonical order, with the stored status or closed. */
 export function allSpecRows(stored: NeedRow[]): NeedRow[] {
-  const byKey = new Map(stored.map((r) => [`${r.wowClass}/${r.spec}`, r.status]));
-  return CLASSES.flatMap((wowClass) => SPECS[wowClass].map((s) => ({ wowClass, spec: s.name, status: byKey.get(`${wowClass}/${s.name}`) ?? 'closed' })));
+  const byKey = new Map(stored.map((r) => [`${r.wowClass}/${r.spec}`, r]));
+  return CLASSES.flatMap((wowClass) =>
+    SPECS[wowClass].map((s) => {
+      const row = byKey.get(`${wowClass}/${s.name}`);
+      return { wowClass, spec: s.name, status: row?.status ?? 'closed', featured: row?.featured === true && row.status === 'high' };
+    }),
+  );
 }
 
 /**
@@ -61,6 +67,19 @@ export function groupNeeds(rows: NeedRow[]): ClassNeed[] {
 /** Roles a spec can fill, for the editor's read-only role column. */
 export function rolesOfSpec(wowClass: WowClass, spec: string): Role[] {
   return SPECS[wowClass].find((s) => s.name === spec)?.roles ?? [];
+}
+
+export type ParsedFeature = { ok: true; value: { wowClass: WowClass; spec: string; featured: boolean } } | { ok: false; error: string };
+
+/** Body of POST /api/class-needs/featured: `{ wowClass, spec, featured }`. */
+export function parseFeatureInput(body: unknown): ParsedFeature {
+  const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+  const wowClass = b.wowClass;
+  if (typeof wowClass !== 'string' || !(CLASSES as readonly string[]).includes(wowClass)) return { ok: false, error: 'Pick a class.' };
+  const spec = typeof b.spec === 'string' ? b.spec : '';
+  if (!isSpecOf(wowClass as WowClass, spec)) return { ok: false, error: 'Pick a spec for that class.' };
+  if (typeof b.featured !== 'boolean') return { ok: false, error: 'Featured is true or false.' };
+  return { ok: true, value: { wowClass: wowClass as WowClass, spec, featured: b.featured } };
 }
 
 export type ParsedNeed = { ok: true; value: NeedRow } | { ok: false; error: string };

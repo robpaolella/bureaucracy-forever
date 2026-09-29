@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SPECS } from '@/lib/design/class-colors';
-import { allSpecRows, groupNeeds, parseNeedInput, rolesOfSpec, type NeedRow } from './class-needs';
+import { allSpecRows, groupNeeds, parseFeatureInput, parseNeedInput, rolesOfSpec, type NeedRow } from './class-needs';
 
 describe('class needs', () => {
   const stored: NeedRow[] = [
@@ -38,5 +38,20 @@ describe('class needs', () => {
     expect(parseNeedInput({ wowClass: 'priest', spec: 'Fire', status: 'high' })).toMatchObject({ ok: false, error: /spec/ });
     expect(parseNeedInput({ wowClass: 'priest', spec: 'Holy', status: 'urgent' })).toMatchObject({ ok: false, error: /Status/ });
     expect(parseNeedInput({ wowClass: 'monk', spec: 'Holy', status: 'high' })).toMatchObject({ ok: false, error: /class/ });
+  });
+
+  it('keeps a star only on a high-need spec', () => {
+    const all = allSpecRows([
+      { wowClass: 'priest', spec: 'Holy', status: 'high', featured: true },
+      { wowClass: 'mage', spec: 'Fire', status: 'medium', featured: true },
+    ]);
+    expect(all.find((r) => r.wowClass === 'priest' && r.spec === 'Holy')?.featured).toBe(true);
+    expect(all.find((r) => r.wowClass === 'mage' && r.spec === 'Fire')?.featured).toBe(false);
+  });
+
+  it('validates a feature toggle', () => {
+    expect(parseFeatureInput({ wowClass: 'priest', spec: 'Holy', featured: true })).toMatchObject({ ok: true });
+    expect(parseFeatureInput({ wowClass: 'priest', spec: 'Holy', featured: 'yes' })).toMatchObject({ ok: false, error: /Featured/ });
+    expect(parseFeatureInput({ wowClass: 'priest', spec: 'Fire', featured: true })).toMatchObject({ ok: false, error: /spec/ });
   });
 });

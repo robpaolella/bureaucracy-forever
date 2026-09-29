@@ -15,7 +15,7 @@ export async function GET() {
 /**
  * PUT /api/class-needs — set one spec's status (officers). Body `{ wowClass, spec, status }`.
  * Upserts the row and expires the needs cache so the recruitment page, the home teaser
- * and the bot see it together.
+ * and the bot see it together. A spec that leaves high need loses its home-page star.
  */
 export async function PUT(request: Request) {
   const session = await getSession();
@@ -32,7 +32,7 @@ export async function PUT(request: Request) {
   await db.classNeed.upsert({
     where: { class_spec: { class: cls, spec } },
     create: { class: cls, spec, roles, status: st },
-    update: { status: st, roles },
+    update: { status: st, roles, ...(st !== 'HIGH' && { featured: false }) },
   });
   revalidateTag(CLASS_NEEDS_TAG, 'max');
   return NextResponse.json({ wowClass, spec, status }, { headers: NO_STORE });
