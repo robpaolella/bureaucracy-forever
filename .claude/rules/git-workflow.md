@@ -28,8 +28,11 @@ migrations run on every deploy).
 - Feature branches still ship to `main` by PR as usual. Merging into `staging` is
   for trying work on a real deployment first; it is never a substitute for the PR.
 - Reset or reseed its database with `npm run db:staging:reset` and
-  `npm run db:staging:seed` (they read `.env.staging`). Seeding refuses any database
-  that is not local or staging.
+  `npm run db:staging:seed` (they read `.env.staging`). Seeding and
+  `prisma migrate reset` refuse any database that is not local or staging.
+- The staging badge and the staging migrations key off Vercel's system variables
+  (`VERCEL_ENV`, `VERCEL_GIT_COMMIT_REF`); keep "Automatically expose System
+  Environment Variables" on in the Vercel project.
 
 ## Commits
 
