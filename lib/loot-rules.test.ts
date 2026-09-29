@@ -1,0 +1,176 @@
+import { describe, expect, it } from 'vitest';
+import {
+  decideReserve,
+  decideVoid,
+  defaultMethodFor,
+  hrBlocked,
+  isEligible,
+  parseAwardInput,
+  parseItemRef,
+  REASONS,
+  reserveCounts,
+  reservesLockAt,
+  resolveDrop,
+  type ActiveReserve,
+  type ReserveContext,
+  type ReserveRaid,
+} from './loot-rules';
+
+const startsAt = new Date('2026-10-16T03:00:00.000Z');
+const now = new Date('2026-10-15T20:00:00.000Z');
+const raid: ReserveRaid = { cancelled: false, startsAt, hasLootTable: true };
+const member = { role: 'member' as const };
+const ctx: ReserveContext = { response: 'accept', ownCharacterIds: ['c1', 'c2'], tableItemIds: new Set([100, 200, 300]), hrAwards: [] };
+const pick = { characterId: 'c1', hr: 100, sr: 200 };
+
+describe('reserve lock and eligibility', () => {
+  it('locks two hours before the start', () => {
+    expect(reservesLockAt(startsAt).toISOString()).toBe('2026-10-16T01:00:00.000Z');
+  });
+
+  it('counts only Accept and Tentative', () => {
+    expect(isEligible('accept')).toBe(true);
+    expect(isEligible('tentative')).toBe(true);
+    expect(isEligible('absent')).toBe(false);
+    expect(isEligible(null)).toBe(false);
+    expect(isEligible(undefined)).toBe(false);
+  });
+});
+
+describe('decideReserve', () => {
+  it('accepts a valid pair, a single reserve and clearing both', () => {
+    expect(decideReserve(member, raid, pick, ctx, now)).toEqual({ ok: true });
+    expect(decideReserve(member, raid, { characterId: 'c2', hr: null, sr: 300 }, ctx, now)).toEqual({ ok: true });
+    expect(decideReserve(member, raid, { characterId: 'c1', hr: null, sr: null }, ctx, now)).toEqual({ ok: true });
+  });
+
+  it.each([
+    ['socials', { role: 'social' as const }, raid, pick, ctx, 403, REASONS.social],
+    ['cancelled raids', member, { ...raid, cancelled: true }, pick, ctx, 409, REASONS.cancelled],
+    ['raids without a loot table', member, { ...raid, hasLootTable: false }, pick, ctx, 409, REASONS.noTable],
+    ['absent sign-ups', member, raid, pick, { ...ctx, response: 'absent' as const }, 409, REASONS.notEligible],
+    ['unanswered sign-ups', member, raid, pick, { ...ctx, response: null }, 409, REASONS.notEligible],
+    ["someone else's character", member, raid, { ...pick, characterId: 'x' }, ctx, 403, REASONS.notYourCharacter],
+    ['items outside the table', member, raid, { ...pick, sr: 999 }, ctx, 409, REASONS.notInTable],
+    ['the same item twice', member, raid, { ...pick, sr: 100 }, ctx, 409, REASONS.sameItem],
+    ['an HR on an item already won through HR', member, raid, pick, { ...ctx, hrAwards: [{ characterId: 'c1', itemId: 100 }] }, 409, REASONS.hrReceived],
+  ])('refuses %s', (_label, actor, r, input, c, status, reason) => {
+    expect(decideReserve(actor, r, input, c, now)).toEqual({ ok: false, status, reason });
+  });
+
+  it('allows an SR on an item won through HR, and an HR on it for another character', () => {
+    const won = { ...ctx, hrAwards: [{ characterId: 'c1', itemId: 100 }] };
+    expect(decideReserve(member, raid, { characterId: 'c1', hr: 200, sr: 100 }, won, now)).toEqual({ ok: true });
+    expect(decideReserve(member, raid, { characterId: 'c2', hr: 100, sr: null }, won, now)).toEqual({ ok: true });
+  });
+
+  it('locks members out two hours before the start, but not an officer acting on the web', () => {
+    const late = new Date('2026-10-16T01:00:00.000Z');
+    expect(decideReserve(member, raid, pick, ctx, late)).toEqual({ ok: false, status: 409, reason: REASONS.locked });
+    expect(decideReserve({ role: 'officer' }, raid, pick, ctx, late)).toMatchObject({ ok: false, reason: REASONS.locked });
+    expect(decideReserve({ role: 'officer' }, raid, pick, ctx, late, true)).toEqual({ ok: true });
+    expect(decideReserve({ role: 'officer' }, { ...raid, cancelled: true }, pick, ctx, late, true)).toMatchObject({ reason: REASONS.cancelled });
+  });
+});
+
+describe('hrBlocked', () => {
+  it('blocks the same character and item unless an exception exists', () => {
+    const awards = [{ characterId: 'c1', itemId: 100 }];
+    expect(hrBlocked('c1', 100, awards)).toBe(true);
+    expect(hrBlocked('c1', 200, awards)).toBe(false);
+    expect(hrBlocked('c2', 100, awards)).toBe(false);
+    expect(hrBlocked('c1', 100, awards, [{ characterId: 'c1', itemId: 100 }])).toBe(false);
+  });
+});
+
+describe('resolveDrop', () => {
+  const r = (userId: string, kind: 'HR' | 'SR', itemId = 100): ActiveReserve => ({ userId, characterId: `char-${userId}`, itemId, kind });
+  const reserves = [r('a', 'HR'), r('b', 'HR'), r('c', 'SR'), r('d', 'SR', 200), r('e', 'HR', 300)];
+
+  it('gives HR holders the roll when anyone hard-reserved', () => {
+    expect(resolveDrop(100, reserves, [], [])).toEqual({ mode: 'HR', contenders: [r('a', 'HR'), r('b', 'HR')] });
+  });
+
+  it('falls to SR holders when nobody hard-reserved', () => {
+    expect(resolveDrop(200, reserves, [], [])).toEqual({ mode: 'SR', contenders: [r('d', 'SR', 200)] });
+  });
+
+  it('is an open roll when nobody reserved it', () => {
+    expect(resolveDrop(400, reserves, [], [])).toEqual({ mode: 'OPEN', contenders: [] });
+  });
+
+  it('sends a second copy to the HR holders who have not received it yet', () => {
+    expect(resolveDrop(100, reserves, [{ itemId: 100, userId: 'a' }], [{ characterId: 'char-a', itemId: 100 }])).toEqual({ mode: 'HR', contenders: [r('b', 'HR')] });
+  });
+
+  it('moves on to SR, then open, as copies are handed out', () => {
+    const both = [{ itemId: 100, userId: 'a' }, { itemId: 100, userId: 'b' }];
+    expect(resolveDrop(100, reserves, both, [])).toEqual({ mode: 'SR', contenders: [r('c', 'SR')] });
+    expect(resolveDrop(100, reserves, [...both, { itemId: 100, userId: 'c' }], [])).toMatchObject({ mode: 'OPEN' });
+  });
+
+  it('ignores disenchanted copies and awards of other items', () => {
+    expect(resolveDrop(100, reserves, [{ itemId: 100, userId: null }, { itemId: 200, userId: 'a' }], [])).toMatchObject({ mode: 'HR', contenders: [r('a', 'HR'), r('b', 'HR')] });
+  });
+
+  it('skips an HR holder whose character already won the item through HR on another raid', () => {
+    expect(resolveDrop(300, reserves, [], [{ characterId: 'char-e', itemId: 300 }])).toMatchObject({ mode: 'OPEN' });
+    expect(resolveDrop(300, reserves, [], [{ characterId: 'char-e', itemId: 300 }], [{ characterId: 'char-e', itemId: 300 }])).toMatchObject({ mode: 'HR' });
+  });
+
+  it('preselects the matching method', () => {
+    expect(defaultMethodFor('HR')).toBe('HR');
+    expect(defaultMethodFor('SR')).toBe('SR');
+    expect(defaultMethodFor('OPEN')).toBe('MAIN_SPEC');
+  });
+
+  it('counts HR and SR per item', () => {
+    expect(Object.fromEntries(reserveCounts(reserves))).toEqual({ 100: { HR: 2, SR: 1 }, 200: { HR: 0, SR: 1 }, 300: { HR: 1, SR: 0 } });
+  });
+});
+
+describe('parseItemRef', () => {
+  it.each([
+    ['17076', { id: 17076 }],
+    [' item=17076 ', { id: 17076 }],
+    ['https://www.wowhead.com/classic/item=17076/bonereavers-edge', { id: 17076, source: 'CLASSIC' }],
+    ['https://www.wowhead.com/forever/item=250001', { id: 250001, source: 'FOREVER' }],
+    ['https://www.wowhead.com/item=17076', { id: 17076 }],
+  ])('reads %s', (text, expected) => {
+    expect(parseItemRef(text)).toEqual(expected);
+  });
+
+  it.each(['', 'abc', '0', '-5', 'https://www.wowhead.com/classic/spell=21153', '99999999999'])('refuses %j', (text) => {
+    expect(parseItemRef(text)).toBeNull();
+  });
+});
+
+describe('parseAwardInput', () => {
+  it('reads a win with a roll and note', () => {
+    expect(parseAwardInput({ bossId: 'b1', itemId: 100, characterId: 'c1', method: 'HR', roll: '87', note: ' won ' })).toEqual({
+      ok: true,
+      value: { bossId: 'b1', itemId: 100, characterId: 'c1', method: 'HR', roll: 87, note: 'won' },
+    });
+  });
+
+  it('drops the character for disenchant/bank and needs one otherwise', () => {
+    expect(parseAwardInput({ itemId: 100, characterId: 'c1', method: 'DISENCHANT_BANK' })).toMatchObject({ ok: true, value: { characterId: null, bossId: null, roll: null } });
+    expect(parseAwardInput({ itemId: 100, method: 'OPEN_ROLL' })).toEqual({ ok: false, error: 'Pick who won it.' });
+  });
+
+  it.each([
+    [{ method: 'HR', characterId: 'c1' }, 'Pick an item.'],
+    [{ itemId: 100, characterId: 'c1', method: 'COUNCIL' }, 'Pick how it was handed out.'],
+    [{ itemId: 100, characterId: 'c1', method: 'HR', roll: 101 }, 'A roll is 1 to 100.'],
+    [{ itemId: 100, characterId: 'c1', method: 'HR', roll: 2.5 }, 'A roll is 1 to 100.'],
+  ])('refuses %j', (body, error) => {
+    expect(parseAwardInput(body)).toEqual({ ok: false, error });
+  });
+});
+
+describe('decideVoid', () => {
+  it('voids once', () => {
+    expect(decideVoid({ voidedAt: null })).toEqual({ ok: true });
+    expect(decideVoid({ voidedAt: now })).toEqual({ ok: false, status: 409, reason: REASONS.alreadyVoided });
+  });
+});
