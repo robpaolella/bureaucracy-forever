@@ -8,8 +8,9 @@
  *                 --atlas-file <path> reads a local copy instead of downloading it.
  * --ids <file>    the plain JSON format: { "bosses": [{ "name", "trash"?, "items": [ids] }] }.
  * --source        classic | forever: the Wowhead database items are fetched from (default classic).
- * --replace       drop the template's current table first; otherwise bosses are matched by
- *                 name and new items added.
+ * --replace       make the table exactly the source: bosses and items it lacks are removed.
+ *                 Without it, bosses are matched by name, their items set in the source's
+ *                 order, and anything extra (entered on /officers/loot) kept after them.
  * --refresh       fetch items already in the cache again.
  *
  * Writes only to a local or staging database (./write-guard.ts). Production loot is entered
@@ -61,16 +62,19 @@ async function main() {
   const target = assertWriteTarget(connectionString);
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: connectionString! }) });
   try {
+    const table = await readTable(values);
+    for (const s of table.skipped) console.log(`skipped ${s}`);
+
     const template = await db.raidTemplate.findUnique({ where: { name: values.template }, select: { id: true, name: true } });
     if (!template) {
       const names = (await db.raidTemplate.findMany({ select: { name: true }, orderBy: { name: 'asc' } })).map((t) => t.name);
       throw new Error(`No template "${values.template}". Templates: ${names.join(', ')}.`);
     }
 
-    const table = await readTable(values);
-    for (const s of table.skipped) console.log(`skipped ${s}`);
     const ids = allItemIds(table);
-    const cached = new Set((await db.lootItem.findMany({ where: { id: { in: ids } }, select: { id: true } })).map((i) => i.id));
+    // Classic and Forever can use one id for different items, so a cached row from the other
+    // database counts as missing.
+    const cached = new Set((await db.lootItem.findMany({ where: { id: { in: ids }, source }, select: { id: true } })).map((i) => i.id));
     const toFetch = values.refresh ? ids : ids.filter((id) => !cached.has(id));
     console.log(`${template.name} on the ${target} database: ${table.bosses.length} entries, ${ids.length} items, fetching ${toFetch.length} (about ${Math.ceil((toFetch.length * WOWHEAD_GAP_MS) / 1000)} s).`);
 
@@ -78,22 +82,37 @@ async function main() {
     for (const f of fetched.failed) console.log(`item ${f.id}: ${f.error}`);
     const have = new Set([...cached, ...fetched.saved]);
 
-    await db.$transaction(async (tx) => {
-      if (values.replace) await tx.lootBoss.deleteMany({ where: { templateId: template.id } });
-      for (const [position, boss] of table.bosses.entries()) {
-        const row = await tx.lootBoss.upsert({
-          where: { templateId_name: { templateId: template.id, name: boss.name } },
-          create: { templateId: template.id, name: boss.name, position, isTrash: boss.isTrash },
-          update: { position, isTrash: boss.isTrash },
-          select: { id: true },
-        });
-        const entries = boss.itemIds.filter((id) => have.has(id)).map((itemId, i) => ({ bossId: row.id, itemId, position: i }));
-        await tx.lootTableEntry.createMany({ data: entries, skipDuplicates: true });
-      }
-    });
+    await db.$transaction(
+      async (tx) => {
+        if (values.replace) {
+          // Awards keep the boss name when their boss row goes (onDelete SetNull), but say so.
+          const gone = await tx.lootBoss.findMany({ where: { templateId: template.id, name: { notIn: table.bosses.map((b) => b.name) } }, select: { id: true, name: true, _count: { select: { awards: true } } } });
+          for (const g of gone) console.log(`removing ${g.name}${g._count.awards ? ` (${g._count.awards} awards keep its name, lose the link)` : ''}`);
+          await tx.lootBoss.deleteMany({ where: { id: { in: gone.map((g) => g.id) } } });
+        }
+        for (const [position, boss] of table.bosses.entries()) {
+          const row = await tx.lootBoss.upsert({
+            where: { templateId_name: { templateId: template.id, name: boss.name } },
+            create: { templateId: template.id, name: boss.name, position, isTrash: boss.isTrash },
+            update: { position, isTrash: boss.isTrash },
+            select: { id: true },
+          });
+          // The source's items in its order; without --replace, items already on the boss
+          // that the source lacks (added on /officers/loot) stay, after them.
+          const itemIds = boss.itemIds.filter((id) => have.has(id));
+          const extra = values.replace
+            ? []
+            : (await tx.lootTableEntry.findMany({ where: { bossId: row.id, itemId: { notIn: itemIds } }, select: { itemId: true }, orderBy: { position: 'asc' } })).map((e) => e.itemId);
+          await tx.lootTableEntry.deleteMany({ where: { bossId: row.id } });
+          await tx.lootTableEntry.createMany({ data: [...itemIds, ...extra].map((itemId, i) => ({ bossId: row.id, itemId, position: i })) });
+        }
+      },
+      { timeout: 60_000 },
+    );
 
     const entries = await db.lootTableEntry.count({ where: { boss: { templateId: template.id } } });
     console.log(`Done: ${fetched.saved.length} items fetched, ${fetched.failed.length} failed, ${entries} table entries on ${template.name}.`);
+    if (fetched.failed.length > 0) process.exitCode = 1;
   } finally {
     await db.$disconnect();
   }
