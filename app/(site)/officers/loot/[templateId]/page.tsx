@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ItemName } from '@/components/loot/ItemName';
-import { Tag, TextLink } from '@/components/ui';
+import { Tag } from '@/components/ui';
 import { LOOT_ADMIN_HEAD, LOOT_TABLE } from '@/content/loot-admin';
 import { db } from '@/lib/db';
 import { lootEnabled } from '@/lib/flags';
@@ -33,9 +34,9 @@ export default async function LootTablePage({ params }: { params: Promise<{ temp
   return (
     <div className="flex flex-col gap-6 px-4 pb-12 pt-8 md:px-12 md:pt-11">
       <section className="flex flex-col gap-3">
-        <TextLink href="/officers/loot" className="self-start">
+        <Link href="/officers/loot" className="inline-flex min-h-11 items-center self-start text-small text-fg-3 underline-offset-4 hover:underline">
           ← {LOOT_TABLE.back}
-        </TextLink>
+        </Link>
         <span className="font-eyebrow text-label font-semibold uppercase tracking-[0.28em] text-sand">{LOOT_ADMIN_HEAD.title}</span>
         <h1 className="font-display text-[34px] font-medium leading-[1.05] tracking-[-0.02em] md:text-[44px]">{template.name}</h1>
       </section>
