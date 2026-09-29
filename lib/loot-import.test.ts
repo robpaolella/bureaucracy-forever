@@ -70,6 +70,26 @@ describe('parseAtlasLoot', () => {
     expect(() => parseAtlasLoot(LUA, 'Naxxramas')).toThrow('No data["Naxxramas"]');
   });
 
+  it('handles strings, long comments, other difficulties and empty bosses', () => {
+    const lua = `data["X"] = { items = {
+      "a stray string",
+      { name = AL["A -- } B"], [NORMAL_DIFF] = { { 1, 10 }, { 2, 0x10 }, { 3, 1e3 } } },
+      --[==[ { name = AL["Hidden"], [NORMAL_DIFF] = { { 1, 1 } } } ]==]
+      { name = AL["Say \\"hi\\""], [RAID40_DIFF] = { { 1, 20 } } },
+      { name = AL["Empty"], [NORMAL_DIFF] = { { 1, "INV_Box" } } },
+    } }`;
+    const { bosses, skipped } = parseAtlasLoot(lua, 'X');
+    expect(bosses).toEqual([
+      { name: 'A -- } B', isTrash: false, itemIds: [10] },
+      { name: 'Say "hi"', isTrash: false, itemIds: [20] },
+    ]);
+    expect(skipped).toEqual(['A -- } B: 0x10', 'A -- } B: 1e3', 'Empty: "INV_Box"', 'Empty (no item ids)']);
+  });
+
+  it('throws on unbalanced braces', () => {
+    expect(() => parseAtlasLoot('data["X"] = { items = { { name = AL["A"] }', 'X')).toThrow('Unbalanced braces');
+  });
+
   it('lists every item once', () => {
     expect(allItemIds(parseAtlasLoot(LUA, 'MoltenCore'))).toEqual([16800, 16805, 18870, 17204, 17076, 18264, 16817, 17011]);
   });

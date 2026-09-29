@@ -14,9 +14,35 @@ export const ATLASLOOT_DATA_URL = `https://raw.githubusercontent.com/Hoizame/Atl
 export type BossLoot = { name: string; isTrash: boolean; itemIds: number[] };
 export type ParsedTable = { bosses: BossLoot[]; skipped: string[] };
 
-/** Strips Lua comments: `--[[ … ]]` blocks and `--` to end of line. */
+/**
+ * Strips Lua comments (`--[[ … ]]`, `--[==[ … ]==]` and `--` to end of line), leaving
+ * string literals alone so a `--` inside a name survives.
+ */
 function stripComments(lua: string): string {
-  return lua.replace(/--\[(=*)\[[\s\S]*?\]\1\]/g, '').replace(/--[^\n]*/g, '');
+  let out = '';
+  let i = 0;
+  while (i < lua.length) {
+    const c = lua[i];
+    if (c === '"' || c === "'") {
+      let j = i + 1;
+      while (j < lua.length && lua[j] !== c && lua[j] !== '\n') j += lua[j] === '\\' ? 2 : 1;
+      out += lua.slice(i, j + 1);
+      i = j + 1;
+    } else if (c === '-' && lua[i + 1] === '-') {
+      const long = /^--\[(=*)\[/.exec(lua.slice(i, i + 64));
+      if (long) {
+        const close = lua.indexOf(`]${long[1]}]`, i + long[0].length);
+        i = close === -1 ? lua.length : close + long[1].length + 2;
+      } else {
+        const nl = lua.indexOf('\n', i);
+        i = nl === -1 ? lua.length : nl;
+      }
+    } else {
+      out += c;
+      i++;
+    }
+  }
+  return out;
 }
 
 /** The text between the brace at `open` and its match, exclusive. Ignores braces in strings. */
@@ -47,6 +73,11 @@ function topLevelEntries(body: string): ({ kind: 'block'; text: string } | { kin
       const { body: text, end } = braceBody(body, i);
       out.push({ kind: 'block', text });
       i = end + 1;
+    } else if (c === '"' || c === "'") {
+      // A stray string at the top level is not an entry; step over it.
+      let j = i + 1;
+      while (j < body.length && body[j] !== c) j += body[j] === '\\' ? 2 : 1;
+      i = j + 1;
     } else if (/[A-Za-z_]/.test(c)) {
       const m = /^[A-Za-z_][\w.]*/.exec(body.slice(i))!;
       out.push({ kind: 'ref', text: m[0] });
@@ -77,7 +108,8 @@ export function parseAtlasLoot(lua: string, key: string): ParsedTable {
       skipped.push(`${entry.text} (a shared set, not boss loot)`);
       continue;
     }
-    const name = /\bname\s*=\s*(?:AL\[\s*)?"([^"]+)"/.exec(entry.text)?.[1];
+    const raw = /\bname\s*=\s*(?:AL\[\s*)?"((?:[^"\\]|\\.)+)"/.exec(entry.text)?.[1];
+    const name = raw?.replace(/\\(.)/g, '$1');
     if (!name) {
       skipped.push('an unnamed block');
       continue;
@@ -86,7 +118,7 @@ export function parseAtlasLoot(lua: string, key: string): ParsedTable {
     const diff = namedTable(entry.text, /\[NORMAL_DIFF\]\s*=\s*\{/) ?? namedTable(entry.text, /\[\w+_DIFF\]\s*=\s*\{/);
     const itemIds: number[] = [];
     for (const pair of (diff ?? '').matchAll(/\{\s*\d+\s*,\s*([^,}\s]+)/g)) {
-      const id = Number(pair[1]);
+      const id = /^\d+$/.test(pair[1]) ? Number(pair[1]) : NaN;
       if (Number.isSafeInteger(id) && id > 0) {
         if (!itemIds.includes(id)) itemIds.push(id);
       } else skipped.push(`${name}: ${pair[1]}`);
