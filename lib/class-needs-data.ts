@@ -10,8 +10,8 @@ import type { WowClass } from '@/lib/design/class-colors';
 export const CLASS_NEEDS_TAG = 'class-needs';
 
 async function loadNeedRows(): Promise<NeedRow[]> {
-  // `roles` is not read: the pages derive a spec's roles from SPECS. The column is kept
-  // current on every write for the bot, which may read the table directly.
+  // `roles` is not read: the pages derive a need spec's roles from NEED_SPECS. The column is
+  // kept current on every write for the bot, which may read the table directly.
   const rows = await db.classNeed.findMany({ select: { class: true, spec: true, status: true, featured: true } });
   return rows.map((r) => ({ wowClass: r.class.toLowerCase() as WowClass, spec: r.spec, status: r.status.toLowerCase() as NeedStatus, featured: r.featured }));
 }

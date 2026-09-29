@@ -100,7 +100,7 @@ export function NeedsEditor({ rows }: Props) {
               {mine.map((row) => (
                 <li key={key(row)} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 md:flex md:gap-6">
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="text-[15px] font-semibold">{needSpec(row.wowClass, row.spec)?.spec ?? row.spec}</span>
+                    <span className="text-[15px] font-semibold">{row.spec}</span>
                     <span className="text-[13px] text-fg-3">{needSpec(row.wowClass, row.spec)?.roles.map((r) => ROLE_LABELS[r]).join(' · ')}</span>
                   </div>
                   <FeatureToggle

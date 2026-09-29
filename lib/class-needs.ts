@@ -95,7 +95,8 @@ export function homeNeeds(rows: NeedRow[], limit = 4): HomeNeed[] {
 
 /**
  * The table rows: specs of one class sharing a status merge into one row with the union
- * of their roles. The halves of a split spec show as the game spec, once per row. Classes with the most urgent need come first, then class order; within
+ * of their roles. The halves of a split spec show as the game spec, once per row.
+ * Classes with the most urgent need come first, then class order; within
  * a class, high before medium before closed.
  */
 export function groupNeeds(rows: NeedRow[]): ClassNeed[] {
