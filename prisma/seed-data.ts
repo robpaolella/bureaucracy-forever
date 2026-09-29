@@ -8,6 +8,7 @@
  */
 import { CLASS_NEEDS } from '@/content/recruitment';
 import { RAID_NIGHTS } from '@/content/schedule';
+import { NEED_SPECS } from '@/lib/class-needs';
 import { GUILD_TIMEZONE } from '@/lib/config';
 import type { Role as RaidRoleKey, WowClass as WowClassKey } from '@/lib/design/class-colors';
 import { minutesBetween, nextOccurrence, zonedParts, type Weekday } from '@/lib/time';
@@ -193,12 +194,16 @@ export function buildRaids(from = new Date()): SeedRaid[] {
 
 export type SeedNeed = { wowClass: WowClassKey; spec: string; roles: RaidRoleKey[]; status: 'HIGH' | 'MEDIUM' | 'CLOSED' };
 
-/** Class needs expanded to one row per spec, matching the schema's unique [class, spec]. All roles kept. */
+/**
+ * Class needs expanded to one row per need spec (a two-role spec is two rows), matching the
+ * schema's unique [class, spec].
+ */
 export function buildClassNeeds(): SeedNeed[] {
   const rows: SeedNeed[] = [];
   for (const n of CLASS_NEEDS) {
-    for (const spec of n.specs) {
-      rows.push({ wowClass: n.wowClass, spec, roles: [...n.roles], status: n.status.toUpperCase() as SeedNeed['status'] });
+    for (const s of NEED_SPECS[n.wowClass]) {
+      if (!n.specs.includes(s.spec) || !s.roles.some((r) => n.roles.includes(r))) continue;
+      rows.push({ wowClass: n.wowClass, spec: s.name, roles: [...s.roles], status: n.status.toUpperCase() as SeedNeed['status'] });
     }
   }
   return rows;
