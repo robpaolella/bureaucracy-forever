@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Reserves } from '@/components/loot/Reserves';
 import { AttendanceForm } from '@/components/raid/AttendanceForm';
 import { BenchCard } from '@/components/raid/BenchCard';
 import { OfficerActions, type MemberOption } from '@/components/raid/OfficerActions';
@@ -13,10 +14,14 @@ import { ToastHost } from '@/components/ui';
 import { db } from '@/lib/db';
 import type { Role, WowClass } from '@/lib/design/class-colors';
 import { discordThreadUrl } from '@/lib/discord-links';
+import { lootEnabled } from '@/lib/flags';
+import { loadActiveReserves, loadLootTable, loadReserveTargets } from '@/lib/loot-data';
+import { reservesLockAt, reservesLocked } from '@/lib/loot-rules';
 import { splitStanding, type DetailRow } from '@/lib/raid-detail';
 import { countAccepted, isUpcoming, parseRequirements, sourceSplit, type RaidCard, type RaidResponse } from '@/lib/raids';
 import { getSession } from '@/lib/session';
 import { BACK_TO_CALENDAR, RAID_EYEBROW, SUMMARY } from '@/content/raid';
+import { RESERVES } from '@/content/reserves';
 
 type Params = { params: Promise<{ raidId: string }> };
 
@@ -56,6 +61,7 @@ export default async function RaidDetailPage({ params }: Params) {
         locksAt: true,
         discordThreadId: true,
         seriesId: true,
+        templateId: true,
         template: { select: { short: true } },
         signups: {
           select: {
@@ -125,6 +131,10 @@ export default async function RaidDetailPage({ params }: Params) {
     .sort((a, b) => a.label.localeCompare(b.label));
   const answered = rows.filter((r) => r.response !== null);
 
+  // Loot reserves: behind LOOT_ENABLED, for members and officers, on raids whose tier has a table.
+  const table = lootEnabled() && session.role !== 'social' && raid.templateId ? await loadLootTable(raid.templateId) : null;
+  const [reserves, reserveTargets] = table ? await Promise.all([loadActiveReserves(raid.id), loadReserveTargets(raid.id, session.discordId, officer)]) : [[], null];
+
   return (
     <ToastHost>
       <div className="flex flex-col gap-8 px-4 pb-12 pt-8 md:px-12 md:pt-11">
@@ -160,6 +170,20 @@ export default async function RaidDetailPage({ params }: Params) {
             <BenchCard raidId={raid.id} rows={bench} officer={officer && !past && !card.cancelled} />
           </div>
         </div>
+
+        {table && reserveTargets && (
+          <Reserves
+            raidId={raid.id}
+            table={table}
+            reserves={reserves}
+            lockAt={reservesLockAt(raid.startsAt).toISOString()}
+            locked={reservesLocked(raid.startsAt, now)}
+            cancelled={card.cancelled}
+            officer={officer}
+            targets={reserveTargets.targets}
+            reason={reserveTargets.reason ? RESERVES[reserveTargets.reason] : null}
+          />
+        )}
       </div>
     </ToastHost>
   );
