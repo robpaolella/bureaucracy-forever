@@ -42,7 +42,8 @@ export function moveId(ids: readonly string[], id: string, dir: 'up' | 'down'): 
   return out;
 }
 
-export type ItemInput = { id: number; source: ItemSource };
+/** `explicit`: the link named its database, so it may replace a cached row from the other one. */
+export type ItemInput = { id: number; source: ItemSource; explicit: boolean };
 
 /** "Add item": an id or Wowhead link. A link that names its database wins over the picker. */
 export function parseItemInput(body: unknown): Parsed<ItemInput> {
@@ -52,5 +53,5 @@ export function parseItemInput(body: unknown): Parsed<ItemInput> {
   const picked = b.source === 'CLASSIC' || b.source === 'FOREVER' ? b.source : null;
   const source = ref.source ?? picked;
   if (!source) return { ok: false, error: 'Pick Classic or Forever.' };
-  return { ok: true, value: { id: ref.id, source } };
+  return { ok: true, value: { id: ref.id, source, explicit: ref.source !== undefined } };
 }

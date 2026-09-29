@@ -33,7 +33,8 @@ function Editor({ templateId, bosses, defaultSource }: Props) {
   const [editing, setEditing] = useState<EditorBoss | null>(null);
   const [deleting, setDeleting] = useState<EditorBoss | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [round, setRound] = useState<{ round: string; remaining: number } | null>(null);
+  // A tier refresh in progress: where it started, how many are left, and ids that failed.
+  const [round, setRound] = useState<{ round: string; remaining: number; skip: number[] } | null>(null);
 
   async function run(key: string, action: () => Promise<{ ok: boolean; json: Record<string, unknown> }>, done: (json: Record<string, unknown>) => string): Promise<boolean> {
     if (busy) return false;
@@ -46,10 +47,10 @@ function Editor({ templateId, bosses, defaultSource }: Props) {
   }
 
   async function refreshBatch() {
-    await run('refresh', () => send('/api/loot/items/refresh', 'POST', { templateId, round: round?.round }), (json) => {
+    await run('refresh', () => send('/api/loot/items/refresh', 'POST', { templateId, round: round?.round, skip: round?.skip }), (json) => {
       const failed = (json.failed as { id: number }[]) ?? [];
       const remaining = Number(json.remaining ?? 0);
-      setRound(remaining > 0 ? { round: String(json.round), remaining } : null);
+      setRound(remaining > 0 ? { round: String(json.round), remaining, skip: [...(round?.skip ?? []), ...failed.map((f) => f.id)] } : null);
       return LOOT_EDIT.refreshDone(Number(json.saved ?? 0), failed.length) + (failed.length ? ` ${LOOT_EDIT.failedIds(failed.map((f) => f.id))}` : '');
     });
   }
@@ -77,10 +78,10 @@ function Editor({ templateId, bosses, defaultSource }: Props) {
             {boss.isTrash && <Tag>{LOOT_TABLE.trash}</Tag>}
             <span className="tabular text-[13px] text-fg-3">{boss.items.length}</span>
             <div className="ml-auto flex items-center gap-1">
-              <Button variant="ghost" iconOnly aria-label={LOOT_EDIT.moveUp(boss.name)} disabled={i === 0 || busy !== null} onClick={() => run(`up-${boss.id}`, () => send(`/api/loot/bosses/${boss.id}`, 'PATCH', { move: 'up' }), () => LOOT_EDIT.saved)}>
+              <Button variant="ghost" iconOnly aria-label={LOOT_EDIT.moveUp(boss.name)} disabled={i === 0 || busy !== null} onClick={() => run(`up-${boss.id}`, () => send(`/api/loot/bosses/${boss.id}`, 'PATCH', { move: 'up' }), () => LOOT_EDIT.moved(boss.name))}>
                 ↑
               </Button>
-              <Button variant="ghost" iconOnly aria-label={LOOT_EDIT.moveDown(boss.name)} disabled={i === bosses.length - 1 || busy !== null} onClick={() => run(`down-${boss.id}`, () => send(`/api/loot/bosses/${boss.id}`, 'PATCH', { move: 'down' }), () => LOOT_EDIT.saved)}>
+              <Button variant="ghost" iconOnly aria-label={LOOT_EDIT.moveDown(boss.name)} disabled={i === bosses.length - 1 || busy !== null} onClick={() => run(`down-${boss.id}`, () => send(`/api/loot/bosses/${boss.id}`, 'PATCH', { move: 'down' }), () => LOOT_EDIT.moved(boss.name))}>
                 ↓
               </Button>
               <Button variant="secondary" size="sm" onClick={() => setEditing(boss)} aria-label={`${LOOT_EDIT.edit} ${boss.name}`}>
