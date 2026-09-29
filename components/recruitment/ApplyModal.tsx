@@ -139,12 +139,13 @@ export function ApplyModalProvider({ children }: { children: ReactNode }) {
           if (e.target === e.currentTarget) close();
         }}
         className={cn(
-          'm-auto max-h-[calc(100dvh-32px)] w-[calc(100%-32px)] overflow-y-auto overscroll-contain rounded-card bg-transparent p-0 text-fg shadow-modal',
+          'm-auto max-h-[calc(100dvh-32px)] w-[calc(100%-32px)] overflow-hidden rounded-card border border-line bg-ink-850 p-0 text-fg shadow-modal',
           showForm ? 'max-w-[880px]' : 'max-w-[520px]',
         )}
       >
+        {/* The dialog is the frame; this scrolls inside it, so the border never scrolls away. */}
         {touched && (
-          <div className="relative">
+          <div className="relative max-h-[calc(100dvh-34px)] overflow-y-auto overscroll-contain">
             <div className="sticky top-0 z-10 flex h-0 justify-end">
               <Button variant="ghost" iconOnly aria-label="Close" onClick={close} className="mr-2 mt-2 bg-ink-850 md:mr-3 md:mt-3">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
@@ -153,7 +154,7 @@ export function ApplyModalProvider({ children }: { children: ReactNode }) {
               </Button>
             </div>
             {showForm ? (
-              <ApplicationForm key={epoch} discordHandle={gate.name} initialPath={formPath} />
+              <ApplicationForm key={epoch} discordHandle={gate.name} initialPath={formPath} className="rounded-none border-0" />
             ) : (
               <GatePanel gate={gate} returnTo={returnTo} onRetry={() => check(formPath)} />
             )}
@@ -172,7 +173,7 @@ function GatePanel({ gate, returnTo, onRetry }: { gate: ApplyGate | null; return
         ? { title: APPLY_GATE.joinTitle, body: APPLY_GATE.joinBody }
         : null;
   return (
-    <div className="flex flex-col items-center gap-5 rounded-card border border-line bg-ink-850 px-6 pb-8 pt-12 text-center md:px-10">
+    <div className="flex flex-col items-center gap-5 px-6 pb-8 pt-12 text-center md:px-10">
       <Image src="/brand/mark.png" alt="" width={42} height={48} className="w-10 opacity-40" />
       <span className="font-eyebrow text-label font-semibold uppercase tracking-[0.28em] text-sand">{APPLY_GATE.eyebrow}</span>
       {copy ? (

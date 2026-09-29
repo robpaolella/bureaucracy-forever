@@ -28,7 +28,11 @@ function PathCard({ value, title, text, checked, onChange }: { value: Applicatio
   );
 }
 
-export function ApplicationForm({ discordHandle: known, initialPath = 'raider' }: { discordHandle?: string; initialPath?: ApplicationPath } = {}) {
+export function ApplicationForm({
+  discordHandle: known,
+  initialPath = 'raider',
+  className,
+}: { discordHandle?: string; initialPath?: ApplicationPath; className?: string } = {}) {
   // From the session when logged in; the field is then read-only. Read on the client so
   // the page stays static.
   // The server-gated /apply page passes the name it already knows; the client context is the fallback.
@@ -72,7 +76,7 @@ export function ApplicationForm({ discordHandle: known, initialPath = 'raider' }
   ];
 
   return (
-    <form ref={formRef} action={formAction} onSubmit={onSubmit} noValidate className="relative flex flex-col gap-6 rounded-card border border-line bg-ink-850 p-6 md:p-10">
+    <form ref={formRef} action={formAction} onSubmit={onSubmit} noValidate className={cn('relative flex flex-col gap-6 rounded-card border border-line bg-ink-850 p-6 md:p-10', className)}>
       {/* Honeypot: off-screen and out of the tab order; people never see it, bots fill it. */}
       <div aria-hidden className="absolute -left-[9999px] h-px w-px overflow-hidden">
         <label>
