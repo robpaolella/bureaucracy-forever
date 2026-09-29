@@ -132,8 +132,10 @@ export default async function RaidDetailPage({ params }: Params) {
   const answered = rows.filter((r) => r.response !== null);
 
   // Loot reserves: behind LOOT_ENABLED, for members and officers, on raids whose tier has a table.
-  const table = lootEnabled() && session.role !== 'social' && raid.templateId ? await loadLootTable(raid.templateId) : null;
-  const [reserves, reserveTargets] = table ? await Promise.all([loadActiveReserves(raid.id), loadReserveTargets(raid.id, session.discordId, officer)]) : [[], null];
+  const showLoot = lootEnabled() && session.role !== 'social' && raid.templateId !== null;
+  const [table, reserves, reserveTargets] = showLoot
+    ? await Promise.all([loadLootTable(raid.templateId!), loadActiveReserves(raid.id), loadReserveTargets(raid.id, session.discordId, officer)])
+    : [null, [], null];
 
   return (
     <ToastHost>

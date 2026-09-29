@@ -90,6 +90,24 @@ describe('PUT /api/raids/[id]/reserves', () => {
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
+  it('lets a member who is no longer eligible clear, but not set', async () => {
+    mocks.signup.mockResolvedValue({ response: 'ABSENT' });
+    expect((await call({ characterId: 'c1', hr: null, sr: null })).status).toBe(200);
+  });
+
+  it('locks a member out from exactly two hours before the start', async () => {
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 2 * HOUR - 1000), cancelledAt: null, templateId: 't1' });
+    expect((await call(BODY)).status).toBe(409);
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 2 * HOUR + 60_000), cancelledAt: null, templateId: 't1' });
+    expect((await call(BODY)).status).toBe(200);
+  });
+
+  it('refuses an item outside the table and a raid without a template', async () => {
+    expect(await (await call({ ...BODY, sr: 999 })).json()).toEqual({ error: "That item isn't in this raid's loot table." });
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: null, templateId: null });
+    expect(await (await call(BODY)).json()).toEqual({ error: 'This raid has no loot table yet.' });
+  });
+
   it('refuses the same item twice, a character that is not theirs and a bad body', async () => {
     expect((await call({ ...BODY, sr: 100 })).status).toBe(409);
     expect((await call({ ...BODY, characterId: 'someone-else' })).status).toBe(403);

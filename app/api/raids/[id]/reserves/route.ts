@@ -62,7 +62,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   try {
     await db.$transaction([db.reserve.deleteMany({ where: { raidId, userId: target.id } }), db.reserve.createMany({ data })]);
   } catch (e) {
-    if (isUniqueViolation(e)) return NextResponse.json({ error: 'Your hard and soft reserve must be different items.' }, { status: 409, headers: NO_STORE });
+    // decideReserve already refused the same item twice, so this is two saves racing.
+    if (isUniqueViolation(e)) return NextResponse.json({ error: 'Your reserves changed at the same moment. Reload and try again.' }, { status: 409, headers: NO_STORE });
     throw e;
   }
   return NextResponse.json({ hr, sr, characterId }, { headers: NO_STORE });
