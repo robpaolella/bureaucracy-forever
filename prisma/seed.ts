@@ -80,14 +80,15 @@ async function main() {
   }
 
   // Raid templates (SYNC-SPEC §3). Series are created by officers, not seeded.
+  const templateIds = new Map<string, string>();
   for (const t of buildRaidTemplates()) {
-    await db.raidTemplate.create({ data: t });
+    templateIds.set(t.name, (await db.raidTemplate.create({ data: t, select: { id: true } })).id);
   }
 
   // Raids and sign-ups: the upcoming week is mostly answered, later weeks sparsely.
   const raids = buildRaids(now);
   for (const [i, r] of raids.entries()) {
-    const raid = await db.raid.create({ data: { name: r.name, startsAt: r.startsAt, locksAt: new Date(r.startsAt.getTime() - 120 * 60_000), durationMin: r.durationMin, requirements: r.requirements, notes: r.notes } });
+    const raid = await db.raid.create({ data: { name: r.name, startsAt: r.startsAt, locksAt: new Date(r.startsAt.getTime() - 120 * 60_000), durationMin: r.durationMin, requirements: r.requirements, notes: r.notes, templateId: templateIds.get(r.template) ?? null } });
     const answerRate = i < 3 ? 0.9 : i < 6 ? 0.45 : 0.15;
     for (const u of users) {
       if (u.role === 'SOCIAL' || random() > answerRate) continue;
