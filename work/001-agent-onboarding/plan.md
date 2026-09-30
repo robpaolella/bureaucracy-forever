@@ -9,6 +9,7 @@
 - [x] Repoint `.githooks/pre-commit` and `.githooks/pre-push` at
       `/git/maestro/docs/git-workflow.md`
 - [x] Run the repo's Checks
-- [ ] Review (`review` skill)
+- [x] Review (`review` skill) — one Worth-fixing item (stale SYNC-SPEC.md reference), recorded
+      in backlog.md rather than fixed here since SYNC-SPEC.md is a shared contract
 - [ ] Open PR
 - [ ] Close #54 with a pointer to this PR
