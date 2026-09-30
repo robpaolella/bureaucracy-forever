@@ -7,7 +7,8 @@ import 'server-only';
 import { db } from '@/lib/db';
 import type { WowClass } from '@/lib/design/class-colors';
 import { toItemView, type ItemView } from '@/lib/loot-items';
-import { isEligible, type HrAward, type LootMethod, type RaidAward, type ReserveKind } from '@/lib/loot-rules';
+import type { LoggedAward, LoggedHr } from '@/lib/loot-log-state';
+import { isEligible, type HrAward, type LootMethod, type ReserveKind } from '@/lib/loot-rules';
 import type { RaidResponse } from '@/lib/raids';
 
 export type LootTableView = {
@@ -167,15 +168,15 @@ export async function loadAwards(raidId: string): Promise<AwardView[]> {
   }));
 }
 
+export type { LoggedAward, LoggedHr };
+
 export type Candidate = { userId: string; name: string; characters: { id: string; name: string; wowClass: WowClass; isMain: boolean }[] };
 
 /**
  * For the loot log: everyone eligible on the raid with their characters, the non-voided
  * awards on it (who already got what), and prior HR wins for resolveDrop.
  */
-export type LoggedAward = RaidAward & { id: string };
-
-export async function loadLootLogContext(raidId: string): Promise<{ candidates: Candidate[]; raidAwards: LoggedAward[]; hrAwards: HrAward[] }> {
+export async function loadLootLogContext(raidId: string): Promise<{ candidates: Candidate[]; raidAwards: LoggedAward[]; hrAwards: LoggedHr[] }> {
   const [signups, awards] = await Promise.all([
     db.signup.findMany({
       where: { raidId, response: { in: ['ACCEPT', 'TENTATIVE'] } },
@@ -187,6 +188,7 @@ export async function loadLootLogContext(raidId: string): Promise<{ candidates: 
     .filter((s) => s.user.characters.length > 0)
     .map((s) => ({ userId: s.user.id, name: s.user.discordName, characters: s.user.characters.map((c) => ({ id: c.id, name: c.name, wowClass: lower(c.class) as WowClass, isMain: c.isMain })) }))
     .sort((a, b) => a.name.localeCompare(b.name));
-  const hrAwards = await hrAwardsFor(candidates.flatMap((c) => c.characters.map((ch) => ch.id)));
+  const hr = await db.lootAward.findMany({ where: { characterId: { in: candidates.flatMap((c) => c.characters.map((ch) => ch.id)) }, method: 'HR', voidedAt: null }, select: { id: true, characterId: true, itemId: true } });
+  const hrAwards = hr.flatMap((a) => (a.characterId ? [{ id: a.id, characterId: a.characterId, itemId: a.itemId }] : []));
   return { candidates, raidAwards: awards, hrAwards };
 }

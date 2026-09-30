@@ -9,8 +9,9 @@ import { SAVE_FAILED } from '@/content/calendar';
 import { LOOT_LOG, METHOD_LABEL } from '@/content/loot-log';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
-import type { AwardView, Candidate, LoggedAward, LootTableView, ReserveView } from '@/lib/loot-data';
-import { defaultMethodFor, LOOT_METHODS, resolveDrop, type HrAward, type LootMethod } from '@/lib/loot-rules';
+import type { AwardView, Candidate, LootTableView, ReserveView } from '@/lib/loot-data';
+import { mergeAwards, type LocalAward, type LoggedAward, type LoggedHr } from '@/lib/loot-log-state';
+import { defaultMethodFor, LOOT_METHODS, resolveDrop, type LootMethod } from '@/lib/loot-rules';
 import { ItemName } from './ItemName';
 
 type Props = {
@@ -19,7 +20,7 @@ type Props = {
   reserves: ReserveView[];
   candidates: Candidate[];
   raidAwards: LoggedAward[];
-  hrAwards: HrAward[];
+  hrAwards: LoggedHr[];
   awards: AwardView[];
 };
 
@@ -49,19 +50,27 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
   const [reason, setReason] = useState('');
   // Records saved here that the server props do not show yet: the next drop resolves
   // against them straight away instead of waiting for the refresh.
-  const [pending, setPending] = useState<LoggedAward[]>([]);
-  const given = raidAwards.concat(pending.filter((p) => !raidAwards.some((a) => a.id === p.id)));
+  const [pending, setPending] = useState<LocalAward[]>([]);
+  const [voidedHere, setVoidedHere] = useState<ReadonlySet<string>>(new Set());
+  const merged = mergeAwards(raidAwards, hrAwards, pending, voidedHere);
+  const given = merged.raidAwards;
+  const hrGiven = merged.hrAwards;
 
   const boss = table.bosses.find((b) => b.id === bossId);
   const characters = useMemo(() => new Map(candidates.flatMap((c) => c.characters.map((ch) => [ch.id, { ...ch, owner: c.name, userId: c.userId }] as const))), [candidates]);
-  const resolution = itemId === null ? null : resolveDrop(itemId, reserves, given, hrAwards);
+  const resolution = itemId === null ? null : resolveDrop(itemId, reserves, given, hrGiven);
 
   function pickItem(id: number | null) {
     setItemId(id);
     setWinner('');
     setRoll('');
     setNote('');
-    if (id !== null) setMethod(defaultMethodFor(resolveDrop(id, reserves, given, hrAwards).mode));
+    if (id !== null) {
+      const next = resolveDrop(id, reserves, given, hrGiven);
+      setMethod(defaultMethodFor(next.mode));
+      // One reserve holder: they are the winner unless the officer says otherwise.
+      if (next.contenders.length === 1) setWinner(next.contenders[0].characterId);
+    }
   }
 
   async function record(e: FormEvent | null, disenchant = false) {
@@ -76,7 +85,10 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
       return;
     }
     const who = characters.get(winner);
-    if (typeof r.json.id === 'string') setPending((p) => [...p, { id: r.json.id as string, itemId, userId: disenchant ? null : (who?.userId ?? null) }]);
+    if (typeof r.json.id === 'string') {
+      const id = r.json.id;
+      setPending((p) => [...p, { id, itemId, userId: disenchant ? null : (who?.userId ?? null), characterId: disenchant ? null : winner, method: disenchant ? 'DISENCHANT_BANK' : method }]);
+    }
     toast({ tone: 'ok', title: disenchant ? LOOT_LOG.banked(itemName) : LOOT_LOG.recorded(itemName, who ? `${who.owner} (${who.name})` : '') });
     pickItem(null);
     router.refresh();
@@ -89,6 +101,8 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
     setBusy(false);
     toast(r.ok ? { tone: 'ok', title: LOOT_LOG.voided } : { tone: 'stop', title: typeof r.json.error === 'string' ? r.json.error : SAVE_FAILED });
     if (r.ok) {
+      const id = voiding.id;
+      setVoidedHere((v) => new Set(v).add(id));
       setVoiding(null);
       setReason('');
       router.refresh();
@@ -108,7 +122,10 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
       <form onSubmit={(e) => record(e)} className="flex flex-col gap-4 rounded-card border border-line-faint bg-ink-900 p-4">
         <div className="grid gap-4 md:grid-cols-2">
           <Field label={LOOT_LOG.boss}>
-            <select className={select} value={bossId} onChange={(e) => (setBossId(e.target.value), pickItem(null))}>
+            <select className={select} value={bossId} onChange={(e) => {
+                setBossId(e.target.value);
+                pickItem(null);
+              }}>
               {table.bosses.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
@@ -156,7 +173,7 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
               </fieldset>
             )}
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <Field label={LOOT_LOG.winner}>
+              <Field label={LOOT_LOG.winner} hint={winner && resolution.mode !== 'OPEN' && !contenderIds.has(winner) ? LOOT_LOG.notContender(resolution.mode) : undefined}>
                 <select className={select} value={winner} onChange={(e) => setWinner(e.target.value)} required>
                   <option value="">{LOOT_LOG.pickWinner}</option>
                   {candidates.map((c) => (

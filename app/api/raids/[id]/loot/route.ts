@@ -10,6 +10,9 @@ import { jsonBody, NO_STORE } from '../../../_officer';
  * POST /api/raids/[id]/loot — record who got a drop (officers). Body per parseAwardInput:
  * `{ bossId?, itemId, characterId?, method, roll?, note? }`. The item must be in the raid
  * tier's table; the character and boss names are copied so the record survives edits.
+ * The winner is not checked against the sign-ups or the reserve rules: the log shows who may
+ * roll, but the officer has the last word (a late sub, a trade). Two copies of an item can
+ * drop, so the same item to the same member twice is allowed too.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireLootOfficer();

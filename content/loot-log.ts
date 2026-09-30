@@ -24,6 +24,7 @@ export const LOOT_LOG = {
   } satisfies Record<DropMode, string>,
   winner: 'Winner',
   pickWinner: 'Pick who won',
+  notContender: (mode: DropMode) => `Not ${mode === 'HR' ? 'a hard' : 'a soft'} reserve holder for this item.`,
   contenders: 'Who rolls',
   everyone: 'Everyone else signed up',
   roll: 'Roll (optional)',
