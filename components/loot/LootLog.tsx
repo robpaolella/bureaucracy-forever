@@ -52,6 +52,13 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
   // against them straight away instead of waiting for the refresh.
   const [pending, setPending] = useState<LocalAward[]>([]);
   const [voidedHere, setVoidedHere] = useState<ReadonlySet<string>>(new Set());
+  // Once the server shows a local record, the server's copy is the truth: drop ours, so a
+  // void by another officer is not undone by a stale local row.
+  const [seenServer, setSeenServer] = useState(raidAwards);
+  if (seenServer !== raidAwards) {
+    setSeenServer(raidAwards);
+    setPending((p) => p.filter((a) => !raidAwards.some((s) => s.id === a.id)));
+  }
   const merged = mergeAwards(raidAwards, hrAwards, pending, voidedHere);
   const given = merged.raidAwards;
   const hrGiven = merged.hrAwards;
@@ -122,10 +129,14 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
       <form onSubmit={(e) => record(e)} className="flex flex-col gap-4 rounded-card border border-line-faint bg-ink-900 p-4">
         <div className="grid gap-4 md:grid-cols-2">
           <Field label={LOOT_LOG.boss}>
-            <select className={select} value={bossId} onChange={(e) => {
+            <select
+              className={select}
+              value={bossId}
+              onChange={(e) => {
                 setBossId(e.target.value);
                 pickItem(null);
-              }}>
+              }}
+            >
               {table.bosses.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}

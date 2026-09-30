@@ -8,7 +8,7 @@ import { db } from '@/lib/db';
 import type { WowClass } from '@/lib/design/class-colors';
 import { toItemView, type ItemView } from '@/lib/loot-items';
 import type { LoggedAward, LoggedHr } from '@/lib/loot-log-state';
-import { isEligible, type HrAward, type LootMethod, type ReserveKind } from '@/lib/loot-rules';
+import { isEligible, type LootMethod, type ReserveKind } from '@/lib/loot-rules';
 import type { RaidResponse } from '@/lib/raids';
 
 export type LootTableView = {
@@ -59,10 +59,10 @@ export async function loadActiveReserves(raidId: string): Promise<ReserveView[]>
 }
 
 /** Non-voided HR awards for these characters: the items they may not HR again. */
-export async function hrAwardsFor(characterIds: readonly string[]): Promise<HrAward[]> {
+export async function hrAwardsFor(characterIds: readonly string[]): Promise<LoggedHr[]> {
   if (characterIds.length === 0) return [];
-  const rows = await db.lootAward.findMany({ where: { characterId: { in: [...characterIds] }, method: 'HR', voidedAt: null }, select: { characterId: true, itemId: true } });
-  return rows.flatMap((r) => (r.characterId ? [{ characterId: r.characterId, itemId: r.itemId }] : []));
+  const rows = await db.lootAward.findMany({ where: { characterId: { in: [...characterIds] }, method: 'HR', voidedAt: null }, select: { id: true, characterId: true, itemId: true } });
+  return rows.flatMap((r) => (r.characterId ? [{ id: r.id, characterId: r.characterId, itemId: r.itemId }] : []));
 }
 
 /** The sign-up answer as lib/raids spells it, and whether it can reserve. */
@@ -188,7 +188,6 @@ export async function loadLootLogContext(raidId: string): Promise<{ candidates: 
     .filter((s) => s.user.characters.length > 0)
     .map((s) => ({ userId: s.user.id, name: s.user.discordName, characters: s.user.characters.map((c) => ({ id: c.id, name: c.name, wowClass: lower(c.class) as WowClass, isMain: c.isMain })) }))
     .sort((a, b) => a.name.localeCompare(b.name));
-  const hr = await db.lootAward.findMany({ where: { characterId: { in: candidates.flatMap((c) => c.characters.map((ch) => ch.id)) }, method: 'HR', voidedAt: null }, select: { id: true, characterId: true, itemId: true } });
-  const hrAwards = hr.flatMap((a) => (a.characterId ? [{ id: a.id, characterId: a.characterId, itemId: a.itemId }] : []));
+  const hrAwards = await hrAwardsFor(candidates.flatMap((c) => c.characters.map((ch) => ch.id)));
   return { candidates, raidAwards: awards, hrAwards };
 }
