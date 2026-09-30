@@ -16,7 +16,7 @@ describe('loot items', () => {
     const upsert = vi.fn();
     const fetcher = fakeFetch({ 17076: { name: "Bonereaver's Edge", quality: 4, icon: 'inv_sword_12', tooltip: '<b class="q4">B</b><script>x</script>' } });
     const res = await refreshItems({ lootItem: { upsert } } as never, [{ id: 17076, source: 'CLASSIC' }, { id: 5, source: 'FOREVER' }], { fetcher, gapMs: 0, now: () => now });
-    expect(res).toEqual({ saved: [17076], failed: [{ id: 5, error: 'Entity not found' }] });
+    expect(res).toEqual({ saved: [17076], failed: [{ id: 5, error: 'Entity not found' }], notReached: [] });
     const data = { name: "Bonereaver's Edge", quality: 4, icon: 'inv_sword_12', tooltipHtml: '<b class="q4">B</b>', source: 'CLASSIC', fetchedAt: now };
     expect(upsert).toHaveBeenCalledWith({ where: { id: 17076 }, create: { id: 17076, ...data }, update: data });
     expect(vi.mocked(fetcher).mock.calls.map((c) => c[0])).toEqual(['https://nether.wowhead.com/classic/tooltip/item/17076', 'https://nether.wowhead.com/forever/tooltip/item/5']);
@@ -26,8 +26,16 @@ describe('loot items', () => {
     const upsert = vi.fn().mockRejectedValueOnce(new Error('db down')).mockResolvedValue({});
     const fetcher = fakeFetch({ 1: { name: 'A', quality: 2, icon: 'a', tooltip: '' }, 2: { name: 'B', quality: 2, icon: 'b', tooltip: '' } });
     const res = await refreshItems({ lootItem: { upsert } } as never, [{ id: 1, source: 'CLASSIC' }, { id: 2, source: 'CLASSIC' }, { id: 2, source: 'CLASSIC' }], { fetcher, gapMs: 0 });
-    expect(res).toEqual({ saved: [2], failed: [{ id: 1, error: 'Could not save it.' }] });
+    expect(res).toEqual({ saved: [2], failed: [{ id: 1, error: 'Could not save it.' }], notReached: [] });
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('starts no request after the deadline', async () => {
+    const upsert = vi.fn();
+    const fetcher = fakeFetch({ 1: { name: 'A', quality: 2, icon: 'a', tooltip: '' } });
+    const res = await refreshItems({ lootItem: { upsert } } as never, [{ id: 1, source: 'CLASSIC' }, { id: 2, source: 'CLASSIC' }], { fetcher, gapMs: 0, deadline: Date.now() - 1 });
+    expect(res).toEqual({ saved: [], failed: [], notReached: [1, 2] });
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it('sanitizes stored tooltips again on the way to a page', () => {
