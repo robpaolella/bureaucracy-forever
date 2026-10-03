@@ -11,7 +11,7 @@ import { MEMBER_LINKS } from '@/lib/nav';
 
 const TITLE = 'About Bureaucracy | WoW Forever Raiding Guild';
 const DESCRIPTION =
-  'Bureaucracy has raided together since 2011. #1 on Smolderweb in Classic with server firsts and a top 100 world Naxx clear. Now recruiting for WoW Forever.';
+  'Bureaucracy has raided together since 2011. #1 on Smolderweb in Classic with server firsts and a top 150 regional Naxx clear in week one. Now recruiting for WoW Forever.';
 
 /** Root layout's openGraph/twitter are whole-object overrides, not merged — repeat siteName/locale/card here too. */
 export const metadata: Metadata = {
