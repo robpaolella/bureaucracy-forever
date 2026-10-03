@@ -1,6 +1,11 @@
 - `.githooks/pre-commit` and `.githooks/pre-push` have no automated test suite (the old
   `.claude/hooks/test-git-guard.sh` only tested the retired PreToolUse hook, not these). Build
   one if they change again.
+- The `staging` branch has ~54 commits not on `main` (mostly merge commits); decide whether to
+  bring it back in line with `main`, and how without force-pushing.
+- Agents can't open Vercel previews or staging (Vercel login). If the trial shows workers need
+  to check deployed pages, set up Vercel's "protection bypass for automation" (Robert would
+  create the secret).
 - `SYNC-SPEC.md:428` still lists `bash .claude/hooks/test-git-guard.sh` under "Done means", but
   that file is deleted as part of onboarding this repo to Maestro. It's a shared contract with
   the Discord bot repo, so left alone here — needs a coordinated edit to both copies once
