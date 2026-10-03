@@ -10,3 +10,4 @@
   that file is deleted as part of onboarding this repo to Maestro. It's a shared contract with
   the Discord bot repo, so left alone here — needs a coordinated edit to both copies once
   that repo's onboarding also lands.
+- Local database commands (#74): consider clearer Docker failure diagnostics, tests for rejected port bindings, and cleanup when initial setup is interrupted; normal reruns already recover interrupted setup.
