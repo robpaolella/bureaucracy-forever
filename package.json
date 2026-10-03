@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:local": "tsx prisma/local-database.ts dev",
+    "db:local": "tsx prisma/local-database.ts up",
+    "db:local:down": "tsx prisma/local-database.ts down",
     "build": "prisma generate && next build",
     "build:vercel": "if [ \"$VERCEL_ENV\" = production ] || [ \"$VERCEL_GIT_COMMIT_REF\" = staging ]; then prisma migrate deploy; fi && prisma generate && next build",
     "start": "next start",
