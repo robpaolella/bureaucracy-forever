@@ -213,7 +213,7 @@ export default function ComponentsPage() {
         <div className="flex flex-col gap-4">
           <SectionHead title="Cards" code="<Card> · <StatCard>" />
           <div className="flex flex-col gap-3.5">
-            <StatCard eyebrow="Naxxramas" figure="Top 500" caption="worldwide, cleared at release" />
+            <StatCard eyebrow="Naxxramas" figure="Top 150" caption="in the region, week one" />
             <Card hover className="flex flex-col gap-2.5">
               <span className="text-body-l font-semibold">Wednesday — Blackwing Lair</span>
               <span className="text-sm leading-relaxed text-fg-2">

@@ -10,7 +10,7 @@ export const ABOUT_HEAD = {
   paragraphs: [
     'Bureaucracy has been raiding together since 2011. Our best run in retail came in Warlords of Draenor, where we cleared Mythic Highmaul, Blackrock Foundry, and Hellfire Citadel.',
     "When WoW Classic launched, four of our founding members, Konvett, Celsian, Sylv, and Feraldog, came back together on Smolderweb with one goal: build the best raiding guild on the server. We started from behind. Other guilds had already cleared Molten Core, and we weren't even 60 yet.",
-    "We put a strong group together, started doing speed clears, and set the fastest Molten Core time on the server. From that point on, Bureaucracy was the top raiding guild on Smolderweb. We took server firsts in Blackwing Lair and AQ40, held the server's fastest clear times, and finished as one of the top 100 guilds in the world to clear Naxxramas.",
+    "We put a strong group together, started doing speed clears, and set the fastest Molten Core time on the server. From that point on, Bureaucracy was the top raiding guild on Smolderweb. We took server firsts in Blackwing Lair and AQ40, held the server's fastest clear times, and finished as one of the top 150 guilds in the region to fully clear Naxxramas in week one.",
     "What made it work was that everyone wanted the same thing: to be the best, and to do it alongside the best. That shared goal built one of the strongest raid teams on the server and a community that has stuck together ever since. Now we're taking it to WoW Forever.",
   ],
 };
@@ -41,9 +41,9 @@ export const ACCOLADES = {
       text: "Set the server's fastest clear times in Molten Core, Blackwing Lair, and AQ40.",
     },
     {
-      eyebrow: 'Worldwide',
-      title: 'Top 100 Naxxramas',
-      text: 'One of the top 100 guilds in the world to clear Naxxramas.',
+      eyebrow: 'Regional',
+      title: 'Top 150 regionally',
+      text: 'One of the top 150 guilds in the region to fully clear Naxxramas, in week one.',
     },
   ],
 };
@@ -77,8 +77,8 @@ export const HISTORY = {
     },
     {
       era: 'Naxxramas',
-      title: 'Top 100 in the world',
-      text: 'One of the top 100 guilds in the world to clear Naxxramas, and the #1 raiding guild on Smolderweb from Molten Core through Naxx.',
+      title: 'Top 150 in the region',
+      text: 'One of the top 150 guilds in the region to fully clear Naxxramas in week one, and the #1 raiding guild on Smolderweb from Molten Core through Naxx.',
       highlight: true,
     },
     {
