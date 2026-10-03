@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { LootLog } from '@/components/loot/LootLog';
 import { Reserves } from '@/components/loot/Reserves';
 import { AttendanceForm } from '@/components/raid/AttendanceForm';
 import { BenchCard } from '@/components/raid/BenchCard';
@@ -15,7 +16,7 @@ import { db } from '@/lib/db';
 import type { Role, WowClass } from '@/lib/design/class-colors';
 import { discordThreadUrl } from '@/lib/discord-links';
 import { lootEnabled } from '@/lib/flags';
-import { loadActiveReserves, loadLootTable, loadReserveTargets } from '@/lib/loot-data';
+import { loadActiveReserves, loadAwards, loadLootLogContext, loadLootTable, loadReserveTargets } from '@/lib/loot-data';
 import { reservesLockAt, reservesLocked } from '@/lib/loot-rules';
 import { splitStanding, type DetailRow } from '@/lib/raid-detail';
 import { countAccepted, isUpcoming, parseRequirements, sourceSplit, type RaidCard, type RaidResponse } from '@/lib/raids';
@@ -133,9 +134,15 @@ export default async function RaidDetailPage({ params }: Params) {
 
   // Loot reserves: behind LOOT_ENABLED, for members and officers, on raids whose tier has a table.
   const showLoot = lootEnabled() && session.role !== 'social' && raid.templateId !== null;
-  const [table, reserves, reserveTargets] = showLoot
-    ? await Promise.all([loadLootTable(raid.templateId!), loadActiveReserves(raid.id), loadReserveTargets(raid.id, session.discordId, officer)])
-    : [null, [], null];
+  const [table, reserves, reserveTargets, awards, logContext] = showLoot
+    ? await Promise.all([
+        loadLootTable(raid.templateId!),
+        loadActiveReserves(raid.id),
+        loadReserveTargets(raid.id, session.discordId, officer),
+        officer ? loadAwards(raid.id) : Promise.resolve([]),
+        officer ? loadLootLogContext(raid.id) : Promise.resolve(null),
+      ])
+    : [null, [], null, [], null];
 
   return (
     <ToastHost>
@@ -185,6 +192,9 @@ export default async function RaidDetailPage({ params }: Params) {
             targets={reserveTargets.targets}
             reason={reserveTargets.reason ? RESERVES[reserveTargets.reason] : null}
           />
+        )}
+        {table && logContext && !card.cancelled && (
+          <LootLog raidId={raid.id} table={table} reserves={reserves} candidates={logContext.candidates} raidAwards={logContext.raidAwards} hrAwards={logContext.hrAwards} awards={awards} />
         )}
       </div>
     </ToastHost>

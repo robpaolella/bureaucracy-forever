@@ -7,7 +7,8 @@ import 'server-only';
 import { db } from '@/lib/db';
 import type { WowClass } from '@/lib/design/class-colors';
 import { toItemView, type ItemView } from '@/lib/loot-items';
-import { isEligible, type HrAward, type ReserveKind } from '@/lib/loot-rules';
+import type { LoggedAward, LoggedHr } from '@/lib/loot-log-state';
+import { isEligible, type LootMethod, type ReserveKind } from '@/lib/loot-rules';
 import type { RaidResponse } from '@/lib/raids';
 
 export type LootTableView = {
@@ -58,10 +59,10 @@ export async function loadActiveReserves(raidId: string): Promise<ReserveView[]>
 }
 
 /** Non-voided HR awards for these characters: the items they may not HR again. */
-export async function hrAwardsFor(characterIds: readonly string[]): Promise<HrAward[]> {
+export async function hrAwardsFor(characterIds: readonly string[]): Promise<LoggedHr[]> {
   if (characterIds.length === 0) return [];
-  const rows = await db.lootAward.findMany({ where: { characterId: { in: [...characterIds] }, method: 'HR', voidedAt: null }, select: { characterId: true, itemId: true } });
-  return rows.flatMap((r) => (r.characterId ? [{ characterId: r.characterId, itemId: r.itemId }] : []));
+  const rows = await db.lootAward.findMany({ where: { characterId: { in: [...characterIds] }, method: 'HR', voidedAt: null }, select: { id: true, characterId: true, itemId: true } });
+  return rows.flatMap((r) => (r.characterId ? [{ id: r.id, characterId: r.characterId, itemId: r.itemId }] : []));
 }
 
 /** The sign-up answer as lib/raids spells it, and whether it can reserve. */
@@ -123,4 +124,70 @@ export async function loadReserveTargets(raidId: string, viewerDiscordId: string
     .sort((a, b) => Number(b.self) - Number(a.self) || a.name.localeCompare(b.name));
   const reason = targets.some((t) => t.self) ? null : !mine || !signupAnswer(mine.response).eligible ? 'notEligible' : 'noCharacter';
   return { targets, reason };
+}
+
+export type AwardView = {
+  id: string;
+  itemId: number;
+  bossName: string | null;
+  /** Null for disenchant/bank. */
+  winner: { name: string | null; characterName: string; wowClass: WowClass | null } | null;
+  method: LootMethod;
+  roll: number | null;
+  note: string | null;
+  createdAt: string;
+  recordedBy: string | null;
+  voidedAt: string | null;
+  voidReason: string | null;
+};
+
+/** A raid's loot records, newest first, voided ones included (the caller decides who sees them). */
+export async function loadAwards(raidId: string): Promise<AwardView[]> {
+  const rows = await db.lootAward.findMany({
+    where: { raidId },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true, itemId: true, bossName: true, characterName: true, method: true, roll: true, note: true, createdAt: true, recordedById: true, voidedAt: true, voidReason: true,
+      user: { select: { discordName: true } },
+      character: { select: { class: true } },
+    },
+  });
+  const officers = new Map((await db.user.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.recordedById))] } }, select: { id: true, discordName: true } })).map((u) => [u.id, u.discordName]));
+  return rows.map((r) => ({
+    id: r.id,
+    itemId: r.itemId,
+    bossName: r.bossName,
+    winner: r.characterName ? { name: r.user?.discordName ?? null, characterName: r.characterName, wowClass: r.character ? (lower(r.character.class) as WowClass) : null } : null,
+    method: r.method,
+    roll: r.roll,
+    note: r.note,
+    createdAt: r.createdAt.toISOString(),
+    recordedBy: officers.get(r.recordedById) ?? null,
+    voidedAt: r.voidedAt?.toISOString() ?? null,
+    voidReason: r.voidReason,
+  }));
+}
+
+export type { LoggedAward, LoggedHr };
+
+export type Candidate = { userId: string; name: string; characters: { id: string; name: string; wowClass: WowClass; isMain: boolean }[] };
+
+/**
+ * For the loot log: everyone eligible on the raid with their characters, the non-voided
+ * awards on it (who already got what), and prior HR wins for resolveDrop.
+ */
+export async function loadLootLogContext(raidId: string): Promise<{ candidates: Candidate[]; raidAwards: LoggedAward[]; hrAwards: LoggedHr[] }> {
+  const [signups, awards] = await Promise.all([
+    db.signup.findMany({
+      where: { raidId, response: { in: ['ACCEPT', 'TENTATIVE'] } },
+      select: { user: { select: { id: true, discordName: true, characters: { orderBy: [{ isMain: 'desc' }, { name: 'asc' }], select: { id: true, name: true, class: true, isMain: true } } } } },
+    }),
+    db.lootAward.findMany({ where: { raidId, voidedAt: null }, select: { id: true, itemId: true, userId: true } }),
+  ]);
+  const candidates = signups
+    .filter((s) => s.user.characters.length > 0)
+    .map((s) => ({ userId: s.user.id, name: s.user.discordName, characters: s.user.characters.map((c) => ({ id: c.id, name: c.name, wowClass: lower(c.class) as WowClass, isMain: c.isMain })) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const hrAwards = await hrAwardsFor(candidates.flatMap((c) => c.characters.map((ch) => ch.id)));
+  return { candidates, raidAwards: awards, hrAwards };
 }
