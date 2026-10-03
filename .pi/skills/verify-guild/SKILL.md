@@ -15,6 +15,8 @@ files are read by this skill or its helper. Never copy, inspect or print secrets
 Use a fresh worktree with no existing local database or dev server. One run per
 worktree: Next's development output and seeded data are shared within a folder.
 The helper refuses an existing database rather than resetting someone else's data.
+If a previous verification run is still recorded, run Cleanup against its evidence
+directory first; don't delete an unrecognized container to get past the refusal.
 
 ```bash
 export EVIDENCE=$(mktemp -d /tmp/verify-guild-XXXXXX)

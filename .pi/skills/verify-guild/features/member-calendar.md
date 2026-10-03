@@ -3,6 +3,10 @@
 Members find upcoming raids, open a raid's roster, and answer Accept, Tentative or
 Absent. The saved answer is shared between the calendar and raid detail page.
 
+Initial proof (#75): list/detail entry, Past/Upcoming, Tentative and Absent changes,
+persistence, Undo and desktop Month display were driven. Menu entry, Month arrows
+and chip entry are mapped from the UI/code but not yet verified end to end.
+
 ## Sub-features
 
 - `calendar-list`: Upcoming/Past scopes and the empty past state.

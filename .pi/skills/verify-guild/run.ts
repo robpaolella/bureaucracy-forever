@@ -8,6 +8,7 @@ import { assertOwner, identity, localUrl, OWNER_LABEL } from '../../../prisma/lo
 import { isLocalDatabaseUrl } from '../../../prisma/write-guard';
 
 type State = { folder: string; port: number; pid?: number; birth?: string; container?: string };
+class NotReady extends Error {}
 const shell = (cmd: string, args: string[]) => {
   try { return execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim(); }
   catch { throw new Error(`${cmd} ${args[0]} failed; check dependencies and Docker. Output withheld to protect environment values.`); }
@@ -44,7 +45,7 @@ async function doctor(state: State) {
   if (!container.State.Running || bindings?.length !== 1 || bindings[0].HostIp !== '127.0.0.1') throw new Error('Database is not loopback-only and running.');
   const listeners = shell('ss', ['-ltnp', `sport = :${state.port}`]);
   const pids = [...listeners.matchAll(/pid=(\d+)/g)].map((match) => Number(match[1]));
-  if (!pids.length) throw new Error('No identifiable server listener.');
+  if (!pids.length) throw new NotReady('No identifiable server listener yet.');
   for (const pid of pids) {
     if (group(pid) !== state.pid || realpathSync(`/proc/${pid}/cwd`) !== state.folder) throw new Error('Port belongs to another server.');
     // Read only process environment, never settings files; never log credentials.
@@ -53,7 +54,8 @@ async function doctor(state: State) {
     }));
     checkDatabase(env, localUrl(bindings[0].HostPort));
   }
-  const reply = await fetch(`http://127.0.0.1:${state.port}/dev/session?as=invalid`, { redirect: 'manual', signal: AbortSignal.timeout(60_000) });
+  const reply = await fetch(`http://127.0.0.1:${state.port}/dev/session?as=invalid`, { redirect: 'manual', signal: AbortSignal.timeout(60_000) })
+    .catch(() => { throw new NotReady('Development session route is not reachable yet.'); });
   if (reply.status !== 400 || !(await reply.text()).includes('as must be one of')) throw new Error('Development session route is not answering correctly.');
   console.log(`Doctor PASS: this folder’s server and local database; http://127.0.0.1:${state.port}`);
 }
@@ -82,10 +84,14 @@ async function main(action: string, evidence: string) {
     await new Promise<void>((done, reject) => { child.once('spawn', done); child.once('error', reject); });
     state.pid = child.pid!; state.birth = birth(state.pid); save(); child.unref();
     console.log(`Started owned server group ${state.pid}; evidence ${dir}`);
+    let lastError = 'Server not ready.';
     for (let attempt = 0; attempt < 60; attempt++) {
-      try { await doctor(state); return; } catch { await sleep(1000); }
+      try { await doctor(state); return; } catch (error) {
+        if (!(error instanceof NotReady)) throw error;
+        lastError = error.message; await sleep(1000);
+      }
     }
-    throw new Error('Server did not pass Doctor. Inspect server.log; run cleanup even after a failed launch.');
+    throw new Error(`Server did not pass Doctor: ${lastError} Inspect server.log; run cleanup after a failed launch.`);
   }
   const state: State = JSON.parse(readFileSync(file, 'utf8'));
   if (state.folder !== folder) throw new Error('Run belongs to another checkout.');
