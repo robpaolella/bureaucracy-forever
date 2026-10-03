@@ -34,6 +34,10 @@ npm install
 cp .env.example .env.local   # fill in; never commit .env.local
 npm run dev                  # http://localhost:3000
 ```
+Workers use `npm run db:local` to create this folder’s throwaway Docker database (Postgres 17, supported by Neon) and reset its sample data; repeat runs reuse the container.
+Run `npm run dev:local` to start the site with database details passed through the process environment, not a copied settings file.
+Run `npm run db:local:down` to remove only this folder’s labelled container and its data; none of these commands manages settings files.
+
 In development, `/dev/session` sets a dev-session cookie that stands in for a real login
 (out / member / member-unsubmitted / officer). The whole `/dev` tree returns 404 in production.
 
