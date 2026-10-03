@@ -1,1 +1,0 @@
-- Add automated failure-path tests for server identity, container ownership/replacement and cleanup refusal before extending the lifecycle helper (review #75; happy-path teardown is browser-run verified).
