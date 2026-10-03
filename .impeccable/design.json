@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-03T22:53:25.568357+00:00",
+  "title": "Design System: Bureaucracy",
+  "extensions": {
+    "colorMeta": {
+      "ink-950": {"role": "neutral", "displayName": "Ink", "tonalRamp": ["oklch(0.1500 0.0082 254.42)", "oklch(0.2643 0.0082 254.42)", "oklch(0.3786 0.0082 254.42)", "oklch(0.4929 0.0082 254.42)", "oklch(0.6071 0.0082 254.42)", "oklch(0.7214 0.0082 254.42)", "oklch(0.8357 0.0082 254.42)", "oklch(0.9500 0.0082 254.42)"]},
+      "ink-900": {"role": "neutral", "displayName": "Ink 900", "tonalRamp": ["oklch(0.1500 0.0118 260.62)", "oklch(0.2643 0.0118 260.62)", "oklch(0.3786 0.0118 260.62)", "oklch(0.4929 0.0118 260.62)", "oklch(0.6071 0.0118 260.62)", "oklch(0.7214 0.0118 260.62)", "oklch(0.8357 0.0118 260.62)", "oklch(0.9500 0.0118 260.62)"]},
+      "ink-850": {"role": "neutral", "displayName": "Ink 850", "tonalRamp": ["oklch(0.1500 0.0158 261.54)", "oklch(0.2643 0.0158 261.54)", "oklch(0.3786 0.0158 261.54)", "oklch(0.4929 0.0158 261.54)", "oklch(0.6071 0.0158 261.54)", "oklch(0.7214 0.0158 261.54)", "oklch(0.8357 0.0158 261.54)", "oklch(0.9500 0.0158 261.54)"]},
+      "ink-800": {"role": "neutral", "displayName": "Ink 800", "tonalRamp": ["oklch(0.1500 0.0194 262.07)", "oklch(0.2643 0.0194 262.07)", "oklch(0.3786 0.0194 262.07)", "oklch(0.4929 0.0194 262.07)", "oklch(0.6071 0.0194 262.07)", "oklch(0.7214 0.0194 262.07)", "oklch(0.8357 0.0194 262.07)", "oklch(0.9500 0.0194 262.07)"]},
+      "ink-700": {"role": "neutral", "displayName": "Ink 700", "tonalRamp": ["oklch(0.1500 0.0251 261.07)", "oklch(0.2643 0.0251 261.07)", "oklch(0.3786 0.0251 261.07)", "oklch(0.4929 0.0251 261.07)", "oklch(0.6071 0.0251 261.07)", "oklch(0.7214 0.0251 261.07)", "oklch(0.8357 0.0251 261.07)", "oklch(0.9500 0.0251 261.07)"]},
+      "line": {"role": "neutral", "displayName": "Line", "tonalRamp": ["oklch(0.1500 0.0265 260.03)", "oklch(0.2643 0.0265 260.03)", "oklch(0.3786 0.0265 260.03)", "oklch(0.4929 0.0265 260.03)", "oklch(0.6071 0.0265 260.03)", "oklch(0.7214 0.0265 260.03)", "oklch(0.8357 0.0265 260.03)", "oklch(0.9500 0.0265 260.03)"]},
+      "line-strong": {"role": "neutral", "displayName": "Line Strong", "tonalRamp": ["oklch(0.1500 0.0310 259.72)", "oklch(0.2643 0.0310 259.72)", "oklch(0.3786 0.0310 259.72)", "oklch(0.4929 0.0310 259.72)", "oklch(0.6071 0.0310 259.72)", "oklch(0.7214 0.0310 259.72)", "oklch(0.8357 0.0310 259.72)", "oklch(0.9500 0.0310 259.72)"]},
+      "line-faint": {"role": "neutral", "displayName": "Line Faint", "tonalRamp": ["oklch(0.1500 0.0194 262.07)", "oklch(0.2643 0.0194 262.07)", "oklch(0.3786 0.0194 262.07)", "oklch(0.4929 0.0194 262.07)", "oklch(0.6071 0.0194 262.07)", "oklch(0.7214 0.0194 262.07)", "oklch(0.8357 0.0194 262.07)", "oklch(0.9500 0.0194 262.07)"]},
+      "line-hairline": {"role": "neutral", "displayName": "Line Hairline", "tonalRamp": ["oklch(0.1500 0.0140 258.36)", "oklch(0.2643 0.0140 258.36)", "oklch(0.3786 0.0140 258.36)", "oklch(0.4929 0.0140 258.36)", "oklch(0.6071 0.0140 258.36)", "oklch(0.7214 0.0140 258.36)", "oklch(0.8357 0.0140 258.36)", "oklch(0.9500 0.0140 258.36)"]},
+      "fg": {"role": "neutral", "displayName": "Ice", "tonalRamp": ["oklch(0.1500 0.0145 264.50)", "oklch(0.2643 0.0145 264.50)", "oklch(0.3786 0.0145 264.50)", "oklch(0.4929 0.0145 264.50)", "oklch(0.6071 0.0145 264.50)", "oklch(0.7214 0.0145 264.50)", "oklch(0.8357 0.0145 264.50)", "oklch(0.9500 0.0145 264.50)"]},
+      "fg-2": {"role": "neutral", "displayName": "Fg 2", "tonalRamp": ["oklch(0.1500 0.0305 259.58)", "oklch(0.2643 0.0305 259.58)", "oklch(0.3786 0.0305 259.58)", "oklch(0.4929 0.0305 259.58)", "oklch(0.6071 0.0305 259.58)", "oklch(0.7214 0.0305 259.58)", "oklch(0.8357 0.0305 259.58)", "oklch(0.9500 0.0305 259.58)"]},
+      "fg-3": {"role": "neutral", "displayName": "Fg 3", "tonalRamp": ["oklch(0.1500 0.0345 258.93)", "oklch(0.2643 0.0345 258.93)", "oklch(0.3786 0.0345 258.93)", "oklch(0.4929 0.0345 258.93)", "oklch(0.6071 0.0345 258.93)", "oklch(0.7214 0.0345 258.93)", "oklch(0.8357 0.0345 258.93)", "oklch(0.9500 0.0345 258.93)"]},
+      "fg-muted": {"role": "neutral", "displayName": "Fg Muted", "tonalRamp": ["oklch(0.1500 0.0277 261.12)", "oklch(0.2643 0.0277 261.12)", "oklch(0.3786 0.0277 261.12)", "oklch(0.4929 0.0277 261.12)", "oklch(0.6071 0.0277 261.12)", "oklch(0.7214 0.0277 261.12)", "oklch(0.8357 0.0277 261.12)", "oklch(0.9500 0.0277 261.12)"]},
+      "sand": {"role": "primary", "displayName": "Sand", "tonalRamp": ["oklch(0.1500 0.0813 77.37)", "oklch(0.2643 0.0813 77.37)", "oklch(0.3786 0.0813 77.37)", "oklch(0.4929 0.0813 77.37)", "oklch(0.6071 0.0813 77.37)", "oklch(0.7214 0.0813 77.37)", "oklch(0.8357 0.0813 77.37)", "oklch(0.9500 0.0813 77.37)"]},
+      "sand-dim": {"role": "primary", "displayName": "Sand Dim", "tonalRamp": ["oklch(0.1500 0.0575 77.67)", "oklch(0.2643 0.0575 77.67)", "oklch(0.3786 0.0575 77.67)", "oklch(0.4929 0.0575 77.67)", "oklch(0.6071 0.0575 77.67)", "oklch(0.7214 0.0575 77.67)", "oklch(0.8357 0.0575 77.67)", "oklch(0.9500 0.0575 77.67)"]},
+      "sand-wash": {"role": "primary", "displayName": "Sand Wash", "tonalRamp": ["oklch(0.1500 0.0202 80.21)", "oklch(0.2643 0.0202 80.21)", "oklch(0.3786 0.0202 80.21)", "oklch(0.4929 0.0202 80.21)", "oklch(0.6071 0.0202 80.21)", "oklch(0.7214 0.0202 80.21)", "oklch(0.8357 0.0202 80.21)", "oklch(0.9500 0.0202 80.21)"]},
+      "teal": {"role": "secondary", "displayName": "Teal", "tonalRamp": ["oklch(0.1500 0.0899 213.99)", "oklch(0.2643 0.0899 213.99)", "oklch(0.3786 0.0899 213.99)", "oklch(0.4929 0.0899 213.99)", "oklch(0.6071 0.0899 213.99)", "oklch(0.7214 0.0899 213.99)", "oklch(0.8357 0.0899 213.99)", "oklch(0.9500 0.0899 213.99)"]},
+      "teal-dim": {"role": "secondary", "displayName": "Teal Dim", "tonalRamp": ["oklch(0.1500 0.0703 218.01)", "oklch(0.2643 0.0703 218.01)", "oklch(0.3786 0.0703 218.01)", "oklch(0.4929 0.0703 218.01)", "oklch(0.6071 0.0703 218.01)", "oklch(0.7214 0.0703 218.01)", "oklch(0.8357 0.0703 218.01)", "oklch(0.9500 0.0703 218.01)"]},
+      "teal-wash": {"role": "secondary", "displayName": "Teal Wash", "tonalRamp": ["oklch(0.1500 0.0350 220.80)", "oklch(0.2643 0.0350 220.80)", "oklch(0.3786 0.0350 220.80)", "oklch(0.4929 0.0350 220.80)", "oklch(0.6071 0.0350 220.80)", "oklch(0.7214 0.0350 220.80)", "oklch(0.8357 0.0350 220.80)", "oklch(0.9500 0.0350 220.80)"]},
+      "teal-line": {"role": "secondary", "displayName": "Teal Line", "tonalRamp": ["oklch(0.1500 0.0498 219.93)", "oklch(0.2643 0.0498 219.93)", "oklch(0.3786 0.0498 219.93)", "oklch(0.4929 0.0498 219.93)", "oklch(0.6071 0.0498 219.93)", "oklch(0.7214 0.0498 219.93)", "oklch(0.8357 0.0498 219.93)", "oklch(0.9500 0.0498 219.93)"]},
+      "teal-text": {"role": "secondary", "displayName": "Teal Text", "tonalRamp": ["oklch(0.1500 0.0560 213.44)", "oklch(0.2643 0.0560 213.44)", "oklch(0.3786 0.0560 213.44)", "oklch(0.4929 0.0560 213.44)", "oklch(0.6071 0.0560 213.44)", "oklch(0.7214 0.0560 213.44)", "oklch(0.8357 0.0560 213.44)", "oklch(0.9500 0.0560 213.44)"]},
+      "ok": {"role": "semantic", "displayName": "Ok", "tonalRamp": ["oklch(0.1500 0.1097 158.41)", "oklch(0.2643 0.1097 158.41)", "oklch(0.3786 0.1097 158.41)", "oklch(0.4929 0.1097 158.41)", "oklch(0.6071 0.1097 158.41)", "oklch(0.7214 0.1097 158.41)", "oklch(0.8357 0.1097 158.41)", "oklch(0.9500 0.1097 158.41)"]},
+      "ok-wash": {"role": "semantic", "displayName": "Ok Wash", "tonalRamp": ["oklch(0.1500 0.0306 162.48)", "oklch(0.2643 0.0306 162.48)", "oklch(0.3786 0.0306 162.48)", "oklch(0.4929 0.0306 162.48)", "oklch(0.6071 0.0306 162.48)", "oklch(0.7214 0.0306 162.48)", "oklch(0.8357 0.0306 162.48)", "oklch(0.9500 0.0306 162.48)"]},
+      "ok-line": {"role": "semantic", "displayName": "Ok Line", "tonalRamp": ["oklch(0.1500 0.0651 159.24)", "oklch(0.2643 0.0651 159.24)", "oklch(0.3786 0.0651 159.24)", "oklch(0.4929 0.0651 159.24)", "oklch(0.6071 0.0651 159.24)", "oklch(0.7214 0.0651 159.24)", "oklch(0.8357 0.0651 159.24)", "oklch(0.9500 0.0651 159.24)"]},
+      "warn": {"role": "semantic", "displayName": "Warn", "tonalRamp": ["oklch(0.1500 0.1045 75.28)", "oklch(0.2643 0.1045 75.28)", "oklch(0.3786 0.1045 75.28)", "oklch(0.4929 0.1045 75.28)", "oklch(0.6071 0.1045 75.28)", "oklch(0.7214 0.1045 75.28)", "oklch(0.8357 0.1045 75.28)", "oklch(0.9500 0.1045 75.28)"]},
+      "warn-wash": {"role": "semantic", "displayName": "Warn Wash", "tonalRamp": ["oklch(0.1500 0.0202 80.21)", "oklch(0.2643 0.0202 80.21)", "oklch(0.3786 0.0202 80.21)", "oklch(0.4929 0.0202 80.21)", "oklch(0.6071 0.0202 80.21)", "oklch(0.7214 0.0202 80.21)", "oklch(0.8357 0.0202 80.21)", "oklch(0.9500 0.0202 80.21)"]},
+      "warn-line": {"role": "semantic", "displayName": "Warn Line", "tonalRamp": ["oklch(0.1500 0.0605 79.41)", "oklch(0.2643 0.0605 79.41)", "oklch(0.3786 0.0605 79.41)", "oklch(0.4929 0.0605 79.41)", "oklch(0.6071 0.0605 79.41)", "oklch(0.7214 0.0605 79.41)", "oklch(0.8357 0.0605 79.41)", "oklch(0.9500 0.0605 79.41)"]},
+      "stop": {"role": "semantic", "displayName": "Stop", "tonalRamp": ["oklch(0.1500 0.1055 19.97)", "oklch(0.2643 0.1055 19.97)", "oklch(0.3786 0.1055 19.97)", "oklch(0.4929 0.1055 19.97)", "oklch(0.6071 0.1055 19.97)", "oklch(0.7214 0.1055 19.97)", "oklch(0.8357 0.1055 19.97)", "oklch(0.9500 0.1055 19.97)"]},
+      "stop-wash": {"role": "semantic", "displayName": "Stop Wash", "tonalRamp": ["oklch(0.1500 0.0266 11.37)", "oklch(0.2643 0.0266 11.37)", "oklch(0.3786 0.0266 11.37)", "oklch(0.4929 0.0266 11.37)", "oklch(0.6071 0.0266 11.37)", "oklch(0.7214 0.0266 11.37)", "oklch(0.8357 0.0266 11.37)", "oklch(0.9500 0.0266 11.37)"]},
+      "stop-line": {"role": "semantic", "displayName": "Stop Line", "tonalRamp": ["oklch(0.1500 0.0551 20.01)", "oklch(0.2643 0.0551 20.01)", "oklch(0.3786 0.0551 20.01)", "oklch(0.4929 0.0551 20.01)", "oklch(0.6071 0.0551 20.01)", "oklch(0.7214 0.0551 20.01)", "oklch(0.8357 0.0551 20.01)", "oklch(0.9500 0.0551 20.01)"]},
+      "slot-empty": {"role": "semantic", "displayName": "Slot Empty", "tonalRamp": ["oklch(0.1500 0.0162 256.83)", "oklch(0.2643 0.0162 256.83)", "oklch(0.3786 0.0162 256.83)", "oklch(0.4929 0.0162 256.83)", "oklch(0.6071 0.0162 256.83)", "oklch(0.7214 0.0162 256.83)", "oklch(0.8357 0.0162 256.83)", "oklch(0.9500 0.0162 256.83)"]},
+      "slot-available": {"role": "semantic", "displayName": "Slot Available", "tonalRamp": ["oklch(0.1500 0.0944 160.66)", "oklch(0.2643 0.0944 160.66)", "oklch(0.3786 0.0944 160.66)", "oklch(0.4929 0.0944 160.66)", "oklch(0.6071 0.0944 160.66)", "oklch(0.7214 0.0944 160.66)", "oklch(0.8357 0.0944 160.66)", "oklch(0.9500 0.0944 160.66)"]},
+      "slot-if-needed": {"role": "semantic", "displayName": "Slot If Needed", "tonalRamp": ["oklch(0.1500 0.0605 79.41)", "oklch(0.2643 0.0605 79.41)", "oklch(0.3786 0.0605 79.41)", "oklch(0.4929 0.0605 79.41)", "oklch(0.6071 0.0605 79.41)", "oklch(0.7214 0.0605 79.41)", "oklch(0.8357 0.0605 79.41)", "oklch(0.9500 0.0605 79.41)"]},
+      "heat-0": {"role": "semantic", "displayName": "Heat 0", "tonalRamp": ["#10151C", "#12303A", "#17495A", "#1E6A80", "#2A8FA8", "#4FB6CE"]},
+      "heat-1": {"role": "semantic", "displayName": "Heat 1", "tonalRamp": ["#10151C", "#12303A", "#17495A", "#1E6A80", "#2A8FA8", "#4FB6CE"]},
+      "heat-2": {"role": "semantic", "displayName": "Heat 2", "tonalRamp": ["#10151C", "#12303A", "#17495A", "#1E6A80", "#2A8FA8", "#4FB6CE"]},
+      "heat-3": {"role": "semantic", "displayName": "Heat 3", "tonalRamp": ["#10151C", "#12303A", "#17495A", "#1E6A80", "#2A8FA8", "#4FB6CE"]},
+      "heat-4": {"role": "semantic", "displayName": "Heat 4", "tonalRamp": ["#10151C", "#12303A", "#17495A", "#1E6A80", "#2A8FA8", "#4FB6CE"]},
+      "heat-5": {"role": "semantic", "displayName": "Heat 5", "tonalRamp": ["#10151C", "#12303A", "#17495A", "#1E6A80", "#2A8FA8", "#4FB6CE"]}
+    },
+    "typographyMeta": {"display-home": {"displayName": "Home display", "purpose": "Home headline at medium breakpoint and above; use display-home-mobile below."}, "label-field": {"displayName": "Field label", "purpose": "Uppercase labelled controls, not the generic label scale."}},
+    "shadows": [{"name": "shadow-pop", "value": "0 24px 48px rgba(0, 0, 0, 0.6)", "purpose": "Popovers and toasts."}, {"name": "shadow-modal", "value": "0 24px 48px rgba(0, 0, 0, 0.7)", "purpose": "Generic and application dialogs."}],
+    "motion": [{"name": "state-transition", "value": "120ms cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Common filter/color/width/transform state changes; Tailwind easing default."}, {"name": "skeleton-pulse", "value": "1.6s ease-in-out infinite", "purpose": "Opacity .35 at endpoints, .7 at midpoint."}, {"name": "loading-spin", "value": "1s linear infinite", "purpose": "Button loading spinner, Tailwind animate-spin."}],
+    "breakpoints": [{"name": "sm", "value": "640px"}, {"name": "md", "value": "768px"}, {"name": "lg", "value": "1024px"}]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Medium variant from components/ui/Button.tsx. Preview only; no action is connected.",
+      "html": "<button type=\"button\" class=\"ds-button-primary\">Save changes</button>",
+      "css": ".ds-button-primary {display:inline-flex;align-items:center;justify-content:center;gap:10px;height:44px;padding:0 22px;border-radius:var(--r-control,4px);font-family:var(--font-ui,Archivo,system-ui,sans-serif);font-size:14px;line-height:20px;font-weight:600;cursor:pointer;transition:filter 120ms cubic-bezier(0.4,0,0.2,1);background:var(--sand,#E4C08A);color:var(--ink-950,#06080B);border:0;letter-spacing:.02em;} .ds-button-primary:hover:not(:disabled) {filter:brightness(1.1)} .ds-button-primary:focus-visible { outline: 2px solid var(--teal, #6FC8DC); outline-offset: 2px; } .ds-button-primary:disabled {background:var(--ink-700,#1B222E);color:var(--fg-3,#6F7C90);cursor:not-allowed;border:0}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Medium variant from components/ui/Button.tsx. Preview only; no action is connected.",
+      "html": "<button type=\"button\" class=\"ds-button-secondary\">Cancel</button>",
+      "css": ".ds-button-secondary {display:inline-flex;align-items:center;justify-content:center;gap:10px;height:44px;padding:0 22px;border-radius:var(--r-control,4px);font-family:var(--font-ui,Archivo,system-ui,sans-serif);font-size:14px;line-height:20px;font-weight:600;cursor:pointer;transition:filter 120ms cubic-bezier(0.4,0,0.2,1);background:transparent;color:var(--fg,#E8EDF7);border:1px solid var(--line-strong,#323C4C);} .ds-button-secondary:hover:not(:disabled) {filter:brightness(1.1)} .ds-button-secondary:focus-visible { outline: 2px solid var(--teal, #6FC8DC); outline-offset: 2px; } .ds-button-secondary:disabled {background:var(--ink-700,#1B222E);color:var(--fg-3,#6F7C90);cursor:not-allowed;border:0}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Medium variant from components/ui/Button.tsx. Preview only; no action is connected.",
+      "html": "<button type=\"button\" class=\"ds-button-ghost\">Clear filters</button>",
+      "css": ".ds-button-ghost {display:inline-flex;align-items:center;justify-content:center;gap:10px;height:44px;padding:0 22px;border-radius:var(--r-control,4px);font-family:var(--font-ui,Archivo,system-ui,sans-serif);font-size:14px;line-height:20px;font-weight:600;cursor:pointer;transition:filter 120ms cubic-bezier(0.4,0,0.2,1);background:transparent;color:var(--fg-2,#A3AFC2);border:0;} .ds-button-ghost:hover:not(:disabled) {filter:brightness(1.1)} .ds-button-ghost:focus-visible { outline: 2px solid var(--teal, #6FC8DC); outline-offset: 2px; } .ds-button-ghost:disabled {background:var(--ink-700,#1B222E);color:var(--fg-3,#6F7C90);cursor:not-allowed;border:0}"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Medium variant from components/ui/Button.tsx. Preview only; no action is connected.",
+      "html": "<button type=\"button\" class=\"ds-button-danger\">Cancel raid</button>",
+      "css": ".ds-button-danger {display:inline-flex;align-items:center;justify-content:center;gap:10px;height:44px;padding:0 22px;border-radius:var(--r-control,4px);font-family:var(--font-ui,Archivo,system-ui,sans-serif);font-size:14px;line-height:20px;font-weight:600;cursor:pointer;transition:filter 120ms cubic-bezier(0.4,0,0.2,1);background:transparent;color:var(--stop,#E08A8A);border:1px solid var(--stop-line,#5A3434);} .ds-button-danger:hover:not(:disabled) {filter:brightness(1.1)} .ds-button-danger:focus-visible { outline: 2px solid var(--teal, #6FC8DC); outline-offset: 2px; } .ds-button-danger:disabled {background:var(--ink-700,#1B222E);color:var(--fg-3,#6F7C90);cursor:not-allowed;border:0}"
+    },
+    {
+      "name": "Labelled Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Field.tsx: label, editable surface, native focus and invalid-state styling.",
+      "html": "<label class=\"ds-field-label\" for=\"ds-character\">Character name</label><input class=\"ds-input\" id=\"ds-character\" placeholder=\"Character name\">",
+      "css": ".ds-field-label {display:block;margin-bottom:8px;font-family:var(--font-ui,Archivo,system-ui,sans-serif);font-size:12px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-2,#A3AFC2)} .ds-input {box-sizing:border-box;width:100%;height:46px;padding:0 14px;border:1px solid var(--line-strong,#323C4C);border-radius:var(--r-control,4px);background:var(--ink-700,#1B222E);color:var(--fg,#E8EDF7);font-family:var(--font-ui,Archivo,system-ui,sans-serif);font-size:15px;line-height:22.5px} .ds-input::placeholder {color:var(--fg-3,#6F7C90)} .ds-input:focus-visible { outline: 2px solid var(--teal, #6FC8DC); outline-offset: 2px; } .ds-input[aria-invalid=\"true\"] {border-color:var(--stop,#E08A8A);background:var(--stop-wash,#241416)} .ds-input:read-only {border-color:var(--line,#232B38);background:var(--ink-800,#141922);color:var(--fg-3,#6F7C90)}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Card.tsx medium padding, resting surface. This non-interactive preview intentionally has no hover or focus state.",
+      "html": "<div class=\"ds-card\">Guild information</div>",
+      "css": ".ds-card {padding:24px;border:1px solid var(--line,#232B38);border-radius:var(--r-card,8px);background:var(--ink-850,#0E1219);color:var(--fg,#E8EDF7);font-family:var(--font-ui,Archivo,system-ui,sans-serif);font-size:16px;line-height:24px}"
+    },
+    {
+      "name": "Neutral Tag",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "Badges.tsx: plain fact, not an interactive filter.",
+      "html": "<span class=\"ds-tag\">Melee DPS</span>",
+      "css": ".ds-tag {display:inline-flex;align-items:center;padding:5px 10px;border:1px solid var(--line-strong,#323C4C);border-radius:var(--r-tag,2px);background:var(--ink-700,#1B222E);color:var(--fg-2,#A3AFC2);font-family:var(--font-ui,Archivo,system-ui,sans-serif);font-size:12px;line-height:16px;font-weight:600}"
+    },
+    {
+      "name": "Labelled Status",
+      "kind": "chip",
+      "refersTo": "status-ok",
+      "description": "Badges.tsx: non-interactive status, dot plus a word.",
+      "html": "<span class=\"ds-status\"><span class=\"ds-status-dot\" aria-hidden=\"true\"></span>High need</span>",
+      "css": ".ds-status {display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border:1px solid var(--ok-line,#2E5C44);border-radius:9999px;background:var(--ok-wash,#12251C);color:var(--ok,#79D0A0);font-family:var(--font-ui,Archivo,system-ui,sans-serif);font-size:12px;line-height:16px;font-weight:600} .ds-status-dot {height:6px;width:6px;border-radius:9999px;background:var(--ok,#79D0A0)}"
+    },
+    {
+      "name": "Header Navigation",
+      "kind": "nav",
+      "refersTo": "nav-active",
+      "description": "NavLink.tsx desktop active and inactive states. Preview links target only the snippet.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Example navigation\"><a href=\"#ds-nav-about\" id=\"ds-nav-about\" aria-current=\"page\">About</a><a href=\"#ds-nav-raiding\" id=\"ds-nav-raiding\">Raiding</a></nav>",
+      "css": ".ds-nav {display:flex;gap:26px;background:var(--ink-950,#06080B)} .ds-nav a {display:flex;align-items:center;box-sizing:border-box;height:72px;border-bottom:2px solid transparent;color:var(--fg-2,#A3AFC2);font-family:var(--font-ui,Archivo,system-ui,sans-serif);font-size:14px;line-height:20px;font-weight:500;text-decoration:none;transition:color 120ms cubic-bezier(0.4,0,0.2,1)} .ds-nav a:hover {color:var(--fg,#E8EDF7)} .ds-nav a[aria-current=\"page\"] {border-bottom-color:var(--sand,#E4C08A);color:var(--fg,#E8EDF7)} .ds-nav a:focus-visible { outline: 2px solid var(--teal, #6FC8DC); outline-offset: 2px; }"
+    },
+    {
+      "name": "Section Heading",
+      "kind": "custom",
+      "description": "SectionHead.tsx medium: mobile 30px, desktop 38px; example text makes no achievement claim.",
+      "html": "<div class=\"ds-section\"><span class=\"ds-eyebrow\">Recruitment</span><h2 class=\"ds-heading\">Current recruitment needs</h2></div>",
+      "css": ".ds-section {display:flex;flex-direction:column;gap:10px} .ds-eyebrow {font-family:var(--font-eyebrow,Cinzel,Georgia,serif);font-size:11px;line-height:1.2;font-weight:600;letter-spacing:.28em;text-transform:uppercase;color:var(--sand,#E4C08A)} .ds-heading {margin:0;font-family:var(--font-display,Newsreader,Georgia,serif);font-size:30px;line-height:1.1;font-weight:500;color:var(--fg,#E8EDF7)} @media(min-width:768px) {.ds-heading {font-size:38px}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Guild Standard",
+    "overview": "Dark, restrained and editorial: serif headlines over compact, bordered tools; sand for emphasis, teal for interaction. The Guild Standard names both a guild banner and the standards the guild holds. It describes the existing world, not a redesign or a new theme.\n\nPublic pages give headlines and guild identity room; operational areas use denser tables, labelled states and direct controls. Preserve the distinction rather than applying marketing-page density to a roster or turning every public section into a dashboard.",
+    "keyCharacteristics": [
+      "Ink grounds and Ice text, with Sand and Teal in distinct roles.",
+      "Newsreader headlines, Cinzel eyebrows, Archivo controls and prose.",
+      "Thin borders and tonal surfaces; tight corners on tools.",
+      "Restrained state changes, explicit labels, and guild identity assets."
+    ],
+    "rules": [
+      {
+        "name": "The Labelled State Rule",
+        "body": "Status color accompanies a word; it never replaces one. These recorded colors do not establish contrast compliance on every possible surface—test the actual pairing against PRODUCT.md's requirements.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "**Do** use implemented tokens and component variants; compare affected surfaces at 1440 and 390 widths.",
+      "**Do** preserve Sand emphasis, Teal interaction and visible keyboard focus.",
+      "**Do** label states and both guild and viewer-local times; follow PRODUCT.md's confirmed accessibility requirements.",
+      "**Do** distinguish approved product claims from live copy awaiting correction."
+    ],
+    "donts": [
+      "**Don't** restore handover layouts, sample schedules or placeholder policy merely because an artboard shows them.",
+      "**Don't** add resting-card shadows, a light theme, or new asset conventions when documenting this existing system.",
+      "**Don't** use class or item-quality colors as brand fills; retain the narrow domain exceptions in PRODUCT.md.",
+      "**Don't** treat recorded token values as proof of accessibility compliance or code-only observations as authenticated live verification."
+    ]
+  }
+}
