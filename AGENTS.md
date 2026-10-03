@@ -64,6 +64,20 @@ matter how git is invoked. Maestro's own guard covers the same ground at the too
 if either blocks you, follow the message rather than looking for a way around it. Full rules:
 `/git/maestro/docs/git-workflow.md`.
 
+## PR links and staging
+Use the per-PR Vercel **Preview** link from Vercel's PR comment in every PR's "How to
+verify" section. It appears a minute or two after the push. Previews need Vercel login, and
+Discord login does not work there because preview addresses change. Verify public pages on a
+preview; say clearly when signed-in pages need staging instead.
+
+Use `https://staging.bureauguild.com` only when the issue requires a database change or a
+real Discord login. After checks and review pass, check `gh pr list --label on-staging`; if
+another open PR has that label, report it and wait. Otherwise run `git fetch`, then
+`git switch staging && git merge --no-ff <branch> && git push`, and switch back to the feature
+branch. Add `on-staging` to the PR and say in its body that it is on staging now. State that
+the staging deploy applied any migration in the PR. Only one open PR may have `on-staging`; the
+conductor removes the label when its PR merges or closes.
+
 ## Watch out for
 - Get a go-ahead before changing migrations, auth, or anything under `design-handover/`.
 - Merging a migration to `main` or `staging` applies it on the next deploy. Keep migrations
@@ -74,15 +88,18 @@ if either blocks you, follow the message rather than looking for a way around it
   use `DIRECT_URL` (non-pooled), and the app uses pooled `DATABASE_URL`.
 
 ## Verifying a change
-Render affected routes in a browser and compare them with the matching artboard in
-`design-handover/reference/` at 1440 and 390 widths. PR "How to verify" names the artboard
-and widths.
+The live site is the design source of truth. Render affected routes in a browser and compare
+screenshots with its current pages at 1440 and 390 widths. Once `DESIGN.md` exists, compare
+against that design summary instead. PR "How to verify" names the source and widths. If the
+live site and the handover disagree, follow the site and raise the difference with Robert to
+decide.
 
 ## Reference material
+- The live site — the design source of truth.
 - `design-handover/CLAUDE.md` — read before writing components. It covers non-negotiables,
-  voice and placeholder content.
+  voice and placeholder content; it is background rather than the source of truth.
 - `design-handover/docs/`, `design-handover/design/`, `design-handover/reference/*.html` —
-  specs, tokens, artboards.
+  background specs, tokens and artboards.
 - `REVIEW.md` — project rules the `review` skill weights: access control, time handling,
   design system, migrations.
 - `SYNC-SPEC.md` — shared contract with the Discord bot
