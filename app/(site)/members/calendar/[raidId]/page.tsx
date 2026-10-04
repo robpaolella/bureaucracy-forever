@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { LootLog } from '@/components/loot/LootLog';
+import { RaidLoot } from '@/components/loot/RaidLoot';
 import { Reserves } from '@/components/loot/Reserves';
 import { AttendanceForm } from '@/components/raid/AttendanceForm';
 import { BenchCard } from '@/components/raid/BenchCard';
@@ -16,7 +17,7 @@ import { db } from '@/lib/db';
 import type { Role, WowClass } from '@/lib/design/class-colors';
 import { discordThreadUrl } from '@/lib/discord-links';
 import { lootEnabled } from '@/lib/flags';
-import { loadActiveReserves, loadAwards, loadLootLogContext, loadLootTable, loadReserveTargets } from '@/lib/loot-data';
+import { loadActiveReserves, loadAwards, loadLootLogContext, loadLootTable, loadMemberRaidLoot, loadReserveTargets } from '@/lib/loot-data';
 import { reservesLockAt, reservesLocked } from '@/lib/loot-rules';
 import { splitStanding, type DetailRow } from '@/lib/raid-detail';
 import { countAccepted, isUpcoming, parseRequirements, sourceSplit, type RaidCard, type RaidResponse } from '@/lib/raids';
@@ -132,6 +133,8 @@ export default async function RaidDetailPage({ params }: Params) {
     .sort((a, b) => a.label.localeCompare(b.label));
   const answered = rows.filter((r) => r.response !== null);
 
+  const memberLoot = await loadMemberRaidLoot(raid.id);
+
   // Loot reserves: behind LOOT_ENABLED, for members and officers, on raids whose tier has a table.
   const showLoot = lootEnabled() && session.role !== 'social' && raid.templateId !== null;
   const [table, reserves, reserveTargets, awards, logContext] = showLoot
@@ -162,6 +165,9 @@ export default async function RaidDetailPage({ params }: Params) {
               <a href="#loot-reserves" className="inline-flex min-h-11 items-center self-start text-small text-teal underline underline-offset-4">
                 {RESERVES.heading}
               </a>
+            )}
+            {memberLoot && (
+              <a href="#raid-loot" className="inline-flex min-h-11 items-center self-start text-small text-teal underline underline-offset-4">Loot</a>
             )}
             {card.cancelled && raid.cancelReason && (
               <p className="text-sm text-fg-2">
@@ -198,6 +204,7 @@ export default async function RaidDetailPage({ params }: Params) {
             reason={reserveTargets.reason ? RESERVES[reserveTargets.reason] : null}
           />
         )}
+        {memberLoot && <RaidLoot raidId={raid.id} initial={memberLoot} />}
         {table && logContext && !card.cancelled && (
           <LootLog raidId={raid.id} table={table} reserves={reserves} candidates={logContext.candidates} raidAwards={logContext.raidAwards} hrAwards={logContext.hrAwards} awards={awards} />
         )}
