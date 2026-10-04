@@ -24,6 +24,7 @@ import { countAccepted, isUpcoming, parseRequirements, sourceSplit, type RaidCar
 import { getSession } from '@/lib/session';
 import { BACK_TO_CALENDAR, RAID_EYEBROW, SUMMARY } from '@/content/raid';
 import { RESERVES } from '@/content/reserves';
+import { RAID_LOOT } from '@/content/raid-loot';
 
 type Params = { params: Promise<{ raidId: string }> };
 
@@ -167,7 +168,7 @@ export default async function RaidDetailPage({ params }: Params) {
               </a>
             )}
             {memberLoot && (
-              <a href="#raid-loot" className="inline-flex min-h-11 items-center self-start text-small text-teal underline underline-offset-4">Loot</a>
+              <a href="#raid-loot" className="inline-flex min-h-11 min-w-11 items-center self-start text-small text-teal underline underline-offset-4">{RAID_LOOT.heading}</a>
             )}
             {card.cancelled && raid.cancelReason && (
               <p className="text-sm text-fg-2">

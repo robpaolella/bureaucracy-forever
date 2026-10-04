@@ -19,3 +19,6 @@
 - Loot sources (#93 review): distinguish source conflicts from Wowhead failures in refresh responses, including the rare concurrent-insert refusal.
 - Loot sources (#93 review): hide or disable Classic in the production add-item picker; keep both options locally and on staging.
 - Reserve form (#95 critique): consider a brief draft-state hint explaining that Clear takes effect only after Save, alongside the copy work in #90.
+- Raid loot (#99 review): consider adding the member loot read URL to the shared member-only route gate, with gate tests; the loader already denies social/logged-out viewers before any data read (auth approval needed).
+- Raid loot (#99 review): consider hiding empty Loot sections on raids without a loot table while preserving recorded history if a tier/table is later removed.
+- Design tooling (#99): refresh the stale Impeccable design sidecar from DESIGN.md through the document workflow; no visual-system change intended.

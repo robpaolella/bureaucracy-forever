@@ -41,6 +41,7 @@ export function startRaidLootPolling(raidId: string, startsAt: string, endsAt: s
 export function RaidLoot({ raidId, initial }: { raidId: string; initial: RaidLootView }) {
   const [loot, setLoot] = useState<RaidLootView | null>(initial);
   const [failed, setFailed] = useState(false);
+  const [announcement, setAnnouncement] = useState({ revision: 0, count: 0 });
   const [previous, setPrevious] = useState(initial);
   if (previous !== initial) {
     setPrevious(initial);
@@ -52,8 +53,18 @@ export function RaidLoot({ raidId, initial }: { raidId: string; initial: RaidLoo
   const endsAt = loot?.endsAt;
   useEffect(() => {
     if (!startsAt || !endsAt) return;
-    return startRaidLootPolling(raidId, startsAt, endsAt, setLoot, setFailed);
-  }, [raidId, startsAt, endsAt]);
+    let previousAwards = JSON.stringify(initial.awards);
+    return startRaidLootPolling(raidId, startsAt, endsAt, (next) => {
+      if (next) {
+        const awards = JSON.stringify(next.awards);
+        if (awards !== previousAwards) {
+          setAnnouncement((current) => ({ revision: current.revision + 1, count: next.awards.length }));
+          previousAwards = awards;
+        }
+      }
+      setLoot(next);
+    }, setFailed);
+  }, [raidId, startsAt, endsAt, initial.awards]);
 
   if (!loot) return null;
   return (
@@ -62,6 +73,7 @@ export function RaidLoot({ raidId, initial }: { raidId: string; initial: RaidLoo
         <h2 id="raid-loot-heading" className="font-display text-2xl font-medium">{RAID_LOOT.heading}</h2>
         <p className="text-sm text-fg-2">{RAID_LOOT.lede}</p>
       </div>
+      <p role="status" className="sr-only"><span key={announcement.revision}>{announcement.revision > 0 ? RAID_LOOT.updated(announcement.count) : ''}</span></p>
       {failed && <p role="status" className="text-sm text-warn">{RAID_LOOT.refreshFailed}</p>}
       {loot.awards.length === 0 ? <p className="text-sm text-fg-2">{RAID_LOOT.empty}</p> : (
         <ol className="divide-y divide-line">
