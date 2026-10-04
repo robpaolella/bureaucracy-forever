@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { refreshItems } from '@/lib/loot-items';
+import { itemSourceError } from '@/lib/item-sources';
 import { REFRESH_BATCH } from '@/lib/loot-table-rules';
 import { requireLootOfficer } from '../../../_loot';
 import { jsonBody, NO_STORE } from '../../../_officer';
@@ -25,6 +26,8 @@ export async function POST(request: Request) {
   if (typeof body.itemId === 'number' && Number.isSafeInteger(body.itemId)) {
     const item = await db.lootItem.findUnique({ where: { id: body.itemId }, select: { id: true, source: true } });
     if (!item) return NextResponse.json({ error: 'No such item.' }, { status: 404, headers: NO_STORE });
+    const policyError = itemSourceError(item.source);
+    if (policyError) return NextResponse.json({ error: policyError }, { status: 400, headers: NO_STORE });
     const res = await refreshItems(db, [item]);
     if (res.failed.length > 0) return NextResponse.json({ error: `Wowhead: ${res.failed[0].error}` }, { status: 502, headers: NO_STORE });
     return NextResponse.json({ saved: 1, failed: [], remaining: 0, round: null }, { headers: NO_STORE });
