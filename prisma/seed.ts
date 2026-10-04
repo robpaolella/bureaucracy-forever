@@ -108,6 +108,20 @@ async function main() {
     }
   }
 
+  // Opt-in, local-only loot fixture for browser verification. No Wowhead import or real data.
+  // Start a fresh verify-guild run with LOCAL_LOOT_FIXTURE=1 and LOOT_ENABLED=1.
+  if (target === 'local' && process.env.LOCAL_LOOT_FIXTURE === '1') {
+    const template = await db.raidTemplate.create({ data: { name: 'Loot verification', short: 'TEST', size: 40, durationMin: 180, requirements: { tank: 2, healer: 8, melee: 15, ranged: 15 } } });
+    const item = await db.lootItem.upsert({
+      where: { id: 999999 },
+      create: { id: 999999, name: 'Verification blade', quality: 4, icon: 'inv_sword_04', tooltipHtml: '<b>Verification blade</b><br>Local test item', source: 'CLASSIC', fetchedAt: now },
+      update: {},
+    });
+    await db.lootBoss.create({ data: { templateId: template.id, name: 'Verification boss', position: 0, entries: { create: { itemId: item.id, position: 0 } } } });
+    const raid = await db.raid.create({ data: { name: 'Loot verification', templateId: template.id, startsAt: new Date(now.getTime() - 60_000), locksAt: new Date(now.getTime() - 60_000), durationMin: 180, requirements: template.requirements! } });
+    await db.signup.createMany({ data: users.filter((u) => u.role !== 'SOCIAL').map((u) => ({ raidId: raid.id, userId: u.id, response: 'ACCEPT' as const, source: 'WEB' as const })) });
+  }
+
   // Class needs: the recruitment table, one row per spec.
   for (const n of buildClassNeeds()) {
     await db.classNeed.create({ data: { class: CLASS[n.wowClass], spec: n.spec, roles: n.roles.map((r) => RAID_ROLE[r]), status: n.status } });
