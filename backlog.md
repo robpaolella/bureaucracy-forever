@@ -15,3 +15,6 @@
 - Calendar (#77 dry run): raise role-label contrast from the browser detector's measured 4.4:1 to PRODUCT.md's required 4.5:1 or better.
 - Calendar (#77 dry run): make staffing requirements visible, not screen-reader-only, so sighted members can understand shortfalls without relying on count color.
 - Calendar (#77 dry run): clarify roster-dependent absence choices and improve weekday scanning; weekdays are currently screen-reader-only.
+- Loot sources (#93 review): remove the now-unused `ItemInput.explicit` field and its parser test assertions.
+- Loot sources (#93 review): distinguish source conflicts from Wowhead failures in refresh responses, including the rare concurrent-insert refusal.
+- Loot sources (#93 review): hide or disable Classic in the production add-item picker; keep both options locally and on staging.
