@@ -158,6 +158,11 @@ export default async function RaidDetailPage({ params }: Params) {
               {card.cancelled && <span className="ml-3 align-middle text-base font-normal text-stop">Cancelled</span>}
             </h1>
             <DualTime startsAt={card.startsAt} durationMin={card.durationMin} />
+            {table && reserveTargets && (
+              <a href="#loot-reserves" className="inline-flex min-h-11 items-center self-start text-small text-teal underline underline-offset-4">
+                {RESERVES.heading}
+              </a>
+            )}
             {card.cancelled && raid.cancelReason && (
               <p className="text-sm text-fg-2">
                 <span className="text-fg-3">{SUMMARY.cancelReason}</span> {raid.cancelReason}

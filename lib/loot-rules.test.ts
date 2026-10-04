@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { RESERVES } from '@/content/reserves';
 import {
   decideReserve,
   decideVoid,
@@ -133,6 +134,25 @@ describe('resolveDrop', () => {
 
   it('counts HR and SR per item', () => {
     expect(Object.fromEntries(reserveCounts(reserves))).toEqual({ 100: { HR: 2, SR: 1 }, 200: { HR: 0, SR: 1 }, 300: { HR: 1, SR: 0 } });
+  });
+});
+
+describe('reserve picker totals and ownership copy', () => {
+  const saved: ActiveReserve[] = [
+    { userId: 'redtape', characterId: 'c1', itemId: 100, kind: 'HR' },
+    { userId: 'ledgerline', characterId: 'c2', itemId: 100, kind: 'HR' },
+    { userId: 'redtape', characterId: 'c1', itemId: 200, kind: 'SR' },
+  ];
+
+  it('includes both members in the same saved total, with HR and SR separate', () => {
+    expect(Object.fromEntries(reserveCounts(saved))).toEqual({ 100: { HR: 2, SR: 0 }, 200: { HR: 0, SR: 1 } });
+    expect(reserveCounts([]).size).toBe(0);
+  });
+
+  it('puts counts before long item names and identifies whose saved pick it is', () => {
+    expect(RESERVES.counts(2, 0) + RESERVES.ownPick('HR', null) + 'Choker of Enlightenment').toBe('HR 2, SR 0 · your HR · Choker of Enlightenment');
+    expect(RESERVES.ownPick('SR', 'redtape')).toBe("redtape's SR · ");
+    expect(RESERVES.counts(0, 0)).toBe('');
   });
 });
 
