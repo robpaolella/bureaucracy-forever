@@ -97,8 +97,13 @@ npx -y chrome-devtools-axi screenshot "$EVIDENCE/member-390.png"
 
 Use `resize`, **not** `emulate`. Evidence stays outside git and survives teardown.
 Attach both screenshots and cleanup output to the PR; name the evidence directory.
-This skill verifies behaviour, not visual conformity; follow `AGENTS.md` separately
-for design comparisons when changing UI.
+
+## Design check
+
+For any change people see, follow [Phone and desktop design check](design-check.md)
+before the PR: main/branch captures at both widths, impeccable critique, then the
+[independent reviewer's](design-reviewer.md) verdict. This supplements, not replaces,
+the behaviour proof above.
 
 ## Cleanup
 
