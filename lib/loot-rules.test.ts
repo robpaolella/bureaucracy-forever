@@ -6,6 +6,7 @@ import {
   defaultMethodFor,
   hrBlocked,
   isEligible,
+  LOOT_LOG_METHODS,
   parseAwardInput,
   parseItemRef,
   REASONS,
@@ -129,7 +130,11 @@ describe('resolveDrop', () => {
   it('preselects the matching method', () => {
     expect(defaultMethodFor('HR')).toBe('HR');
     expect(defaultMethodFor('SR')).toBe('SR');
-    expect(defaultMethodFor('OPEN')).toBe('MAIN_SPEC');
+    expect(defaultMethodFor('OPEN')).toBe('OPEN_ROLL');
+  });
+
+  it('offers only the four current loot methods for new records', () => {
+    expect(LOOT_LOG_METHODS).toEqual(['HR', 'SR', 'OPEN_ROLL', 'DISENCHANT_BANK']);
   });
 
   it('counts HR and SR per item', () => {
