@@ -10,6 +10,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@/lib/generated/prisma/client';
 import { assertWriteTarget } from './write-guard';
 import { parseStagingTesters } from './staging-testers';
+import { seedLocalLoot } from './seed-loot';
 import { buildApplications, buildClassNeeds, buildRaids, buildRaidTemplates, buildRoster, paintWeek, rng } from './seed-data';
 
 loadEnv({ path: '.env.local' });
@@ -155,6 +156,8 @@ async function main() {
       });
     }
   }
+
+  if (target === 'local') await seedLocalLoot(db, now);
 
   const counts = {
     users: await db.user.count(),
