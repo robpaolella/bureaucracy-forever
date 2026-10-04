@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildApplications, buildClassNeeds, buildRaids, buildRoster, mondayIndex, officerNames, paintWeek, rng } from './seed-data';
+import { buildApplications, buildClassNeeds, buildRaids, buildRaidTemplates, buildRoster, mondayIndex, officerNames, paintWeek, rng } from './seed-data';
 
 describe('roster', () => {
   const roster = buildRoster();
@@ -77,7 +77,16 @@ describe('raids, needs, applications', () => {
     const raids = buildRaids(new Date('2026-09-30T12:00:00Z'));
     expect(raids).toHaveLength(9);
     for (let i = 1; i < raids.length; i++) expect(raids[i].startsAt.getTime()).toBeGreaterThan(raids[i - 1].startsAt.getTime());
-    expect(raids[0].requirements).toEqual({ tank: 2, healer: 8, melee: 11, ranged: 14 });
+    expect(raids[0].requirements).toEqual({ tank: 3, healer: 12, melee: 11, ranged: 14 });
+    expect(raids.every((raid) => ['Hyjal Summit', "Onyxia's Lair"].includes(raid.template))).toBe(true);
+  });
+
+  it('uses only the Forever raid templates configured in production', () => {
+    expect(buildRaidTemplates()).toEqual([
+      { name: 'Barrow Deeps', short: 'BD', size: 10, durationMin: 180, requirements: { tank: 2, healer: 2, melee: 3, ranged: 3 } },
+      { name: 'Hyjal Summit', short: 'HS', size: 20, durationMin: 180, requirements: { tank: 2, healer: 3, melee: 7, ranged: 8 } },
+      { name: "Onyxia's Lair", short: 'Ony', size: 40, durationMin: 60, requirements: { tank: 3, healer: 12, melee: 11, ranged: 14 } },
+    ]);
   });
 
   it('expands class needs to one row per spec with unique class+spec', () => {

@@ -20,18 +20,18 @@ Preconditions: `../SKILL.md` Launch and Doctor PASS; shared officer/access/evide
 rules in [the index](README.md). Use fresh handles after every action.
 
 - **Enter.** `open "$BASE/dev/session?as=officer&back=/officers/raids"`; resize to
-  `1440 900`, snapshot. Fresh seed: seven templates and `No series yet…`.
+  `1440 900`, snapshot. Fresh seed: Barrow Deeps, Hyjal Summit and Onyxia's Lair, with `No series yet…`.
 - **Template.** Click `New template`. Fill `NAME` = `Verification 85`, `SHORT` =
   `V85`, leave `SIZE` = 40 and `LENGTH (MINUTES)` = 180. Fill `Tank`, `Healer`,
   `Melee DPS`, `Ranged DPS` with 4, 12, 10, 14; keep `Active` checked. Capture
   the filled dialog, click `Save template`, and wait for the dialog to close.
   Fully reopen `/officers/raids`; expect the named row with those saved values.
-- **Series.** In `New series`, keep Blackwing Lair, Thursday, `START (GUILD TIME)`
+- **Series.** In `New series`, select Onyxia's Lair, Thursday, `START (GUILD TIME)`
   20:00, `LENGTH` 3 hours, post-ahead 14 days, lock-before 120 minutes and horizon
   4 weeks. Fill `NOTES` = `Verification 85 weekly slot`. Click `Add series`, wait
   for the new row, then fully reopen the page. Expect the Thursday row, saved
   note and scheduled-raid count. Open `/members/calendar` to inspect generated
-  Blackwing Lair dates; record dates in guild time, not the worker's timezone.
+  Onyxia's Lair dates; record dates in guild time, not the worker's timezone.
 - **End state.** Return to the planner, save the reloaded snapshot and desktop/
   phone screenshots. This baseline proves template and series creation, not all
   destructive branches below.
