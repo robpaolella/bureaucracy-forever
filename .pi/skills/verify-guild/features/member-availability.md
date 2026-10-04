@@ -30,10 +30,10 @@ half-hour and record its visible label.
 - **Enter.** `open "$BASE/dev/session?as=member&back=/members/availability"`; resize to
   `1440 900`, then `snapshot`. Expect `When can you raid?`, the `Paint` radio group,
   `YOUR TIME`, `GUILD TIME`, the `Weekly availability` grid and `Save`.
-- **Paint.** With `Available` selected, click an unpainted `gridcell` such as
-  `Mon 12:00 AM` from a fresh snapshot. Capture an after snapshot. Expect that cell to
-  be selected with description `Available`, the count to increase, and `Unsaved changes`
-  before saving begins.
+- **Paint.** With `Available` selected, click an unpainted `gridcell` from a fresh
+  snapshot (use `Mon 12:00 AM` only if it is unpainted; otherwise record another label).
+  Capture an after snapshot. Expect that cell to be selected with description
+  `Available`, the count to increase, and `Unsaved changes` before saving begins.
 - **Prove persistence.** Wait slightly longer than the two-second autosave, then snapshot.
   Expect `Last saved…` rather than `Unsaved changes`. `open "$BASE/members/availability"`
   and snapshot again; the same labelled gridcell must remain selected. This reload is the

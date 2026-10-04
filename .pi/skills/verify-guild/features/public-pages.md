@@ -35,7 +35,7 @@ and fresh snapshot handles rather than assuming a route remains unchanged.
   `Guild history` and `Meet the leadership`. The `Full roster →` destination requires a
   member session, so record it but do not follow it while signed out.
 - **Schedule.** `open "$BASE/schedule"`, then `snapshot`. Expect `Raid schedule`,
-  `GUILD TIME`, `YOUR TIME`, three raid-week cards and `Open the calendar →`. Do not
+  `GUILD TIME`, `YOUR TIME`, raid-week cards and `Open the calendar →`. Do not
   change the stored viewer timezone while mapping this public page.
 - **Recruitment.** `open "$BASE/recruitment"`, then `snapshot`. Expect `Open needs by
   class and role`, its `High need`/`Medium`/`Closed` legend, `What we expect of a raider`
