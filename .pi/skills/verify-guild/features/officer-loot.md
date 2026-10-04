@@ -36,13 +36,13 @@ Preconditions: `../SKILL.md` Launch and Doctor PASS; shared rules in [the index]
 ### Populated local test table
 
 After loading Onyxia's Lair through [Loot data for local verification](loot-data.md),
-start the local server and enter as an officer.
+enter as an officer.
 
 - **Open the imported tier.** At `/officers/loot`, expect Onyxia's Lair to show a
   non-zero boss and item count. Click its link and record the real detail URL.
 - **Confirm the table.** Expect the `Onyxia's Lair` heading, named boss sections and
-  item links rather than `No bosses yet.` Confirm the page shows 26 imported item
-  entries in total, then fully reopen the detail URL and confirm the bosses and items
+  item links rather than `No bosses yet.` Confirm the page shows 26 imported items,
+  then fully reopen the detail URL and confirm the bosses and items
   remain. This proves the imported local data is available to the page; do not edit,
   reorder or refresh it.
 - **Proof.** Save list/detail snapshots and capture the populated detail page at
