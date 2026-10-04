@@ -18,3 +18,4 @@
 - Loot sources (#93 review): remove the now-unused `ItemInput.explicit` field and its parser test assertions.
 - Loot sources (#93 review): distinguish source conflicts from Wowhead failures in refresh responses, including the rare concurrent-insert refusal.
 - Loot sources (#93 review): hide or disable Classic in the production add-item picker; keep both options locally and on staging.
+- Reserve form (#95 critique): consider a brief draft-state hint explaining that Clear takes effect only after Save, alongside the copy work in #90.
