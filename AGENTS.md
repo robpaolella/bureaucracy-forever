@@ -28,6 +28,8 @@ npm install
 `postinstall` runs `prisma generate`; `prepare` sets `git config core.hooksPath .githooks`
 so this repo's pre-commit/pre-push protection (below) is active in a fresh clone.
 
+For staging testers, set optional `STAGING_TESTERS=111:officer,222:member` in staging's settings before `npm run db:staging:seed`; the destructive seed adds each account with a main character and Accept signups on every seeded raid (never put real ids in the repo).
+
 ## Run locally
 ```
 npm install
