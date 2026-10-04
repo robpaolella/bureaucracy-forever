@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { FOREVER_ONLY, SOURCE_CONFLICT } from '@/lib/item-sources';
 import { Prisma } from '@/lib/generated/prisma/client';
 
 const mocks = vi.hoisted(() => ({
@@ -34,7 +35,9 @@ const bossCall = (body: unknown) => addBoss(json(body), { params: Promise.resolv
 const itemCall = (body: unknown) => addItem(json(body), { params: Promise.resolve({ bossId: 'b1' }) });
 const unique = () => new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' });
 
+afterEach(() => vi.unstubAllEnvs());
 beforeEach(() => {
+  vi.stubEnv('VERCEL_ENV', 'development');
   mocks.session = { role: 'officer' };
   mocks.loot = true;
   for (const m of [mocks.template, mocks.lastBoss, mocks.createBoss, mocks.boss, mocks.item, mocks.lastEntry, mocks.createEntry, mocks.refresh]) m.mockReset();
@@ -88,13 +91,48 @@ describe('POST /api/loot/bosses/[bossId]/items', () => {
     expect(mocks.createEntry).toHaveBeenCalledWith({ data: { bossId: 'b1', itemId: 17076, position: 3 } });
   });
 
-  it('reuses a cached item, even from the other database, unless a link names one', async () => {
-    mocks.item.mockResolvedValue({ source: 'CLASSIC', id: 5, name: 'X' });
+  it('reuses a cached item only from the requested game', async () => {
+    mocks.item.mockResolvedValue({ source: 'FOREVER', id: 5, name: 'X' });
     expect((await itemCall({ ref: '5', source: 'FOREVER' })).status).toBe(201);
     expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
+  it.each(['CLASSIC', 'FOREVER'] as const)('refuses cached %s items requested as the other game by picker or link', async (cachedSource) => {
+    mocks.item.mockResolvedValue({ source: cachedSource, id: 5, name: 'X' });
+    const source = cachedSource === 'CLASSIC' ? 'FOREVER' : 'CLASSIC';
+    for (const ref of ['5', `https://www.wowhead.com/${source.toLowerCase()}/item=5`]) {
+      const res = await itemCall({ ref, source });
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ error: SOURCE_CONFLICT });
+    }
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(mocks.createEntry).not.toHaveBeenCalled();
+  });
+
+  it.each([null, { source: 'CLASSIC' }, { source: 'FOREVER' }])('refuses Classic links and picker selections in production, cached or not: %j', async (cached) => {
+    vi.stubEnv('VERCEL_ENV', 'production');
+    mocks.item.mockResolvedValue(cached);
+    for (const body of [{ ref: '5', source: 'CLASSIC' }, { ref: 'https://www.wowhead.com/classic/item=5', source: 'FOREVER' }]) {
+      const res = await itemCall(body);
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: FOREVER_ONLY });
+    }
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(mocks.createEntry).not.toHaveBeenCalled();
+  });
+
+  it('fetches Forever in production and refuses a legacy Classic cache row', async () => {
+    vi.stubEnv('VERCEL_ENV', 'production');
+    mocks.item.mockResolvedValueOnce(null).mockResolvedValue({ source: 'FOREVER', id: 5, name: 'X' });
     mocks.refresh.mockResolvedValue({ saved: [5], failed: [], notReached: [] });
     expect((await itemCall({ ref: 'https://www.wowhead.com/forever/item=5' })).status).toBe(201);
     expect(mocks.refresh).toHaveBeenCalledWith(expect.anything(), [{ id: 5, source: 'FOREVER' }], { gapMs: 0 });
+    mocks.createEntry.mockClear();
+    mocks.item.mockResolvedValue({ source: 'CLASSIC' });
+    const res = await itemCall({ ref: '5', source: 'FOREVER' });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: SOURCE_CONFLICT });
+    expect(mocks.createEntry).not.toHaveBeenCalled();
   });
 
   it('reports what Wowhead said, and refuses duplicates and bad references', async () => {
