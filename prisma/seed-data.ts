@@ -175,8 +175,8 @@ export type SeedRaid = { name: string; template: string; startsAt: Date; duratio
 
 /** Three weeks of raids from `from`: the progression nights plus the optional Sunday. */
 export function buildRaids(from = new Date()): SeedRaid[] {
-  const names: Record<number, string> = { 2: 'Blackwing Lair', 3: 'Blackwing Lair', 0: 'Molten Core clear' };
-  const templates: Record<number, string> = { 2: 'Blackwing Lair', 3: 'Blackwing Lair', 0: 'Molten Core' };
+  const names: Record<number, string> = { 2: "Onyxia's Lair", 3: "Onyxia's Lair", 0: 'Hyjal Summit clear' };
+  const templates: Record<number, string> = { 2: "Onyxia's Lair", 3: "Onyxia's Lair", 0: 'Hyjal Summit' };
   const raids: SeedRaid[] = [];
   for (let week = 0; week < 3; week++) {
     for (const night of RAID_NIGHTS) {
@@ -184,11 +184,11 @@ export function buildRaids(from = new Date()): SeedRaid[] {
       const startsAt = new Date(first.getTime() + week * 7 * 24 * 3600_000);
       raids.push({
         name: names[night.day] ?? night.kind,
-        template: templates[night.day] ?? 'Blackwing Lair',
+        template: templates[night.day] ?? "Onyxia's Lair",
         startsAt,
         durationMin: minutesBetween(night.start, night.end),
-        requirements: night.optional ? { tank: 2, healer: 6, melee: 8, ranged: 10 } : { tank: 2, healer: 8, melee: 11, ranged: 14 },
-        notes: night.optional ? 'Optional. Alts welcome once mains are in.' : week === 0 ? 'Chromaggus first. Read the breath rotation post.' : null,
+        requirements: night.optional ? { tank: 2, healer: 3, melee: 7, ranged: 8 } : { tank: 3, healer: 12, melee: 11, ranged: 14 },
+        notes: night.optional ? 'Optional. Alts welcome once mains are in.' : week === 0 ? 'Read the assignment notes before the first pull.' : null,
       });
     }
   }
@@ -258,20 +258,11 @@ export function buildApplications(): SeedApplication[] {
 
 export type SeedTemplate = { name: string; short: string; size: number; durationMin: number; requirements: { tank: number; healer: number; melee: number; ranged: number } };
 
-/**
- * SYNC-SPEC §3: the Classic tiers. TODO: confirm sizes, lengths and role splits with the
- * officers before launch; these are the spec's numbers, order tank/healer/melee/ranged.
- */
+/** SYNC-SPEC §3: mirrors the raid templates configured in production. Order is tank/healer/melee/ranged. */
 export function buildRaidTemplates(): SeedTemplate[] {
-  const forty = { tank: 4, healer: 12, melee: 10, ranged: 14 };
-  const twenty = { tank: 2, healer: 6, melee: 5, ranged: 7 };
   return [
-    { name: 'Molten Core', short: 'MC', size: 40, durationMin: 180, requirements: forty },
+    { name: 'Barrow Deeps', short: 'BD', size: 10, durationMin: 180, requirements: { tank: 2, healer: 2, melee: 3, ranged: 3 } },
+    { name: 'Hyjal Summit', short: 'HS', size: 20, durationMin: 180, requirements: { tank: 2, healer: 3, melee: 7, ranged: 8 } },
     { name: "Onyxia's Lair", short: 'Ony', size: 40, durationMin: 60, requirements: { tank: 3, healer: 12, melee: 11, ranged: 14 } },
-    { name: 'Blackwing Lair', short: 'BWL', size: 40, durationMin: 180, requirements: forty },
-    { name: "Zul'Gurub", short: 'ZG', size: 20, durationMin: 120, requirements: twenty },
-    { name: "Ruins of Ahn'Qiraj", short: 'AQ20', size: 20, durationMin: 120, requirements: twenty },
-    { name: "Temple of Ahn'Qiraj", short: 'AQ40', size: 40, durationMin: 240, requirements: forty },
-    { name: 'Naxxramas', short: 'Naxx', size: 40, durationMin: 240, requirements: forty },
   ];
 }
