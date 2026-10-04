@@ -94,11 +94,8 @@ conductor removes the label when its PR merges or closes.
 ## Verifying a change
 Use `.pi/skills/verify-guild/SKILL.md` to launch, safely drive and capture evidence from the local site.
 
-The live site is the design source of truth. Render affected routes in a browser and compare
-screenshots with its current pages at 1440 and 390 widths. Once `DESIGN.md` exists, compare
-against that design summary instead. PR "How to verify" names the source and widths. If the
-live site and the handover disagree, follow the site and raise the difference with Robert to
-decide.
+Every UI change follows `.pi/skills/verify-guild/design-check.md`: before/after captures at
+390 and 1440, impeccable critique and an independent verdict against `DESIGN.md` and the live site.
 
 ## Reference material
 - The live site — the design source of truth.
