@@ -12,6 +12,8 @@ import { CLASS_COLORS } from '@/lib/design/class-colors';
 import type { LootTableView, ReserveTargetRow, ReserveView } from '@/lib/loot-data';
 import { reserveCounts, type ReserveKind } from '@/lib/loot-rules';
 import { ItemName } from './ItemName';
+import { ItemPicker } from './ItemPicker';
+import { searchableItems } from '@/lib/item-search';
 
 /** A member whose reserves the viewer may set: themselves, or anyone eligible for an officer. */
 export type ReserveTarget = ReserveTargetRow;
@@ -74,6 +76,8 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
   // Both views describe saved reserves, including the member being edited, not the draft.
   const counts = useMemo(() => reserveCounts(reserves), [reserves]);
   const blocked = new Set(target.blockedHr[characterId] ?? []);
+  const items = useMemo(() => searchableItems(table), [table]);
+  const ownPick = (id: number) => target.current.hr === id ? RESERVES.ownPick('HR', target.self ? null : target.name) : target.current.sr === id ? RESERVES.ownPick('SR', target.self ? null : target.name) : '';
 
   async function save(next: { hr: number | null; sr: number | null }) {
     if (busy) return;
@@ -112,34 +116,10 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
     void save({ hr, sr });
   }
 
-  const itemOptions = (kind: ReserveKind, other: number | null) => {
-    const seen = new Set<number>();
-    return table.bosses.map((boss) => {
-      const ids = boss.itemIds.filter((id) => !seen.has(id) && seen.add(id));
-      if (ids.length === 0) return null;
-      return (
-        <optgroup key={boss.id} label={boss.name}>
-          {ids.map((id) => {
-            const c = counts.get(id) ?? { HR: 0, SR: 0 };
-            const isBlocked = kind === 'HR' && blocked.has(id);
-            return (
-              <option key={id} value={id} disabled={id === other || isBlocked}>
-                {RESERVES.counts(c.HR, c.SR)}
-                {target.current.hr === id ? RESERVES.ownPick('HR', target.self ? null : target.name) : target.current.sr === id ? RESERVES.ownPick('SR', target.self ? null : target.name) : ''}
-                {table.items[id].name}
-                {isBlocked ? ` — ${RESERVES.blocked}` : ''}
-              </option>
-            );
-          })}
-        </optgroup>
-      );
-    });
-  };
-
   const select = cn(CONTROL, 'h-[46px] min-w-0 px-3');
   return (
     <form onSubmit={submit} className="flex flex-col gap-4 rounded-card border border-line-faint bg-ink-900 p-4">
-      <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
         {targets.length > 1 && (
           <Field label={RESERVES.forWhom}>
             <select className={select} value={target.userId} onChange={(e) => onTarget(e.target.value)}>
@@ -169,30 +149,22 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
             ))}
           </select>
         </Field>
-        <Field label={RESERVES.hr}>
-          <select className={select} value={hr ?? ''} onChange={(e) => setHr(e.target.value ? Number(e.target.value) : null)}>
-            <option value="">{RESERVES.none}</option>
-            {itemOptions('HR', sr)}
-          </select>
-        </Field>
-        <Field label={RESERVES.sr}>
-          <select className={select} value={sr ?? ''} onChange={(e) => setSr(e.target.value ? Number(e.target.value) : null)}>
-            <option value="">{RESERVES.none}</option>
-            {itemOptions('SR', hr)}
-          </select>
-        </Field>
+        <div className="grid min-w-0 grid-cols-1 gap-4 md:col-span-2 md:grid-cols-2">
+          <ItemPicker label={RESERVES.hr} items={items} value={hr} onChange={setHr} counts={counts} ownPick={ownPick} unavailable={(id) => blocked.has(id) ? RESERVES.blocked : id === sr ? RESERVES.otherPick : null} />
+          <ItemPicker label={RESERVES.sr} items={items} value={sr} onChange={setSr} counts={counts} ownPick={ownPick} unavailable={(id) => id === hr ? RESERVES.otherPick : null} />
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
         {hr !== null && table.items[hr] && (
           <span className="flex min-w-0 items-center gap-2 text-sm">
             <span className="font-semibold text-sand">{RESERVES.hrShort}</span>
-            <ItemName item={table.items[hr]} />
+            <ItemName item={items.find(({ item }) => item.id === hr)?.item ?? table.items[hr]} />
           </span>
         )}
         {sr !== null && table.items[sr] && (
           <span className="flex min-w-0 items-center gap-2 text-sm">
             <span className="font-semibold text-teal">{RESERVES.srShort}</span>
-            <ItemName item={table.items[sr]} />
+            <ItemName item={items.find(({ item }) => item.id === sr)?.item ?? table.items[sr]} />
           </span>
         )}
         <div className="ml-auto flex gap-2.5">
