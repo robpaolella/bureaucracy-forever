@@ -10,14 +10,23 @@ another. Re-seeding destroys local changes, so use a fresh run for baseline data
 - [Member raid calendar and sign-up](member-calendar.md): list, month, detail,
   response changes, Undo and persistence. The initial proof may cover one path;
   use the full map for subsequent changes to this feature.
+- [Public pages](public-pages.md): home (`/`), about (`/about`), schedule
+  (`/schedule`) and recruitment (`/recruitment`) content and entry points.
+- [Applying to the guild](application.md): out-of-session gate, the local
+  `member-unsubmitted` form path and submitted summary at `/apply`.
+- [Member availability](member-availability.md): paint modes, desktop and phone
+  paths, autosave/manual save and reload proof at `/members/availability`.
+- [Public loot rules](public-loot.md): policy navigation, FAQ disclosure and
+  application entry at `/loot`.
 
-## Not mapped yet
+## Scheduled next
 
-- Public pages: home (`/`), about (`/about`), schedule (`/schedule`), recruitment (`/recruitment`).
-- Applying to the guild (`/apply`).
-- Member availability (`/members/availability`).
-- Officers' raids (`/officers/raids`) and loot log (`/officers/loot`).
+- Officer raid planning (`/officers/raids`), loot log (`/officers/loot`) and
+  availability (`/officers/availability`) are tracked in #85. They are separate
+  so this map stays within the agreed reviewable size limit.
 
-These are follow-up mapping work, not verified by the calendar proof. Discord bot
-behaviour and the signed bot API (`/api/bot/*`) are not covered. Local session
-stubs do not test OAuth, Discord roles or bot delivery.
+## Not covered
+
+Discord bot behaviour and the signed bot API (`/api/bot/*`) are not covered. Real
+Discord OAuth and Discord-role syncing need staging; local session stubs do not
+prove either, nor bot delivery.
