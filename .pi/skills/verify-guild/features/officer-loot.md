@@ -18,11 +18,12 @@ Open `Officers` → `Loot tables` for `/officers/loot`, then select a named raid
 Preconditions: `../SKILL.md` Launch and Doctor PASS; shared rules in [the index](README.md).
 
 - **Enter.** `open "$BASE/dev/session?as=officer&back=/officers/loot"`; snapshot.
-  Expect `Loot tables`, `Raid tiers` and seven seeded tier links. A template created
-  during the raid-planner proof also appears here; do not assume a fixed total then.
-- **Open a tier.** Click the link beginning `Blackwing Lair · BWL`. Record its real
+  Expect `Loot tables`, `Raid tiers` and the three seeded tier links: Barrow Deeps,
+  Hyjal Summit and Onyxia's Lair. A template created during the raid-planner proof also
+  appears here; do not assume a fixed total then.
+- **Open a tier.** Click the link beginning `Onyxia's Lair · Ony`. Record its real
   `/officers/loot/<id>` URL from the snapshot rather than hard-coding a seed ID.
-  Expect heading `Blackwing Lair`, `No bosses yet.`, `BOSS NAME`, the `Trash`
+  Expect heading `Onyxia's Lair`, `No bosses yet.`, `BOSS NAME`, the `Trash`
   checkbox, disabled `Add boss` while the name is blank, and `Refresh items from Wowhead`.
 - **Read back.** Fully reopen that detail URL and confirm the empty state remains;
   use `All loot tables` to check the tier still says `No loot table yet`. There is
