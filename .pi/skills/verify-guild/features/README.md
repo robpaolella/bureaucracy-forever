@@ -18,12 +18,32 @@ another. Re-seeding destroys local changes, so use a fresh run for baseline data
   paths, autosave/manual save and reload proof at `/members/availability`.
 - [Public loot rules](public-loot.md): policy navigation, FAQ disclosure and
   application entry at `/loot`.
+- [Officer raid planning](officer-raids.md): templates, weekly series and calendar read-back.
+- [Officer loot tables](officer-loot.md): tier list and seeded empty template pages.
+- [Officer availability](officer-availability.md): heatmap, window finder and not-submitted list.
+- [Officer applications](officer-applications.md): inbox, standalone detail, notes and decisions.
+- [Officer class needs](officer-needs.md): per-spec status and featured high-need spec.
+- [Officer roster](officer-roster.md): member search and main-character editing.
 
-## Scheduled next
+## Shared officer proof
 
-- Officer raid planning (`/officers/raids`), loot log (`/officers/loot`) and
-  availability (`/officers/availability`) are tracked in #85. They are separate
-  so this map stays within the agreed reviewable size limit.
+Each officer map starts with `/dev/session?as=officer&back=<page>` after Doctor PASS.
+Use `snapshot --full` for large pages and fresh handles after every action, including
+`fill`: a previous generation's handle is stale. Wait for the saved result before
+navigating away; then use `open` on the full page URL for persistence read-back.
+A router refresh, selected control or success toast alone is insufficient.
+
+For access control, switch once with
+`open "$BASE/dev/session?as=member&back=/officers/raids"`, then open all six officer
+URLs: expect `That page does not exist` (404), not officer content. Include loot and
+application detail URLs recorded during the officer run. Restore the officer session
+before continuing. This proves the local member restriction, not real Discord roles.
+
+Record actions, expected/observed results, full-reload snapshots and skipped paths
+in `$EVIDENCE/notes.md`. Keep one end-state screenshot per feature at both 1440 × 900
+and 390 × 844 outside git; attach them to the PR with Cleanup PASS. The baseline
+flows were driven with seeded data; additional paths are named explicitly, not
+silently counted as verified. Never nudge Discord or import external loot data.
 
 ## Not covered
 
