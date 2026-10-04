@@ -18,7 +18,6 @@ another. Re-seeding destroys local changes, so use a fresh run for baseline data
   paths, autosave/manual save and reload proof at `/members/availability`.
 - [Public loot rules](public-loot.md): policy navigation, FAQ disclosure and
   application entry at `/loot`.
-
 - [Officer raid planning](officer-raids.md): templates, weekly series and calendar read-back.
 - [Officer loot tables](officer-loot.md): tier list and seeded empty template pages.
 - [Officer availability](officer-availability.md): heatmap, window finder and not-submitted list.
