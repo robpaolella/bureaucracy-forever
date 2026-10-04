@@ -12,6 +12,8 @@ import type { RaidResponse } from '@/lib/raids';
 export type ReserveKind = 'HR' | 'SR';
 export type LootMethod = 'HR' | 'SR' | 'MAIN_SPEC' | 'OFF_SPEC' | 'OPEN_ROLL' | 'DISENCHANT_BANK';
 export const LOOT_METHODS: readonly LootMethod[] = ['HR', 'SR', 'MAIN_SPEC', 'OFF_SPEC', 'OPEN_ROLL', 'DISENCHANT_BANK'];
+/** Methods officers can select for new loot-log records. Legacy records still use LOOT_METHODS. */
+export const LOOT_LOG_METHODS: readonly LootMethod[] = ['HR', 'SR', 'OPEN_ROLL', 'DISENCHANT_BANK'];
 export type ItemSource = 'CLASSIC' | 'FOREVER';
 
 export type Refusal = { ok: false; status: 403 | 404 | 409; reason: string };
@@ -110,7 +112,7 @@ export function resolveDrop(itemId: number, reserves: readonly ActiveReserve[], 
 
 /** The method the loot log preselects for a resolution. */
 export function defaultMethodFor(mode: DropMode): LootMethod {
-  return mode === 'OPEN' ? 'MAIN_SPEC' : mode;
+  return mode === 'OPEN' ? 'OPEN_ROLL' : mode;
 }
 
 /** Per-item counts shown while choosing, e.g. { 17076: { HR: 2, SR: 1 } }. */

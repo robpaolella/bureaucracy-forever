@@ -11,7 +11,7 @@ import { cn } from '@/lib/cn';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
 import type { AwardView, Candidate, LootTableView, ReserveView } from '@/lib/loot-data';
 import { mergeAwards, type LocalAward, type LoggedAward, type LoggedHr } from '@/lib/loot-log-state';
-import { defaultMethodFor, LOOT_METHODS, resolveDrop, type LootMethod } from '@/lib/loot-rules';
+import { defaultMethodFor, LOOT_LOG_METHODS, resolveDrop, type LootMethod } from '@/lib/loot-rules';
 import { ItemName } from './ItemName';
 
 type Props = {
@@ -42,7 +42,7 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
   const [bossId, setBossId] = useState(table.bosses[0]?.id ?? '');
   const [itemId, setItemId] = useState<number | null>(null);
   const [winner, setWinner] = useState('');
-  const [method, setMethod] = useState<LootMethod>('MAIN_SPEC');
+  const [method, setMethod] = useState<LootMethod>('OPEN_ROLL');
   const [roll, setRoll] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -83,8 +83,9 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
   async function record(e: FormEvent | null, disenchant = false) {
     e?.preventDefault();
     if (busy || itemId === null) return;
+    const isDisenchant = disenchant || method === 'DISENCHANT_BANK';
     setBusy(true);
-    const r = await send(`/api/raids/${raidId}/loot`, 'POST', { bossId: bossId || null, itemId, characterId: disenchant ? null : winner, method: disenchant ? 'DISENCHANT_BANK' : method, roll: disenchant ? null : roll, note });
+    const r = await send(`/api/raids/${raidId}/loot`, 'POST', { bossId: bossId || null, itemId, characterId: isDisenchant ? null : winner, method: isDisenchant ? 'DISENCHANT_BANK' : method, roll: isDisenchant ? null : roll, note });
     setBusy(false);
     const itemName = table.items[itemId]?.name ?? `#${itemId}`;
     if (!r.ok) {
@@ -94,9 +95,9 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
     const who = characters.get(winner);
     if (typeof r.json.id === 'string') {
       const id = r.json.id;
-      setPending((p) => [...p, { id, itemId, userId: disenchant ? null : (who?.userId ?? null), characterId: disenchant ? null : winner, method: disenchant ? 'DISENCHANT_BANK' : method }]);
+      setPending((p) => [...p, { id, itemId, userId: isDisenchant ? null : (who?.userId ?? null), characterId: isDisenchant ? null : winner, method: isDisenchant ? 'DISENCHANT_BANK' : method }]);
     }
-    toast({ tone: 'ok', title: disenchant ? LOOT_LOG.banked(itemName) : LOOT_LOG.recorded(itemName, who ? `${who.owner} (${who.name})` : '') });
+    toast({ tone: 'ok', title: isDisenchant ? LOOT_LOG.banked(itemName) : LOOT_LOG.recorded(itemName, who ? `${who.owner} (${who.name})` : '') });
     pickItem(null);
     router.refresh();
   }
@@ -184,27 +185,31 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
               </fieldset>
             )}
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <Field label={LOOT_LOG.winner} hint={winner && resolution.mode !== 'OPEN' && !contenderIds.has(winner) ? LOOT_LOG.notContender(resolution.mode) : undefined}>
-                <select className={select} value={winner} onChange={(e) => setWinner(e.target.value)} required>
-                  <option value="">{LOOT_LOG.pickWinner}</option>
-                  {candidates.map((c) => (
-                    <optgroup key={c.userId} label={c.name}>
-                      {c.characters.map((ch) => (
-                        <option key={ch.id} value={ch.id}>
-                          {ch.name} · {CLASS_COLORS[ch.wowClass].label}
-                          {contenderIds.has(ch.id) ? ` (${resolution.mode})` : ''}
-                        </option>
+              {method !== 'DISENCHANT_BANK' && (
+                <>
+                  <Field label={LOOT_LOG.winner} hint={winner && resolution.mode !== 'OPEN' && !contenderIds.has(winner) ? LOOT_LOG.notContender(resolution.mode) : undefined}>
+                    <select className={select} value={winner} onChange={(e) => setWinner(e.target.value)} required>
+                      <option value="">{LOOT_LOG.pickWinner}</option>
+                      {candidates.map((c) => (
+                        <optgroup key={c.userId} label={c.name}>
+                          {c.characters.map((ch) => (
+                            <option key={ch.id} value={ch.id}>
+                              {ch.name} · {CLASS_COLORS[ch.wowClass].label}
+                              {contenderIds.has(ch.id) ? ` (${resolution.mode})` : ''}
+                            </option>
+                          ))}
+                        </optgroup>
                       ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </Field>
-              <Field label={LOOT_LOG.roll}>
-                <Input type="number" inputMode="numeric" min={1} max={100} value={roll} onChange={(e) => setRoll(e.target.value)} />
-              </Field>
+                    </select>
+                  </Field>
+                  <Field label={LOOT_LOG.roll}>
+                    <Input type="number" inputMode="numeric" min={1} max={100} value={roll} onChange={(e) => setRoll(e.target.value)} />
+                  </Field>
+                </>
+              )}
               <Field label={LOOT_LOG.method}>
                 <select className={select} value={method} onChange={(e) => setMethod(e.target.value as LootMethod)}>
-                  {LOOT_METHODS.filter((m) => m !== 'DISENCHANT_BANK').map((m) => (
+                  {LOOT_LOG_METHODS.map((m) => (
                     <option key={m} value={m}>
                       {METHOD_LABEL[m]}
                     </option>
@@ -219,7 +224,7 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
               <Button variant="secondary" disabled={busy} onClick={() => record(null, true)}>
                 {LOOT_LOG.disenchant}
               </Button>
-              <Button type="submit" loading={busy} disabled={!winner}>
+              <Button type="submit" loading={busy} disabled={!winner && method !== 'DISENCHANT_BANK'}>
                 {LOOT_LOG.record}
               </Button>
             </div>
