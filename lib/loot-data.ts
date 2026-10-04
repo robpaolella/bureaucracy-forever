@@ -5,6 +5,8 @@
 import 'server-only';
 
 import { db } from '@/lib/db';
+import { lootEnabled } from '@/lib/flags';
+import { getSession } from '@/lib/session';
 import type { WowClass } from '@/lib/design/class-colors';
 import { toItemView, type ItemView } from '@/lib/loot-items';
 import type { LoggedAward, LoggedHr } from '@/lib/loot-log-state';
@@ -166,6 +168,49 @@ export async function loadAwards(raidId: string): Promise<AwardView[]> {
     voidedAt: r.voidedAt?.toISOString() ?? null,
     voidReason: r.voidReason,
   }));
+}
+
+export type MemberAwardView = {
+  id: string;
+  item: ItemView;
+  characterName: string | null;
+  method: LootMethod;
+  roll: number | null;
+  bossName: string | null;
+};
+
+export type RaidLootView = { awards: MemberAwardView[]; startsAt: string; endsAt: string };
+
+/** Member-safe read: authenticate here as both the page and polling endpoint call it. */
+export async function loadMemberRaidLoot(raidId: string): Promise<RaidLootView | null> {
+  if (!lootEnabled()) return null;
+  const session = await getSession();
+  if (!session || (session.role !== 'member' && session.role !== 'officer')) return null;
+  const raid = await db.raid.findUnique({
+    where: { id: raidId },
+    select: { startsAt: true, durationMin: true, cancelledAt: true },
+  });
+  if (!raid || raid.cancelledAt) return null;
+  const rows = await db.lootAward.findMany({
+    where: { raidId, voidedAt: null },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    select: {
+      id: true, characterName: true, method: true, roll: true, bossName: true,
+      item: { select: { id: true, name: true, quality: true, icon: true, tooltipHtml: true } },
+    },
+  });
+  return {
+    startsAt: raid.startsAt.toISOString(),
+    endsAt: new Date(raid.startsAt.getTime() + raid.durationMin * 60_000).toISOString(),
+    awards: rows.map((r) => ({
+      id: r.id,
+      item: toItemView(r.item),
+      characterName: r.method === 'DISENCHANT_BANK' ? null : r.characterName,
+      method: r.method,
+      roll: r.method === 'DISENCHANT_BANK' ? null : r.roll,
+      bossName: r.bossName,
+    })),
+  };
 }
 
 export type { LoggedAward, LoggedHr };
