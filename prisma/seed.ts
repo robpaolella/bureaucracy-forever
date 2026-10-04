@@ -9,6 +9,7 @@ import { config as loadEnv } from 'dotenv';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@/lib/generated/prisma/client';
 import { assertWriteTarget } from './write-guard';
+import { parseStagingTesters } from './staging-testers';
 import { buildApplications, buildClassNeeds, buildRaids, buildRaidTemplates, buildRoster, paintWeek, rng } from './seed-data';
 
 loadEnv({ path: '.env.local' });
@@ -25,6 +26,8 @@ async function main() {
   if (!connectionString) throw new Error('DATABASE_URL must be set');
   const target = assertWriteTarget(connectionString);
   console.log(`Seeding the ${target} database.`);
+  const roster = buildRoster();
+  const testers = parseStagingTesters(process.env.STAGING_TESTERS, roster);
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
   const now = new Date();
   const random = rng(20261104);
@@ -47,7 +50,6 @@ async function main() {
   await db.user.deleteMany();
 
   // Roster: one user, one main character, one painted week each.
-  const roster = buildRoster();
   const users: Array<{ id: string; role: string; raidRole: string; timezone: string; name: string }> = [];
   for (const m of roster) {
     const user = await db.user.create({
@@ -135,6 +137,21 @@ async function main() {
     if (a.read && a.path === 'RAIDER') {
       await db.officerNote.create({
         data: { applicationId: app.id, authorId: officers[2].id, body: 'Logs look clean. Deaths avoided more than damage done.', createdAt: new Date(createdAt.getTime() + 2 * 3600_000) },
+      });
+    }
+  }
+
+  // Testers answer every raid, after all fake data, without consuming randomness.
+  if (testers.length) {
+    const seededRaids = await db.raid.findMany({ select: { id: true } });
+    for (const tester of testers) {
+      await db.user.create({
+        data: {
+          ...tester,
+          signups: {
+            create: seededRaids.map((raid) => ({ raidId: raid.id, response: 'ACCEPT', source: 'WEB' })),
+          },
+        },
       });
     }
   }

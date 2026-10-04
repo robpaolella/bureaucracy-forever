@@ -151,10 +151,9 @@ model BotRequest {
 }
 ```
 
-Seed `RaidTemplate` with the Classic tiers, marked `TODO: confirm` in the seed file:
-Molten Core 40 (4/12/10/14), Onyxia's Lair 40 (3/12/11/14), Blackwing Lair 40 (4/12/10/14),
-Zul'Gurub 20 (2/6/5/7), Ruins of Ahn'Qiraj 20 (2/6/5/7), Temple of Ahn'Qiraj 40 (4/12/10/14),
-Naxxramas 40 (4/12/10/14). Order is tank/healer/melee/ranged.
+Seed `RaidTemplate` with the raid templates configured in production:
+Barrow Deeps 10 (2/2/3/3), Hyjal Summit 20 (2/3/7/8), Onyxia's Lair 40 (3/12/11/14).
+Order is tank/healer/melee/ranged.
 
 Roster derivation (amended 2026-09-27, Robert's decision): Discord is the source for who is
 in the guild. `User.inGuild` is true for anyone holding Guild Member or Officer; only they
@@ -425,4 +424,4 @@ Bot (server env file): `DISCORD_TOKEN`, `GUILD_ID` (required by the sync now), `
   in Discord updates the web within 10 s and the embed counts within 10 s. Responding on the
   web updates the embed. Lock at T−2h, reminders at 72 h and 24 h, close after the night.
 - The bot restarted mid-way loses nothing: jobs resume, buttons still work.
-- `bash .claude/hooks/test-git-guard.sh` and both repos' test suites pass; every PR reviewed.
+- Both repos' Checks (listed in each `AGENTS.md`) pass; every PR reviewed.

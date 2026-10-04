@@ -42,7 +42,7 @@ export function moveId(ids: readonly string[], id: string, dir: 'up' | 'down'): 
   return out;
 }
 
-/** `explicit`: the link named its database, so it may replace a cached row from the other one. */
+/** `explicit`: the link named its database rather than relying on the source picker. */
 export type ItemInput = { id: number; source: ItemSource; explicit: boolean };
 
 /** "Add item": an id or Wowhead link. A link that names its database wins over the picker. */

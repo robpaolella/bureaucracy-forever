@@ -187,7 +187,7 @@ model Availability {
   updatedAt DateTime @updatedAt
 }
 
-/// One raid tier, SYNC-SPEC §3. Seeded with the Classic tiers; officers edit on /officers/raids.
+/// One raid tier, SYNC-SPEC §3. Seeded with the production raid templates; officers edit on /officers/raids.
 model RaidTemplate {
   id           String       @id @default(cuid())
   name         String       @unique

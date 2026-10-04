@@ -14,7 +14,7 @@ import { CLASS_COLORS, ROLE_LABELS } from '@/lib/design/class-colors';
 
 const TITLE = 'Bureaucracy | WoW Forever Raiding Guild, US Alliance PvP';
 const DESCRIPTION =
-  'Bureaucracy is a US Alliance raiding guild on WoW Forever. #1 on Smolderweb in Classic with a top 100 world Naxx clear. Now recruiting for launch.';
+  'Bureaucracy is a US Alliance raiding guild on WoW Forever. #1 on Smolderweb in Classic with a top 150 regional Naxx clear in week one. Now recruiting for launch.';
 
 /** Root layout's openGraph/twitter are whole-object overrides, not merged — repeat siteName/locale/card here too. */
 export const metadata: Metadata = {
