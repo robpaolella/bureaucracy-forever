@@ -21,3 +21,4 @@
 - Reserve form (#95 critique): consider a brief draft-state hint explaining that Clear takes effect only after Save, alongside the copy work in #90.
 - Reserve picker (#96/#119, #121 critique): keep Previously won readable for saved selections; native selects currently clip long count/ownership prefixes and require scrolling long option lists.
 - Design documentation (#121 context): refresh the stale Impeccable sidecar from DESIGN.md with the document workflow when requested.
+- Loot log (#121 review): include SR alongside HR in mergeAwards' pending-win list and test it; same-raid received-user filtering already prevents a wrong drop result, but the temporary list and comment lag the server rule.
