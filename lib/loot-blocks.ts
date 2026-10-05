@@ -10,7 +10,7 @@ import type { Prisma } from '@/lib/generated/prisma/client';
  * a block becomes an existing reserve; blocking here never removes existing reserves.
  */
 export async function lockReserveTier(tx: Prisma.TransactionClient, templateId: string): Promise<void> {
-  await tx.$queryRaw`SELECT "id" FROM "RaidTemplate" WHERE "id" = ${templateId} FOR UPDATE`;
+  await tx.$queryRaw`SELECT "id" FROM "RaidTemplate" WHERE "id" = ${templateId} FOR NO KEY UPDATE`;
 }
 
 /** Missing settings mean unblocked. Pass the locked transaction when enforcing a save. */

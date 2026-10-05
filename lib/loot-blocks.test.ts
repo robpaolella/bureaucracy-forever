@@ -26,7 +26,7 @@ describe('tier reserve settings', () => {
 
   it.each([true, false])('locks before setting blocked=%s, without removing reserves or other settings', async (blocked) => {
     await setItemBlocked('t1', 100, blocked);
-    expect(mocks.query.mock.calls[0][0].join('?')).toBe('SELECT "id" FROM "RaidTemplate" WHERE "id" = ? FOR UPDATE');
+    expect(mocks.query.mock.calls[0][0].join('?')).toBe('SELECT "id" FROM "RaidTemplate" WHERE "id" = ? FOR NO KEY UPDATE');
     expect(mocks.query.mock.calls[0][1]).toBe('t1');
     expect(mocks.query.mock.invocationCallOrder[0]).toBeLessThan(mocks.upsert.mock.invocationCallOrder[0]);
     expect(mocks.upsert).toHaveBeenCalledWith({ where: { templateId_itemId: { templateId: 't1', itemId: 100 } }, create: { templateId: 't1', itemId: 100, blocked }, update: { blocked } });
