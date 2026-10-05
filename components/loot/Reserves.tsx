@@ -112,7 +112,7 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
     void save({ hr, sr });
   }
 
-  const itemOptions = (kind: ReserveKind, other: number | null) => {
+  const itemOptions = (other: number | null) => {
     const seen = new Set<number>();
     return table.bosses.map((boss) => {
       const ids = boss.itemIds.filter((id) => !seen.has(id) && seen.add(id));
@@ -121,7 +121,7 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
         <optgroup key={boss.id} label={boss.name}>
           {ids.map((id) => {
             const c = counts.get(id) ?? { HR: 0, SR: 0 };
-            const isBlocked = kind === 'HR' && blocked.has(id);
+            const isBlocked = blocked.has(id);
             return (
               <option key={id} value={id} disabled={id === other || isBlocked}>
                 {RESERVES.counts(c.HR, c.SR)}
@@ -158,8 +158,9 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
             onChange={(e) => {
               const next = e.target.value;
               setCharacterId(next);
-              // This character may not hard-reserve an item it already won with HR.
+              // Neither reserve may select an item this character already won through HR or SR.
               if (hr !== null && (target.blockedHr[next] ?? []).includes(hr)) setHr(null);
+              if (sr !== null && (target.blockedHr[next] ?? []).includes(sr)) setSr(null);
             }}
           >
             {target.characters.map((c) => (
@@ -172,13 +173,13 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
         <Field label={RESERVES.hr}>
           <select className={select} value={hr ?? ''} onChange={(e) => setHr(e.target.value ? Number(e.target.value) : null)}>
             <option value="">{RESERVES.none}</option>
-            {itemOptions('HR', sr)}
+            {itemOptions(sr)}
           </select>
         </Field>
         <Field label={RESERVES.sr}>
           <select className={select} value={sr ?? ''} onChange={(e) => setSr(e.target.value ? Number(e.target.value) : null)}>
             <option value="">{RESERVES.none}</option>
-            {itemOptions('SR', hr)}
+            {itemOptions(hr)}
           </select>
         </Field>
       </div>

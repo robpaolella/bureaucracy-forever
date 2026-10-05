@@ -58,10 +58,11 @@ export async function loadActiveReserves(raidId: string): Promise<ReserveView[]>
   return rows.map((r) => ({ userId: r.userId, name: r.user.discordName, characterId: r.characterId, characterName: r.character.name, wowClass: lower(r.character.class) as WowClass, itemId: r.itemId, kind: r.kind }));
 }
 
-/** Non-voided HR awards for these characters: the items they may not HR again. */
+/** Non-voided HR/SR wins across all raids, including the current raid. Keeps the legacy HR name. */
 export async function hrAwardsFor(characterIds: readonly string[]): Promise<LoggedHr[]> {
   if (characterIds.length === 0) return [];
-  const rows = await db.lootAward.findMany({ where: { characterId: { in: [...characterIds] }, method: 'HR', voidedAt: null }, select: { id: true, characterId: true, itemId: true } });
+  // Open roll, disenchant/bank and legacy main/off spec awards do not block reserves.
+  const rows = await db.lootAward.findMany({ where: { characterId: { in: [...characterIds] }, method: { in: ['HR', 'SR'] }, voidedAt: null }, select: { id: true, characterId: true, itemId: true } });
   return rows.flatMap((r) => (r.characterId ? [{ id: r.id, characterId: r.characterId, itemId: r.itemId }] : []));
 }
 
@@ -77,6 +78,7 @@ export type ReserveTargetRow = {
   self: boolean;
   characters: { id: string; name: string; wowClass: WowClass; isMain: boolean }[];
   current: { characterId: string | null; hr: number | null; sr: number | null };
+  /** Previously won items, blocked for both HR and SR; legacy field name. */
   blockedHr: Record<string, number[]>;
 };
 
@@ -174,7 +176,7 @@ export type Candidate = { userId: string; name: string; characters: { id: string
 
 /**
  * For the loot log: everyone eligible on the raid with their characters, the non-voided
- * awards on it (who already got what), and prior HR wins for resolveDrop.
+ * awards on it (who already got what), and HR/SR wins for resolveDrop.
  */
 export async function loadLootLogContext(raidId: string): Promise<{ candidates: Candidate[]; raidAwards: LoggedAward[]; hrAwards: LoggedHr[] }> {
   const [signups, awards] = await Promise.all([

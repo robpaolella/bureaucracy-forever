@@ -4,8 +4,8 @@
  *
  * Each eligible member makes one hard reserve (HR) and one soft reserve (SR) per raid, on
  * different items, for one of their own characters. When an item drops, HR holders roll
- * first, then SR holders, then everyone. A character who has received an item through HR
- * cannot HR it again; `exceptions` is where officer-granted exceptions will come in.
+ * first, then SR holders, then everyone. A character who has won an item through HR or SR
+ * cannot reserve it again; `exceptions` is where officer-granted exceptions will come in.
  */
 import type { RaidResponse } from '@/lib/raids';
 
@@ -30,7 +30,7 @@ export const REASONS = {
   notYourCharacter: 'That character is not yours.',
   notInTable: "That item isn't in this raid's loot table.",
   sameItem: 'Your hard and soft reserve must be different items.',
-  hrReceived: 'This character already received that item through a hard reserve.',
+  hrReceived: 'This character already won that item.',
   alreadyVoided: 'That record is already void.',
 };
 
@@ -47,14 +47,14 @@ export function isEligible(response: RaidResponse | null | undefined): boolean {
   return response === 'accept' || response === 'tentative';
 }
 
-/** A non-voided award made through a hard reserve. */
+/** A non-voided HR or SR award. Legacy HR names also cover SR wins. */
 export type HrAward = { characterId: string; itemId: number };
-/** An officer's permission for a character to HR an item again. None exist yet. */
+/** An officer's permission for a character to reserve an item again. None exist yet. */
 export type HrException = { characterId: string; itemId: number };
 
-export function hrBlocked(characterId: string, itemId: number, hrAwards: readonly HrAward[], exceptions: readonly HrException[] = []): boolean {
+export function hrBlocked(characterId: string, itemId: number, hrAwards: readonly HrAward[], exceptions: readonly HrException[] = [], allowedCount = 1): boolean {
   const match = (r: { characterId: string; itemId: number }) => r.characterId === characterId && r.itemId === itemId;
-  return hrAwards.some(match) && !exceptions.some(match);
+  return hrAwards.filter(match).length >= allowedCount && !exceptions.some(match);
 }
 
 export type ReserveRaid = { cancelled: boolean; startsAt: Date; hasLootTable: boolean };
@@ -83,7 +83,7 @@ export function decideReserve(actor: { role: 'social' | 'member' | 'officer' }, 
   if (!ctx.ownCharacterIds.includes(input.characterId)) return { ok: false, status: 403, reason: REASONS.notYourCharacter };
   for (const id of [input.hr, input.sr]) if (id !== null && !ctx.tableItemIds.has(id)) return { ok: false, status: 409, reason: REASONS.notInTable };
   if (input.hr !== null && input.hr === input.sr) return { ok: false, status: 409, reason: REASONS.sameItem };
-  if (input.hr !== null && hrBlocked(input.characterId, input.hr, ctx.hrAwards, ctx.exceptions)) return { ok: false, status: 409, reason: REASONS.hrReceived };
+  for (const id of [input.hr, input.sr]) if (id !== null && hrBlocked(input.characterId, id, ctx.hrAwards, ctx.exceptions)) return { ok: false, status: 409, reason: REASONS.hrReceived };
   return { ok: true };
 }
 
@@ -98,12 +98,12 @@ export type Resolution = { mode: DropMode; contenders: ActiveReserve[] };
 /**
  * Who rolls for a drop. A reserve is spent once its holder has received that item on this
  * raid, so a second copy goes to the remaining HR holders, then SR holders, then an open roll.
- * An HR holder whose character already won the item through HR elsewhere is skipped too.
+ * HR and SR holders whose characters already won through either reserve method are skipped too.
  */
 export function resolveDrop(itemId: number, reserves: readonly ActiveReserve[], raidAwards: readonly RaidAward[], hrAwards: readonly HrAward[], exceptions: readonly HrException[] = []): Resolution {
   const received = new Set(raidAwards.filter((a) => a.itemId === itemId && a.userId).map((a) => a.userId));
-  const live = reserves.filter((r) => r.itemId === itemId && !received.has(r.userId));
-  const hr = live.filter((r) => r.kind === 'HR' && !hrBlocked(r.characterId, itemId, hrAwards, exceptions));
+  const live = reserves.filter((r) => r.itemId === itemId && !received.has(r.userId) && !hrBlocked(r.characterId, itemId, hrAwards, exceptions));
+  const hr = live.filter((r) => r.kind === 'HR');
   if (hr.length > 0) return { mode: 'HR', contenders: hr };
   const sr = live.filter((r) => r.kind === 'SR');
   if (sr.length > 0) return { mode: 'SR', contenders: sr };
