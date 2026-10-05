@@ -1,0 +1,32 @@
+{
+  "design_issue": 118,
+  "covers": [
+    96,
+    109,
+    119
+  ],
+  "revision": 1,
+  "versions": {
+    "approved": "index.html"
+  },
+  "states": [
+    "after-signup",
+    "from-calendar",
+    "searching",
+    "details-empty",
+    "unavailable",
+    "no-matches",
+    "save-failed",
+    "shared-item",
+    "officer-for",
+    "section-saved",
+    "section-none",
+    "locked",
+    "officer-locked",
+    "not-eligible",
+    "cancelled"
+  ],
+  "themes": [
+    "default"
+  ]
+}
