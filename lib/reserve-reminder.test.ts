@@ -17,7 +17,7 @@ describe('reserve reminder due', () => {
     expect(reserveReminderDue(raid, now, true, false)).toBe(false);
   });
 });
-export function signup(userId: string, response: ReminderSignup['response'] = 'ACCEPT', character = true) {
+function signup(userId: string, response: ReminderSignup['response'] = 'ACCEPT', character = true) {
   return { userId, response, standing: 'BENCH', user: { discordId: `discord-${userId}`, characters: character ? [{ id: `char-${userId}` }] : [] } };
 }
 describe('reserve reminder recipients', () => {

@@ -7,7 +7,6 @@ import { locksAtFor, parseRequirements } from '@/lib/raids';
 import { instanceName, isRosterRank, missingOccurrences, occurrences } from '@/lib/series';
 import { trialCheckInDue } from '@/lib/rank-rules';
 import { dueForClose, dueForLock, dueForNudge, dueForPost, HOUR_MS, reminderDue } from '@/lib/tick-rules';
-
 import { lootEnabled } from '@/lib/flags';
 import { RESERVE_LOCK_MINUTES, reservesLockAt } from '@/lib/loot-rules';
 import { reserveReminderDue, reserveReminderRecipients } from '@/lib/reserve-reminder';
@@ -176,7 +175,7 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
     }
   }
 
-  // 6. Nudge officers about applications pending for a day.
+  // 7. Nudge officers about applications pending for a day.
   const pending = await db.application.findMany({ where: { status: 'PENDING', nudgedAt: null }, select: { id: true, status: true, createdAt: true, nudgedAt: true, character: true } });
   for (const app of pending) {
     if (!dueForNudge(app, now)) continue;
@@ -187,7 +186,7 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
     counts.nudged += 1;
   }
 
-  // 6b. Trials: two weeks in (or when an extension runs out), the bot asks officers in
+  // 7b. Trials: two weeks in (or when an extension runs out), the bot asks officers in
   // #officers to promote or extend, answered through POST /members/:discordId/trial (SYNC-SPEC §3).
   const trials = await db.user.findMany({ where: { rank: 'TRIAL', inGuild: true, trialStartedAt: { not: null }, trialNudgedAt: null }, select: { id: true, discordId: true, rank: true, discordName: true, trialStartedAt: true, trialNudgedAt: true, trialCheckInAt: true } });
   for (const t of trials) {
@@ -204,7 +203,7 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
     if (raised) counts.trialsRaised += 1;
   }
 
-  // 7. Reconcile once an hour: re-render everything the bot has posted whose state implies
+  // 8. Reconcile once an hour: re-render everything the bot has posted whose state implies
   // archived or locked, so drift in Discord is corrected. The marker is one well-known row
   // in BotRequest (a primary-key read), and the same hour also trims old jobs and keys.
   const marker = await db.botRequest.findUnique({ where: { key: RECONCILE_MARKER }, select: { createdAt: true, body: true } });

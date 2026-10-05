@@ -281,7 +281,7 @@ Runs every 60 s, called by the bot. Each step is idempotent and bounded.
 4. **Lock.** `now ≥ locksAt` and status SCHEDULED → LOCKED, `lockedAt`, enqueue `raid.lock`.
 5. **Close.** `now ≥ startsAt + durationMin + 60min` and status LOCKED → DONE, enqueue
    `raid.close`. Attendance can still be entered afterwards.
-5b. **Reserve reminder.** Only with `LOOT_ENABLED` on: posted SCHEDULED or LOCKED raids
+6. **Reserve reminder.** Only with `LOOT_ENABLED` on: posted SCHEDULED or LOCKED raids
    whose template has at least one loot-table item, in the two hours before reserves lock
    (`startsAt − 120 min`, independent of sign-up `locksAt`). Include the window's start,
    exclude its end; never catch up after reserves lock. With `remindReservesAt null`,
@@ -290,9 +290,9 @@ Runs every 60 s, called by the bot. Each step is idempotent and bounded.
    missing HR or SR (officer-placed picks count for their holder). Compute ids at enqueue
    time. If nobody is owed, mark done without a job. Overlapping ticks cannot enqueue twice.
    Returned `reservesReminded` counts jobs enqueued, not empty evaluations.
-6. **Nudge.** Applications PENDING for > 24h with `nudgedAt null` → enqueue
+7. **Nudge.** Applications PENDING for > 24h with `nudgedAt null` → enqueue
    `application.nudge`, set `nudgedAt`.
-7. **Reconcile (once per hour).** For every raid and application with a thread id and
+8. **Reconcile (once per hour).** For every raid and application with a thread id and
    status that implies archived/locked, enqueue `*.update` (the bot's update handler also
    fixes archive/lock/tag state). Cheap insurance against drift.
 
