@@ -30,6 +30,7 @@ export const REASONS = {
   notYourCharacter: 'That character is not yours.',
   notInTable: "That item isn't in this raid's loot table.",
   sameItem: 'Your hard and soft reserve must be different items.',
+  itemBlocked: 'Not open to reserves',
   hrReceived: 'This character already won that item.',
   alreadyVoided: 'That record is already void.',
 };
@@ -66,6 +67,9 @@ export type ReserveContext = {
   tableItemIds: ReadonlySet<number>;
   hrAwards: readonly HrAward[];
   exceptions?: readonly HrException[];
+  blockedItemIds?: ReadonlySet<number>;
+  /** Current rows for this member and raid, read under the tier lock. */
+  existingReserves?: readonly { characterId: string; itemId: number; kind: ReserveKind }[];
 };
 
 /**
@@ -81,9 +85,18 @@ export function decideReserve(actor: { role: 'social' | 'member' | 'officer' }, 
   if (input.hr === null && input.sr === null) return { ok: true };
   if (!isEligible(ctx.response)) return { ok: false, status: 409, reason: REASONS.notEligible };
   if (!ctx.ownCharacterIds.includes(input.characterId)) return { ok: false, status: 403, reason: REASONS.notYourCharacter };
-  for (const id of [input.hr, input.sr]) if (id !== null && !ctx.tableItemIds.has(id)) return { ok: false, status: 409, reason: REASONS.notInTable };
   if (input.hr !== null && input.hr === input.sr) return { ok: false, status: 409, reason: REASONS.sameItem };
-  for (const id of [input.hr, input.sr]) if (id !== null && hrBlocked(input.characterId, id, ctx.hrAwards, ctx.exceptions)) return { ok: false, status: 409, reason: REASONS.hrReceived };
+  for (const [kind, id] of [['HR', input.hr], ['SR', input.sr]] as const) {
+    if (id === null) continue;
+    if (ctx.blockedItemIds?.has(id)) {
+      const kept = ctx.existingReserves?.some((r) => r.kind === kind && r.itemId === id && r.characterId === input.characterId);
+      if (!kept) return { ok: false, status: 409, reason: REASONS.itemBlocked };
+      // A kept blocked reserve survives later table changes and awards too.
+      continue;
+    }
+    if (!ctx.tableItemIds.has(id)) return { ok: false, status: 409, reason: REASONS.notInTable };
+    if (hrBlocked(input.characterId, id, ctx.hrAwards, ctx.exceptions)) return { ok: false, status: 409, reason: REASONS.hrReceived };
+  }
   return { ok: true };
 }
 

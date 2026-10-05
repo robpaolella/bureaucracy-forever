@@ -12,6 +12,9 @@ const mocks = vi.hoisted(() => ({
   deleteMany: vi.fn(),
   createMany: vi.fn(),
   transaction: vi.fn(),
+  query: vi.fn(),
+  settings: vi.fn(),
+  existing: vi.fn(),
 }));
 
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.session }));
@@ -26,7 +29,9 @@ vi.mock('@/lib/db', () => ({
     raid: { findUnique: mocks.raid },
     user: { findUnique: mocks.user },
     signup: { findUnique: mocks.signup },
-    reserve: { deleteMany: mocks.deleteMany, createMany: mocks.createMany },
+    reserve: { deleteMany: mocks.deleteMany, createMany: mocks.createMany, findMany: mocks.existing },
+    lootReserveSetting: { findMany: mocks.settings },
+    $queryRaw: mocks.query,
     $transaction: mocks.transaction,
   },
 }));
@@ -48,7 +53,10 @@ beforeEach(() => {
   mocks.awards.mockResolvedValue([]);
   mocks.deleteMany.mockReturnValue('delete');
   mocks.createMany.mockImplementation((args) => args);
-  mocks.transaction.mockResolvedValue([]);
+  mocks.query.mockReset().mockResolvedValue([{ id: 't1' }]);
+  mocks.settings.mockReset().mockResolvedValue([]);
+  mocks.existing.mockReset().mockResolvedValue([]);
+  mocks.transaction.mockImplementation(async (run) => run((await import('@/lib/db')).db));
 });
 
 describe('PUT /api/raids/[id]/reserves', () => {
@@ -80,7 +88,6 @@ describe('PUT /api/raids/[id]/reserves', () => {
       expect(await res.json()).toEqual({ error: 'This character already won that item.' });
     }
     expect(mocks.awards).toHaveBeenCalledWith(['c1']);
-    expect(mocks.transaction).not.toHaveBeenCalled();
     expect(mocks.deleteMany).not.toHaveBeenCalled();
     expect(mocks.createMany).not.toHaveBeenCalled();
     expect((await call({ characterId: 'c1', hr: 300, sr: 200, forUserId })).status).toBe(200);
@@ -111,7 +118,7 @@ describe('PUT /api/raids/[id]/reserves', () => {
     const res = await call(BODY);
     expect(res.status).toBe(status);
     expect(await res.json()).toEqual({ error });
-    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(mocks.deleteMany).not.toHaveBeenCalled();
   });
 
   it('lets a member who is no longer eligible clear, but not set', async () => {
@@ -145,6 +152,38 @@ describe('PUT /api/raids/[id]/reserves', () => {
     expect((await call({ ...BODY, forUserId: 'u2' })).status).toBe(200);
     expect(mocks.user).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'u2' } }));
     expect(mocks.createMany.mock.calls[0][0].data[0]).toMatchObject({ setById: 'officer-user' });
+  });
+
+  it.each(['member', 'officer'] as const)('preserves the stored blocked row when %s edits the other slot', async (role) => {
+    mocks.session = { role, discordId: 'd1' };
+    if (role === 'officer') mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() - HOUR), cancelledAt: null, templateId: 't1' });
+    mocks.settings.mockResolvedValue([{ itemId: 100 }]);
+    mocks.existing.mockResolvedValue([{ id: 'kept', characterId: 'c1', kind: 'HR', itemId: 100 }]);
+    expect((await call({ ...BODY, sr: 300 })).status).toBe(200);
+    expect(mocks.deleteMany).toHaveBeenCalledWith({ where: { raidId: 'r1', userId: 'u1', id: { notIn: ['kept'] } } });
+    expect(mocks.createMany).toHaveBeenCalledWith({ data: [{ kind: 'SR', itemId: 300, raidId: 'r1', userId: 'u1', characterId: 'c1', setById: null }] });
+  });
+
+  it('rechecks after waiting for a block transaction, rather than trusting the earlier table read', async () => {
+    let release!: () => void;
+    let arrived!: () => void;
+    const waiting = new Promise<void>((resolve) => { arrived = resolve; });
+    const lock = new Promise<void>((resolve) => { release = resolve; });
+    mocks.query.mockImplementation(async () => { arrived(); await lock; return [{ id: 't1' }]; });
+    const saving = call(BODY);
+    await waiting;
+    expect(mocks.items).toHaveBeenCalled();
+    expect(mocks.settings).not.toHaveBeenCalled();
+    expect(mocks.createMany).not.toHaveBeenCalled();
+    // The block commits while the save waits for the tier lock.
+    mocks.settings.mockResolvedValue([{ itemId: 100 }]);
+    release();
+    const response = await saving;
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: 'Not open to reserves' });
+    expect(mocks.deleteMany).not.toHaveBeenCalled();
+    expect(mocks.createMany).not.toHaveBeenCalled();
+    expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: 'ReadCommitted' });
   });
 
   it('answers 409 when the database unique index catches a race', async () => {

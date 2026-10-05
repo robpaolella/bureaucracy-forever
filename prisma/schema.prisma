@@ -201,6 +201,7 @@ model RaidTemplate {
   series       RaidSeries[]
   raids        Raid[]
   lootBosses   LootBoss[]
+  reserveSettings LootReserveSetting[]
 }
 
 /// A weekly slot in guild time. tick (SYNC-SPEC §6) turns it into Raid rows horizonWeeks ahead.
@@ -401,6 +402,7 @@ model LootItem {
   source      ItemSource
   fetchedAt   DateTime
   entries     LootTableEntry[]
+  reserveSettings LootReserveSetting[]
   reserves    Reserve[]
   awards      LootAward[]
 }
@@ -428,6 +430,18 @@ model LootTableEntry {
   position Int
 
   @@id([bossId, itemId])
+  @@index([itemId])
+}
+
+/// Per-item reserve policy shared by every boss and raid in a tier. Missing rows allow reserves.
+model LootReserveSetting {
+  templateId String
+  template   RaidTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  itemId     Int
+  item       LootItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  blocked    Boolean @default(false)
+
+  @@id([templateId, itemId])
   @@index([itemId])
 }
 
