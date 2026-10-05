@@ -82,6 +82,40 @@ describe('decideReserve', () => {
   });
 });
 
+describe('blocked tier items', () => {
+  const blocked = { ...ctx, blockedItemIds: new Set([100]) };
+  const existing = { characterId: 'c1', itemId: 100, kind: 'HR' as const };
+
+  it.each(['member', 'officer'] as const)('refuses new HR and SR for %s, locked or unlocked', (role) => {
+    for (const time of [now, startsAt]) for (const input of [pick, { ...pick, hr: 200, sr: 100 }]) {
+      expect(decideReserve({ role }, raid, input, blocked, time, true)).toMatchObject({
+        ok: false, reason: role === 'member' && time === startsAt ? REASONS.locked : REASONS.itemBlocked,
+      });
+    }
+  });
+
+  it.each(['member', 'officer'] as const)('keeps a blocked reserve while %s changes the other slot', (role) => {
+    const context = { ...blocked, existingReserves: [existing] };
+    expect(decideReserve({ role }, raid, { ...pick, sr: 300 }, context, role === 'officer' ? startsAt : now, true)).toEqual({ ok: true });
+    // Moving a locked raid back outside the lock does not invalidate the kept reserve.
+    expect(decideReserve({ role }, { ...raid, startsAt: new Date('2027-01-01') }, pick, context, startsAt, true)).toEqual({ ok: true });
+    expect(decideReserve({ role }, raid, { ...pick, characterId: 'c2' }, context, now, true)).toMatchObject({ reason: REASONS.itemBlocked });
+    expect(decideReserve({ role }, raid, { ...pick, hr: 200, sr: 100 }, context, now, true)).toMatchObject({ reason: REASONS.itemBlocked });
+  });
+
+  it('keeps SR too, and unblocking allows new reserves', () => {
+    expect(decideReserve(member, raid, { ...pick, hr: 300, sr: 100 }, { ...blocked, existingReserves: [{ ...existing, kind: 'SR' }] }, now)).toEqual({ ok: true });
+    expect(decideReserve(member, raid, pick, { ...blocked, blockedItemIds: new Set() }, now)).toEqual({ ok: true });
+  });
+
+  it('still counts kept blocked reserves when resolving drops', () => {
+    const holder = { ...existing, userId: 'u1' };
+    expect(resolveDrop(100, [holder], [], [])).toEqual({ mode: 'HR', contenders: [holder] });
+    const soft = { ...holder, kind: 'SR' as const };
+    expect(resolveDrop(100, [soft], [], [])).toEqual({ mode: 'SR', contenders: [soft] });
+  });
+});
+
 describe('hrBlocked', () => {
   it('accepts an allowed count for future per-item limits', () => {
     const award = { characterId: 'c1', itemId: 100 };
