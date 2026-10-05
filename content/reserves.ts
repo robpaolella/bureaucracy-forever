@@ -14,7 +14,7 @@ export const RESERVES = {
   hr: 'Hard reserve',
   sr: 'Soft reserve',
   none: 'None',
-  blocked: 'already won with HR',
+  blocked: 'Previously won',
   counts: (hr: number, sr: number) => (hr || sr ? `HR ${hr}, SR ${sr} · ` : ''),
   yours: 'yours',
   editing: 'editing',

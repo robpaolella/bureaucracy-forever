@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ signups: vi.fn(), awards: vi.fn(), reserves: vi.fn() }));
 vi.mock('@/lib/db', () => ({ db: { signup: { findMany: mocks.signups }, lootAward: { findMany: mocks.awards }, reserve: { findMany: mocks.reserves } } }));
 
-import { loadActiveReserves, loadReserveTargets } from './loot-data';
+import { hrAwardsFor, loadActiveReserves, loadReserveTargets } from './loot-data';
+import { decideReserve, resolveDrop, REASONS } from './loot-rules';
 
 const user = (id: string, discordId: string, chars = [{ id: `${id}-c`, name: id, class: 'MAGE', isMain: true }], reserves: { characterId: string; itemId: number; kind: 'HR' | 'SR' }[] = []) => ({ id, discordId, discordName: id, characters: chars, reserves });
 
@@ -11,6 +12,41 @@ beforeEach(() => {
   mocks.signups.mockReset();
   mocks.awards.mockReset().mockResolvedValue([]);
   mocks.reserves.mockReset();
+});
+
+describe('previous reserve wins', () => {
+  it('queries live HR and SR awards for these characters without restricting the raid', async () => {
+    await hrAwardsFor(['c1']);
+    expect(mocks.awards).toHaveBeenCalledWith({
+      where: { characterId: { in: ['c1'] }, method: { in: ['HR', 'SR'] }, voidedAt: null },
+      select: { id: true, characterId: true, itemId: true },
+    });
+  });
+
+  it.each([
+    ['HR', null, 'c1', true], ['SR', null, 'c1', true],
+    ['OPEN_ROLL', null, 'c1', false], ['DISENCHANT_BANK', null, 'c1', false],
+    ['MAIN_SPEC', null, 'c1', false], ['OFF_SPEC', null, 'c1', false],
+    ['HR', new Date(), 'c1', false], ['SR', new Date(), 'c1', false],
+    ['HR', null, 'c2', false], ['SR', null, 'c2', false],
+  ])('%s (voided %s, character %s) blocks both kinds: %s', async (method, voidedAt, characterId, blocked) => {
+    mocks.awards.mockImplementation(async ({ where }) =>
+      where.method.in.includes(method) && where.voidedAt === voidedAt && where.characterId.in.includes(characterId)
+        ? [{ id: 'award', characterId, itemId: 100 }] : []);
+    const awards = await hrAwardsFor(['c1']);
+    for (const kind of ['HR', 'SR'] as const) {
+      const result = decideReserve({ role: 'member' }, { cancelled: false, startsAt: new Date('2030-01-02'), hasLootTable: true },
+        { characterId: 'c1', hr: kind === 'HR' ? 100 : null, sr: kind === 'SR' ? 100 : null },
+        { response: 'accept', ownCharacterIds: ['c1'], tableItemIds: new Set([100]), hrAwards: awards }, new Date('2030-01-01'));
+      expect(result).toEqual(blocked ? { ok: false, status: 409, reason: REASONS.hrReceived } : { ok: true });
+      expect(resolveDrop(100, [{ userId: 'u1', characterId: 'c1', itemId: 100, kind }], [], awards).mode).toBe(blocked ? 'OPEN' : kind);
+    }
+  });
+
+  it('does not query awards for no characters', async () => {
+    expect(await hrAwardsFor([])).toEqual([]);
+    expect(mocks.awards).not.toHaveBeenCalled();
+  });
 });
 
 describe('loadReserveTargets', () => {

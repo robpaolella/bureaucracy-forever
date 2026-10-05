@@ -60,9 +60,9 @@ describe('decideReserve', () => {
     expect(decideReserve(actor, r, input, c, now)).toEqual({ ok: false, status, reason });
   });
 
-  it('allows an SR on an item won through HR, and an HR on it for another character', () => {
+  it('blocks SR on a previously won item, but allows another character to reserve it', () => {
     const won = { ...ctx, hrAwards: [{ characterId: 'c1', itemId: 100 }] };
-    expect(decideReserve(member, raid, { characterId: 'c1', hr: 200, sr: 100 }, won, now)).toEqual({ ok: true });
+    expect(decideReserve(member, raid, { characterId: 'c1', hr: 200, sr: 100 }, won, now)).toEqual({ ok: false, status: 409, reason: REASONS.hrReceived });
     expect(decideReserve(member, raid, { characterId: 'c2', hr: 100, sr: null }, won, now)).toEqual({ ok: true });
   });
 
@@ -83,6 +83,11 @@ describe('decideReserve', () => {
 });
 
 describe('hrBlocked', () => {
+  it('accepts an allowed count for future per-item limits', () => {
+    const award = { characterId: 'c1', itemId: 100 };
+    expect(hrBlocked('c1', 100, [award], [], 2)).toBe(false);
+    expect(hrBlocked('c1', 100, [award, award], [], 2)).toBe(true);
+  });
   it('blocks the same character and item unless an exception exists', () => {
     const awards = [{ characterId: 'c1', itemId: 100 }];
     expect(hrBlocked('c1', 100, awards)).toBe(true);
@@ -125,6 +130,14 @@ describe('resolveDrop', () => {
   it('skips an HR holder whose character already won the item through HR on another raid', () => {
     expect(resolveDrop(300, reserves, [], [{ characterId: 'char-e', itemId: 300 }])).toMatchObject({ mode: 'OPEN' });
     expect(resolveDrop(300, reserves, [], [{ characterId: 'char-e', itemId: 300 }], [{ characterId: 'char-e', itemId: 300 }])).toMatchObject({ mode: 'HR' });
+  });
+
+  it('skips previously winning SR holders and falls through HR, SR, then open', () => {
+    const wins = ['a', 'b', 'c'].map((id) => ({ characterId: `char-${id}`, itemId: 100 }));
+    expect(resolveDrop(100, reserves, [], wins.slice(0, 1))).toEqual({ mode: 'HR', contenders: [r('b', 'HR')] });
+    expect(resolveDrop(100, reserves, [], wins.slice(0, 2))).toEqual({ mode: 'SR', contenders: [r('c', 'SR')] });
+    expect(resolveDrop(100, reserves, [], wins)).toEqual({ mode: 'OPEN', contenders: [] });
+    expect(resolveDrop(100, reserves, [], wins, [{ characterId: 'char-c', itemId: 100 }])).toEqual({ mode: 'SR', contenders: [r('c', 'SR')] });
   });
 
   it('preselects the matching method', () => {

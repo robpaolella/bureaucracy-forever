@@ -62,6 +62,30 @@ describe('PUT /api/raids/[id]/reserves', () => {
     ]);
   });
 
+  it.each([
+    ['member', false], ['officer', false], ['officer', true],
+  ] as const)('refuses previously won HR and SR for %s (locked: %s), including kept reserves', async (role, locked) => {
+    mocks.session = { role, discordId: 'd1' };
+    if (locked) mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1' });
+    const forUserId = role === 'officer' ? 'u1' : undefined;
+    // Save first, then win: the stored reserve must survive a refused re-save.
+    expect((await call({ ...BODY, forUserId })).status).toBe(200);
+    mocks.transaction.mockClear();
+    mocks.deleteMany.mockClear();
+    mocks.createMany.mockClear();
+    mocks.awards.mockResolvedValue([{ characterId: 'c1', itemId: 100 }]);
+    for (const picks of [{ hr: 100, sr: 300 }, { hr: 300, sr: 100 }]) {
+      const res = await call({ characterId: 'c1', ...picks, forUserId });
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ error: 'This character already won that item.' });
+    }
+    expect(mocks.awards).toHaveBeenCalledWith(['c1']);
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(mocks.deleteMany).not.toHaveBeenCalled();
+    expect(mocks.createMany).not.toHaveBeenCalled();
+    expect((await call({ characterId: 'c1', hr: 300, sr: 200, forUserId })).status).toBe(200);
+  });
+
   it('clears with two nulls', async () => {
     expect((await call({ characterId: 'c1', hr: null, sr: null })).status).toBe(200);
     expect(mocks.createMany.mock.calls[0][0].data).toEqual([]);
@@ -81,7 +105,7 @@ describe('PUT /api/raids/[id]/reserves', () => {
     ['a cancelled raid', () => mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: new Date(), templateId: 't1' }), 409, 'This raid was cancelled.'],
     ['a locked raid', () => mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1' }), 409, 'Reserves are locked. Ask an officer to change them.'],
     ['a raid without a table', () => mocks.items.mockResolvedValue(new Set()), 409, 'This raid has no loot table yet.'],
-    ['an HR already won', () => mocks.awards.mockResolvedValue([{ characterId: 'c1', itemId: 100 }]), 409, 'This character already received that item through a hard reserve.'],
+    ['an HR already won', () => mocks.awards.mockResolvedValue([{ characterId: 'c1', itemId: 100 }]), 409, 'This character already won that item.'],
   ])('refuses %s', async (_label, arrange, status, error) => {
     arrange();
     const res = await call(BODY);
