@@ -7,6 +7,9 @@ import { locksAtFor, parseRequirements } from '@/lib/raids';
 import { instanceName, isRosterRank, missingOccurrences, occurrences } from '@/lib/series';
 import { trialCheckInDue } from '@/lib/rank-rules';
 import { dueForClose, dueForLock, dueForNudge, dueForPost, HOUR_MS, reminderDue } from '@/lib/tick-rules';
+import { lootEnabled } from '@/lib/flags';
+import { RESERVE_LOCK_MINUTES, reservesLockAt } from '@/lib/loot-rules';
+import { reserveReminderDue, reserveReminderRecipients } from '@/lib/reserve-reminder';
 
 const RECONCILE_MARKER = 'tick:reconcile';
 /** DONE and FAILED jobs and idempotency keys older than this are trimmed by the hourly reconcile. */
@@ -18,6 +21,7 @@ export type TickCounts = {
   rosterRemoved: number;
   posted: number;
   reminded: number;
+  reservesReminded: number;
   locked: number;
   closed: number;
   nudged: number;
@@ -75,7 +79,7 @@ function isUniqueViolation(error: unknown): boolean {
  * missed or doubled tick changes nothing but timing.
  */
 export async function runTick(now = new Date()): Promise<TickCounts> {
-  const counts: TickCounts = { generated: 0, rosterAdded: 0, rosterRemoved: 0, posted: 0, reminded: 0, locked: 0, closed: 0, nudged: 0, trialsRaised: 0, reconciled: 0 };
+  const counts: TickCounts = { generated: 0, rosterAdded: 0, rosterRemoved: 0, posted: 0, reminded: 0, reservesReminded: 0, locked: 0, closed: 0, nudged: 0, trialsRaised: 0, reconciled: 0 };
   const roster = await rosterUserIds();
 
   // 1. Generate instances for every active series.
@@ -142,7 +146,36 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
     }
   }
 
-  // 6. Nudge officers about applications pending for a day.
+  // Reserve reminders use their own lock, not the configurable sign-up lock.
+  if (lootEnabled()) {
+    const candidates = await db.raid.findMany({
+      where: {
+        status: { in: ['SCHEDULED', 'LOCKED'] }, postedAt: { not: null }, remindReservesAt: null,
+        startsAt: { gt: new Date(now.getTime() + RESERVE_LOCK_MINUTES * 60_000), lte: new Date(now.getTime() + (RESERVE_LOCK_MINUTES + 120) * 60_000) },
+        template: { lootBosses: { some: { entries: { some: {} } } } },
+      },
+      select: { id: true, status: true, startsAt: true, postedAt: true, remindReservesAt: true },
+    });
+    for (const raid of candidates) {
+      if (!reserveReminderDue(raid, now, true, true)) continue;
+      const sent = await db.$transaction(async (tx) => {
+        const marked = await tx.raid.updateMany({
+          where: { id: raid.id, remindReservesAt: null, status: { in: ['SCHEDULED', 'LOCKED'] }, startsAt: raid.startsAt },
+          data: { remindReservesAt: now },
+        });
+        if (marked.count === 0) return false;
+        const signups = await tx.signup.findMany({ where: { raidId: raid.id }, select: { userId: true, response: true, user: { select: { discordId: true, characters: { select: { id: true } } } } } });
+        const reserves = await tx.reserve.findMany({ where: { raidId: raid.id }, select: { userId: true, kind: true } });
+        const discordIds = reserveReminderRecipients(signups, reserves);
+        if (discordIds.length === 0) return false;
+        await enqueue('raid.reserves.remind', { raidId: raid.id, discordIds, reservesLockAt: reservesLockAt(raid.startsAt).toISOString() }, tx);
+        return true;
+      });
+      if (sent) counts.reservesReminded += 1;
+    }
+  }
+
+  // 7. Nudge officers about applications pending for a day.
   const pending = await db.application.findMany({ where: { status: 'PENDING', nudgedAt: null }, select: { id: true, status: true, createdAt: true, nudgedAt: true, character: true } });
   for (const app of pending) {
     if (!dueForNudge(app, now)) continue;
@@ -153,7 +186,7 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
     counts.nudged += 1;
   }
 
-  // 6b. Trials: two weeks in (or when an extension runs out), the bot asks officers in
+  // 7b. Trials: two weeks in (or when an extension runs out), the bot asks officers in
   // #officers to promote or extend, answered through POST /members/:discordId/trial (SYNC-SPEC §3).
   const trials = await db.user.findMany({ where: { rank: 'TRIAL', inGuild: true, trialStartedAt: { not: null }, trialNudgedAt: null }, select: { id: true, discordId: true, rank: true, discordName: true, trialStartedAt: true, trialNudgedAt: true, trialCheckInAt: true } });
   for (const t of trials) {
@@ -170,7 +203,7 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
     if (raised) counts.trialsRaised += 1;
   }
 
-  // 7. Reconcile once an hour: re-render everything the bot has posted whose state implies
+  // 8. Reconcile once an hour: re-render everything the bot has posted whose state implies
   // archived or locked, so drift in Discord is corrected. The marker is one well-known row
   // in BotRequest (a primary-key read), and the same hour also trims old jobs and keys.
   const marker = await db.botRequest.findUnique({ where: { key: RECONCILE_MARKER }, select: { createdAt: true, body: true } });

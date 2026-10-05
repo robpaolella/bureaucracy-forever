@@ -18,6 +18,7 @@ export type JobType =
   | 'raid.post'
   | 'raid.update'
   | 'raid.remind'
+  | 'raid.reserves.remind'
   | 'raid.lock'
   | 'raid.cancel'
   | 'raid.close'

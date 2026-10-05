@@ -259,6 +259,8 @@ model Raid {
   /// Set when each reminder was enqueued.
   remind72At       DateTime?
   remind24At       DateTime?
+  /// Set when reserve reminders were evaluated, including when nobody was owed one.
+  remindReservesAt DateTime?
   /// Optimistic concurrency for officer edits.
   updatedAt        DateTime      @updatedAt
   reserves         Reserve[]
