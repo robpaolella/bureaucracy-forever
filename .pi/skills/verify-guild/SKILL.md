@@ -100,10 +100,118 @@ Attach both screenshots and cleanup output to the PR; name the evidence director
 
 ## Design check
 
-For any change people see, follow [Phone and desktop design check](design-check.md)
-before the PR: main/branch captures at both widths, impeccable critique, then the
-[independent reviewer's](design-reviewer.md) verdict. This supplements, not replaces,
-the behaviour proof above.
+For any change people see, follow [Maestro's shared design check](/git/maestro/skills/design-check/SKILL.md)
+with [this site's routes, roles and state recipes](design-check.md) and
+[guild reviewer checklist](design-reviewer.md). The shared skill owns main/build and
+approved-design comparisons, critique, independent verdict and PR evidence. This
+supplements, not replaces, the behaviour proof above.
+
+## Editable offline page snapshot
+
+A snapshot is a **static starting point**, not an approved design or a working React
+app. Capture only this run's sample data: no production/staging pages, real member
+names, private data, cookies or settings. Do not export a browser profile. The saved
+HTML must include its styles, fonts and images, need no running server or network,
+and remain editable as ordinary HTML/CSS. App scripts are removed; interactions for
+a future clickable design must be deliberately authored, not treated as working saves.
+
+1. Follow Launch and Doctor unchanged, then the feature map and
+   [state recipes](design-check.md). Record route, role, fixture name/date, generated
+   ID, real user steps, timezone and state in `$EVIDENCE/notes.md`. For the raid-detail
+   example, log in as `member`, open `/members/calendar`, click a seeded raid title
+   and record its actual `/members/calendar/<id>` URL. Select that page explicitly.
+   Reach menus/dialogs with clicks, never DOM edits. A state without a safe recipe
+   blocks capture; ask the conductor rather than inventing test data or state.
+2. Capture the running page at 390×844 and 1440×900, waiting for fonts/images after
+   each resize. Keep both full-page screenshots and a snapshot. Use the same route,
+   role and state at both widths. Return to 1440×900 for export. If resizing changes
+   the app's DOM rather than only its CSS, compare carefully: this recipe does not
+   promise that one frozen DOM can reproduce both variants.
+3. Install the pinned export tool **outside the repo**, then inject its serializer
+   into the selected local page. It reads rendered state; it does not call app
+   actions or write the database. Keep responsive CSS, hidden elements and alternate
+   fonts/images rather than optimizing for just the capture viewport.
+
+```bash
+export SNAPSHOT_TOOL=$(mktemp -d /tmp/guild-snapshot-tool-XXXXXX)
+npm install --prefix "$SNAPSHOT_TOOL" --no-save --ignore-scripts single-file-cli@2.16.4
+node --input-type=module > "$EVIDENCE/capture.js" <<'JS'
+import { pathToFileURL } from 'node:url';
+const { script } = await import(pathToFileURL(
+  `${process.env.SNAPSHOT_TOOL}/node_modules/single-file-cli/lib/single-file-bundle.js`));
+console.log(`await page.eval(${JSON.stringify(`() => { ${script}\n globalThis.singlefile = singlefile; }`)});`);
+console.log(`console.log(await page.eval(async () => {
+  await document.fonts.ready;
+  await Promise.all([...document.images].map(image => image.decode().catch(() => {})));
+  const result = await singlefile.getPageData({
+    removeHiddenElements: false, removeUnusedStyles: false,
+    removeUnusedFonts: false, removeAlternativeFonts: false,
+    removeAlternativeMedias: false, removeAlternativeImages: false,
+    blockScripts: true, compressHTML: false, insertMetaCSP: true,
+    saveOriginalURLs: false, removeFrames: true,
+    removedElementsSelector: 'nextjs-portal,script'
+  });
+  return result.content;
+}));`);
+JS
+npx -y chrome-devtools-axi run < "$EVIDENCE/capture.js" > "$EVIDENCE/snapshot.html"
+node - "$EVIDENCE/snapshot.html" <<'JS'
+const fs = require('node:fs');
+const html = fs.readFileSync(process.argv[2], 'utf8');
+if (!/^<!doctype html>/i.test(html) || !html.includes('</html>'))
+  throw new Error('Export failed; inspect the output, do not save it as a design');
+JS
+```
+
+A failed font/image decode is not waived by the export: the visual/offline check
+below must confirm the assets. Frames are omitted; if a required view uses one,
+stop and report that limitation. Next's developer overlay is intentionally omitted.
+Do not use this to capture videos, transient loading frames or an unsupported state
+and claim a faithful result.
+
+4. Review the exported HTML for sample-data-only content and no executable app
+   scripts. Save it as `design/<issue>-<name>/index.html` **in the design task**, with
+   `brief.md`, `decisions.md` and `screenshots/` per AGENTS.md. Do not overwrite an
+   existing design: use an evidence copy and ask the conductor how to incorporate it.
+   For recipe verification alone, keep the file in `$EVIDENCE`; do not commit a
+   throwaway design. Keep source CSS classes and inline styles editable, not a
+   screenshot masquerading as HTML.
+5. Run Cleanup below (including the browser stop) and require Cleanup PASS. Then
+   start a **fresh named browser session**, open the file from disk and explicitly
+   select it. Set network Offline, reopen the file, and capture at both widths:
+
+```bash
+export CHROME_DEVTOOLS_AXI_SESSION="guild-offline-$(basename "$EVIDENCE")"
+npx -y chrome-devtools-axi newpage "file://$EVIDENCE/snapshot.html"
+npx -y chrome-devtools-axi pages
+# Select the file's ID, not the initial blank tab:
+npx -y chrome-devtools-axi selectpage <id>
+npx -y chrome-devtools-axi emulate --network Offline
+npx -y chrome-devtools-axi open "file://$EVIDENCE/snapshot.html"
+npx -y chrome-devtools-axi resize 390 844
+npx -y chrome-devtools-axi screenshot "$EVIDENCE/offline-390.png" --full-page
+npx -y chrome-devtools-axi resize 1440 900
+npx -y chrome-devtools-axi screenshot "$EVIDENCE/offline-1440.png" --full-page
+npx -y chrome-devtools-axi network > "$EVIDENCE/offline-network.txt"
+npx -y chrome-devtools-axi stop
+```
+
+Here `emulate` sets **network only**; use `resize` for viewport sizes. In CLI 0.1.37,
+network emulation can make `screenshot` report a missing saved path even though it
+wrote the image. Check that the requested file exists and opens; record this CLI
+warning, never turn networking back on to make the proof pass. A missing/unreadable
+file still blocks proof. `network` must explicitly report Offline (the browser's
+`navigator.onLine` property alone does not describe CDP network throttling).
+Wait for fonts
+and image decoding before each screenshot, as on the running page. Open all four
+images with an image-capable read tool and compare the entire pages, exact wording,
+state, typography, images and responsive layout. Record dimensions and differences;
+missing assets, changed layout or attempted external resource loads block the recipe
+proof. Audit resource-bearing attributes/CSS as well as network output: a blocked
+request is not an embedded asset. Ordinary navigation links are not offline flows;
+do not click them during this read-only comparison. Keep the network log, stopped
+server proof and screenshots with the evidence and attach both widths to the PR.
+The offline browser must also be stopped on failure.
 
 ## Cleanup
 
