@@ -62,3 +62,10 @@ Root: `/tmp/reserve96-evidence/continuation/`.
 5. Read per-PR Vercel comment for actual Preview link; add to How to verify, say signed-in flows need local sample review/staging instead of pretending preview OAuth works. Confirm closingIssuesReferences96, risk label, CI, rendered pairs. Report PR URL only once ready. Never merge.
 
 No older numbered questions remain unanswered. The fixture blocker and #130 wait are resolved. Remaining gates are work, not questions for Robert.
+
+## 2026-10-05 — final review and PR (Claude Opus 5.5)
+
+- Committed contrast fix (ff892f8) and records separately. origin/main unchanged since bc69675.
+- Final ordered Checks after the fix: lint, typecheck, test (65 files/587 tests passed, 2 opt-in skipped), build all PASS. Logs `/tmp/reserve96-evidence/final/`.
+- General review: Claude Sonnet 5.5 medium, cross-company against maker openai/gpt-6-astra, via read-only-run.ts; Unchanged. Verdict ready for PR, no Blocking. Output `/tmp/reserve96-evidence/final/general-review.txt`.
+- Worth-fixing 1 (first match pre-previewed, so "Select an item…" shows only with no matches) matches the approved prototype (`design/118-reserve-picker/index.html:114,177`); approved design wins on behaviour, so kept and explained in PR. Items 2–3 and nits listed as PR follow-ups and backlog.

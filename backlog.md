@@ -25,3 +25,4 @@
 - Reserve picker (#96 critique → #119): recover the approved phone inner width when moving the picker out of the nested inline form; recheck long item names and Save visibility.
 - Reserve picker (#96 critique → #109): complete the approved “see who reserved it” promise with reserver details; keep the explicitly required interim wording until then.
 - Reserve picker (#96 critique): seek approval before making a filled slot reveal its selected item's Remove action automatically, including what happens to an active search filter.
+- Reserve picker (#96 review): render each row's Wowhead tooltip only while open instead of mounting ~160 hidden tooltips; add a draft-logic test for HR→SR auto-advance and Enter-doesn't-submit; skip search refocus after Choose on phone so the keyboard doesn't pop up.
