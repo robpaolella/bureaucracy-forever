@@ -113,7 +113,7 @@ export function ReservePicker({ table, counts, blocked, hr, sr, forName, onChang
                 {slot === kind && <span className="text-label font-semibold uppercase tracking-[0.12em] text-teal">{RESERVES.choosing}</span>}
               </span>
               {item ? <ItemLabel item={item} size="medium" className="text-[13px] sm:text-sm [&>img]:h-7 [&>img]:w-7 sm:[&>img]:h-9 sm:[&>img]:w-9 [&>span]:whitespace-normal [&>span]:[overflow-wrap:anywhere]" />
-                : <span className="flex min-h-9 items-center text-sm text-fg-3">{RESERVES.notPicked}</span>}
+                : <span className="flex min-h-9 items-center text-sm text-fg-muted">{RESERVES.notPicked}</span>}
             </button>
           );
         })}
@@ -154,7 +154,7 @@ export function ReservePicker({ table, counts, blocked, hr, sr, forName, onChang
                     </span>
                   } />
                   <span aria-hidden="true" className="flex shrink-0 flex-col text-right text-xs tabular-nums">
-                    {(['HR', 'SR'] as const).map((kind) => <span key={kind} className={count[kind] ? 'text-fg' : 'text-fg-3'}>
+                    {(['HR', 'SR'] as const).map((kind) => <span key={kind} className={count[kind] ? 'text-fg' : 'text-fg-muted'}>
                       <span className={count[kind] ? kind === 'HR' ? 'text-sand' : 'text-teal' : undefined}>{kind}</span> {count[kind]}
                     </span>)}
                   </span>
