@@ -22,3 +22,6 @@
 - Reserve picker (#96/#119, #121 critique): keep Previously won readable for saved selections; native selects currently clip long count/ownership prefixes and require scrolling long option lists.
 - Design documentation (#121 context): refresh the stale Impeccable sidecar from DESIGN.md with the document workflow when requested.
 - Loot log (#121 review): include SR alongside HR in mergeAwards' pending-win list and test it; same-raid received-user filtering already prevents a wrong drop result, but the temporary list and comment lag the server rule.
+- Reserve picker (#96 critique → #119): recover the approved phone inner width when moving the picker out of the nested inline form; recheck long item names and Save visibility.
+- Reserve picker (#96 critique → #109): complete the approved “see who reserved it” promise with reserver details; keep the explicitly required interim wording until then.
+- Reserve picker (#96 critique): seek approval before making a filled slot reveal its selected item's Remove action automatically, including what happens to an active search filter.
