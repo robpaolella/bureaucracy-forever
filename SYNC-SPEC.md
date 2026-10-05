@@ -243,6 +243,7 @@ directly from the click; it may reply ephemerally ("You're set to Accept") immed
 | `raid.post` | Post one message in `RAID_SIGNUPS_CHANNEL_ID`: embed (§8) titled `🟢 Template — Ddd Mon D` (+ " · added late" when `payload.late`) + buttons Accept / Tentative / Decline / Join bench / View roster (link); open a thread on it named like the title minus the state marker. | `{ threadId, messageId }` | store on Raid |
 | `raid.update` | Re-render the embed (title prefix and colour carry the state) from `GET /raids/:id`. | — | — |
 | `raid.remind` | Thread message mentioning `payload.discordIds`. For anyone the mention can't reach (left server), skip. | — | — |
+| `raid.reserves.remind` | Tell `payload.discordIds` they haven't picked both loot reserves; link to the raid page's Loot reserves section. Skip members the bot cannot reach. Payload: `{ raidId, discordIds: string[], reservesLockAt: ISO timestamp }`. Ordered with other jobs for this raid. | — | — |
 | `raid.lock` | Re-render as 🔒 Locked, post "Sign-ups are locked. Officers can still change answers on the web." in the thread. | — | — |
 | `raid.cancel` | Edit the message to the compact ❌ line with `payload.reason`, remove buttons, DM everyone who ACCEPTed, archive the thread. | — | — |
 | `raid.close` | Edit the message to the compact ✅ line with the attended count, remove buttons, archive the thread. | — | — |
@@ -280,9 +281,18 @@ Runs every 60 s, called by the bot. Each step is idempotent and bounded.
 4. **Lock.** `now ≥ locksAt` and status SCHEDULED → LOCKED, `lockedAt`, enqueue `raid.lock`.
 5. **Close.** `now ≥ startsAt + durationMin + 60min` and status LOCKED → DONE, enqueue
    `raid.close`. Attendance can still be entered afterwards.
-6. **Nudge.** Applications PENDING for > 24h with `nudgedAt null` → enqueue
+6. **Reserve reminder.** Only with `LOOT_ENABLED` on: posted SCHEDULED or LOCKED raids
+   whose template has at least one loot-table item, in the two hours before reserves lock
+   (`startsAt − 120 min`, independent of sign-up `locksAt`). Include the window's start,
+   exclude its end; never catch up after reserves lock. With `remindReservesAt null`,
+   conditionally set it and enqueue one `raid.reserves.remind` in the same transaction.
+   Recipients are ACCEPT or TENTATIVE signups with a character, regardless of standing,
+   missing HR or SR (officer-placed picks count for their holder). Compute ids at enqueue
+   time. If nobody is owed, mark done without a job. Overlapping ticks cannot enqueue twice.
+   Returned `reservesReminded` counts jobs enqueued, not empty evaluations.
+7. **Nudge.** Applications PENDING for > 24h with `nudgedAt null` → enqueue
    `application.nudge`, set `nudgedAt`.
-7. **Reconcile (once per hour).** For every raid and application with a thread id and
+8. **Reconcile (once per hour).** For every raid and application with a thread id and
    status that implies archived/locked, enqueue `*.update` (the bot's update handler also
    fixes archive/lock/tag state). Cheap insurance against drift.
 
