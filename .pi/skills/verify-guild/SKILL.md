@@ -160,6 +160,8 @@ const fs = require('node:fs');
 const html = fs.readFileSync(process.argv[2], 'utf8');
 if (!/^<!doctype html>/i.test(html) || !html.includes('</html>'))
   throw new Error('Export failed; inspect the output, do not save it as a design');
+if (/<script\b/i.test(html))
+  throw new Error('Unexpected script in static export; inspect before continuing');
 JS
 ```
 
@@ -175,7 +177,9 @@ and claim a faithful result.
    existing design: use an evidence copy and ask the conductor how to incorporate it.
    For recipe verification alone, keep the file in `$EVIDENCE`; do not commit a
    throwaway design. Keep source CSS classes and inline styles editable, not a
-   screenshot masquerading as HTML.
+   screenshot masquerading as HTML. Exported navigation links still point at the
+   temporary localhost server (or external sites); the design task must replace them
+   with deliberate local prototype navigation before claiming a clickable flow.
 5. Run Cleanup below (including the browser stop) and require Cleanup PASS. Then
    start a **fresh named browser session**, open the file from disk and explicitly
    select it. Set network Offline, reopen the file, and capture at both widths:
