@@ -1,0 +1,124 @@
+{
+  "images": [
+    {
+      "image": "a-normal-default-390.png",
+      "version": "a",
+      "state": "normal",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4978
+    },
+    {
+      "image": "a-normal-default-1440.png",
+      "version": "a",
+      "state": "normal",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 3069
+    },
+    {
+      "image": "a-empty-default-390.png",
+      "version": "a",
+      "state": "empty",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4366
+    },
+    {
+      "image": "a-empty-default-1440.png",
+      "version": "a",
+      "state": "empty",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 3247
+    },
+    {
+      "image": "a-empty-no-roster-default-390.png",
+      "version": "a",
+      "state": "empty-no-roster",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 1672
+    },
+    {
+      "image": "a-empty-no-roster-default-1440.png",
+      "version": "a",
+      "state": "empty-no-roster",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1332
+    },
+    {
+      "image": "b-normal-default-390.png",
+      "version": "b",
+      "state": "normal",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4978
+    },
+    {
+      "image": "b-normal-default-1440.png",
+      "version": "b",
+      "state": "normal",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 3069
+    },
+    {
+      "image": "b-empty-default-390.png",
+      "version": "b",
+      "state": "empty",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4555
+    },
+    {
+      "image": "b-empty-default-1440.png",
+      "version": "b",
+      "state": "empty",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 3476
+    },
+    {
+      "image": "b-empty-no-roster-default-390.png",
+      "version": "b",
+      "state": "empty-no-roster",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 1861
+    },
+    {
+      "image": "b-empty-no-roster-default-1440.png",
+      "version": "b",
+      "state": "empty-no-roster",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1292
+    }
+  ]
+}

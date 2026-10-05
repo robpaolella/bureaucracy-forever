@@ -1,0 +1,18 @@
+{
+  "design_issue": 116,
+  "covers": [
+    115
+  ],
+  "revision": 1,
+  "versions": {
+    "approved": "index.html"
+  },
+  "states": [
+    "normal",
+    "empty",
+    "empty-no-roster"
+  ],
+  "themes": [
+    "default"
+  ]
+}

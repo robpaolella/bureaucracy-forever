@@ -1,0 +1,64 @@
+{
+  "images": [
+    {
+      "image": "approved-normal-default-390.png",
+      "version": "approved",
+      "state": "normal",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4978
+    },
+    {
+      "image": "approved-normal-default-1440.png",
+      "version": "approved",
+      "state": "normal",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 3069
+    },
+    {
+      "image": "approved-empty-default-390.png",
+      "version": "approved",
+      "state": "empty",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4366
+    },
+    {
+      "image": "approved-empty-default-1440.png",
+      "version": "approved",
+      "state": "empty",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 3247
+    },
+    {
+      "image": "approved-empty-no-roster-default-390.png",
+      "version": "approved",
+      "state": "empty-no-roster",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 1672
+    },
+    {
+      "image": "approved-empty-no-roster-default-1440.png",
+      "version": "approved",
+      "state": "empty-no-roster",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1332
+    }
+  ]
+}
