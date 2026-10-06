@@ -242,11 +242,13 @@ export function ReserverCount({ kind, item, list, mark, wide = false }: {
     const panel = pop.current;
     const anchor = button.current;
     if (!panel || !anchor) return;
-    if (!open) { panel.hidePopover(); return; }
+    const shown = panel.matches(':popover-open');
+    if (!open) { if (shown) panel.hidePopover(); return; }
     const close = () => setOpen(null);
-    if (closeOpenNames !== close) closeOpenNames?.();
+    closeOpenNames?.();
     closeOpenNames = close;
-    panel.showPopover();
+    // Hover then click re-runs this with the pop-up already showing.
+    if (!shown) panel.showPopover();
     const place = () => {
       const at = anchor.getBoundingClientRect();
       const box = panel.getBoundingClientRect();
