@@ -93,7 +93,7 @@ export function TimezoneBar() {
         }
       >
         <div className="flex flex-col gap-4">
-          <p>Every time on the site will show in this zone beside guild time. Saved in this browser.</p>
+          <p>Every time on the site will show in this zone, with guild time on hover or tap. Saved in this browser.</p>
           <Select label="Timezone" options={options} value={draft ?? ''} onChange={(e) => setDraft(e.target.value)} />
         </div>
       </Modal>
