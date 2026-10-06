@@ -24,18 +24,21 @@ type Props = {
   hitHeight?: number;
 };
 
-/** The visible area of the nearest scrolling ancestor, within the viewport. */
-function clipBox(el: HTMLElement): { top: number; bottom: number } {
-  let top = 0;
-  let bottom = window.innerHeight;
+/**
+ * Where a popup can show: the viewport less a 16px margin at the sides, cut to the visible
+ * area of the nearest scrolling ancestor (a dialog body), less its scrollbar.
+ */
+function clipBox(el: HTMLElement): { top: number; right: number; bottom: number } {
+  const box = { top: 0, right: window.innerWidth - 16, bottom: window.innerHeight };
   for (let node = el.parentElement; node; node = node.parentElement) {
     if (getComputedStyle(node).overflowY === 'visible') continue;
     const r = node.getBoundingClientRect();
-    top = Math.max(top, r.top);
-    bottom = Math.min(bottom, r.bottom);
+    box.top = Math.max(box.top, r.top + node.clientTop);
+    box.right = Math.min(box.right, r.left + node.clientLeft + node.clientWidth);
+    box.bottom = Math.min(box.bottom, r.top + node.clientTop + node.clientHeight);
     break;
   }
-  return { top, bottom };
+  return box;
 }
 
 /** A click this soon after a hover opened the popup is the same gesture, not a toggle. */
@@ -58,18 +61,18 @@ export function LocalTime({ startsAt, durationMin, className, zone, weekday, den
   const panelId = useId();
   const hoverOpenedAt = useRef(0);
 
-  // Keep the popup inside the viewport: shift it left when the time sits near the right edge.
+  // Keep the popup where it can be seen: shift it left when the time sits near the right
+  // edge, and put it above the time when there is no room below.
   useLayoutEffect(() => {
     const panel = panelRef.current;
     const trigger = triggerRef.current;
     if (!open || !panel || !trigger) return;
     if (!dense) {
       panel.style.left = '0px';
-      const overflow = panel.getBoundingClientRect().right - (window.innerWidth - 16);
-      if (overflow > 0) panel.style.left = `${-overflow}px`;
-      // Above the time when the box that clips it (a scrolling dialog body, or the viewport) has no room below.
       delete panel.dataset.flip;
       const clip = clipBox(panel);
+      const overflow = panel.getBoundingClientRect().right - clip.right;
+      if (overflow > 0) panel.style.left = `${-overflow}px`;
       const p = panel.getBoundingClientRect();
       if (p.bottom > clip.bottom && trigger.getBoundingClientRect().top - p.height >= clip.top) panel.dataset.flip = '';
       return;
