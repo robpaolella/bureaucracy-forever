@@ -8,14 +8,14 @@ import { monthCells, monthLabel, shiftMonth } from '@/lib/calendar-grid';
 import { cn } from '@/lib/cn';
 import { GUILD_TIMEZONE } from '@/lib/config';
 import type { RaidCard } from '@/lib/raids';
-import { formatClock, formatClockShort, zonedParts } from '@/lib/time';
+import { formatClockShort, viewerTime, zonedParts } from '@/lib/time';
 import { MONTH } from '@/content/calendar';
 
 /**
  * SYNC-SPEC §9.4: a month grid whose chips read `short · time` in the viewer's zone, with a
  * sand edge when the viewer has answered. Days follow the viewer's calendar. The chip's
- * title and accessible name carry both zones and the state words, so the grid is not the
- * one place a time is shown once or a state is colour alone.
+ * title and accessible name carry the viewer's time, guild time and the state words, so the
+ * grid is not the one place guild time is missing or a state is colour alone.
  */
 export function MonthGrid({ raids, now }: { raids: RaidCard[]; now: Date }) {
   const viewer = useViewerTimeZone();
@@ -55,7 +55,7 @@ export function MonthGrid({ raids, now }: { raids: RaidCard[]; now: Date }) {
                 {cell.raids.map((r) => {
                   const start = new Date(r.startsAt);
                   const cancelled = r.cancelled || r.status === 'CANCELLED';
-                  const both = zone === GUILD_TIMEZONE ? `${formatClock(start, GUILD_TIMEZONE)} ${MONTH.guild}` : `${formatClock(start, GUILD_TIMEZONE)} ${MONTH.guild} · ${formatClock(start, zone)} ${MONTH.yours}`;
+                  const when = viewerTime(start, 0, viewer?.zone ?? null, viewer ? navigator.language : undefined).label;
                   const state = [cancelled && MONTH.cancelled, r.mine && MONTH.answered].filter(Boolean).join(', ');
                   return (
                     <Link
@@ -66,14 +66,14 @@ export function MonthGrid({ raids, now }: { raids: RaidCard[]; now: Date }) {
                         r.mine ? 'border-sand' : 'border-transparent',
                         cancelled && 'line-through opacity-60',
                       )}
-                      title={`${r.name} · ${both}${state ? ` · ${state}` : ''}`}
+                      title={`${r.name} · ${when}${state ? ` · ${state}` : ''}`}
                     >
                       <span className="truncate">
                         {r.short ?? r.name.split(' ')[0]} <span className="tabular font-normal text-fg-3">· {formatClockShort(start, zone)}</span>
                       </span>
                       <span className="sr-only">
                         {' '}
-                        {r.name}, {both}
+                        {r.name}, {when}
                         {state ? `, ${state}` : ''}
                       </span>
                     </Link>

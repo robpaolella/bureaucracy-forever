@@ -68,10 +68,11 @@ describe('timing', () => {
 describe('responseToast', () => {
   const raid = { name: 'Blackwing Lair', startsAt: '2026-11-05T04:00:00.000Z' };
 
-  it('writes the docs copy with the dual time', () => {
-    expect(responseToast(raid, 'accept', 'America/Chicago')).toEqual({ title: "You're in for Wednesday — Blackwing Lair", detail: '8:00 PM guild · 10:00 PM your time' });
-    expect(responseToast(raid, 'tentative', 'America/Los_Angeles').title).toBe('Marked tentative for Wednesday — Blackwing Lair');
-    expect(responseToast(raid, 'absent', null).detail).toBe('8:00 PM guild');
+  it("writes the docs copy with the viewer's time and zone", () => {
+    expect(responseToast(raid, 'accept', 'America/Chicago', 'en-US')).toEqual({ title: "You're in for Wednesday — Blackwing Lair", detail: '10:00 PM CST' });
+    expect(responseToast(raid, 'accept', 'Europe/London', 'en-GB').detail).toBe('Thu 4:00 AM GMT');
+    expect(responseToast(raid, 'tentative', 'America/Los_Angeles', 'en-US')).toMatchObject({ title: 'Marked tentative for Wednesday — Blackwing Lair', detail: '8:00 PM guild time' });
+    expect(responseToast(raid, 'absent', null, 'en-US').detail).toBe('8:00 PM guild time');
     expect(responseToast(raid, null, null).title).toBe('Answer withdrawn for Wednesday — Blackwing Lair');
   });
 });

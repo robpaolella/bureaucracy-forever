@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, type FormEvent } from 'react';
-import { DualTime } from '@/components/time/DualTime';
+import { LocalTime } from '@/components/time/LocalTime';
 import { Button, Choice, Field, Input, Modal, useToast } from '@/components/ui';
 import { CONTROL } from '@/components/ui/Field';
 import { SAVE_FAILED } from '@/content/calendar';
@@ -301,7 +301,7 @@ export function AwardRow({ award, table, onVoid }: { award: AwardView; table: Lo
           {voided && <span className="ml-2 font-semibold text-stop">{LOOT_LOG.voidedLabel}</span>}
         </span>
         <span className="text-xs text-fg-3">
-          <DualTime startsAt={award.createdAt} durationMin={0} className="text-xs" />
+          <LocalTime startsAt={award.createdAt} durationMin={0} className="text-xs" />
           {award.recordedBy && ` · ${LOOT_LOG.by(award.recordedBy)}`}
         </span>
         {(award.note || award.voidReason) && <span className="text-xs text-fg-2">{[award.note, award.voidReason].filter(Boolean).join(' · ')}</span>}

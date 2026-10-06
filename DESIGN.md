@@ -268,7 +268,7 @@ State transitions are commonly 120ms with Tailwind's default `cubic-bezier(0.4, 
 ### Do:
 - **Do** use implemented tokens and component variants; compare affected surfaces at 1440 and 390 widths.
 - **Do** preserve Sand emphasis, Teal interaction and visible keyboard focus.
-- **Do** label states and both guild and viewer-local times; follow PRODUCT.md's confirmed accessibility requirements.
+- **Do** label states and times: the viewer's local time with its zone, guild time on hover, tap or focus (officer scheduling forms show both side by side); follow PRODUCT.md's confirmed accessibility requirements.
 - **Do** distinguish approved product claims from live copy awaiting correction.
 
 ### Don't:

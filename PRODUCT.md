@@ -26,7 +26,7 @@ Bureaucracy's website connects recruitment with the practical work of running it
 - Applications have Raider and Social paths. Current application entry points open a dialog, with `/apply` as the navigation fallback; submitting requires Discord sign-in and guild-server membership.
 - Availability is a recurring weekly pattern. Members provide when they can play; officers use the roster's availability to plan raids.
 - The website and Discord bot share raid participation workflows. Preserve the distinction between web and Discord sign-up sources.
-- Guild time is anchored on `GUILD_TIMEZONE` in `lib/config.ts`, currently `America/Los_Angeles`. WoW Forever has no realm clock. Say **guild time**, never realm time or server time. Display each time with a separately labelled viewer-local equivalent; calculate offsets, including daylight-saving changes, rather than hard-coding them.
+- Guild time is anchored on `GUILD_TIMEZONE` in `lib/config.ts`, currently `America/Los_Angeles`. WoW Forever has no realm clock. Say **guild time**, never realm time or server time. Show each time in the viewer's own timezone with its zone label, and guild time on hover, tap or keyboard focus and in its accessible name; before the viewer's zone is known, or when it is guild time, show guild time labelled "guild time". Officer scheduling forms (raid form, series form, raid planner) show guild and local time side by side, each labelled. Never show an unlabelled time. Calculate offsets, including daylight-saving changes, rather than hard-coding them.
 
 ## Capabilities and Constraints
 
@@ -66,4 +66,4 @@ These are Robert's confirmed requirements, not a claim that every current screen
 - Text contrast of at least 4.5:1.
 - Status is never color alone; include a word or other explicit non-color indication.
 - Use real buttons, links, and labelled inputs rather than clickable generic containers. Preserve keyboard operation and visible focus.
-- Always label guild and viewer-local times so members in different timezones can act on the same information.
+- Always label times: viewer-local with its zone, guild time on hover, tap or focus and in the accessible name, so members in different timezones can act on the same information.

@@ -1,5 +1,5 @@
 /**
- * Time helpers built on Intl only. docs/01 § Time: no time is ever rendered alone, the
+ * Time helpers built on Intl only. docs/01 § Time: no time is ever rendered unlabelled, the
  * guild zone is one constant, and offsets are real (DST transitions differ by zone).
  */
 import { GUILD_TIMEZONE } from '@/lib/config';
@@ -173,12 +173,49 @@ export function formatUtcOffset(date: Date, zone: string): string {
   return `UTC${sign}${h}${m ? `:${String(m).padStart(2, '0')}` : ''}`;
 }
 
-/** "CDT", "PDT", "GMT+1" for `zone` at `date`. */
-export function zoneAbbreviation(date: Date, zone: string): string {
-  const part = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'short' })
+/** "CDT", "PDT", "GMT+1" for `zone` at `date`. `locale` picks the naming: en-GB says "BST". */
+export function zoneAbbreviation(date: Date, zone: string, locale = 'en-US'): string {
+  const part = new Intl.DateTimeFormat(locale, { timeZone: zone, timeZoneName: 'short' })
     .formatToParts(date)
     .find((p) => p.type === 'timeZoneName');
-  return part?.value ?? zone;
+  // Some browsers' Intl data says "GMT+0" where Node says "GMT"; show the plain name.
+  return part?.value.replace(/^(GMT|UTC)[+−-]0$/, '$1') ?? zone;
+}
+
+export type ViewerTime = {
+  /** What the page shows: the viewer's time with its zone, or guild time labelled. */
+  text: string;
+  /** Guild time for the hover/tap/focus popup; null when `text` already is guild time. */
+  guild: string | null;
+  /** Both, for the accessible name. */
+  label: string;
+};
+
+const SHORT_WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+/**
+ * A time as the viewer reads it: "8:00 – 11:00 PM EDT", with guild time
+ * ("5:00 – 8:00 PM guild time (PDT)") kept for the popup. Before the viewer's zone is known,
+ * or when it matches guild time, the guild time shows once, labelled. When the viewer's day
+ * differs from the guild's, both carry their weekday so a date shown in guild time still reads
+ * right. `durationMin` 0 is a single instant. `locale` (the browser's language) names the
+ * viewer's zone the way they know it, "BST" rather than "GMT+1" in en-GB; clocks stay en-US.
+ */
+export function viewerTime(start: Date, durationMin: number, viewerZone: string | null, locale = 'en-US'): ViewerTime {
+  const end = new Date(start.getTime() + durationMin * 60_000);
+  const text = (zone: string) => (durationMin > 0 ? formatRange(start, end, zone) : formatClock(start, zone));
+  const sameAsGuild = (zone: string) => [start, end].every((d) => tzOffsetMs(d, zone) === tzOffsetMs(d, GUILD_TIMEZONE));
+  if (!viewerZone || sameAsGuild(viewerZone)) {
+    const guild = `${text(GUILD_TIMEZONE)} guild time`;
+    return { text: guild, guild: null, label: guild };
+  }
+  const local = zonedParts(start, viewerZone);
+  const home = zonedParts(start, GUILD_TIMEZONE);
+  const otherDay = local.day !== home.day;
+  const day = (p: ZonedParts) => (otherDay ? `${SHORT_WEEKDAY[p.weekday]} ` : '');
+  const shown = `${day(local)}${text(viewerZone)} ${zoneAbbreviation(start, viewerZone, locale)}`;
+  const guild = `${day(home)}${text(GUILD_TIMEZONE)} guild time (${zoneAbbreviation(start, GUILD_TIMEZONE)})`;
+  return { text: shown, guild, label: `${shown}, ${guild}` };
 }
 
 /** The viewer's IANA zone. Falls back to UTC where Intl cannot say. */
