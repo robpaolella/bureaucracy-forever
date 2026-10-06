@@ -4,11 +4,13 @@ import {
   decideReserve,
   decideVoid,
   defaultMethodFor,
+  draftPickFor,
   hrBlocked,
   isEligible,
   LOOT_LOG_METHODS,
   parseAwardInput,
   parseItemRef,
+  pickUnavailable,
   REASONS,
   reserveHolders,
   reservesLockAt,
@@ -113,6 +115,51 @@ describe('blocked tier items', () => {
     expect(resolveDrop(100, [holder], [], [])).toEqual({ mode: 'HR', contenders: [holder] });
     const soft = { ...holder, kind: 'SR' as const };
     expect(resolveDrop(100, [soft], [], [])).toEqual({ mode: 'SR', contenders: [soft] });
+  });
+});
+
+describe('pickUnavailable', () => {
+  const none = { won: new Set<number>(), otherSlotPick: null, blocked: new Set<number>() };
+
+  it.each([
+    ['nothing', none, null],
+    ['blocked', { ...none, blocked: new Set([100]) }, 'blocked'],
+    ['previously won', { ...none, won: new Set([100]) }, 'won'],
+    ['the other slot', { ...none, otherSlotPick: 100 }, 'otherSlot'],
+    ['won and blocked', { ...none, won: new Set([100]), blocked: new Set([100]) }, 'won'],
+    ['won and the other slot', { ...none, won: new Set([100]), otherSlotPick: 100 }, 'won'],
+    ['the other slot and blocked', { ...none, otherSlotPick: 100, blocked: new Set([100]) }, 'otherSlot'],
+    ['all three', { won: new Set([100]), otherSlotPick: 100, blocked: new Set([100]) }, 'won'],
+    ['other items only', { won: new Set([1]), otherSlotPick: 2, blocked: new Set([3]) }, null],
+  ] as const)('%s gives %s', (_, ctx, expected) => {
+    expect(pickUnavailable(100, ctx)).toBe(expected);
+  });
+});
+
+describe('draftPickFor', () => {
+  const rules = { won: [], blocked: [100], saved: { characterId: 'c1', hr: 100, sr: null } };
+
+  it('keeps a saved blocked pick only for its own character and slot', () => {
+    expect(draftPickFor('HR', 100, 'c1', rules)).toBe(100);
+    expect(draftPickFor('HR', 100, 'c2', rules)).toBeNull();
+    expect(draftPickFor('SR', 100, 'c1', rules)).toBeNull();
+    expect(draftPickFor('HR', 100, 'c1', { ...rules, saved: { characterId: null, hr: null, sr: null } })).toBeNull();
+  });
+
+  it('restores the saved blocked pick when switching back to its character', () => {
+    expect(draftPickFor('HR', null, 'c1', rules)).toBe(100);
+    expect(draftPickFor('HR', 200, 'c1', rules)).toBe(200);
+    expect(draftPickFor('HR', null, 'c2', rules)).toBeNull();
+    expect(draftPickFor('SR', null, 'c1', rules)).toBeNull();
+    // An open saved pick isn't restored: it can simply be chosen again.
+    expect(draftPickFor('HR', null, 'c1', { ...rules, blocked: [] })).toBeNull();
+  });
+
+  it('keeps open items and drops ones this character already won', () => {
+    expect(draftPickFor('SR', 200, 'c2', rules)).toBe(200);
+    expect(draftPickFor('SR', 200, 'c2', { ...rules, won: [200] })).toBeNull();
+    expect(draftPickFor('HR', 100, 'c1', { ...rules, won: [100] })).toBeNull();
+    expect(draftPickFor('HR', null, 'c1', { ...rules, won: [100] })).toBeNull();
   });
 });
 

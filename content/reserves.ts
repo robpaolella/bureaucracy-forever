@@ -1,4 +1,5 @@
 /** Copy for the reserves section of the raid detail page. */
+import { REASONS } from '@/lib/loot-rules';
 
 export const RESERVES = {
   heading: 'Loot reserves',
@@ -13,7 +14,10 @@ export const RESERVES = {
   character: 'Character',
   hr: 'Hard reserve',
   sr: 'Soft reserve',
+  /** Previously won by this character, not an officer's block (that is `notOpen`). */
   blocked: 'Previously won',
+  /** An officer closed this item to reserves; the same words the reserve route refuses with. */
+  notOpen: REASONS.itemBlocked,
   search: 'Search items',
   items: 'Items',
   choosingSlot: "Which reserve you're choosing",

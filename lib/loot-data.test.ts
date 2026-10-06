@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ signups: vi.fn(), awards: vi.fn(), reserves: vi.fn() }));
-vi.mock('@/lib/db', () => ({ db: { signup: { findMany: mocks.signups }, lootAward: { findMany: mocks.awards }, reserve: { findMany: mocks.reserves } } }));
+const mocks = vi.hoisted(() => ({ signups: vi.fn(), awards: vi.fn(), reserves: vi.fn(), bosses: vi.fn(), blocked: vi.fn() }));
+vi.mock('@/lib/db', () => ({ db: { signup: { findMany: mocks.signups }, lootAward: { findMany: mocks.awards }, reserve: { findMany: mocks.reserves }, lootBoss: { findMany: mocks.bosses } } }));
+vi.mock('@/lib/loot-blocks', () => ({ blockedItemIds: mocks.blocked }));
 
-import { hrAwardsFor, loadActiveReserves, loadReserveTargets } from './loot-data';
+import { hrAwardsFor, loadActiveReserves, loadLootTable, loadReserveTargets } from './loot-data';
 import { decideReserve, resolveDrop, REASONS } from './loot-rules';
 
 const user = (id: string, discordId: string, chars = [{ id: `${id}-c`, name: id, class: 'MAGE', isMain: true }], reserves: { characterId: string; itemId: number; kind: 'HR' | 'SR' }[] = []) => ({ id, discordId, discordName: id, characters: chars, reserves });
@@ -12,6 +13,25 @@ beforeEach(() => {
   mocks.signups.mockReset();
   mocks.awards.mockReset().mockResolvedValue([]);
   mocks.reserves.mockReset();
+});
+
+describe('loadLootTable', () => {
+  const item = (id: number) => ({ id, name: `Item ${id}`, quality: 4, icon: 'inv', tooltipHtml: '' });
+
+  it('carries the tier’s blocked items that are in the table, sorted', async () => {
+    mocks.bosses.mockResolvedValue([{ id: 'b1', name: 'Onyxia', isTrash: false, entries: [{ item: item(300) }, { item: item(100) }] }]);
+    mocks.blocked.mockResolvedValue(new Set([300, 999, 100]));
+    const table = await loadLootTable('t1');
+    expect(mocks.blocked).toHaveBeenCalledWith('t1');
+    expect(table?.blocked).toEqual([100, 300]);
+    expect(table?.bosses).toEqual([{ id: 'b1', name: 'Onyxia', isTrash: false, itemIds: [300, 100] }]);
+  });
+
+  it('is null with no items, blocks or not', async () => {
+    mocks.bosses.mockResolvedValue([]);
+    mocks.blocked.mockResolvedValue(new Set([100]));
+    expect(await loadLootTable('t1')).toBeNull();
+  });
 });
 
 describe('previous reserve wins', () => {
