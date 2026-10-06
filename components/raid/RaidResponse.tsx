@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { useSignup } from '@/components/calendar/useSignup';
+import { useReservePrompt } from '@/components/loot/ReserveWindow';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { SegmentedControl, Toast, type ToastData } from '@/components/ui';
 import type { Role } from '@/lib/design/class-colors';
@@ -38,17 +39,22 @@ export function RaidResponseControl({ raid: initial, viewer, past, now }: Props)
   const zone = useViewerTimeZone();
   const [toast, setToast] = useState<ToastData | null>(null);
 
+  const { afterAnswer, window: reserveWindow } = useReservePrompt(setToast);
   const onResult = useCallback(
-    (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void) => {
+    (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void, undone: boolean) => {
       if (!ok) {
         setToast({ tone: 'stop', title: SAVE_FAILED });
         return;
       }
       const copy = responseToast(raid, response, zone?.zone ?? null);
-      setToast({ tone: 'ok', title: copy.title, detail: copy.detail, action: { label: 'Undo', onClick: undo } });
+      const toast: ToastData = { tone: 'ok', title: copy.title, detail: copy.detail, action: { label: 'Undo', onClick: undo } };
+      setToast(toast);
+      // Accept or Tentative may then open the reserves window, which takes over the line and Undo.
+      // An undo never prompts, and it stops a prompt still loading for the answer it reverted.
+      void afterAnswer(raid, undone ? null : response, { text: copy.title, onUndo: undo }).then((opened) => { if (opened) setToast((shown) => (shown === toast ? null : shown)); });
       router.refresh();
     },
-    [zone, router],
+    [zone, router, afterAnswer],
   );
   const { raids, respond } = useSignup([initial], viewer.raidRole, onResult);
   const raid = raids[0];
@@ -75,6 +81,7 @@ export function RaidResponseControl({ raid: initial, viewer, past, now }: Props)
           {offRoster && <p className="text-small text-fg-3">{RESPONSE_NOTES.offRoster}</p>}
         </>
       )}
+      {reserveWindow}
       <Toast toast={toast} onDismiss={() => setToast(null)} />
     </div>
   );

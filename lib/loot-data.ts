@@ -141,6 +141,9 @@ export async function loadReserveTargets(raidId: string, viewerDiscordId: string
   return { targets, reason };
 }
 
+/** GET /api/raids/[id]/reserves: what the reserves window needs away from the raid page. */
+export type ReserveWindowData = { table: LootTableView; reserves: ReserveView[]; targets: ReserveTargetRow[]; lockAt: string; locked: boolean; cancelled: boolean };
+
 export type AwardView = {
   id: string;
   itemId: number;

@@ -10,10 +10,10 @@ type Result = { raidId: string; userId: string; response: RaidResponse | null; c
  * Optimistic raid sign-ups (docs/04 § Sign-up confirmation). Answering updates the row at
  * once and writes in the background; the server's counts replace the guess when they
  * land, and a failed write reverts the row. `undo(id)` restores the answer before the
- * last change. One request per raid at a time: a newer answer supersedes an in-flight one
+ * last change; `onResult` hears whether an answer was that undo. One request per raid at a time: a newer answer supersedes an in-flight one
  * by ignoring its reply.
  */
-export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult: (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void) => void) {
+export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult: (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void, undone: boolean) => void) {
   // The server's cards stay the base and only the viewer's answers ride on top, so a
   // refreshed page (a raid scheduled, another member's answer) shows up without losing
   // the optimistic state.
@@ -60,12 +60,12 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
         .then((result) => {
           if (inflight.current.get(id) !== seq) return;
           setRaid(id, { mine: result.response, counts: result.counts });
-          onResult(true, before, response, () => undo(id));
+          onResult(true, before, response, () => undo(id), !remember);
         })
         .catch(() => {
           if (inflight.current.get(id) !== seq) return;
           setRaid(id, { mine: before.mine, counts: before.counts });
-          onResult(false, before, response, () => undo(id));
+          onResult(false, before, response, () => undo(id), !remember);
         });
       queue.current.set(id, run);
     },

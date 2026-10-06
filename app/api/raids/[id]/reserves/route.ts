@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { lootEnabled } from '@/lib/flags';
-import { hrAwardsFor, signupAnswer, tableItemIds } from '@/lib/loot-data';
-import { decideReserve } from '@/lib/loot-rules';
+import { hrAwardsFor, loadActiveReserves, loadLootTable, loadReserveTargets, signupAnswer, tableItemIds, type ReserveWindowData } from '@/lib/loot-data';
+import { decideReserve, reservesLockAt, reservesLocked } from '@/lib/loot-rules';
 import { blockedItemIds, lockReserveTier, winLimits } from '@/lib/loot-blocks';
 import { getSession } from '@/lib/session';
 import { ensureUser } from '@/lib/users';
@@ -10,6 +10,27 @@ import { isUniqueViolation } from '../../../_loot';
 import { jsonBody, NO_STORE } from '../../../_officer';
 
 const itemOrNull = (v: unknown): number | null | undefined => (v === null || v === '' || v === undefined ? null : typeof v === 'number' && Number.isSafeInteger(v) ? v : undefined);
+
+/**
+ * GET /api/raids/[id]/reserves — what the reserves window needs when it opens away from the raid
+ * page (the calendar list): the loot table, everyone's reserves, whose reserves the viewer may set
+ * and the lock. A 404 when loot is off, for socials, or when the raid has no table, as the raid page
+ * shows no reserves then either.
+ */
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'Log in first.' }, { status: 401, headers: NO_STORE });
+  const { id: raidId } = await params;
+  const raid = lootEnabled() && session.role !== 'social' ? await db.raid.findUnique({ where: { id: raidId }, select: { startsAt: true, cancelledAt: true, templateId: true } }) : null;
+  const table = raid?.templateId ? await loadLootTable(raid.templateId) : null;
+  if (!raid || !table) return NextResponse.json({ error: 'Not found.' }, { status: 404, headers: NO_STORE });
+  const [reserves, { targets }] = await Promise.all([loadActiveReserves(raidId), loadReserveTargets(raidId, session.discordId, session.role === 'officer')]);
+  const now = new Date();
+  return NextResponse.json(
+    { table, reserves, targets, lockAt: reservesLockAt(raid.startsAt).toISOString(), locked: reservesLocked(raid.startsAt, now), cancelled: raid.cancelledAt !== null } satisfies ReserveWindowData,
+    { headers: NO_STORE },
+  );
+}
 
 /**
  * PUT /api/raids/[id]/reserves — set (or, with two nulls, clear) a member's hard and soft

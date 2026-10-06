@@ -187,7 +187,7 @@ export default async function RaidDetailPage({ params }: Params) {
 
         {table && reserveTargets && (
           <Reserves
-            raidId={raid.id}
+            raid={{ id: raid.id, name: raid.name, startsAt: card.startsAt }}
             table={table}
             reserves={reserves}
             lockAt={reservesLockAt(raid.startsAt).toISOString()}
