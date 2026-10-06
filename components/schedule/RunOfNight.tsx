@@ -1,34 +1,28 @@
 'use client';
 
+import { LocalTime } from '@/components/time/LocalTime';
 import { RUN_OF_NIGHT } from '@/content/schedule';
-import { formatClock, formatGuildClock, nextOccurrence } from '@/lib/time';
-import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
+import { nextOccurrence } from '@/lib/time';
 
 const TH = 'border-b border-line px-[22px] py-3 text-left text-label font-semibold uppercase tracking-[0.12em]';
 
 /**
- * Guild time / Your time / What happens. A table on desktop; on mobile a stacked list with
- * both times side by side above each description (docs/04 § Raid schedule).
+ * Time / What happens. Each time is the viewer's, with guild time on hover, tap and focus
+ * (LocalTime). A table on desktop; on mobile a stacked list with the time above each
+ * description (docs/04 § Raid schedule). Neither wrapper hides overflow, so the last row's
+ * guild-time popup isn't clipped: the corner cells carry the rounding instead.
  */
 export function RunOfNight() {
-  const viewer = useViewerTimeZone();
-  const rows = RUN_OF_NIGHT.rows.map((r) => ({
-    ...r,
-    guild: formatGuildClock(r.time),
-    local: viewer ? formatClock(nextOccurrence(RUN_OF_NIGHT.anchorDay, r.time), viewer.zone) : null,
-  }));
+  const rows = RUN_OF_NIGHT.rows.map((r) => ({ ...r, startsAt: nextOccurrence(RUN_OF_NIGHT.anchorDay, r.time).toISOString() }));
 
   return (
     <>
-      <div className="hidden overflow-hidden rounded-card border border-line md:block">
-        <table className="w-full border-collapse text-[15px]">
+      <div className="hidden rounded-card border border-line md:block">
+        <table className="w-full border-separate border-spacing-0 text-[15px] [&_tr:first-child>th:first-child]:rounded-tl-card [&_tr:first-child>th:last-child]:rounded-tr-card [&_tr:last-child>td:first-child]:rounded-bl-card [&_tr:last-child>td:last-child]:rounded-br-card">
           <thead>
             <tr className="bg-ink-850">
-              <th scope="col" className={`${TH} text-sand`}>
-                Guild time
-              </th>
-              <th scope="col" className={`${TH} text-teal`}>
-                Your time
+              <th scope="col" className={`${TH} w-[240px] text-fg-3`}>
+                Time
               </th>
               <th scope="col" className={`${TH} text-fg-3`}>
                 What happens
@@ -38,8 +32,9 @@ export function RunOfNight() {
           <tbody className="[&>tr:last-child>td]:border-b-0">
             {rows.map((r) => (
               <tr key={r.time} className="even:bg-ink-850">
-                <td className="tabular border-b border-line-faint px-[22px] py-4 font-semibold">{r.guild}</td>
-                <td className="tabular border-b border-line-faint px-[22px] py-4 text-fg-2">{r.local ?? '—'}</td>
+                <td className="border-b border-line-faint px-[22px] py-4">
+                  <LocalTime startsAt={r.startsAt} durationMin={0} className="text-[15px]" />
+                </td>
                 <td className="border-b border-line-faint px-[22px] py-4 text-fg-2">{r.text}</td>
               </tr>
             ))}
@@ -47,19 +42,10 @@ export function RunOfNight() {
         </table>
       </div>
 
-      <ol className="flex flex-col divide-y divide-line-faint overflow-hidden rounded-card border border-line md:hidden">
+      <ol className="flex flex-col divide-y divide-line-faint rounded-card border border-line md:hidden">
         {rows.map((r) => (
-          <li key={r.time} className="flex flex-col gap-2 px-5 py-4 even:bg-ink-850">
-            <div className="flex items-baseline gap-4">
-              <span className="tabular text-[15px] font-semibold">
-                {r.guild} <span className="text-label font-semibold uppercase tracking-[0.12em] text-sand">guild</span>
-              </span>
-              {r.local && (
-                <span className="tabular text-[15px] text-fg-2">
-                  {r.local} <span className="text-label font-semibold uppercase tracking-[0.12em] text-teal">yours</span>
-                </span>
-              )}
-            </div>
+          <li key={r.time} className="flex flex-col gap-2 px-5 py-4 first:rounded-t-card last:rounded-b-card even:bg-ink-850">
+            <LocalTime startsAt={r.startsAt} durationMin={0} className="text-[15px]" />
             <span className="text-sm leading-relaxed text-fg-2">{r.text}</span>
           </li>
         ))}
