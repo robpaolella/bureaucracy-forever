@@ -6,10 +6,10 @@ import 'server-only';
 
 import { db } from '@/lib/db';
 import type { WowClass } from '@/lib/design/class-colors';
-import { blockedItemIds } from '@/lib/loot-blocks';
+import { blockedItemIds, winLimits } from '@/lib/loot-blocks';
 import { toItemView, type ItemView } from '@/lib/loot-items';
 import type { LoggedAward, LoggedHr } from '@/lib/loot-log-state';
-import { isEligible, type LootMethod, type ReserveKind } from '@/lib/loot-rules';
+import { hrBlocked, isEligible, winLimitOf, type LootMethod, type ReserveKind, type WinLimits } from '@/lib/loot-rules';
 import type { RaidResponse } from '@/lib/raids';
 
 export type LootTableView = {
@@ -17,19 +17,21 @@ export type LootTableView = {
   items: Record<number, ItemView>;
   /** Items officers closed to new reserves for the whole tier (lib/loot-blocks.ts). */
   blocked: number[];
+  /** Items whose win limit is above 1, for drop resolution; any other item's limit is 1. */
+  winLimits?: WinLimits;
 };
 
 /** A raid tier's table for pickers and the loot log, or null when it has no items yet. */
 export async function loadLootTable(templateId: string): Promise<LootTableView | null> {
-  const [bosses, blocked] = await Promise.all([db.lootBoss.findMany({
+  const [bosses, blocked, limits] = await Promise.all([db.lootBoss.findMany({
     where: { templateId },
     orderBy: [{ position: 'asc' }, { id: 'asc' }],
     select: { id: true, name: true, isTrash: true, entries: { orderBy: [{ position: 'asc' }, { itemId: 'asc' }], select: { item: true } } },
-  }), blockedItemIds(templateId)]);
+  }), blockedItemIds(templateId), winLimits(templateId)]);
   const items: Record<number, ItemView> = {};
   for (const b of bosses) for (const e of b.entries) items[e.item.id] = toItemView(e.item);
   if (Object.keys(items).length === 0) return null;
-  return { bosses: bosses.map((b) => ({ id: b.id, name: b.name, isTrash: b.isTrash, itemIds: b.entries.map((e) => e.item.id) })), items, blocked: [...blocked].filter((id) => items[id]).sort((a, b) => a - b) };
+  return { bosses: bosses.map((b) => ({ id: b.id, name: b.name, isTrash: b.isTrash, itemIds: b.entries.map((e) => e.item.id) })), items, blocked: [...blocked].filter((id) => items[id]).sort((a, b) => a - b), winLimits: limits };
 }
 
 /** Every item id in a raid tier's table. */
@@ -81,7 +83,7 @@ export type ReserveTargetRow = {
   self: boolean;
   characters: { id: string; name: string; wowClass: WowClass; isMain: boolean }[];
   current: { characterId: string | null; hr: number | null; sr: number | null };
-  /** Previously won items, blocked for both HR and SR; legacy field name. */
+  /** Items won as many times as their win limit, blocked for both HR and SR; legacy field name. */
   blockedHr: Record<string, number[]>;
 };
 
@@ -91,6 +93,7 @@ export type ReserveTargetRow = {
  * why the viewer has nothing to set.
  */
 export async function loadReserveTargets(raidId: string, viewerDiscordId: string, officer: boolean): Promise<{ targets: ReserveTargetRow[]; reason: 'notEligible' | 'noCharacter' | null }> {
+  const raid = await db.raid.findUnique({ where: { id: raidId }, select: { templateId: true } });
   const signups = await db.signup.findMany({
     where: { raidId, ...(officer ? {} : { user: { discordId: viewerDiscordId } }) },
     select: {
@@ -108,11 +111,18 @@ export async function loadReserveTargets(raidId: string, viewerDiscordId: string
   });
   const mine = signups.find((s) => s.user.discordId === viewerDiscordId);
   const usable = signups.filter((s) => signupAnswer(s.response).eligible && s.user.characters.length > 0);
-  const awards = await hrAwardsFor(usable.flatMap((s) => s.user.characters.map((c) => c.id)));
+  const [awards, limits] = await Promise.all([
+    hrAwardsFor(usable.flatMap((s) => s.user.characters.map((c) => c.id))),
+    raid?.templateId ? winLimits(raid.templateId) : Promise.resolve({}),
+  ]);
   const targets = usable
     .map((s): ReserveTargetRow => {
       const blockedHr: Record<string, number[]> = {};
-      for (const a of awards) if (s.user.characters.some((c) => c.id === a.characterId)) (blockedHr[a.characterId] ??= []).push(a.itemId);
+      for (const c of s.user.characters) {
+        const won = [...new Set(awards.filter((a) => a.characterId === c.id).map((a) => a.itemId))];
+        const atLimit = won.filter((itemId) => hrBlocked(c.id, itemId, awards, [], winLimitOf(itemId, limits)));
+        if (atLimit.length) blockedHr[c.id] = atLimit;
+      }
       return {
         userId: s.user.id,
         name: s.user.discordName,

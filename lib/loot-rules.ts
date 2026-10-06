@@ -5,7 +5,8 @@
  * Each eligible member makes one hard reserve (HR) and one soft reserve (SR) per raid, on
  * different items, for one of their own characters. When an item drops, HR holders roll
  * first, then SR holders, then everyone. A character who has won an item through HR or SR
- * cannot reserve it again; `exceptions` is where officer-granted exceptions will come in.
+ * as many times as its win limit (1 unless an officer raised it) cannot reserve it again;
+ * `exceptions` is where officer-granted exceptions will come in.
  */
 import type { RaidResponse } from '@/lib/raids';
 
@@ -53,6 +54,20 @@ export type HrAward = { characterId: string; itemId: number };
 /** An officer's permission for a character to reserve an item again. None exist yet. */
 export type HrException = { characterId: string; itemId: number };
 
+/** Officers set each item's win limit per tier, 1 to 5; items not listed have limit 1. */
+export const WIN_LIMIT_MAX = 5;
+export type WinLimits = Readonly<Record<number, number>>;
+
+export function winLimitOf(itemId: number, limits: WinLimits = {}): number {
+  return limits[itemId] ?? 1;
+}
+
+/** A win limit from a request body: a whole number from 1 to 5, or the reason it isn't. */
+export function parseWinLimit(value: unknown): { ok: true; value: number } | { ok: false; error: string } {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > WIN_LIMIT_MAX) return { ok: false, error: `The win limit must be a whole number from 1 to ${WIN_LIMIT_MAX}.` };
+  return { ok: true, value };
+}
+
 export function hrBlocked(characterId: string, itemId: number, hrAwards: readonly HrAward[], exceptions: readonly HrException[] = [], allowedCount = 1): boolean {
   const match = (r: { characterId: string; itemId: number }) => r.characterId === characterId && r.itemId === itemId;
   return hrAwards.filter(match).length >= allowedCount && !exceptions.some(match);
@@ -97,6 +112,8 @@ export type ReserveContext = {
   hrAwards: readonly HrAward[];
   exceptions?: readonly HrException[];
   blockedItemIds?: ReadonlySet<number>;
+  /** Read under the tier lock, like the blocks. */
+  winLimits?: WinLimits;
   /** Current rows for this member and raid, read under the tier lock. */
   existingReserves?: readonly { characterId: string; itemId: number; kind: ReserveKind }[];
 };
@@ -124,7 +141,7 @@ export function decideReserve(actor: { role: 'social' | 'member' | 'officer' }, 
       continue;
     }
     if (!ctx.tableItemIds.has(id)) return { ok: false, status: 409, reason: REASONS.notInTable };
-    if (hrBlocked(input.characterId, id, ctx.hrAwards, ctx.exceptions)) return { ok: false, status: 409, reason: REASONS.hrReceived };
+    if (hrBlocked(input.characterId, id, ctx.hrAwards, ctx.exceptions, winLimitOf(id, ctx.winLimits))) return { ok: false, status: 409, reason: REASONS.hrReceived };
   }
   return { ok: true };
 }
@@ -140,11 +157,13 @@ export type Resolution = { mode: DropMode; contenders: ActiveReserve[] };
 /**
  * Who rolls for a drop. A reserve is spent once its holder has received that item on this
  * raid, so a second copy goes to the remaining HR holders, then SR holders, then an open roll.
- * HR and SR holders whose characters already won through either reserve method are skipped too.
+ * HR and SR holders whose characters already won it through either reserve method as many
+ * times as its win limit are skipped too, so a lowered limit holds a saved reserve back.
  */
-export function resolveDrop(itemId: number, reserves: readonly ActiveReserve[], raidAwards: readonly RaidAward[], hrAwards: readonly HrAward[], exceptions: readonly HrException[] = []): Resolution {
+export function resolveDrop(itemId: number, reserves: readonly ActiveReserve[], raidAwards: readonly RaidAward[], hrAwards: readonly HrAward[], exceptions: readonly HrException[] = [], winLimits: WinLimits = {}): Resolution {
   const received = new Set(raidAwards.filter((a) => a.itemId === itemId && a.userId).map((a) => a.userId));
-  const live = reserves.filter((r) => r.itemId === itemId && !received.has(r.userId) && !hrBlocked(r.characterId, itemId, hrAwards, exceptions));
+  const limit = winLimitOf(itemId, winLimits);
+  const live = reserves.filter((r) => r.itemId === itemId && !received.has(r.userId) && !hrBlocked(r.characterId, itemId, hrAwards, exceptions, limit));
   const hr = live.filter((r) => r.kind === 'HR');
   if (hr.length > 0) return { mode: 'HR', contenders: hr };
   const sr = live.filter((r) => r.kind === 'SR');

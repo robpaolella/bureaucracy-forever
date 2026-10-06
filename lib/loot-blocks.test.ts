@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ query: vi.fn(), find: vi.fn(), upsert: vi.fn(), holders: vi.fn(), remove: vi.fn(), transaction: vi.fn() }));
+const mocks = vi.hoisted(() => ({ query: vi.fn(), find: vi.fn(), one: vi.fn(), upsert: vi.fn(), holders: vi.fn(), remove: vi.fn(), transaction: vi.fn() }));
 vi.mock('@/lib/db', () => ({ db: {
   $transaction: mocks.transaction,
   $queryRaw: mocks.query,
-  lootReserveSetting: { findMany: mocks.find, upsert: mocks.upsert },
+  lootReserveSetting: { findMany: mocks.find, findUnique: mocks.one, upsert: mocks.upsert },
   reserve: { findMany: mocks.holders, deleteMany: mocks.remove },
 } }));
 import { db } from '@/lib/db';
-import { blockItem, blockedItemIds, setItemBlocked, unlockedHolders } from './loot-blocks';
+import { blockItem, blockedItemIds, itemWinLimit, setItemBlocked, setItemWinLimit, unlockedHolders, winLimits } from './loot-blocks';
 
 const NOW = new Date('2026-10-05T18:00:00Z');
 
@@ -109,5 +109,41 @@ describe('blocking with the holders the officer confirmed', () => {
     mocks.holders.mockResolvedValue([row('r1', 'c1', 'HR')]);
     mocks.upsert.mockRejectedValue(new Error('connection lost'));
     await expect(blockItem('t1', 100, ['r1:c1:HR'], NOW)).rejects.toThrow('connection lost');
+  });
+});
+
+describe('win limits', () => {
+  it('reads limits above 1 for the tier; any other item reads as 1', async () => {
+    expect(await winLimits('t1')).toEqual({});
+    mocks.find.mockResolvedValue([{ itemId: 100, winLimit: 2 }, { itemId: 200, winLimit: 5 }]);
+    expect(await winLimits('t1')).toEqual({ 100: 2, 200: 5 });
+    expect(mocks.find).toHaveBeenLastCalledWith({ where: { templateId: 't1', winLimit: { gt: 1 } }, select: { itemId: true, winLimit: true } });
+  });
+
+  it('reads one item, 1 when it has no setting', async () => {
+    mocks.one.mockResolvedValue(null);
+    expect(await itemWinLimit('t1', 100)).toBe(1);
+    mocks.one.mockResolvedValue({ winLimit: 1 });
+    expect(await itemWinLimit('t1', 100)).toBe(1);
+    mocks.one.mockResolvedValue({ winLimit: 3 });
+    expect(await itemWinLimit('t1', 100)).toBe(3);
+    expect(mocks.one).toHaveBeenLastCalledWith({ where: { templateId_itemId: { templateId: 't1', itemId: 100 } }, select: { winLimit: true } });
+  });
+
+  it('sets the limit under the tier lock, keeping blocked and every reserve', async () => {
+    await setItemWinLimit('t1', 100, 2);
+    expect(mocks.query.mock.calls[0][0].join('?')).toBe('SELECT "id" FROM "RaidTemplate" WHERE "id" = ? FOR NO KEY UPDATE');
+    expect(mocks.query.mock.invocationCallOrder[0]).toBeLessThan(mocks.upsert.mock.invocationCallOrder[0]);
+    // A new row is unblocked by the column default; an existing row keeps its blocked value.
+    expect(mocks.upsert).toHaveBeenCalledWith({ where: { templateId_itemId: { templateId: 't1', itemId: 100 } }, create: { templateId: 't1', itemId: 100, winLimit: 2 }, update: { winLimit: 2 } });
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.holders).not.toHaveBeenCalled();
+    expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: 'ReadCommitted' });
+  });
+
+  it.each([true, false])('blocked=%s leaves the stored limit alone', async (blocked) => {
+    await setItemBlocked('t1', 100, blocked, NOW);
+    expect(mocks.upsert.mock.calls[0][0].update).toEqual({ blocked });
+    expect(mocks.upsert.mock.calls[0][0].create).not.toHaveProperty('winLimit');
   });
 });
