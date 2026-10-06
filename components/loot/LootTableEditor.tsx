@@ -113,8 +113,8 @@ function Editor({ templateId, bosses, defaultSource, blockedIds }: Props) {
                       <Button
                         variant="secondary"
                         size="sm"
-                        // 32px to look, 44px to hit: the ::after reaches the row's full height.
-                        className="relative h-8 px-2.5 after:absolute after:inset-x-0 after:-inset-y-1.5"
+                        // 32px to look, 44px to hit: the ::after (measured inside the 1px border) reaches the row's full height.
+                        className="relative h-8 px-2.5 after:absolute after:inset-x-0 after:-inset-y-[7px]"
                         aria-label={LOOT_RESERVES.buttonLabel(item.name)}
                         aria-haspopup="dialog"
                         onClick={() => setReserves({ item, blocked: blocked.has(item.id), otherBosses: bosses.filter((b) => b.id !== boss.id && b.items.some((x) => x.id === item.id)).map((b) => b.name) })}
