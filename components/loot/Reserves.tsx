@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { LocalTime } from '@/components/time/LocalTime';
 import { Button, Field, useToast } from '@/components/ui';
 import { CONTROL } from '@/components/ui/Field';
@@ -139,17 +139,29 @@ function PickRow({ kind, item, from }: { kind: ReserveKind; item?: LootTableView
 }
 
 /** Everyone's reserves by item, hard reserves first; each count opens the names. */
-function ReserveList({ table, holders, mark }: { table: LootTableView; holders: Holders; mark?: OwnMark }) {
+export function ReserveList({ table, holders, mark }: { table: LootTableView; holders: Holders; mark?: OwnMark }) {
   const rows = [...holders.entries()]
     .filter(([id]) => table.items[id])
     .sort(([a, ha], [b, hb]) => hb.HR.length - ha.HR.length || table.items[a].name.localeCompare(table.items[b].name));
+  const [open, setOpen] = useState(false);
+  const id = useId();
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">{RESERVES.listHeading}</h3>
       {rows.length === 0 ? (
-        <p className="text-sm text-fg-3">{RESERVES.listEmpty}</p>
+        <>
+          <h3 className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">{RESERVES.listHeading}</h3>
+          <p className="text-sm text-fg-3">{RESERVES.listEmpty}</p>
+        </>
       ) : (
-        <ul className="divide-y divide-line-faint rounded-card border border-line-faint">
+        <>
+        <h3 className="m-0">
+          <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}
+            className="inline-flex min-h-11 items-center gap-1.5 self-start text-left text-sm font-semibold text-teal hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
+          >
+            {open ? RESERVES.hideList : RESERVES.showList(rows.length)}
+          </button>
+        </h3>
+        <ul id={id} hidden={!open} className="divide-y divide-line-faint rounded-card border border-line-faint">
           {rows.map(([itemId, list]) => {
             const item = table.items[itemId];
             const own = mark && (['HR', 'SR'] as const).find((kind) => list[kind].some((r) => r.userId === mark.userId));
@@ -166,6 +178,7 @@ function ReserveList({ table, holders, mark }: { table: LootTableView; holders: 
             );
           })}
         </ul>
+        </>
       )}
     </div>
   );
