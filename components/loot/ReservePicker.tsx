@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Button, Sheet } from '@/components/ui';
+import { Chevron } from '@/components/shell/NavGroup';
 import { CONTROL } from '@/components/ui/Field';
 import { RESERVES } from '@/content/reserves';
 import { cn } from '@/lib/cn';
@@ -263,7 +264,6 @@ export function ReserverCount({ kind, item, list, mark, wide = false }: {
       e.preventDefault();
       e.stopPropagation();
       setOpen(null);
-      button.current?.focus();
     };
     const dismiss = (e: Event) => { if (!root.current?.contains(e.target as Node)) setOpen(null); };
     document.addEventListener('keydown', escape, true);
@@ -289,7 +289,7 @@ export function ReserverCount({ kind, item, list, mark, wide = false }: {
       >
         <span className={cn('font-semibold', tone)}>{kind}</span> {list.length}
         <span className="sr-only">{RESERVES.showNames(kind, list.length, item)}</span>
-        {wide && <span aria-hidden="true" className="text-fg-3">▾</span>}
+        {wide && <Chevron className="text-fg-3" />}
       </button>
       {/* After the pill in the DOM, so a screen reader reaches the names next. */}
       <div ref={pop} id={id} popover="manual"
