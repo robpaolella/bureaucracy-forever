@@ -102,7 +102,7 @@ export function LocalTime({ startsAt, durationMin, className, zone, weekday, den
         // The hit area sits on a pseudo-element, so the line keeps its height.
         style={{ '--hit': `${hitHeight}px` } as React.CSSProperties}
         className={cn(
-          "relative rounded-sm text-left underline decoration-fg-3 decoration-dotted after:absolute after:inset-x-0 after:top-1/2 after:h-[var(--hit)] after:-translate-y-1/2 after:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal",
+          "relative rounded-sm text-left underline decoration-fg-3 decoration-dotted after:absolute after:inset-x-0 after:top-1/2 after:h-[var(--hit)] after:-translate-y-1/2 after:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal",
           dense ? 'underline-offset-2' : 'underline-offset-4',
         )}
       >

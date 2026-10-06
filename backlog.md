@@ -33,3 +33,4 @@
 - Site-wide: the dimmest grey text is just under the 4.5:1 contrast minimum; lift it.
 - Loot blocks (#135): the two real-database suites (raids/[id]/reserves and the items route) copy the same container and lock-pause harness; move it into a shared test helper. `setItemBlocked(…, true)` is kept only for the reserves suite's direct-block cases; switch those to `blockItem` and drop it.
 - Loot log (#122): `mergeAwards` counts only local HR records as reserve wins, so an SR win recorded in this tab doesn't hold that holder back from the next drop until the page refreshes; count SR too.
+- Shared time formatter (lib/time): use a non-breaking space before AM/PM so narrow cards don't break "7:00 / AM".
