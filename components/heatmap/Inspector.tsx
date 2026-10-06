@@ -22,7 +22,7 @@ function StaticTime({ startsAt, zone }: { startsAt: string; zone: string }) {
   return (
     <div className="flex flex-col gap-[3px]">
       <span className="tabular text-sm font-semibold">{time.text}</span>
-      {time.guild && <span className="tabular text-[11px] text-fg-3">{time.guild}</span>}
+      {time.guild && <span className="tabular text-[11px] text-fg-muted">{time.guild}</span>}
     </div>
   );
 }
