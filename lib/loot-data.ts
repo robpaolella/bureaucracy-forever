@@ -6,6 +6,7 @@ import 'server-only';
 
 import { db } from '@/lib/db';
 import type { WowClass } from '@/lib/design/class-colors';
+import { blockedItemIds } from '@/lib/loot-blocks';
 import { toItemView, type ItemView } from '@/lib/loot-items';
 import type { LoggedAward, LoggedHr } from '@/lib/loot-log-state';
 import { isEligible, type LootMethod, type ReserveKind } from '@/lib/loot-rules';
@@ -14,19 +15,21 @@ import type { RaidResponse } from '@/lib/raids';
 export type LootTableView = {
   bosses: { id: string; name: string; isTrash: boolean; itemIds: number[] }[];
   items: Record<number, ItemView>;
+  /** Items officers closed to new reserves for the whole tier (lib/loot-blocks.ts). */
+  blocked: number[];
 };
 
 /** A raid tier's table for pickers and the loot log, or null when it has no items yet. */
 export async function loadLootTable(templateId: string): Promise<LootTableView | null> {
-  const bosses = await db.lootBoss.findMany({
+  const [bosses, blocked] = await Promise.all([db.lootBoss.findMany({
     where: { templateId },
     orderBy: [{ position: 'asc' }, { id: 'asc' }],
     select: { id: true, name: true, isTrash: true, entries: { orderBy: [{ position: 'asc' }, { itemId: 'asc' }], select: { item: true } } },
-  });
+  }), blockedItemIds(templateId)]);
   const items: Record<number, ItemView> = {};
   for (const b of bosses) for (const e of b.entries) items[e.item.id] = toItemView(e.item);
   if (Object.keys(items).length === 0) return null;
-  return { bosses: bosses.map((b) => ({ id: b.id, name: b.name, isTrash: b.isTrash, itemIds: b.entries.map((e) => e.item.id) })), items };
+  return { bosses: bosses.map((b) => ({ id: b.id, name: b.name, isTrash: b.isTrash, itemIds: b.entries.map((e) => e.item.id) })), items, blocked: [...blocked].filter((id) => items[id]).sort((a, b) => a - b) };
 }
 
 /** Every item id in a raid tier's table. */

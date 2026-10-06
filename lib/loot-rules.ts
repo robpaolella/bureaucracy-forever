@@ -58,6 +58,35 @@ export function hrBlocked(characterId: string, itemId: number, hrAwards: readonl
   return hrAwards.filter(match).length >= allowedCount && !exceptions.some(match);
 }
 
+/** Why the picker can't choose an item for the slot being chosen. */
+export type PickUnavailable = 'won' | 'otherSlot' | 'blocked';
+
+/**
+ * One reason per item: previously won is the strongest fact about this member, then the
+ * other slot's pick, then an officer's block. A saved pick in this slot still shows its
+ * reason but keeps Remove; the picker checks `picked` first.
+ */
+export function pickUnavailable(itemId: number, ctx: { won: ReadonlySet<number>; otherSlotPick: number | null; blocked: ReadonlySet<number> }): PickUnavailable | null {
+  if (ctx.won.has(itemId)) return 'won';
+  if (ctx.otherSlotPick === itemId) return 'otherSlot';
+  if (ctx.blocked.has(itemId)) return 'blocked';
+  return null;
+}
+
+/**
+ * A draft pick after the member switches to `characterId`. It is dropped if that character
+ * already won it; a blocked item stays only as the pick it was saved as, for the character
+ * it was saved with (what decideReserve keeps). Switching back to that character restores
+ * such a pick to an empty slot, since it can't be chosen again.
+ */
+export function draftPickFor(kind: ReserveKind, draft: number | null, characterId: string, ctx: { won: readonly number[]; blocked: readonly number[]; saved: { characterId: string | null; hr: number | null; sr: number | null } }): number | null {
+  const saved = ctx.saved.characterId === characterId ? ctx.saved[kind === 'HR' ? 'hr' : 'sr'] : null;
+  const kept = saved !== null && ctx.blocked.includes(saved) && !ctx.won.includes(saved) ? saved : null;
+  if (draft === null) return kept;
+  if (ctx.won.includes(draft)) return null;
+  return !ctx.blocked.includes(draft) || draft === kept ? draft : null;
+}
+
 export type ReserveRaid = { cancelled: boolean; startsAt: Date; hasLootTable: boolean };
 export type ReserveInput = { characterId: string; hr: number | null; sr: number | null };
 export type ReserveContext = {
