@@ -1,5 +1,10 @@
 /** Copy for /officers/loot: the loot table for each raid tier. */
+import { GUILD_TIMEZONE } from '@/lib/config';
 import { REFRESH_BATCH } from '@/lib/loot-table-rules';
+import { formatClock } from '@/lib/time';
+
+const reserves = (n: number) => `${n} ${n === 1 ? 'reserve' : 'reserves'}`;
+const raidDay = new Intl.DateTimeFormat('en-US', { timeZone: GUILD_TIMEZONE, weekday: 'short', month: 'short', day: 'numeric' });
 
 export const LOOT_ADMIN_HEAD = {
   eyebrow: 'Officers',
@@ -74,4 +79,14 @@ export const LOOT_RESERVES = {
   blocked: (item: string) => `Blocked ${item}.`,
   unblocked: (item: string) => `${item} is open to reserves again. Removed reserves aren't restored.`,
   retry: 'Retry',
+  confirmTitle: (item: string) => `Block ${item}?`,
+  confirmLead: "Blocking removes these reserves on raids that haven't locked yet:",
+  stale: 'The list changed since you opened this. Check it and confirm again.',
+  /** "Wed, Oct 7, 8:00 PM guild time". */
+  raidWhen: (startsAt: Date) => `${raidDay.format(startsAt)}, ${formatClock(startsAt, GUILD_TIMEZONE)} guild time`,
+  cancelled: 'Cancelled',
+  confirmFoot: "Reserves on locked and past raids stay. They won't be told. Let them know in Discord.",
+  cancel: 'Cancel',
+  confirm: (n: number) => `Block and remove ${reserves(n)}`,
+  blockedRemoved: (item: string, n: number) => `Blocked ${item}. Removed ${reserves(n)}.`,
 };
