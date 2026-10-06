@@ -221,6 +221,9 @@ function ItemDetails({ item, sources, slot, picked, reason, forName, holders, ma
   </div>;
 }
 
+/** Closes whichever names pop-up is open, so two never stack. */
+let closeOpenNames: (() => void) | null = null;
+
 /**
  * "HR 4": a pill that opens the names behind a count on mouse hover, click, tap or Enter.
  * The pop-up sits in the top layer, above a scrolling list or the phone's Sheet, and follows
@@ -240,17 +243,23 @@ export function ReserverCount({ kind, item, list, mark, wide = false }: {
     const anchor = button.current;
     if (!panel || !anchor) return;
     if (!open) { panel.hidePopover(); return; }
+    const close = () => setOpen(null);
+    if (closeOpenNames !== close) closeOpenNames?.();
+    closeOpenNames = close;
     panel.showPopover();
     const place = () => {
       const at = anchor.getBoundingClientRect();
       const box = panel.getBoundingClientRect();
-      panel.style.left = `${Math.max(8, Math.min(at.left, window.innerWidth - box.width - 8))}px`;
+      // Near the right edge, end under this pill rather than drifting under its neighbour.
+      const left = at.left + box.width > window.innerWidth - 8 ? at.right - box.width : at.left;
+      panel.style.left = `${Math.max(8, left)}px`;
       panel.style.top = `${at.bottom + 6 + box.height > window.innerHeight - 8 ? Math.max(8, at.top - box.height - 6) : at.bottom + 6}px`;
     };
     place();
     window.addEventListener('resize', place);
     window.addEventListener('scroll', place, true);
     return () => {
+      if (closeOpenNames === close) closeOpenNames = null;
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
@@ -284,18 +293,19 @@ export function ReserverCount({ kind, item, list, mark, wide = false }: {
     >
       <button ref={button} type="button" aria-expanded={open !== null} aria-controls={id}
         onClick={() => setOpen(open === 'pinned' ? null : 'pinned')}
-        className={cn('inline-flex min-h-11 items-center gap-1.5 rounded-full border px-2.5 text-[13px] tabular-nums hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal',
-          open ? 'border-teal bg-teal-wash' : 'border-line-strong bg-ink-800', wide && 'w-full justify-center')}
+        className={cn('inline-flex min-h-11 min-w-14 items-center justify-center gap-1.5 rounded-full border px-2.5 text-[13px] tabular-nums hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal',
+          open ? 'border-teal bg-teal-wash' : 'border-line-strong bg-ink-800', wide && 'w-full')}
       >
         <span className={cn('font-semibold', tone)}>{kind}</span> {list.length}
         <span className="sr-only">{RESERVES.showNames(kind, list.length, item)}</span>
         {wide && <Chevron className="text-fg-3" />}
       </button>
-      {/* After the pill in the DOM, so a screen reader reaches the names next. */}
-      <div ref={pop} id={id} popover="manual"
+      {/* After the pill in the DOM, so a screen reader reaches the names next. Nothing in it
+          is clickable, so a tap on it closes it rather than blocking what it covers. */}
+      <div ref={pop} id={id} popover="manual" onClick={() => setOpen(null)}
         className="fixed inset-auto m-0 max-h-[calc(100dvh-16px)] w-[260px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-card border border-line-strong bg-ink-800 px-3 py-2.5 text-sm text-fg shadow-pop"
       >
-        <p className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">
+        <p className="text-label font-semibold uppercase tracking-[0.12em] text-fg-2">
           <span className={tone}>{kind === 'HR' ? RESERVES.hr : RESERVES.sr}</span> · {list.length} · {item}
         </p>
         <ul className="mt-1.5 flex flex-col gap-0.5">

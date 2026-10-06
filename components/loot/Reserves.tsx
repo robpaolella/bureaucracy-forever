@@ -178,8 +178,10 @@ function ReserveList({ table, holders, mark }: { table: LootTableView; holders: 
             return (
               <li key={itemId} className="flex items-center gap-2 px-3 py-1">
                 <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2">
-                  <ItemName item={item} />
-                  {own && <span className={cn('text-xs font-semibold', own === 'HR' ? 'text-sand' : 'text-teal')}>{mark.label}</span>}
+                  <ItemName item={item} className="text-sm" />
+                  {own && <span className={cn('text-xs font-semibold', own === 'HR' ? 'text-sand' : 'text-teal')}>
+                    {mark.label}<span className="sr-only"> ({own === 'HR' ? RESERVES.hr : RESERVES.sr})</span>
+                  </span>}
                 </span>
                 {(['HR', 'SR'] as const).map((kind) => list[kind].length > 0 && <ReserverCount key={kind} kind={kind} item={item.name} list={list[kind]} mark={mark} />)}
               </li>
