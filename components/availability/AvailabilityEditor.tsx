@@ -98,6 +98,18 @@ export function AvailabilityEditor({ initial }: Props) {
   // A selection the week no longer holds (cleared, or changed in the day list) is dropped.
   const selected = selection && dayBlocks(week, selection.day).some((b) => sameBlock(b, selection)) ? selection : null;
 
+  // Erase is hidden on the desktop layout, so a window widened past it falls back to Available.
+  useEffect(() => {
+    if (mode !== 'erase') return;
+    const desktop = window.matchMedia('(min-width: 768px)');
+    const onChange = () => {
+      if (desktop.matches) setMode('available');
+    };
+    onChange();
+    desktop.addEventListener('change', onChange);
+    return () => desktop.removeEventListener('change', onChange);
+  }, [mode]);
+
   useEffect(() => {
     if (!selected) return;
     const onKey = (e: KeyboardEvent) => {
@@ -267,7 +279,15 @@ export function AvailabilityEditor({ initial }: Props) {
             ))}
           </div>
           <div className="mx-1.5 hidden h-7 w-px bg-line md:block" aria-hidden />
-          <Button variant="ghost" size="sm" className="hidden border border-line md:inline-flex" onClick={() => change({})}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="hidden border border-line md:inline-flex"
+            onClick={() => {
+              change({});
+              setSelection(null);
+            }}
+          >
             Clear week
           </Button>
         </div>

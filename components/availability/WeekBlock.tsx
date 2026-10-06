@@ -64,10 +64,12 @@ export function WeekBlock({ block, selected, resizing, idle, onRemove }: Props) 
         aria-hidden
         className={cn(
           'tabular pointer-events-none absolute left-[7px]',
-          selected && !resizing ? 'right-7' : 'right-[7px]',
+          one && selected && !resizing ? 'right-7' : 'right-[7px]',
           one ? 'top-1/2 flex -translate-y-1/2 justify-between gap-1.5 whitespace-nowrap' : 'bottom-0.5 top-1.5 overflow-hidden',
         )}
       >
+        {/* A taller selected block keeps only its first line clear of the ×. */}
+        {!one && selected && !resizing && <span className="float-right h-4 w-5" />}
         <div className={cn('font-semibold', one && 'min-w-0 truncate')}>
           {/* Wrap only at the dash, never inside a time. */}
           {blockRange(block)

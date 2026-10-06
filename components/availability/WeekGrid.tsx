@@ -79,6 +79,12 @@ export function WeekGrid({ week, days, offsetSlots, zone, slotAt, mode, onWeek, 
     return () => document.removeEventListener('pointerdown', onDown);
   }, [selected, onSelect]);
 
+  const commit = (next: Week) => {
+    if (next === weekRef.current) return;
+    weekRef.current = next;
+    onWeek(next);
+  };
+
   // Escape mid-resize puts the block back as it was; the editor's own Escape then deselects.
   useEffect(() => {
     if (active?.kind !== 'resize') return;
@@ -87,6 +93,7 @@ export function WeekGrid({ week, days, offsetSlots, zone, slotAt, mode, onWeek, 
       if (e.key !== 'Escape' || g?.kind !== 'resize') return;
       gesture.current = null;
       setActive(null);
+      if (g.base === weekRef.current) return;
       weekRef.current = g.base;
       onWeek(g.base);
     };
@@ -94,16 +101,8 @@ export function WeekGrid({ week, days, offsetSlots, zone, slotAt, mode, onWeek, 
     return () => window.removeEventListener('keydown', onKey);
   }, [active, onWeek]);
 
-  const commit = (next: Week) => {
-    if (next === weekRef.current) return;
-    weekRef.current = next;
-    onWeek(next);
-  };
-
-  const slotAtY = (y: number) => {
-    const top = cols.current[0]?.getBoundingClientRect().top ?? 0;
-    return Math.max(0, Math.min(SLOTS - 1, Math.floor((y - top) / ROW)));
-  };
+  const rowsDown = (y: number) => (y - (cols.current[0]?.getBoundingClientRect().top ?? 0)) / ROW;
+  const slotAtY = (y: number) => Math.max(0, Math.min(SLOTS - 1, Math.floor(rowsDown(y))));
   const dayAtX = (x: number) => {
     const i = cols.current.findIndex((c) => c && x < c.getBoundingClientRect().right);
     return i === -1 ? days.length - 1 : i;
@@ -135,7 +134,8 @@ export function WeekGrid({ week, days, offsetSlots, zone, slotAt, mode, onWeek, 
     const g = gesture.current;
     if (!g) return;
     if (g.kind === 'resize') {
-      const step = dragEdge(g.base, g.origin, g.edge, slotAtY(e.clientY));
+      // The boundary nearest the pointer, so grabbing a handle a little off its edge doesn't jump it.
+      const step = dragEdge(g.base, g.origin, g.edge, Math.round(rowsDown(e.clientY)));
       if (sameBlock(step.block, g.live)) return;
       g.live = step.block;
       commit(step.week);

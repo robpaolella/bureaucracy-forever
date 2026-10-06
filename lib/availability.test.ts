@@ -184,12 +184,11 @@ describe('blocks', () => {
   });
 
   describe('dragging an edge', () => {
-    it('follows the half-hour under the pointer and keeps the fixed edge', () => {
-      // Bottom edge over 11:00 PM (slot 46): the block runs to 11:30 PM and takes that half-hour.
-      const down = dragEdge(tue, avail, 'end', 46);
+    it('moves the dragged edge to a boundary and keeps the fixed edge', () => {
+      // Bottom edge to 11:30 PM: the block takes that half-hour from the If needed block.
+      const down = dragEdge(tue, avail, 'end', 47);
       expect(down.block).toEqual({ ...avail, end: 47 });
       expect(dayBlocks(down.week, 1)).toEqual([{ ...avail, end: 47 }, { ...late, start: 47 }]);
-      // Top edge over 6:00 PM (slot 36): the block starts there.
       expect(dragEdge(tue, avail, 'start', 36).block).toEqual({ ...avail, start: 36 });
       // Past the other edge, it stops one half-hour short.
       expect(dragEdge(tue, avail, 'end', 10).block).toEqual({ ...avail, end: 39 });
@@ -199,9 +198,12 @@ describe('blocks', () => {
     it('returns the merged block, and pulling back restores what it covered', () => {
       const week: Week = { ...applyPaintRun({}, 2, 36, 39, 'available'), ...applyPaintRun({}, 2, 42, 44, 'available') };
       const [first] = dayBlocks(week, 2);
-      expect(dragEdge(week, first, 'end', 42).block).toEqual({ day: 2, start: 36, end: 45, state: 'available' });
-      // Each step starts from the week as the drag began, so the replaced block comes back.
-      expect(dragEdge(tue, avail, 'end', 45).week).toBe(tue);
+      expect(dragEdge(week, first, 'end', 43).block).toEqual({ day: 2, start: 36, end: 45, state: 'available' });
+      // Each step starts from the week as the drag began: past the If needed block, then back.
+      expect(dayBlocks(dragEdge(tue, avail, 'end', 48).week, 1)).toEqual([{ ...avail, end: 48 }]);
+      const back = dragEdge(tue, avail, 'end', 46);
+      expect(back.week).toBe(tue);
+      expect(dayBlocks(back.week, 1)).toEqual([avail, late]);
     });
 
     it('compares blocks by run and state', () => {

@@ -127,14 +127,13 @@ export function resizeBlock(week: Week, block: Block, edge: 'start' | 'end', to:
 }
 
 /**
- * One step of an edge drag: the dragged edge follows the half-hour under the pointer (a
- * bottom edge sits below that half-hour, a top edge above it). Pass the week and block as
- * they were when the drag began, so pulling back past another block restores it. Returns
+ * One step of an edge drag to the boundary `to` nearest the pointer. Pass the week and block
+ * as they were when the drag began, so pulling back past another block restores it. Returns
  * the new week and the block now holding the fixed edge, which stays selected; after a
  * merge it is the merged block.
  */
-export function dragEdge(week: Week, block: Block, edge: 'start' | 'end', slot: number): { week: Week; block: Block } {
-  const next = resizeBlock(week, block, edge, edge === 'end' ? slot + 1 : slot);
+export function dragEdge(week: Week, block: Block, edge: 'start' | 'end', to: number): { week: Week; block: Block } {
+  const next = resizeBlock(week, block, edge, to);
   const fixed = edge === 'end' ? block.start : block.end - 1;
   return { week: next, block: blockAt(next, block.day, fixed) ?? block };
 }
