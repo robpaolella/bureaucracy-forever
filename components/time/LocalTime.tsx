@@ -59,7 +59,8 @@ export function LocalTime({ startsAt, durationMin, className }: Props) {
         aria-controls={panelId}
         aria-expanded={open}
         onClick={() => {
-          if (open && Date.now() - hoverOpenedAt.current < HOVER_CLICK_MS) return;
+          // The timestamp alone, not `open`: hover and click can land before a re-render.
+          if (Date.now() - hoverOpenedAt.current < HOVER_CLICK_MS) return;
           toggle();
         }}
         onPointerEnter={(e) => {
