@@ -14,12 +14,12 @@ export type InspectorTarget = {
 const NAME_CAP = 12;
 
 /** The contents of the hover inspector (docs/05 § Hover inspector), also used as a card on mobile. */
-export function InspectorBody({ startsAt, cell, members, memberCount }: { startsAt: string; cell: HeatCell; members: HeatmapMember[]; memberCount: number }) {
+export function InspectorBody({ startsAt, zone, cell, members, memberCount }: { startsAt: string; zone: string; cell: HeatCell; members: HeatmapMember[]; memberCount: number }) {
   const shown = cell.who.slice(0, NAME_CAP);
   const more = cell.who.length - shown.length;
   return (
     <div className="flex flex-col gap-3.5">
-      <LocalTime weekday="always" startsAt={startsAt} durationMin={0} className="self-start" />
+      <LocalTime zone={zone} weekday="always" startsAt={startsAt} durationMin={0} className="self-start" />
       <div className="flex items-baseline gap-2">
         <span className="tabular text-[28px] font-semibold leading-none text-teal">{cell.total}</span>
         <span className="text-xs text-fg-2">

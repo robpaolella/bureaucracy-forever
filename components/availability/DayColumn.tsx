@@ -9,6 +9,8 @@ import { FILL } from './WeekGrid';
 type Props = {
   week: Week;
   days: WeekDay[];
+  /** Half-hour slots the guild clock is ahead of `zone`; 0 means the labels are guild time. */
+  offsetSlots: number;
   /** The zone the week is painted in. */
   zone: string;
   /** ISO start of a (day, slot) this week in `zone`. */
@@ -53,7 +55,7 @@ function Chevron({ dir }: { dir: 'left' | 'right' }) {
  * wrapping. With a mouse, a vertical drag paints straight away. Chevrons and the list do
  * the same jobs, so nothing is gesture-only.
  */
-export function DayColumn({ week, days, zone, slotAt, mode, onWeek, onOpenDay }: Props) {
+export function DayColumn({ week, days, offsetSlots, zone, slotAt, mode, onWeek, onOpenDay }: Props) {
   const [dayIndex, setDayIndex] = useState(() => days.find((d) => d.isToday)?.day ?? 0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture | null>(null);
@@ -188,7 +190,7 @@ export function DayColumn({ week, days, zone, slotAt, mode, onWeek, onOpenDay }:
           />
         ))}
       </ol>
-      <p className="text-xs text-fg-3">Tap to paint a half-hour. Hold, then drag, to paint a run. Swipe sideways for another day.</p>
+      <p className="text-xs text-fg-3">Tap to paint a half-hour. Hold, then drag, to paint a run. Swipe sideways for another day.{offsetSlots === 0 && ' Times are guild time.'}</p>
 
       <div
         ref={scrollRef}

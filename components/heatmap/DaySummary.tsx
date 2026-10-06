@@ -11,6 +11,8 @@ import { InspectorBody } from './Inspector';
 type Props = {
   heat: Heatmap;
   days: WeekDay[];
+  /** Half-hour slots the guild clock is ahead of `zone`; 0 means the labels are guild time. */
+  offsetSlots: number;
   /** The zone the grid is projected onto. */
   zone: string;
   /** ISO start of a (day, slot) this week in `zone`. */
@@ -30,7 +32,7 @@ function Chevron({ dir }: { dir: 'left' | 'right' }) {
  * each with a 48-block heat strip and the day's peak, and a single-day column with
  * tap-to-inspect once a row is chosen.
  */
-export function DaySummary({ heat, days, zone, slotAt }: Props) {
+export function DaySummary({ heat, days, offsetSlots, zone, slotAt }: Props) {
   const [open, setOpen] = useState<number | null>(null);
   const [slot, setSlot] = useState<number | null>(null);
   const hours = useHourLabels(zone, slotAt, 'text-[11px] font-normal text-fg-muted', 34);
@@ -57,10 +59,10 @@ export function DaySummary({ heat, days, zone, slotAt }: Props) {
         </div>
         {slot !== null && (
           <div className="rounded-card border border-line-strong bg-ink-800 px-[18px] py-4">
-            <InspectorBody cell={heat.cells[open][slot]} members={heat.members} memberCount={heat.memberCount} startsAt={slotAt(open, slot)} />
+            <InspectorBody cell={heat.cells[open][slot]} members={heat.members} memberCount={heat.memberCount} zone={zone} startsAt={slotAt(open, slot)} />
           </div>
         )}
-        <p className="text-xs text-fg-3">Tap a half-hour to see who is free.</p>
+        <p className="text-xs text-fg-3">Tap a half-hour to see who is free.{offsetSlots === 0 && ' Times are guild time.'}</p>
         <ol className="overflow-hidden rounded-card border border-line bg-ink-900">
           {Array.from({ length: SLOTS }, (_, s) => {
             const cell = heat.cells[open][s];

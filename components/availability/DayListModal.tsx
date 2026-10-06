@@ -40,7 +40,7 @@ export function DayListModal({ day, week, zone, slotAt, onSet, onClose }: Props)
     >
       {day && (
         <div className="flex flex-col">
-          <p className="pb-3">Set each half-hour. Times are in your timezone.</p>
+          <p className="pb-3">Set each half-hour. Times are in {zone}.</p>
           <div className="-mx-2">
             {Array.from({ length: SLOTS }, (_, slot) => {
               const key = slotKey(day.day, slot);
@@ -54,7 +54,7 @@ export function DayListModal({ day, week, zone, slotAt, onSet, onClose }: Props)
                     {day.name} {fmtSlot(slot)}
                   </legend>
                   <span className="w-[92px] shrink-0">
-                    <LocalTime dense zone={zone} weekday="never" startsAt={slotAt(day.day, slot)} durationMin={0} className="text-xs font-normal text-fg-muted" />
+                    <LocalTime dense zone={zone} startsAt={slotAt(day.day, slot)} durationMin={0} className="text-xs font-normal text-fg-muted" />
                   </span>
                   <div className="flex flex-1 flex-wrap gap-x-3 gap-y-1">
                     {OPTIONS.map((o) => (

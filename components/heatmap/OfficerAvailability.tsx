@@ -110,7 +110,7 @@ export function OfficerAvailability({ memberCount, submitted, notSubmitted }: Pr
                 <HeatGrid heat={heat} days={days} offsetSlots={offsetSlots} zone={zone} slotAt={slotAt} />
               </div>
               <div className="lg:hidden">
-                <DaySummary heat={heat} days={days} zone={zone} slotAt={slotAt} />
+                <DaySummary heat={heat} days={days} offsetSlots={offsetSlots} zone={zone} slotAt={slotAt} />
               </div>
             </>
           )}

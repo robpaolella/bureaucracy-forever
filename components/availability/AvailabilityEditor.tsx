@@ -289,7 +289,7 @@ export function AvailabilityEditor({ initial }: Props) {
         <WeekGrid week={week} days={days} offsetSlots={offsetSlots} zone={effectiveZone} slotAt={slotAt} paintCell={paintCell} onOpenDay={setOpenDay} />
       </div>
       <div className="md:hidden">
-        <DayColumn week={week} days={days} zone={effectiveZone} slotAt={slotAt} mode={mode} onWeek={change} onOpenDay={setOpenDay} />
+        <DayColumn week={week} days={days} offsetSlots={offsetSlots} zone={effectiveZone} slotAt={slotAt} mode={mode} onWeek={change} onOpenDay={setOpenDay} />
       </div>
 
       <section className="flex flex-col gap-3 text-[13px] text-fg-2 md:flex-row md:items-center md:justify-between">
