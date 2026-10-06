@@ -3,7 +3,8 @@
  * the invented content. Confirm with the guild before launch.
  *
  * Times are guild wall-clock ("HH:MM", 24h) in GUILD_TIMEZONE (lib/config.ts). Never
- * store or show a bare time: components render these beside the viewer's local time.
+ * store or show a bare time: components turn each into its next instant and render it with
+ * LocalTime, in the viewer's zone with guild time on hover, tap and focus.
  */
 import type { Weekday } from '@/lib/time';
 
@@ -39,7 +40,7 @@ export const LOCKOUT_RESET = { day: 2 as Weekday, time: '08:00' };
 export const SCHEDULE_HEAD = {
   eyebrow: 'Raid schedule',
   title: 'Two progression nights. Days to be announced.',
-  lede: 'Raid days and times get set before launch, around when the roster can actually play. When they land, every time on this page is written twice: guild time, and the time on your own clock.',
+  lede: 'Raid days and times get set before launch, around when the roster can actually play. When they land, every time on this page will show in your own timezone. Hover or tap one to see it in guild time.',
 };
 
 export const WEEK_NOTE_PREFIX = 'Raid nights are shown in bronze. Lockouts reset';
