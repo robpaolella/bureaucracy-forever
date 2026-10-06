@@ -12,5 +12,5 @@
 - [x] Final ordered Checks after the two-class contrast fix, with verification server stopped.
 - [x] Commit contrast fix and backlog/work-folder records as logical Conventional Commits.
 - [x] Fresh cross-company general review via review skill; resolve all blockers and one fixes-only recheck if needed.
-- [ ] Recheck main/in-flight work, push feature branch and open PR closing #96 with uploaded evidence, risk label and per-PR preview URL.
-- [ ] Confirm linked issue, CI and every rendered uploaded pair; report PR ready. Never merge without Robert.
+- [x] Recheck main/in-flight work, push feature branch and open PR closing #96 with uploaded evidence, risk label and per-PR preview URL.
+- [x] Confirm linked issue, CI and every rendered uploaded pair; report PR ready. Never merge without Robert.
