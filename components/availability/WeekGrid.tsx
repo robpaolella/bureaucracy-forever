@@ -30,7 +30,7 @@ export const FILL: Record<string, string> = {
  */
 export function WeekGrid({ week, days, offsetSlots, zone, slotAt, paintCell, onOpenDay }: Props) {
   const stroke = usePaintStroke(paintCell);
-  const hours = useHourLabels(zone, slotAt, 'text-[10px] font-normal text-fg-muted');
+  const hours = useHourLabels(zone, slotAt, 'text-[10px] font-normal text-fg-muted', 19);
 
   return (
     <div

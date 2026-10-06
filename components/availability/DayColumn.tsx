@@ -63,7 +63,7 @@ export function DayColumn({ week, days, zone, slotAt, mode, onWeek, onOpenDay }:
   const modeRef = useRef(mode);
   const onWeekRef = useRef(onWeek);
   const day = days[dayIndex];
-  const hours = useHourLabels(zone, slotAt, 'text-[11px] font-normal text-fg-muted');
+  const hours = useHourLabels(zone, slotAt, 'text-[11px] font-normal text-fg-muted', ROW);
 
   useEffect(() => {
     weekRef.current = week;

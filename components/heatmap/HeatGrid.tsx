@@ -31,7 +31,7 @@ const GUTTER = 'w-[72px] shrink-0';
 export function HeatGrid({ heat, days, offsetSlots, zone, slotAt }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const [target, setTarget] = useState<InspectorTarget | null>(null);
-  const hours = useHourLabels(zone, slotAt, 'text-[10px] font-normal text-fg-muted');
+  const hours = useHourLabels(zone, slotAt, 'text-[10px] font-normal text-fg-muted', ROW);
 
   const show = (day: number, slot: number, el: HTMLElement) => {
     const grid = container.current;

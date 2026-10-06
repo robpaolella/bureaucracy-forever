@@ -33,7 +33,7 @@ function Chevron({ dir }: { dir: 'left' | 'right' }) {
 export function DaySummary({ heat, days, zone, slotAt }: Props) {
   const [open, setOpen] = useState<number | null>(null);
   const [slot, setSlot] = useState<number | null>(null);
-  const hours = useHourLabels(zone, slotAt, 'text-[11px] font-normal text-fg-muted');
+  const hours = useHourLabels(zone, slotAt, 'text-[11px] font-normal text-fg-muted', 34);
 
   if (open !== null) {
     const day = days[open];

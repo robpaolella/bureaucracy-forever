@@ -16,11 +16,12 @@ type Props = {
   zone?: string;
   weekday?: ViewerTimeOptions['weekday'];
   /**
-   * For a row label in a dense grid, under a header that names the zone: no zone name, the
-   * hit area is the label itself rather than 44px (which would cover the neighbouring rows),
-   * and the popup is placed against the viewport so the grid's scroll box cannot clip it.
+   * For a row label in a grid, under a header that names the zone: no zone name, and the
+   * popup is placed against the viewport so the grid's scroll box cannot clip it.
    */
   dense?: boolean;
+  /** Height of the hit area in px. A grid with labels closer than 44px passes their spacing. */
+  hitHeight?: number;
 };
 
 /** A click this soon after a hover opened the popup is the same gesture, not a toggle. */
@@ -32,7 +33,7 @@ const HOVER_CLICK_MS = 400;
  * is guild time, it shows guild time once, labelled, with no popup. The popup is the item
  * tooltip's disclosure (ItemName): Escape, an outside press and tabbing away close it.
  */
-export function LocalTime({ startsAt, durationMin, className, zone, weekday, dense = false }: Props) {
+export function LocalTime({ startsAt, durationMin, className, zone, weekday, dense = false, hitHeight = 44 }: Props) {
   const viewer = useViewerTimeZone();
   // `viewer` is null on the server, so navigator is only read in the browser.
   const time = viewerTime(new Date(startsAt), durationMin, zone ?? viewer?.zone ?? null, viewer ? navigator.language : undefined, { weekday, zoneName: !dense });
@@ -98,10 +99,11 @@ export function LocalTime({ startsAt, durationMin, className, zone, weekday, den
         onFocus={(e) => {
           if (!open && e.currentTarget.matches(':focus-visible')) toggle();
         }}
-        // The 44px hit area sits on a pseudo-element, so the line keeps its height.
+        // The hit area sits on a pseudo-element, so the line keeps its height.
+        style={{ '--hit': `${hitHeight}px` } as React.CSSProperties}
         className={cn(
-          'relative rounded-sm text-left underline decoration-fg-3 decoration-dotted focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal',
-          dense ? 'underline-offset-2' : "underline-offset-4 after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-['']",
+          "relative rounded-sm text-left underline decoration-fg-3 decoration-dotted after:absolute after:inset-x-0 after:top-1/2 after:h-[var(--hit)] after:-translate-y-1/2 after:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal",
+          dense ? 'underline-offset-2' : 'underline-offset-4',
         )}
       >
         {time.text}
