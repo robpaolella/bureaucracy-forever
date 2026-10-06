@@ -118,8 +118,13 @@ describe('blocks', () => {
       const rebuilt = weekFromBlocks(blocks);
       expect(rebuilt).toEqual(saved);
       expect(isWeek(rebuilt)).toBe(true);
-      // Untouched by the editor's block helpers, the same object saves the same JSON.
-      expect(JSON.stringify(resizeBlock(saved, dayBlocks(saved, 6)[0], 'end', 41))).toBe(JSON.stringify(saved));
+      // Reading blocks never writes, and an unmoved edge returns the same object, so an
+      // untouched week saves byte-identical JSON.
+      const json = JSON.stringify(saved);
+      for (let d = 0; d < DAYS; d++) dayBlocks(saved, d);
+      expect(JSON.stringify(saved)).toBe(json);
+      const block = dayBlocks(saved, 6)[0];
+      expect(JSON.stringify(resizeBlock(saved, block, 'end', block.end))).toBe(json);
     });
   });
 

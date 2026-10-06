@@ -110,7 +110,8 @@ export function weekFromBlocks(blocks: Block[]): Week {
  * Move one edge of a block to a new boundary, in half-hour steps, immutably. The edge stops
  * one half-hour short of the other edge and at the day's ends. Growing paints the block's
  * state, so it merges with a same-state block and takes slots from the other state;
- * shrinking clears the slots it leaves.
+ * shrinking clears the slots it leaves. Pass a block grouped from this same week; a stale
+ * block paints or clears slots that no longer match it.
  */
 export function resizeBlock(week: Week, block: Block, edge: 'start' | 'end', to: number): Week {
   const { day, start, end, state } = block;
@@ -125,7 +126,7 @@ export function resizeBlock(week: Week, block: Block, edge: 'start' | 'end', to:
   return next > end ? applyPaintRun(week, day, end, next - 1, state) : applyPaintRun(week, day, next, end - 1, 'erase');
 }
 
-/** Clear exactly a block's slots, immutably. */
+/** Clear exactly a block's slots, immutably. Pass a block grouped from this same week. */
 export function removeBlock(week: Week, block: Block): Week {
   return applyPaintRun(week, block.day, block.start, block.end - 1, 'erase');
 }
