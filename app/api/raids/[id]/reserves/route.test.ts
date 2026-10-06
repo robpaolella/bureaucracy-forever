@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => ({
   settings: vi.fn(),
   limits: vi.fn(),
   existing: vi.fn(),
+  table: vi.fn(),
+  reserves: vi.fn(),
+  targets: vi.fn(),
 }));
 
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.session }));
@@ -23,7 +26,7 @@ vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.loot }));
 vi.mock('@/lib/users', () => ({ ensureUser: async () => ({ id: 'officer-user' }) }));
 vi.mock('@/lib/loot-data', async () => {
   const real = await vi.importActual<typeof import('@/lib/loot-data')>('@/lib/loot-data');
-  return { signupAnswer: real.signupAnswer, tableItemIds: mocks.items, hrAwardsFor: mocks.awards };
+  return { signupAnswer: real.signupAnswer, tableItemIds: mocks.items, hrAwardsFor: mocks.awards, loadLootTable: mocks.table, loadActiveReserves: mocks.reserves, loadReserveTargets: mocks.targets };
 });
 vi.mock('@/lib/db', () => ({
   db: {
@@ -38,7 +41,7 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
-import { PUT } from './route';
+import { GET, PUT } from './route';
 
 const HOUR = 3600_000;
 const call = (body: unknown) => PUT(new Request('https://example.test', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }), { params: Promise.resolve({ id: 'r1' }) });
@@ -226,5 +229,50 @@ describe('PUT /api/raids/[id]/reserves', () => {
   it('answers 409 when the database unique index catches a race', async () => {
     mocks.transaction.mockRejectedValue(new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' }));
     expect((await call(BODY)).status).toBe(409);
+  });
+});
+
+describe('GET /api/raids/[id]/reserves', () => {
+  const get = () => GET(new Request('https://example.test'), { params: Promise.resolve({ id: 'r1' }) });
+  const TABLE = { bosses: [], items: { 100: { id: 100 } }, blocked: [] };
+
+  beforeEach(() => {
+    mocks.table.mockReset().mockResolvedValue(TABLE);
+    mocks.reserves.mockReset().mockResolvedValue([{ itemId: 100 }]);
+    mocks.targets.mockReset().mockResolvedValue({ targets: [{ userId: 'u1', self: true }], reason: null });
+  });
+
+  it('returns the window’s table, reserves, targets and lock for the viewer', async () => {
+    const res = await get();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toMatchObject({ table: TABLE, reserves: [{ itemId: 100 }], targets: [{ userId: 'u1', self: true }], locked: false, cancelled: false });
+    expect(Date.parse(body.lockAt)).toBeGreaterThan(Date.now());
+    expect(mocks.table).toHaveBeenCalledWith('t1');
+    expect(mocks.targets).toHaveBeenCalledWith('r1', 'd1', false);
+  });
+
+  it('lets an officer load everyone they can reserve for, and reports a lock', async () => {
+    mocks.session = { role: 'officer', discordId: 'd9' };
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1' });
+    expect(await (await get()).json()).toMatchObject({ locked: true });
+    expect(mocks.targets).toHaveBeenCalledWith('r1', 'd9', true);
+  });
+
+  it.each([
+    ['loot is off', () => { mocks.loot = false; }],
+    ['the viewer is a social', () => { mocks.session = { role: 'social', discordId: 'd1' }; }],
+    ['there is no such raid', () => mocks.raid.mockResolvedValue(null)],
+    ['the raid has no template', () => mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: null, templateId: null })],
+    ['the table is empty', () => mocks.table.mockResolvedValue(null)],
+  ])('is a 404 when %s', async (_label, arrange) => {
+    arrange();
+    expect((await get()).status).toBe(404);
+    expect(mocks.targets).not.toHaveBeenCalled();
+  });
+
+  it('needs a login', async () => {
+    mocks.session = null;
+    expect((await get()).status).toBe(401);
   });
 });

@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
+import { useReservePrompt } from '@/components/loot/ReserveWindow';
 import { ScheduleRaidModal } from '@/components/raid/ScheduleRaidModal';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { Button, EmptyState, SegmentedControl, Toast, type ToastData } from '@/components/ui';
@@ -51,16 +52,21 @@ export function CalendarList({ raids: initial, viewer, schedule }: Props) {
     [closeSchedule, router, zone],
   );
 
+  const { afterAnswer, window: reserveWindow } = useReservePrompt(setToast);
   const onResult = useCallback(
-    (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void) => {
+    (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void, undone: boolean) => {
       if (!ok) {
         setToast({ tone: 'stop', title: SAVE_FAILED });
         return;
       }
       const copy = responseToast(raid, response, zone?.zone ?? null);
-      setToast({ tone: 'ok', title: copy.title, detail: copy.detail, action: { label: 'Undo', onClick: undo } });
+      const toast: ToastData = { tone: 'ok', title: copy.title, detail: copy.detail, action: { label: 'Undo', onClick: undo } };
+      setToast(toast);
+      // Accept or Tentative may then open the reserves window, which takes over the line and Undo.
+      // An undo never prompts, and it stops a prompt still loading for the answer it reverted.
+      void afterAnswer(raid, undone ? null : response, { text: copy.title, onUndo: undo }).then((opened) => { if (opened) setToast((shown) => (shown === toast ? null : shown)); });
     },
-    [zone],
+    [zone, afterAnswer],
   );
   const { raids, respond } = useSignup(initial, viewer.raidRole, onResult);
 
@@ -148,6 +154,7 @@ export function CalendarList({ raids: initial, viewer, schedule }: Props) {
       )}
 
       {schedule && <ScheduleRaidModal open={scheduling} initial={schedule.initial} onClose={closeSchedule} onScheduled={onScheduled} />}
+      {reserveWindow}
       <Toast toast={toast} onDismiss={() => setToast(null)} />
     </div>
   );

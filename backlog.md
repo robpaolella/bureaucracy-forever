@@ -35,3 +35,6 @@
 - Loot log (#122): `mergeAwards` counts only local HR records as reserve wins, so an SR win recorded in this tab doesn't hold that holder back from the next drop until the page refreshes; count SR too.
 - Shared time formatter (lib/time): use a non-breaking space before AM/PM so narrow cards don't break "7:00 / AM".
 - Schedule week strip: when it returns to /schedule, its note adds "Day labels are guild days; your time may fall on the next day." (Robert, 2026-10-06)
+- Reserves section (#119): after the lock the lede still says reserves "will lock at", and a cancelled raid still shows the lock time (the approved design's wording); ask Robert for past-tense / no-time variants.
+- Reserves (#119): HR/SR rules are no longer explained in the section (approved wording); link the lede or the slot cards to Loot rules.
+- Reserves window (#119): an officer's own empty picks show "Change reserves" next to the chooser; "Pick reserves" may read better (state not in the approved design).
