@@ -90,6 +90,8 @@ export function Modal({ open, onClose, title, children, actions, className, wide
       ref={ref}
       aria-labelledby={titleId}
       onCancel={(e) => {
+        // React bubbles a nested dialog's cancel (the picker's Sheet) up here; Escape closes only the innermost layer.
+        if (e.target !== e.currentTarget) return;
         e.preventDefault();
         onClose();
       }}
