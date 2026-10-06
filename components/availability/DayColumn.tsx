@@ -39,7 +39,8 @@ type Stroke = {
   last: number | null;
   hold: ReturnType<typeof setTimeout> | null;
 };
-type Gesture = Stroke | { kind: 'resize'; base: Week; origin: Block; edge: 'start' | 'end'; live: Block };
+/** `grab` is how many rows below the dragged edge the finger landed, so the edge moves with it. */
+type Gesture = Stroke | { kind: 'resize'; base: Week; origin: Block; edge: 'start' | 'end'; grab: number; live: Block };
 
 const CELLS = Array.from({ length: SLOTS }, (_, slot) => (
   <div key={slot} className={cn('border-b bg-slot-empty', slot % 2 === 0 ? 'border-line-faint' : 'border-line-hairline')} style={{ height: ROW }} />
@@ -154,7 +155,8 @@ export function DayColumn({ week, days, offsetSlots, zone, slotAt, mode, onWeek,
       e.currentTarget.setPointerCapture(e.pointerId);
       weekRef.current = week;
       const edge = handle.dataset.edge === 'start' ? 'start' : 'end';
-      gesture.current = { kind: 'resize', base: week, origin, edge, live: origin };
+      const grab = rowsDown(e.clientY) - (edge === 'start' ? origin.start : origin.end);
+      gesture.current = { kind: 'resize', base: week, origin, edge, grab, live: origin };
       setResizing(edge);
       return;
     }
@@ -169,8 +171,8 @@ export function DayColumn({ week, days, offsetSlots, zone, slotAt, mode, onWeek,
     const g = gesture.current;
     if (!g) return;
     if (g.kind === 'resize') {
-      // The boundary nearest the finger, so grabbing a handle a little off its edge doesn't jump it.
-      const next = dragEdge(g.base, g.origin, g.edge, Math.round(rowsDown(e.clientY)));
+      // The handle's hit area reaches most of a row past its edge, so measure from where it was grabbed.
+      const next = dragEdge(g.base, g.origin, g.edge, Math.round(rowsDown(e.clientY) - g.grab));
       if (sameBlock(next.block, g.live)) return;
       g.live = next.block;
       commit(next.week);
