@@ -96,11 +96,31 @@ conductor removes the label when its PR merges or closes.
 ## Verifying a change
 Use `.pi/skills/verify-guild/SKILL.md` to launch, safely drive and capture evidence from the local site.
 
-Every UI change follows `.pi/skills/verify-guild/design-check.md`: before/after captures at
-390 and 1440, impeccable critique and an independent verdict against `DESIGN.md` and the live site.
+Every UI change follows Maestro's shared `/git/maestro/skills/design-check/SKILL.md`,
+using `.pi/skills/verify-guild/design-check.md` for this site's routes, states and safe
+verification: main/build captures at 390 and 1440, approved-design comparisons when
+linked, impeccable critique and an independent verdict.
+
+## Designs
+
+Before building a new screen, flow or kind of element, Robert approves a clickable
+design. Approved designs live in `design/<issue>-<name>/`: `brief.md`, `decisions.md`,
+`index.html` and `screenshots/`. Merge them to main in their own `docs(design)` PR
+before implementation; record Robert's approval and link the design from the build issue.
+For that feature, the approved design wins on layout, content, wording, states and
+behaviour. `DESIGN.md` and the live site win on the site-wide look; `PRODUCT.md` still
+supplies product facts. Gaps or ambiguous conflicts go to Robert through the conductor,
+not an invented compromise. A new kind of element shown in an approved design counts
+as Robert's go-ahead for it; otherwise explicit approval is still required.
+
+This repo is public: designs and page snapshots use sample data only, never real
+member data. The offline snapshot recipe is in `.pi/skills/verify-guild/SKILL.md`.
+Maestro's `skills/design-feature/` workflow arrives with maestro#68; this recipe does
+not depend on that unmerged work.
 
 ## Reference material
-- The live site — the design source of truth.
+- The live site and `DESIGN.md` — the site-wide visual authority; approved feature
+  designs govern their feature as described above.
 - `design-handover/CLAUDE.md` — read before writing components. It covers non-negotiables,
   voice and placeholder content; it is background rather than the source of truth.
 - `design-handover/docs/`, `design-handover/design/`, `design-handover/reference/*.html` —

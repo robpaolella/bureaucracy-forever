@@ -19,7 +19,9 @@ another. Re-seeding destroys local changes, so use a fresh run for baseline data
 - [Public loot rules](public-loot.md): policy navigation, FAQ disclosure and
   application entry at `/loot`.
 - [Officer raid planning](officer-raids.md): templates, weekly series and calendar read-back.
-- [Officer loot tables](officer-loot.md): tier list and seeded empty template pages.
+- [Officer loot tables](officer-loot.md): tier list plus empty and populated template pages.
+  Load approved local test data with [Loot data for local verification](loot-data.md)
+  when the populated path is needed.
 - [Officer availability](officer-availability.md): heatmap, window finder and not-submitted list.
 - [Officer applications](officer-applications.md): inbox, standalone detail, notes and decisions.
 - [Officer class needs](officer-needs.md): per-spec status and featured high-need spec.
@@ -43,7 +45,9 @@ Record actions, expected/observed results, full-reload snapshots and skipped pat
 in `$EVIDENCE/notes.md`. Keep one end-state screenshot per feature at both 1440 × 900
 and 390 × 844 outside git; attach them to the PR with Cleanup PASS. The baseline
 flows were driven with seeded data; additional paths are named explicitly, not
-silently counted as verified. Never nudge Discord or import external loot data.
+silently counted as verified. Never nudge Discord. For a populated loot-table proof,
+follow [Loot data for local verification](loot-data.md); it approves the public import
+only into this worktree's throwaway local database.
 
 ## Not covered
 

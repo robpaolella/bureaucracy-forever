@@ -12,10 +12,17 @@
   that repo's onboarding also lands.
 - Local database commands (#74): consider clearer Docker failure diagnostics, tests for rejected port bindings, and cleanup when initial setup is interrupted; normal reruns already recover interrupted setup.
 - Add automated failure-path tests for server identity, container ownership/replacement and cleanup refusal before extending the verification lifecycle helper (review #75; happy-path teardown is browser-run verified).
-- Calendar (#77 dry run): raise role-label contrast from the browser detector's measured 4.4:1 to PRODUCT.md's required 4.5:1 or better.
+- Calendar (#77 dry run, #121 critique): raise role-label and roster/reserve caption contrast from the browser detector's measured 4.4:1 to PRODUCT.md's required 4.5:1 or better.
 - Calendar (#77 dry run): make staffing requirements visible, not screen-reader-only, so sighted members can understand shortfalls without relying on count color.
 - Calendar (#77 dry run): clarify roster-dependent absence choices and improve weekday scanning; weekdays are currently screen-reader-only.
 - Loot sources (#93 review): remove the now-unused `ItemInput.explicit` field and its parser test assertions.
 - Loot sources (#93 review): distinguish source conflicts from Wowhead failures in refresh responses, including the rare concurrent-insert refusal.
 - Loot sources (#93 review): hide or disable Classic in the production add-item picker; keep both options locally and on staging.
 - Reserve form (#95 critique): consider a brief draft-state hint explaining that Clear takes effect only after Save, alongside the copy work in #90.
+- Reserve picker (#96/#119, #121 critique): keep Previously won readable for saved selections; native selects currently clip long count/ownership prefixes and require scrolling long option lists.
+- Design documentation (#121 context): refresh the stale Impeccable sidecar from DESIGN.md with the document workflow when requested.
+- Loot log (#121 review): include SR alongside HR in mergeAwards' pending-win list and test it; same-raid received-user filtering already prevents a wrong drop result, but the temporary list and comment lag the server rule.
+- Reserve picker (#96 critique → #119): recover the approved phone inner width when moving the picker out of the nested inline form; recheck long item names and Save visibility.
+- Reserve picker (#96 critique → #109): complete the approved “see who reserved it” promise with reserver details; keep the explicitly required interim wording until then.
+- Reserve picker (#96 critique): seek approval before making a filled slot reveal its selected item's Remove action automatically, including what happens to an active search filter.
+- Reserve picker (#96 review): render each row's Wowhead tooltip only while open instead of mounting ~160 hidden tooltips; add a draft-logic test for HR→SR auto-advance and Enter-doesn't-submit; skip search refocus after Choose on phone so the keyboard doesn't pop up.

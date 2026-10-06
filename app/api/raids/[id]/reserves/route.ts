@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { lootEnabled } from '@/lib/flags';
 import { hrAwardsFor, signupAnswer, tableItemIds } from '@/lib/loot-data';
 import { decideReserve } from '@/lib/loot-rules';
+import { blockedItemIds, lockReserveTier } from '@/lib/loot-blocks';
 import { getSession } from '@/lib/session';
 import { ensureUser } from '@/lib/users';
 import { isUniqueViolation } from '../../../_loot';
@@ -43,16 +44,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     raid.templateId ? tableItemIds(raid.templateId) : Promise.resolve(new Set<number>()),
     hrAwardsFor([characterId]),
   ]);
-  const decision = decideReserve(
-    { role: session.role },
-    { cancelled: raid.cancelledAt !== null, startsAt: raid.startsAt, hasLootTable: items.size > 0 },
-    { characterId, hr, sr },
-    { response: signupAnswer(signup?.response).response, ownCharacterIds: target.characters.map((c) => c.id), tableItemIds: items, hrAwards },
-    new Date(),
-    officer,
-  );
-  if (!decision.ok) return NextResponse.json({ error: decision.reason }, { status: decision.status, headers: NO_STORE });
-
   const rows = [
     ...(hr !== null ? [{ kind: 'HR' as const, itemId: hr }] : []),
     ...(sr !== null ? [{ kind: 'SR' as const, itemId: sr }] : []),
@@ -60,7 +51,26 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const setById = forUserId ? (await ensureUser(session)).id : null;
   const data = rows.map((r) => ({ ...r, raidId, userId: target.id, characterId, setById }));
   try {
-    await db.$transaction([db.reserve.deleteMany({ where: { raidId, userId: target.id } }), db.reserve.createMany({ data })]);
+    const decision = await db.$transaction(async (tx) => {
+      if (raid.templateId) await lockReserveTier(tx, raid.templateId);
+      const blocked = raid.templateId ? await blockedItemIds(raid.templateId, tx) : new Set<number>();
+      const existing = await tx.reserve.findMany({ where: { raidId, userId: target.id } });
+      const result = decideReserve(
+        { role: session.role },
+        { cancelled: raid.cancelledAt !== null, startsAt: raid.startsAt, hasLootTable: items.size > 0 },
+        { characterId, hr, sr },
+        { response: signupAnswer(signup?.response).response, ownCharacterIds: target.characters.map((c) => c.id), tableItemIds: items, hrAwards, blockedItemIds: blocked, existingReserves: existing },
+        new Date(),
+        officer,
+      );
+      if (!result.ok) return result;
+      // Do not recreate kept rows: preserve their identity, setter and timestamp.
+      const kept = existing.filter((r) => blocked.has(r.itemId) && r.characterId === characterId && rows.some((row) => row.kind === r.kind && row.itemId === r.itemId));
+      await tx.reserve.deleteMany({ where: { raidId, userId: target.id, ...(kept.length ? { id: { notIn: kept.map((r) => r.id) } } : {}) } });
+      await tx.reserve.createMany({ data: data.filter((r) => !kept.some((k) => k.kind === r.kind)) });
+      return result;
+    }, { isolationLevel: 'ReadCommitted' });
+    if (!decision.ok) return NextResponse.json({ error: decision.reason }, { status: decision.status, headers: NO_STORE });
   } catch (e) {
     // decideReserve already refused the same item twice, so this is two saves racing.
     if (isUniqueViolation(e)) return NextResponse.json({ error: 'Your reserves changed at the same moment. Reload and try again.' }, { status: 409, headers: NO_STORE });

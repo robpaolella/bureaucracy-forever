@@ -6,6 +6,7 @@ import {
   defaultMethodFor,
   hrBlocked,
   isEligible,
+  LOOT_LOG_METHODS,
   parseAwardInput,
   parseItemRef,
   REASONS,
@@ -59,9 +60,9 @@ describe('decideReserve', () => {
     expect(decideReserve(actor, r, input, c, now)).toEqual({ ok: false, status, reason });
   });
 
-  it('allows an SR on an item won through HR, and an HR on it for another character', () => {
+  it('blocks SR on a previously won item, but allows another character to reserve it', () => {
     const won = { ...ctx, hrAwards: [{ characterId: 'c1', itemId: 100 }] };
-    expect(decideReserve(member, raid, { characterId: 'c1', hr: 200, sr: 100 }, won, now)).toEqual({ ok: true });
+    expect(decideReserve(member, raid, { characterId: 'c1', hr: 200, sr: 100 }, won, now)).toEqual({ ok: false, status: 409, reason: REASONS.hrReceived });
     expect(decideReserve(member, raid, { characterId: 'c2', hr: 100, sr: null }, won, now)).toEqual({ ok: true });
   });
 
@@ -81,7 +82,46 @@ describe('decideReserve', () => {
   });
 });
 
+describe('blocked tier items', () => {
+  const blocked = { ...ctx, blockedItemIds: new Set([100]) };
+  const existing = { characterId: 'c1', itemId: 100, kind: 'HR' as const };
+
+  it.each(['member', 'officer'] as const)('refuses new HR and SR for %s, locked or unlocked', (role) => {
+    for (const time of [now, startsAt]) for (const input of [pick, { ...pick, hr: 200, sr: 100 }]) {
+      expect(decideReserve({ role }, raid, input, blocked, time, true)).toMatchObject({
+        ok: false, reason: role === 'member' && time === startsAt ? REASONS.locked : REASONS.itemBlocked,
+      });
+    }
+  });
+
+  it.each(['member', 'officer'] as const)('keeps a blocked reserve while %s changes the other slot', (role) => {
+    const context = { ...blocked, existingReserves: [existing] };
+    expect(decideReserve({ role }, raid, { ...pick, sr: 300 }, context, role === 'officer' ? startsAt : now, true)).toEqual({ ok: true });
+    // Moving a locked raid back outside the lock does not invalidate the kept reserve.
+    expect(decideReserve({ role }, { ...raid, startsAt: new Date('2027-01-01') }, pick, context, startsAt, true)).toEqual({ ok: true });
+    expect(decideReserve({ role }, raid, { ...pick, characterId: 'c2' }, context, now, true)).toMatchObject({ reason: REASONS.itemBlocked });
+    expect(decideReserve({ role }, raid, { ...pick, hr: 200, sr: 100 }, context, now, true)).toMatchObject({ reason: REASONS.itemBlocked });
+  });
+
+  it('keeps SR too, and unblocking allows new reserves', () => {
+    expect(decideReserve(member, raid, { ...pick, hr: 300, sr: 100 }, { ...blocked, existingReserves: [{ ...existing, kind: 'SR' }] }, now)).toEqual({ ok: true });
+    expect(decideReserve(member, raid, pick, { ...blocked, blockedItemIds: new Set() }, now)).toEqual({ ok: true });
+  });
+
+  it('still counts kept blocked reserves when resolving drops', () => {
+    const holder = { ...existing, userId: 'u1' };
+    expect(resolveDrop(100, [holder], [], [])).toEqual({ mode: 'HR', contenders: [holder] });
+    const soft = { ...holder, kind: 'SR' as const };
+    expect(resolveDrop(100, [soft], [], [])).toEqual({ mode: 'SR', contenders: [soft] });
+  });
+});
+
 describe('hrBlocked', () => {
+  it('accepts an allowed count for future per-item limits', () => {
+    const award = { characterId: 'c1', itemId: 100 };
+    expect(hrBlocked('c1', 100, [award], [], 2)).toBe(false);
+    expect(hrBlocked('c1', 100, [award, award], [], 2)).toBe(true);
+  });
   it('blocks the same character and item unless an exception exists', () => {
     const awards = [{ characterId: 'c1', itemId: 100 }];
     expect(hrBlocked('c1', 100, awards)).toBe(true);
@@ -126,10 +166,22 @@ describe('resolveDrop', () => {
     expect(resolveDrop(300, reserves, [], [{ characterId: 'char-e', itemId: 300 }], [{ characterId: 'char-e', itemId: 300 }])).toMatchObject({ mode: 'HR' });
   });
 
+  it('skips previously winning SR holders and falls through HR, SR, then open', () => {
+    const wins = ['a', 'b', 'c'].map((id) => ({ characterId: `char-${id}`, itemId: 100 }));
+    expect(resolveDrop(100, reserves, [], wins.slice(0, 1))).toEqual({ mode: 'HR', contenders: [r('b', 'HR')] });
+    expect(resolveDrop(100, reserves, [], wins.slice(0, 2))).toEqual({ mode: 'SR', contenders: [r('c', 'SR')] });
+    expect(resolveDrop(100, reserves, [], wins)).toEqual({ mode: 'OPEN', contenders: [] });
+    expect(resolveDrop(100, reserves, [], wins, [{ characterId: 'char-c', itemId: 100 }])).toEqual({ mode: 'SR', contenders: [r('c', 'SR')] });
+  });
+
   it('preselects the matching method', () => {
     expect(defaultMethodFor('HR')).toBe('HR');
     expect(defaultMethodFor('SR')).toBe('SR');
-    expect(defaultMethodFor('OPEN')).toBe('MAIN_SPEC');
+    expect(defaultMethodFor('OPEN')).toBe('OPEN_ROLL');
+  });
+
+  it('offers only the four current loot methods for new records', () => {
+    expect(LOOT_LOG_METHODS).toEqual(['HR', 'SR', 'OPEN_ROLL', 'DISENCHANT_BANK']);
   });
 
   it('counts HR and SR per item', () => {
@@ -149,10 +201,10 @@ describe('reserve picker totals and ownership copy', () => {
     expect(reserveCounts([]).size).toBe(0);
   });
 
-  it('puts counts before long item names and identifies whose saved pick it is', () => {
-    expect(RESERVES.counts(2, 0) + RESERVES.ownPick('HR', null) + 'Choker of Enlightenment').toBe('HR 2, SR 0 · your HR · Choker of Enlightenment');
-    expect(RESERVES.ownPick('SR', 'redtape')).toBe("redtape's SR · ");
-    expect(RESERVES.counts(0, 0)).toBe('');
+  it('identifies the chosen slot separately from the item name and counts', () => {
+    expect(RESERVES.picked('HR')).toBe('Picked as HR');
+    expect(RESERVES.pickedDetails('HR', null)).toBe('Picked as your hard reserve');
+    expect(RESERVES.pickedDetails('SR', 'redtape')).toBe("Picked as redtape's soft reserve");
   });
 });
 

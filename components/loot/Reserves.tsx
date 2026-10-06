@@ -12,6 +12,7 @@ import { CLASS_COLORS } from '@/lib/design/class-colors';
 import type { LootTableView, ReserveTargetRow, ReserveView } from '@/lib/loot-data';
 import { reserveCounts, type ReserveKind } from '@/lib/loot-rules';
 import { ItemName } from './ItemName';
+import { ReservePicker } from './ReservePicker';
 
 /** A member whose reserves the viewer may set: themselves, or anyone eligible for an officer. */
 export type ReserveTarget = ReserveTargetRow;
@@ -112,30 +113,6 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
     void save({ hr, sr });
   }
 
-  const itemOptions = (kind: ReserveKind, other: number | null) => {
-    const seen = new Set<number>();
-    return table.bosses.map((boss) => {
-      const ids = boss.itemIds.filter((id) => !seen.has(id) && seen.add(id));
-      if (ids.length === 0) return null;
-      return (
-        <optgroup key={boss.id} label={boss.name}>
-          {ids.map((id) => {
-            const c = counts.get(id) ?? { HR: 0, SR: 0 };
-            const isBlocked = kind === 'HR' && blocked.has(id);
-            return (
-              <option key={id} value={id} disabled={id === other || isBlocked}>
-                {RESERVES.counts(c.HR, c.SR)}
-                {target.current.hr === id ? RESERVES.ownPick('HR', target.self ? null : target.name) : target.current.sr === id ? RESERVES.ownPick('SR', target.self ? null : target.name) : ''}
-                {table.items[id].name}
-                {isBlocked ? ` — ${RESERVES.blocked}` : ''}
-              </option>
-            );
-          })}
-        </optgroup>
-      );
-    });
-  };
-
   const select = cn(CONTROL, 'h-[46px] min-w-0 px-3');
   return (
     <form onSubmit={submit} className="flex flex-col gap-4 rounded-card border border-line-faint bg-ink-900 p-4">
@@ -158,8 +135,9 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
             onChange={(e) => {
               const next = e.target.value;
               setCharacterId(next);
-              // This character may not hard-reserve an item it already won with HR.
+              // Neither reserve may select an item this character already won through HR or SR.
               if (hr !== null && (target.blockedHr[next] ?? []).includes(hr)) setHr(null);
+              if (sr !== null && (target.blockedHr[next] ?? []).includes(sr)) setSr(null);
             }}
           >
             {target.characters.map((c) => (
@@ -169,40 +147,12 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
             ))}
           </select>
         </Field>
-        <Field label={RESERVES.hr}>
-          <select className={select} value={hr ?? ''} onChange={(e) => setHr(e.target.value ? Number(e.target.value) : null)}>
-            <option value="">{RESERVES.none}</option>
-            {itemOptions('HR', sr)}
-          </select>
-        </Field>
-        <Field label={RESERVES.sr}>
-          <select className={select} value={sr ?? ''} onChange={(e) => setSr(e.target.value ? Number(e.target.value) : null)}>
-            <option value="">{RESERVES.none}</option>
-            {itemOptions('SR', hr)}
-          </select>
-        </Field>
       </div>
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
-        {hr !== null && table.items[hr] && (
-          <span className="flex min-w-0 items-center gap-2 text-sm">
-            <span className="font-semibold text-sand">{RESERVES.hrShort}</span>
-            <ItemName item={table.items[hr]} />
-          </span>
-        )}
-        {sr !== null && table.items[sr] && (
-          <span className="flex min-w-0 items-center gap-2 text-sm">
-            <span className="font-semibold text-teal">{RESERVES.srShort}</span>
-            <ItemName item={table.items[sr]} />
-          </span>
-        )}
-        <div className="ml-auto flex gap-2.5">
-          <Button variant="ghost" size="sm" disabled={busy || (hr === null && sr === null)} onClick={() => { setHr(null); setSr(null); }}>
-            {RESERVES.clear}
-          </Button>
-          <Button type="submit" size="sm" loading={busy}>
-            {RESERVES.save}
-          </Button>
-        </div>
+      <ReservePicker table={table} counts={counts} blocked={blocked} hr={hr} sr={sr}
+        forName={target.self ? null : target.name}
+        onChange={(kind, itemId) => { if (kind === 'HR') setHr(itemId); else setSr(itemId); }} />
+      <div className="flex justify-end">
+        <Button type="submit" size="sm" loading={busy}>{RESERVES.save}</Button>
       </div>
     </form>
   );
