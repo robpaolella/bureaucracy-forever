@@ -97,7 +97,7 @@ export function HeatGrid({ heat, days, offsetSlots, zone, slotAt }: Props) {
 
       {target && (
         <InspectorPopover target={target} gridHeight={44 + SLOTS * ROW}>
-          <InspectorBody cell={heat.cells[target.day][target.slot]} members={heat.members} memberCount={heat.memberCount} zone={zone} startsAt={slotAt(target.day, target.slot)} />
+          <InspectorBody passive cell={heat.cells[target.day][target.slot]} members={heat.members} memberCount={heat.memberCount} zone={zone} startsAt={slotAt(target.day, target.slot)} />
         </InspectorPopover>
       )}
 
