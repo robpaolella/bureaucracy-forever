@@ -74,14 +74,17 @@ export function pickUnavailable(itemId: number, ctx: { won: ReadonlySet<number>;
 }
 
 /**
- * Whether a draft pick stays when the member switches to `characterId`: not if that
- * character already won it, and a blocked item only as the pick it was saved as, for the
- * character it was saved with (what decideReserve keeps).
+ * A draft pick after the member switches to `characterId`. It is dropped if that character
+ * already won it; a blocked item stays only as the pick it was saved as, for the character
+ * it was saved with (what decideReserve keeps). Switching back to that character restores
+ * such a pick to an empty slot, since it can't be chosen again.
  */
-export function pickSurvivesCharacter(kind: ReserveKind, itemId: number, characterId: string, ctx: { won: readonly number[]; blocked: readonly number[]; saved: { characterId: string | null; hr: number | null; sr: number | null } }): boolean {
-  if (ctx.won.includes(itemId)) return false;
-  if (!ctx.blocked.includes(itemId)) return true;
-  return ctx.saved.characterId === characterId && ctx.saved[kind === 'HR' ? 'hr' : 'sr'] === itemId;
+export function draftPickFor(kind: ReserveKind, draft: number | null, characterId: string, ctx: { won: readonly number[]; blocked: readonly number[]; saved: { characterId: string | null; hr: number | null; sr: number | null } }): number | null {
+  const saved = ctx.saved.characterId === characterId ? ctx.saved[kind === 'HR' ? 'hr' : 'sr'] : null;
+  const kept = saved !== null && ctx.blocked.includes(saved) && !ctx.won.includes(saved) ? saved : null;
+  if (draft === null) return kept;
+  if (ctx.won.includes(draft)) return null;
+  return !ctx.blocked.includes(draft) || draft === kept ? draft : null;
 }
 
 export type ReserveRaid = { cancelled: boolean; startsAt: Date; hasLootTable: boolean };

@@ -4,12 +4,12 @@ import {
   decideReserve,
   decideVoid,
   defaultMethodFor,
+  draftPickFor,
   hrBlocked,
   isEligible,
   LOOT_LOG_METHODS,
   parseAwardInput,
   parseItemRef,
-  pickSurvivesCharacter,
   pickUnavailable,
   REASONS,
   reserveHolders,
@@ -136,20 +136,30 @@ describe('pickUnavailable', () => {
   });
 });
 
-describe('pickSurvivesCharacter', () => {
+describe('draftPickFor', () => {
   const rules = { won: [], blocked: [100], saved: { characterId: 'c1', hr: 100, sr: null } };
 
   it('keeps a saved blocked pick only for its own character and slot', () => {
-    expect(pickSurvivesCharacter('HR', 100, 'c1', rules)).toBe(true);
-    expect(pickSurvivesCharacter('HR', 100, 'c2', rules)).toBe(false);
-    expect(pickSurvivesCharacter('SR', 100, 'c1', rules)).toBe(false);
-    expect(pickSurvivesCharacter('HR', 100, 'c1', { ...rules, saved: { characterId: null, hr: null, sr: null } })).toBe(false);
+    expect(draftPickFor('HR', 100, 'c1', rules)).toBe(100);
+    expect(draftPickFor('HR', 100, 'c2', rules)).toBeNull();
+    expect(draftPickFor('SR', 100, 'c1', rules)).toBeNull();
+    expect(draftPickFor('HR', 100, 'c1', { ...rules, saved: { characterId: null, hr: null, sr: null } })).toBeNull();
+  });
+
+  it('restores the saved blocked pick when switching back to its character', () => {
+    expect(draftPickFor('HR', null, 'c1', rules)).toBe(100);
+    expect(draftPickFor('HR', 200, 'c1', rules)).toBe(200);
+    expect(draftPickFor('HR', null, 'c2', rules)).toBeNull();
+    expect(draftPickFor('SR', null, 'c1', rules)).toBeNull();
+    // An open saved pick isn't restored: it can simply be chosen again.
+    expect(draftPickFor('HR', null, 'c1', { ...rules, blocked: [] })).toBeNull();
   });
 
   it('keeps open items and drops ones this character already won', () => {
-    expect(pickSurvivesCharacter('SR', 200, 'c2', rules)).toBe(true);
-    expect(pickSurvivesCharacter('SR', 200, 'c2', { ...rules, won: [200] })).toBe(false);
-    expect(pickSurvivesCharacter('HR', 100, 'c1', { ...rules, won: [100] })).toBe(false);
+    expect(draftPickFor('SR', 200, 'c2', rules)).toBe(200);
+    expect(draftPickFor('SR', 200, 'c2', { ...rules, won: [200] })).toBeNull();
+    expect(draftPickFor('HR', 100, 'c1', { ...rules, won: [100] })).toBeNull();
+    expect(draftPickFor('HR', null, 'c1', { ...rules, won: [100] })).toBeNull();
   });
 });
 

@@ -10,7 +10,7 @@ import { RESERVES } from '@/content/reserves';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
 import type { LootTableView, ReserveTargetRow, ReserveView } from '@/lib/loot-data';
-import { pickSurvivesCharacter, reserveHolders } from '@/lib/loot-rules';
+import { draftPickFor, reserveHolders } from '@/lib/loot-rules';
 import { ItemName } from './ItemName';
 import { ReservePicker, ReserverCount, type OwnMark } from './ReservePicker';
 
@@ -140,8 +140,8 @@ function PickerForm({ raidId, table, holders, mark, target, targets, onTarget }:
               // Neither reserve may select an item this character already won through HR or SR,
               // and a pick on a blocked item is kept only for the character it was saved with.
               const rules = { won: target.blockedHr[next] ?? [], blocked: table.blocked, saved: target.current };
-              if (hr !== null && !pickSurvivesCharacter('HR', hr, next, rules)) setHr(null);
-              if (sr !== null && !pickSurvivesCharacter('SR', sr, next, rules)) setSr(null);
+              setHr(draftPickFor('HR', hr, next, rules));
+              setSr(draftPickFor('SR', sr, next, rules));
             }}
           >
             {target.characters.map((c) => (
