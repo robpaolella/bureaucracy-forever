@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { SAVE_FAILED } from '@/content/calendar';
 import { LOOT_RESERVES } from '@/content/loot-admin';
-import { limitToast, WinLimitCounter } from './ItemReservesDialog';
+import { Confirmation, limitToast, WinLimitCounter } from './ItemReservesDialog';
 
 const render = (value: number | null, blocked = false) => renderToStaticMarkup(<WinLimitCounter value={value} blocked={blocked} busy={false} onStep={() => {}} />);
 const disabled = (html: string, step: 'lower' | 'raise') => new RegExp(`<button[^>]*data-step="${step}"[^>]*disabled=""`).test(html);
@@ -67,5 +67,15 @@ describe('limitToast', () => {
 
   it('has no Retry once the window has moved on', () => {
     expect(limitToast(false, 1, 2).action).toBeUndefined();
+  });
+});
+
+describe('Confirmation', () => {
+  it('reads as guild time, once, until the viewer zone is known', () => {
+    // Wed, Oct 7 2026, 8:00 PM in Los Angeles.
+    const raid = { id: 'r1', name: 'Molten Core', startsAt: '2026-10-08T03:00:00.000Z', cancelled: false };
+    const html = renderToStaticMarkup(<Confirmation holders={[{ key: 'k1', character: 'Redtape', kind: 'SR', raid }]} stale={false} />);
+    expect(html.replace(/<[^>]+>/g, '')).toContain('Molten Core Wed, Oct 7, 8:00 PM guild time');
+    expect(html).not.toContain('role="tooltip"');
   });
 });

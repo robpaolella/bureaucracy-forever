@@ -24,6 +24,23 @@ type Props = {
   hitHeight?: number;
 };
 
+/**
+ * Where a popup can show: the viewport less a 16px margin at the sides, cut to the visible
+ * area of the nearest scrolling ancestor (a dialog body), less its scrollbar.
+ */
+function clipBox(el: HTMLElement): { top: number; right: number; bottom: number } {
+  const box = { top: 0, right: window.innerWidth - 16, bottom: window.innerHeight };
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    if (getComputedStyle(node).overflowY === 'visible') continue;
+    const r = node.getBoundingClientRect();
+    box.top = Math.max(box.top, r.top + node.clientTop);
+    box.right = Math.min(box.right, r.left + node.clientLeft + node.clientWidth);
+    box.bottom = Math.min(box.bottom, r.top + node.clientTop + node.clientHeight);
+    break;
+  }
+  return box;
+}
+
 /** A click this soon after a hover opened the popup is the same gesture, not a toggle. */
 const HOVER_CLICK_MS = 400;
 
@@ -44,15 +61,20 @@ export function LocalTime({ startsAt, durationMin, className, zone, weekday, den
   const panelId = useId();
   const hoverOpenedAt = useRef(0);
 
-  // Keep the popup inside the viewport: shift it left when the time sits near the right edge.
+  // Keep the popup where it can be seen: shift it left when the time sits near the right
+  // edge, and put it above the time when there is no room below.
   useLayoutEffect(() => {
     const panel = panelRef.current;
     const trigger = triggerRef.current;
     if (!open || !panel || !trigger) return;
     if (!dense) {
       panel.style.left = '0px';
-      const overflow = panel.getBoundingClientRect().right - (window.innerWidth - 16);
+      delete panel.dataset.flip;
+      const clip = clipBox(panel);
+      const overflow = panel.getBoundingClientRect().right - clip.right;
       if (overflow > 0) panel.style.left = `${-overflow}px`;
+      const p = panel.getBoundingClientRect();
+      if (p.bottom > clip.bottom && trigger.getBoundingClientRect().top - p.height >= clip.top) panel.dataset.flip = '';
       return;
     }
     // Fixed, below the label, or above it when there is no room below.
@@ -115,7 +137,10 @@ export function LocalTime({ startsAt, durationMin, className, zone, weekday, den
         id={panelId}
         role="tooltip"
         // A dense popup covers the next rows; presses go through it to their controls.
-        className={cn(dense ? 'pointer-events-none fixed z-40 py-1' : 'absolute left-0 top-full z-30 pt-1', open ? 'block' : 'hidden')}
+        className={cn(
+          dense ? 'pointer-events-none fixed z-40 py-1' : 'absolute left-0 top-full z-30 pt-1 data-[flip]:bottom-full data-[flip]:top-auto data-[flip]:pb-1 data-[flip]:pt-0',
+          open ? 'block' : 'hidden',
+        )}
       >
         <span className="block whitespace-nowrap font-normal rounded-card border border-line-strong bg-ink-800 px-3 py-2 text-[13px] text-fg shadow-pop">{time.guild}</span>
       </span>
