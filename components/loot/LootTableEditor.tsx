@@ -5,14 +5,25 @@ import { useState, type FormEvent } from 'react';
 import { Button, Choice, Field, Input, Modal, Select, Tag, ToastHost, useToast } from '@/components/ui';
 import { SAVE_FAILED } from '@/content/calendar';
 import { LOOT_EDIT, LOOT_RESERVES, LOOT_TABLE } from '@/content/loot-admin';
-import type { ItemSource } from '@/lib/loot-rules';
+import { winLimitOf, type ItemSource, type WinLimits } from '@/lib/loot-rules';
 import type { ItemView } from '@/lib/loot-items';
 import { ItemName } from './ItemName';
 import { ItemReservesDialog, type ReservesTarget } from './ItemReservesDialog';
 
 export type EditorBoss = { id: string; name: string; isTrash: boolean; items: ItemView[] };
-/** blockedIds: items switched off for reserves across this tier (LootReserveSetting). */
-type Props = { templateId: string; bosses: EditorBoss[]; defaultSource: ItemSource; blockedIds: number[] };
+/** blockedIds: items switched off for reserves across this tier (LootReserveSetting); winLimits: those above 1. */
+type Props = { templateId: string; bosses: EditorBoss[]; defaultSource: ItemSource; blockedIds: number[]; winLimits: WinLimits };
+
+/** The one tag after an item's name when its setting isn't the default; a blocked item's limit doesn't apply, so it shows only the block. */
+export function itemTag(itemId: number, blocked: ReadonlySet<number>, limits: WinLimits): string | null {
+  if (blocked.has(itemId)) return LOOT_RESERVES.blockedTag;
+  const limit = winLimitOf(itemId, limits);
+  return limit > 1 ? LOOT_RESERVES.limitTag(limit) : null;
+}
+
+function ItemTag({ tag }: { tag: string | null }) {
+  return tag && <Tag className="shrink-0 whitespace-nowrap max-md:mb-1 max-md:ml-[26px] md:ml-1.5">{tag}</Tag>;
+}
 
 async function send(url: string, method: string, body?: unknown): Promise<{ ok: boolean; json: Record<string, unknown> }> {
   const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), credentials: 'same-origin' });
@@ -29,7 +40,7 @@ export function LootTableEditor(props: Props) {
   );
 }
 
-function Editor({ templateId, bosses, defaultSource, blockedIds }: Props) {
+function Editor({ templateId, bosses, defaultSource, blockedIds, winLimits }: Props) {
   const router = useRouter();
   const toast = useToast();
   const [editing, setEditing] = useState<EditorBoss | null>(null);
@@ -107,7 +118,7 @@ function Editor({ templateId, bosses, defaultSource, blockedIds }: Props) {
                     {/* Phones: 26px = the 18px icon plus its 8px gap, so the tag and controls line up under the name. */}
                     <div className="flex min-w-0 flex-1 items-center max-md:basis-full max-md:flex-wrap">
                       <ItemName item={item} className="min-w-0 max-md:basis-full" />
-                      {blocked.has(item.id) && <Tag className="shrink-0 whitespace-nowrap max-md:mb-1 max-md:ml-[26px] md:ml-1.5">{LOOT_RESERVES.blockedTag}</Tag>}
+                      <ItemTag tag={itemTag(item.id, blocked, winLimits)} />
                     </div>
                     <div className="ml-auto flex shrink-0 items-center gap-1 max-md:ml-0 max-md:w-full max-md:pb-2 max-md:pl-[26px]">
                       <span className="tabular text-xs text-fg-3 max-md:mr-auto">{LOOT_TABLE.itemId(item.id)}</span>
