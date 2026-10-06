@@ -6,7 +6,7 @@ import { LOOT_ADMIN_HEAD, LOOT_TABLE } from '@/content/loot-admin';
 import type { ItemSource } from '@/lib/loot-rules';
 import { db } from '@/lib/db';
 import { lootEnabled } from '@/lib/flags';
-import { blockedItemIds } from '@/lib/loot-blocks';
+import { blockedItemIds, winLimits } from '@/lib/loot-blocks';
 import { toItemView } from '@/lib/loot-items';
 import { getSession } from '@/lib/session';
 
@@ -20,7 +20,7 @@ export default async function LootTablePage({ params }: { params: Promise<{ temp
   if (!lootEnabled() || !session || session.role !== 'officer') notFound();
 
   const { templateId } = await params;
-  const [template, blocked] = await Promise.all([db.raidTemplate.findUnique({
+  const [template, blocked, limits] = await Promise.all([db.raidTemplate.findUnique({
     where: { id: templateId },
     select: {
       name: true,
@@ -29,7 +29,7 @@ export default async function LootTablePage({ params }: { params: Promise<{ temp
         select: { id: true, name: true, isTrash: true, entries: { orderBy: [{ position: 'asc' }, { itemId: 'asc' }], select: { item: true } } },
       },
     },
-  }), blockedItemIds(templateId)]);
+  }), blockedItemIds(templateId), winLimits(templateId)]);
   if (!template) notFound();
 
   const bosses: EditorBoss[] = template.lootBosses.map((b) => ({ id: b.id, name: b.name, isTrash: b.isTrash, items: b.entries.map((e) => toItemView(e.item)) }));
@@ -46,7 +46,7 @@ export default async function LootTablePage({ params }: { params: Promise<{ temp
         <span className="font-eyebrow text-label font-semibold uppercase tracking-[0.28em] text-sand">{LOOT_ADMIN_HEAD.title}</span>
         <h1 className="font-display text-[34px] font-medium leading-[1.05] tracking-[-0.02em] md:text-[44px]">{template.name}</h1>
       </section>
-      <LootTableEditor templateId={templateId} bosses={bosses} defaultSource={defaultSource} blockedIds={[...blocked]} />
+      <LootTableEditor templateId={templateId} bosses={bosses} defaultSource={defaultSource} blockedIds={[...blocked]} winLimits={limits} />
     </div>
   );
 }
