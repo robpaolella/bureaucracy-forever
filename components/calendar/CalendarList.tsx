@@ -64,7 +64,7 @@ export function CalendarList({ raids: initial, viewer, schedule }: Props) {
       setToast(toast);
       // Accept or Tentative may then open the reserves window, which takes over the line and Undo.
       // An undo never prompts, and it stops a prompt still loading for the answer it reverted.
-      void afterAnswer(raid, undone ? null : response, { text: copy.title, onUndo: undo }).then((opened) => { if (opened) setToast(null); });
+      void afterAnswer(raid, undone ? null : response, { text: copy.title, onUndo: undo }).then((opened) => { if (opened) setToast((shown) => (shown === toast ? null : shown)); });
     },
     [zone, afterAnswer],
   );
