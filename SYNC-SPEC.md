@@ -204,7 +204,7 @@ All under `/api/bot/`. JSON in, JSON out. 401 on bad secret. 409 on a state conf
 | POST | `/applications/:id/notes` | `{ discordMessageId, authorDiscordId, body, createdAt }`. Author must resolve to an OFFICER; otherwise 403 and the bot ignores the message. |
 | PATCH | `/notes/by-message/:discordMessageId` | `{ body }` |
 | DELETE | `/notes/by-message/:discordMessageId` | soft delete |
-| GET | `/raids/:id` | Raid + template + counts + `viewer` block when `?discordId=` is given (their standing and response). |
+| GET | `/raids/:id` | Raid + template + counts + `viewer` block when `?discordId=` is given: `{ standing, response, lootTable, reservesLocked, reservesComplete, reservesUrl }`, or `null` when that member has no sign-up (so cannot reserve). `lootTable` is true when loot is on and the raid's template has at least one loot-table item; `reservesLocked` is true from `startsAt − 120 min` (the reserve lock, not the sign-up lock); `reservesComplete` is true only when the member has both a hard and a soft reserve on the raid, as for `raid.reserves.remind`; `reservesUrl` is `<site>/members/calendar/<raidId>?reserves=1`, which opens that member's own reserves window after sign-in when they are Accept or Tentative with a character, the raid is not cancelled and reserves aren't locked, and otherwise just shows the raid page. `POST /raids/:id/respond` answers with the same `viewer` block. |
 | POST | `/raids/:id/respond` | `{ discordId, response: ACCEPT\|TENTATIVE\|ABSENT, reason? }`. Rules in §7. |
 | POST | `/raids/:id/bench` | `{ discordId }` — opt onto the bench. 409 if already on roster. |
 | POST | `/raids/:id/attendance` | `{ byDiscordId, attended: [discordId], absent: [discordId] }`. Officers only, after `startsAt + durationMin`. |

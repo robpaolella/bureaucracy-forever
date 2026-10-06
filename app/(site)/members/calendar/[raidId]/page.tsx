@@ -19,12 +19,13 @@ import { lootEnabled } from '@/lib/flags';
 import { loadActiveReserves, loadAwards, loadLootLogContext, loadLootTable, loadReserveTargets } from '@/lib/loot-data';
 import { reservesLockAt, reservesLocked } from '@/lib/loot-rules';
 import { splitStanding, type DetailRow } from '@/lib/raid-detail';
-import { countAccepted, isUpcoming, parseRequirements, sourceSplit, type RaidCard, type RaidResponse } from '@/lib/raids';
+import { countAccepted, isUpcoming, linkOpensReserves, parseRequirements, RESERVES_PARAM, sourceSplit, type RaidCard, type RaidResponse } from '@/lib/raids';
 import { getSession } from '@/lib/session';
 import { BACK_TO_CALENDAR, RAID_EYEBROW, SUMMARY } from '@/content/raid';
 import { RESERVES } from '@/content/reserves';
 
 type Params = { params: Promise<{ raidId: string }> };
+type Props = Params & { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { raidId } = await params;
@@ -40,10 +41,10 @@ const MAIN = { where: { isMain: true }, take: 1, select: { name: true, class: tr
  * answered, and the composition card. Officers get the actions row, "Answer for them" on
  * every row, "Nudge in Discord", "Move to roster" and, after the night, attendance.
  */
-export default async function RaidDetailPage({ params }: Params) {
+export default async function RaidDetailPage({ params, searchParams }: Props) {
   const session = await getSession();
   if (!session) notFound();
-  const { raidId } = await params;
+  const [{ raidId }, query] = await Promise.all([params, searchParams]);
   const officer = session.role === 'officer';
 
   const [raid, me, members] = await Promise.all([
@@ -143,6 +144,9 @@ export default async function RaidDetailPage({ params }: Params) {
         officer ? loadLootLogContext(raid.id) : Promise.resolve(null),
       ])
     : [null, [], null, [], null];
+  const locked = reservesLocked(raid.startsAt, now);
+  // The bot's reserves link (SYNC-SPEC §4) opens the viewer's own window, when they could open it themselves.
+  const openReserves = linkOpensReserves(query[RESERVES_PARAM], table && reserveTargets && { locked, cancelled: card.cancelled, targets: reserveTargets.targets });
 
   return (
     <ToastHost>
@@ -191,11 +195,12 @@ export default async function RaidDetailPage({ params }: Params) {
             table={table}
             reserves={reserves}
             lockAt={reservesLockAt(raid.startsAt).toISOString()}
-            locked={reservesLocked(raid.startsAt, now)}
+            locked={locked}
             cancelled={card.cancelled}
             officer={officer}
             targets={reserveTargets.targets}
             reason={reserveTargets.reason ? RESERVES[reserveTargets.reason] : null}
+            openOnLoad={openReserves}
           />
         )}
         {table && logContext && !card.cancelled && (
