@@ -47,3 +47,4 @@
 - Availability phone column (#163): no feedback when a 300ms hold turns into painting; check on a real phone and consider a brief highlight.
 - Availability page intro says "Click and drag to paint", which reads wrong on phones next to the tap/hold hint.
 - Availability phone column opens at 12:00 AM instead of 5:00 PM when the page loads at desktop width and is then narrowed (the scroll runs while the column is hidden; pre-existing).
+- Availability desktop grid (#162): resizing measures from the edge rather than where the handle was grabbed, so a grab well off the edge can jump a half-hour (fixed on phone in #163; less likely on desktop's 20px handles).
