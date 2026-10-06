@@ -10,7 +10,7 @@ import {
   parseAwardInput,
   parseItemRef,
   REASONS,
-  reserveCounts,
+  reserveHolders,
   reservesLockAt,
   resolveDrop,
   type ActiveReserve,
@@ -184,8 +184,12 @@ describe('resolveDrop', () => {
     expect(LOOT_LOG_METHODS).toEqual(['HR', 'SR', 'OPEN_ROLL', 'DISENCHANT_BANK']);
   });
 
-  it('counts HR and SR per item', () => {
-    expect(Object.fromEntries(reserveCounts(reserves))).toEqual({ 100: { HR: 2, SR: 1 }, 200: { HR: 0, SR: 1 }, 300: { HR: 1, SR: 0 } });
+  it('groups holders by item and kind, keeping their order', () => {
+    expect(Object.fromEntries(reserveHolders(reserves))).toEqual({
+      100: { HR: [r('a', 'HR'), r('b', 'HR')], SR: [r('c', 'SR')] },
+      200: { HR: [], SR: [r('d', 'SR', 200)] },
+      300: { HR: [r('e', 'HR', 300)], SR: [] },
+    });
   });
 });
 
@@ -197,8 +201,12 @@ describe('reserve picker totals and ownership copy', () => {
   ];
 
   it('includes both members in the same saved total, with HR and SR separate', () => {
-    expect(Object.fromEntries(reserveCounts(saved))).toEqual({ 100: { HR: 2, SR: 0 }, 200: { HR: 0, SR: 1 } });
-    expect(reserveCounts([]).size).toBe(0);
+    const holders = reserveHolders(saved);
+    expect(holders.get(100)?.HR.map((h) => h.userId)).toEqual(['redtape', 'ledgerline']);
+    expect(holders.get(100)?.SR).toEqual([]);
+    expect(holders.get(200)?.SR.map((h) => h.userId)).toEqual(['redtape']);
+    expect(holders.has(300)).toBe(false);
+    expect(reserveHolders([]).size).toBe(0);
   });
 
   it('identifies the chosen slot separately from the item name and counts', () => {
