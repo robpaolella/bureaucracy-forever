@@ -10,7 +10,7 @@ import { CLASS_COLORS } from '@/lib/design/class-colors';
 import { itemQuality } from '@/lib/design/item-quality';
 import { filterItems, itemSources, sourceDetails, sourceLabel } from '@/lib/item-search';
 import type { LootTableView, ReserveView } from '@/lib/loot-data';
-import type { ReserveKind } from '@/lib/loot-rules';
+import { pickUnavailable, type PickUnavailable, type ReserveKind } from '@/lib/loot-rules';
 import { ItemLabel, ItemName } from './ItemName';
 
 type Holders = Record<ReserveKind, ReserveView[]>;
@@ -19,11 +19,16 @@ const NO_HOLDERS: Holders = { HR: [], SR: [] };
 /** The member whose saved picks are marked: "yours", or "editing" when an officer picks for them. */
 export type OwnMark = { userId: string; label: string };
 
+/** Reason text colour: red for previously won, amber for the other slot, neutral for an officer's block. */
+const REASON_TONE: Record<PickUnavailable, string> = { won: 'text-stop', otherSlot: 'text-warn', blocked: 'text-fg-2' };
+type Unavailable = { kind: PickUnavailable; text: string };
+
 type Props = {
   table: LootTableView;
   holders: Map<number, Holders>;
   mark: OwnMark;
-  blocked: Set<number>;
+  /** Items this character already won through HR or SR. */
+  won: Set<number>;
   hr: number | null;
   sr: number | null;
   /** Null when choosing for yourself. */
@@ -32,7 +37,7 @@ type Props = {
 };
 
 /** Selection previews an item; only Choose/Remove changes a draft reserve. */
-export function ReservePicker({ table, holders, mark, blocked, hr, sr, forName, onChange }: Props) {
+export function ReservePicker({ table, holders, mark, won, hr, sr, forName, onChange }: Props) {
   const [slot, setSlot] = useState<ReserveKind>('HR');
   const [query, setQuery] = useState('');
   const items = useMemo(() => filterItems(Object.values(table.items), ''), [table.items]);
@@ -47,8 +52,12 @@ export function ReservePicker({ table, holders, mark, blocked, hr, sr, forName, 
   const slotButtons = useRef<Partial<Record<ReserveKind, HTMLButtonElement | null>>>({});
   const preview = filtered.find((item) => item.id === previewId);
   const picked = (itemId: number) => hr === itemId ? 'HR' : sr === itemId ? 'SR' : null;
-  const reason = (itemId: number) => blocked.has(itemId) ? RESERVES.blocked
-    : (slot === 'HR' ? sr : hr) === itemId ? RESERVES.otherSlot(slot === 'HR' ? 'SR' : 'HR') : null;
+  const blocked = useMemo(() => new Set(table.blocked), [table.blocked]);
+  const reason = (itemId: number): Unavailable | null => {
+    const kind = pickUnavailable(itemId, { won, otherSlotPick: slot === 'HR' ? sr : hr, blocked });
+    if (!kind) return null;
+    return { kind, text: kind === 'won' ? RESERVES.blocked : kind === 'otherSlot' ? RESERVES.otherSlot(slot === 'HR' ? 'SR' : 'HR') : RESERVES.notOpen };
+  };
 
   useEffect(() => {
     const media = window.matchMedia('(min-width: 900px)');
@@ -150,7 +159,7 @@ export function ReservePicker({ table, holders, mark, blocked, hr, sr, forName, 
               const count = { HR: HR.length, SR: SR.length };
               const own = picked(item.id);
               const unavailable = reason(item.id);
-              const label = [item.name, itemQuality(item.quality).label, from.join(', '), `HR ${count.HR}, SR ${count.SR}`, own && RESERVES.picked(own), unavailable].filter(Boolean).join(' — ');
+              const label = [item.name, itemQuality(item.quality).label, from.join(', '), `HR ${count.HR}, SR ${count.SR}`, own && RESERVES.picked(own), unavailable?.text].filter(Boolean).join(' — ');
               return (
                 <button key={item.id} id={`${id}-item-${item.id}`} data-item-id={item.id} type="button" role="option"
                   aria-label={label} aria-selected={preview?.id === item.id} tabIndex={-1} onClick={() => select(item.id)}
@@ -161,7 +170,7 @@ export function ReservePicker({ table, holders, mark, blocked, hr, sr, forName, 
                     <span className="mt-1 flex flex-wrap gap-x-2 text-xs font-normal text-fg-2">
                       <span>{sourceLabel(from)}</span>
                       {own && <span className={own === 'HR' ? 'text-sand' : 'text-teal'}>{RESERVES.picked(own)}</span>}
-                      {unavailable && <span className={blocked.has(item.id) ? 'text-stop' : 'text-warn'}>{unavailable}</span>}
+                      {unavailable && <span className={REASON_TONE[unavailable.kind]}>{unavailable.text}</span>}
                     </span>
                   } />
                   <span aria-hidden="true" className="flex shrink-0 flex-col text-right text-xs tabular-nums">
@@ -184,7 +193,7 @@ export function ReservePicker({ table, holders, mark, blocked, hr, sr, forName, 
 }
 
 function ItemDetails({ item, sources, slot, picked, reason, forName, holders, mark, onChoose, onRemove }: {
-  item: LootTableView['items'][number]; sources: string[]; slot: ReserveKind; picked: boolean; reason: string | null;
+  item: LootTableView['items'][number]; sources: string[]; slot: ReserveKind; picked: boolean; reason: Unavailable | null;
   forName: string | null; holders: Holders; mark: OwnMark; onChoose: () => void; onRemove: () => void;
 }) {
   const id = useId();
@@ -200,9 +209,9 @@ function ItemDetails({ item, sources, slot, picked, reason, forName, holders, ma
       </> : reason ? <>
         <span className="group relative">
           <Button aria-disabled="true" aria-describedby={id} className="cursor-not-allowed bg-ink-700 text-fg-3 hover:brightness-100" onClick={() => {}}>{RESERVES.choose(slot)}</Button>
-          <span role="tooltip" className="pointer-events-none absolute bottom-full left-0 z-10 mb-2 hidden w-64 max-w-[calc(100vw-72px)] rounded-control border border-line-strong bg-ink-800 p-3 text-sm text-fg shadow-pop group-hover:block group-focus-within:block">{RESERVES.ineligible} {reason}.</span>
+          <span role="tooltip" className="pointer-events-none absolute bottom-full left-0 z-10 mb-2 hidden w-64 max-w-[calc(100vw-72px)] rounded-control border border-line-strong bg-ink-800 p-3 text-sm text-fg shadow-pop group-hover:block group-focus-within:block">{RESERVES.ineligible} {reason.text}.</span>
         </span>
-        <p id={id} className={cn('text-sm', reason === RESERVES.blocked ? 'text-stop' : 'text-warn')}><span className="sr-only">{RESERVES.ineligible} </span>{reason}</p>
+        <p id={id} className={cn('text-sm', REASON_TONE[reason.kind])}><span className="sr-only">{RESERVES.ineligible} </span>{reason.text}</p>
       </> : <Button onClick={onChoose}>{RESERVES.choose(slot)}</Button>}
     </div>
     <p className="text-sm">

@@ -9,6 +9,8 @@ import {
   LOOT_LOG_METHODS,
   parseAwardInput,
   parseItemRef,
+  pickSurvivesCharacter,
+  pickUnavailable,
   REASONS,
   reserveHolders,
   reservesLockAt,
@@ -113,6 +115,41 @@ describe('blocked tier items', () => {
     expect(resolveDrop(100, [holder], [], [])).toEqual({ mode: 'HR', contenders: [holder] });
     const soft = { ...holder, kind: 'SR' as const };
     expect(resolveDrop(100, [soft], [], [])).toEqual({ mode: 'SR', contenders: [soft] });
+  });
+});
+
+describe('pickUnavailable', () => {
+  const none = { won: new Set<number>(), otherSlotPick: null, blocked: new Set<number>() };
+
+  it.each([
+    ['nothing', none, null],
+    ['blocked', { ...none, blocked: new Set([100]) }, 'blocked'],
+    ['previously won', { ...none, won: new Set([100]) }, 'won'],
+    ['the other slot', { ...none, otherSlotPick: 100 }, 'otherSlot'],
+    ['won and blocked', { ...none, won: new Set([100]), blocked: new Set([100]) }, 'won'],
+    ['won and the other slot', { ...none, won: new Set([100]), otherSlotPick: 100 }, 'won'],
+    ['the other slot and blocked', { ...none, otherSlotPick: 100, blocked: new Set([100]) }, 'otherSlot'],
+    ['all three', { won: new Set([100]), otherSlotPick: 100, blocked: new Set([100]) }, 'won'],
+    ['other items only', { won: new Set([1]), otherSlotPick: 2, blocked: new Set([3]) }, null],
+  ] as const)('%s gives %s', (_, ctx, expected) => {
+    expect(pickUnavailable(100, ctx)).toBe(expected);
+  });
+});
+
+describe('pickSurvivesCharacter', () => {
+  const rules = { won: [], blocked: [100], saved: { characterId: 'c1', hr: 100, sr: null } };
+
+  it('keeps a saved blocked pick only for its own character and slot', () => {
+    expect(pickSurvivesCharacter('HR', 100, 'c1', rules)).toBe(true);
+    expect(pickSurvivesCharacter('HR', 100, 'c2', rules)).toBe(false);
+    expect(pickSurvivesCharacter('SR', 100, 'c1', rules)).toBe(false);
+    expect(pickSurvivesCharacter('HR', 100, 'c1', { ...rules, saved: { characterId: null, hr: null, sr: null } })).toBe(false);
+  });
+
+  it('keeps open items and drops ones this character already won', () => {
+    expect(pickSurvivesCharacter('SR', 200, 'c2', rules)).toBe(true);
+    expect(pickSurvivesCharacter('SR', 200, 'c2', { ...rules, won: [200] })).toBe(false);
+    expect(pickSurvivesCharacter('HR', 100, 'c1', { ...rules, won: [100] })).toBe(false);
   });
 });
 

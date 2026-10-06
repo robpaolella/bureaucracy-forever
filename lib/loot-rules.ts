@@ -58,6 +58,32 @@ export function hrBlocked(characterId: string, itemId: number, hrAwards: readonl
   return hrAwards.filter(match).length >= allowedCount && !exceptions.some(match);
 }
 
+/** Why the picker can't choose an item for the slot being chosen. */
+export type PickUnavailable = 'won' | 'otherSlot' | 'blocked';
+
+/**
+ * One reason per item: previously won is the strongest fact about this member, then the
+ * other slot's pick, then an officer's block. A saved pick in this slot still shows its
+ * reason but keeps Remove; the picker checks `picked` first.
+ */
+export function pickUnavailable(itemId: number, ctx: { won: ReadonlySet<number>; otherSlotPick: number | null; blocked: ReadonlySet<number> }): PickUnavailable | null {
+  if (ctx.won.has(itemId)) return 'won';
+  if (ctx.otherSlotPick === itemId) return 'otherSlot';
+  if (ctx.blocked.has(itemId)) return 'blocked';
+  return null;
+}
+
+/**
+ * Whether a draft pick stays when the member switches to `characterId`: not if that
+ * character already won it, and a blocked item only as the pick it was saved as, for the
+ * character it was saved with (what decideReserve keeps).
+ */
+export function pickSurvivesCharacter(kind: ReserveKind, itemId: number, characterId: string, ctx: { won: readonly number[]; blocked: readonly number[]; saved: { characterId: string | null; hr: number | null; sr: number | null } }): boolean {
+  if (ctx.won.includes(itemId)) return false;
+  if (!ctx.blocked.includes(itemId)) return true;
+  return ctx.saved.characterId === characterId && ctx.saved[kind === 'HR' ? 'hr' : 'sr'] === itemId;
+}
+
 export type ReserveRaid = { cancelled: boolean; startsAt: Date; hasLootTable: boolean };
 export type ReserveInput = { characterId: string; hr: number | null; sr: number | null };
 export type ReserveContext = {

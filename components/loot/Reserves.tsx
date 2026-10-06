@@ -10,7 +10,7 @@ import { RESERVES } from '@/content/reserves';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
 import type { LootTableView, ReserveTargetRow, ReserveView } from '@/lib/loot-data';
-import { reserveHolders } from '@/lib/loot-rules';
+import { pickSurvivesCharacter, reserveHolders } from '@/lib/loot-rules';
 import { ItemName } from './ItemName';
 import { ReservePicker, ReserverCount, type OwnMark } from './ReservePicker';
 
@@ -76,7 +76,7 @@ function PickerForm({ raidId, table, holders, mark, target, targets, onTarget }:
   const [busy, setBusy] = useState(false);
 
   // The picker's names and counts describe saved reserves, including the member being edited, not the draft.
-  const blocked = new Set(target.blockedHr[characterId] ?? []);
+  const won = new Set(target.blockedHr[characterId] ?? []);
 
   async function save(next: { hr: number | null; sr: number | null }) {
     if (busy) return;
@@ -137,9 +137,11 @@ function PickerForm({ raidId, table, holders, mark, target, targets, onTarget }:
             onChange={(e) => {
               const next = e.target.value;
               setCharacterId(next);
-              // Neither reserve may select an item this character already won through HR or SR.
-              if (hr !== null && (target.blockedHr[next] ?? []).includes(hr)) setHr(null);
-              if (sr !== null && (target.blockedHr[next] ?? []).includes(sr)) setSr(null);
+              // Neither reserve may select an item this character already won through HR or SR,
+              // and a pick on a blocked item is kept only for the character it was saved with.
+              const rules = { won: target.blockedHr[next] ?? [], blocked: table.blocked, saved: target.current };
+              if (hr !== null && !pickSurvivesCharacter('HR', hr, next, rules)) setHr(null);
+              if (sr !== null && !pickSurvivesCharacter('SR', sr, next, rules)) setSr(null);
             }}
           >
             {target.characters.map((c) => (
@@ -150,7 +152,7 @@ function PickerForm({ raidId, table, holders, mark, target, targets, onTarget }:
           </select>
         </Field>
       </div>
-      <ReservePicker table={table} holders={holders} mark={mark} blocked={blocked} hr={hr} sr={sr}
+      <ReservePicker table={table} holders={holders} mark={mark} won={won} hr={hr} sr={sr}
         forName={target.self ? null : target.name}
         onChange={(kind, itemId) => { if (kind === 'HR') setHr(itemId); else setSr(itemId); }} />
       <div className="flex justify-end">
