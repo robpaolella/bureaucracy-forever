@@ -154,30 +154,30 @@ export function ReserveList({ table, holders, mark }: { table: LootTableView; ho
         </>
       ) : (
         <>
-        <h3 className="m-0">
-          <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}
-            className="inline-flex min-h-11 items-center gap-1.5 self-start text-left text-sm font-semibold text-teal hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
-          >
-            {open ? RESERVES.hideList : RESERVES.showList(rows.length)}
-          </button>
-        </h3>
-        <ul id={id} hidden={!open} className="divide-y divide-line-faint rounded-card border border-line-faint">
-          {rows.map(([itemId, list]) => {
-            const item = table.items[itemId];
-            const own = mark && (['HR', 'SR'] as const).find((kind) => list[kind].some((r) => r.userId === mark.userId));
-            return (
-              <li key={itemId} className="flex items-center gap-2 px-3 py-1">
-                <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2">
-                  <ItemName item={item} className="text-sm" />
-                  {own && <span className={cn('text-xs font-semibold', own === 'HR' ? 'text-sand' : 'text-teal')}>
-                    {mark.label}<span className="sr-only"> ({own === 'HR' ? RESERVES.hr : RESERVES.sr})</span>
-                  </span>}
-                </span>
-                {(['HR', 'SR'] as const).map((kind) => list[kind].length > 0 && <ReserverCount key={kind} kind={kind} item={item.name} list={list[kind]} mark={mark} />)}
-              </li>
-            );
-          })}
-        </ul>
+          <h3 className="m-0">
+            <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}
+              className="inline-flex min-h-11 items-center text-left text-small font-semibold text-teal hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"
+            >
+              {open ? RESERVES.hideList : RESERVES.showList(rows.length)}
+            </button>
+          </h3>
+          <ul id={id} hidden={!open} className="divide-y divide-line-faint rounded-card border border-line-faint">
+            {rows.map(([itemId, list]) => {
+              const item = table.items[itemId];
+              const own = mark && (['HR', 'SR'] as const).find((kind) => list[kind].some((r) => r.userId === mark.userId));
+              return (
+                <li key={itemId} className="flex items-center gap-2 px-3 py-1">
+                  <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2">
+                    <ItemName item={item} className="text-sm" />
+                    {own && <span className={cn('text-xs font-semibold', own === 'HR' ? 'text-sand' : 'text-teal')}>
+                      {mark.label}<span className="sr-only"> ({own === 'HR' ? RESERVES.hr : RESERVES.sr})</span>
+                    </span>}
+                  </span>
+                  {(['HR', 'SR'] as const).map((kind) => list[kind].length > 0 && <ReserverCount key={kind} kind={kind} item={item.name} list={list[kind]} mark={mark} />)}
+                </li>
+              );
+            })}
+          </ul>
         </>
       )}
     </div>
