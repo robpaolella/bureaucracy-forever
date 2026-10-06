@@ -1,0 +1,29 @@
+{
+  "design_issue": 131,
+  "covers": [
+    122,
+    123
+  ],
+  "revision": 1,
+  "versions": {
+    "approved": "index.html"
+  },
+  "states": [
+    "table-default",
+    "table-changed",
+    "settings",
+    "settings-shared",
+    "settings-blocked",
+    "limit-max",
+    "block-confirm",
+    "block-confirm-many",
+    "block-stale",
+    "save-failed",
+    "blocked-direct",
+    "limit-lowered",
+    "unblocked"
+  ],
+  "themes": [
+    "default"
+  ]
+}

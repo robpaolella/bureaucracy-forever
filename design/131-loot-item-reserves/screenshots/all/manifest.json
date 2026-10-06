@@ -1,0 +1,264 @@
+{
+  "images": [
+    {
+      "image": "b-table-default-default-390.png",
+      "version": "b",
+      "state": "table-default",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4519
+    },
+    {
+      "image": "b-table-default-default-1440.png",
+      "version": "b",
+      "state": "table-default",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1693
+    },
+    {
+      "image": "b-table-changed-default-390.png",
+      "version": "b",
+      "state": "table-changed",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4661
+    },
+    {
+      "image": "b-table-changed-default-1440.png",
+      "version": "b",
+      "state": "table-changed",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1693
+    },
+    {
+      "image": "b-settings-default-390.png",
+      "version": "b",
+      "state": "settings",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4661
+    },
+    {
+      "image": "b-settings-default-1440.png",
+      "version": "b",
+      "state": "settings",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1693
+    },
+    {
+      "image": "b-settings-shared-default-390.png",
+      "version": "b",
+      "state": "settings-shared",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4661
+    },
+    {
+      "image": "b-settings-shared-default-1440.png",
+      "version": "b",
+      "state": "settings-shared",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1693
+    },
+    {
+      "image": "b-settings-blocked-default-390.png",
+      "version": "b",
+      "state": "settings-blocked",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4661
+    },
+    {
+      "image": "b-settings-blocked-default-1440.png",
+      "version": "b",
+      "state": "settings-blocked",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1693
+    },
+    {
+      "image": "b-limit-max-default-390.png",
+      "version": "b",
+      "state": "limit-max",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4661
+    },
+    {
+      "image": "b-limit-max-default-1440.png",
+      "version": "b",
+      "state": "limit-max",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1693
+    },
+    {
+      "image": "b-block-confirm-default-390.png",
+      "version": "b",
+      "state": "block-confirm",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4661
+    },
+    {
+      "image": "b-block-confirm-default-1440.png",
+      "version": "b",
+      "state": "block-confirm",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1693
+    },
+    {
+      "image": "b-block-confirm-many-default-390.png",
+      "version": "b",
+      "state": "block-confirm-many",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4661
+    },
+    {
+      "image": "b-block-confirm-many-default-1440.png",
+      "version": "b",
+      "state": "block-confirm-many",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1693
+    },
+    {
+      "image": "b-block-stale-default-390.png",
+      "version": "b",
+      "state": "block-stale",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4661
+    },
+    {
+      "image": "b-block-stale-default-1440.png",
+      "version": "b",
+      "state": "block-stale",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1693
+    },
+    {
+      "image": "b-save-failed-default-390.png",
+      "version": "b",
+      "state": "save-failed",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4661
+    },
+    {
+      "image": "b-save-failed-default-1440.png",
+      "version": "b",
+      "state": "save-failed",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1693
+    },
+    {
+      "image": "b-blocked-direct-default-390.png",
+      "version": "b",
+      "state": "blocked-direct",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4690
+    },
+    {
+      "image": "b-blocked-direct-default-1440.png",
+      "version": "b",
+      "state": "blocked-direct",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1693
+    },
+    {
+      "image": "b-limit-lowered-default-390.png",
+      "version": "b",
+      "state": "limit-lowered",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4661
+    },
+    {
+      "image": "b-limit-lowered-default-1440.png",
+      "version": "b",
+      "state": "limit-lowered",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1693
+    },
+    {
+      "image": "b-unblocked-default-390.png",
+      "version": "b",
+      "state": "unblocked",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4633
+    },
+    {
+      "image": "b-unblocked-default-1440.png",
+      "version": "b",
+      "state": "unblocked",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1693
+    }
+  ]
+}
