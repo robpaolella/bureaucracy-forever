@@ -128,13 +128,13 @@ export function defaultMethodFor(mode: DropMode): LootMethod {
   return mode === 'OPEN' ? 'OPEN_ROLL' : mode;
 }
 
-/** Per-item counts shown while choosing, e.g. { 17076: { HR: 2, SR: 1 } }. */
-export function reserveCounts(reserves: readonly ActiveReserve[]): Map<number, Record<ReserveKind, number>> {
-  const out = new Map<number, Record<ReserveKind, number>>();
+/** Who reserved each item, by kind and in input order; the counts are the list lengths. */
+export function reserveHolders<T extends ActiveReserve>(reserves: readonly T[]): Map<number, Record<ReserveKind, T[]>> {
+  const out = new Map<number, Record<ReserveKind, T[]>>();
   for (const r of reserves) {
-    const c = out.get(r.itemId) ?? { HR: 0, SR: 0 };
-    c[r.kind] += 1;
-    out.set(r.itemId, c);
+    const holders = out.get(r.itemId) ?? { HR: [], SR: [] };
+    holders[r.kind].push(r);
+    out.set(r.itemId, holders);
   }
   return out;
 }

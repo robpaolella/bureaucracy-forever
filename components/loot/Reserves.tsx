@@ -10,9 +10,9 @@ import { RESERVES } from '@/content/reserves';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
 import type { LootTableView, ReserveTargetRow, ReserveView } from '@/lib/loot-data';
-import { reserveCounts, type ReserveKind } from '@/lib/loot-rules';
+import { reserveHolders } from '@/lib/loot-rules';
 import { ItemName } from './ItemName';
-import { ReservePicker } from './ReservePicker';
+import { ReservePicker, ReserverCount, type OwnMark } from './ReservePicker';
 
 /** A member whose reserves the viewer may set: themselves, or anyone eligible for an officer. */
 export type ReserveTarget = ReserveTargetRow;
@@ -36,6 +36,8 @@ export function Reserves({ raidId, table, reserves, lockAt, locked, cancelled, o
   const [targetId, setTargetId] = useState(targets.find((t) => t.self)?.userId ?? targets[0]?.userId);
   const target = targets.find((t) => t.userId === targetId) ?? targets[0];
   const canEdit = !cancelled && target && (!locked || officer);
+  const holders = useMemo(() => reserveHolders(reserves), [reserves]);
+  const mark = target && { userId: target.userId, label: target.self ? RESERVES.yours : RESERVES.editing };
   return (
     <section id="loot-reserves" className="flex scroll-mt-24 flex-col gap-5 rounded-card border border-line bg-ink-850 p-4 md:p-5" aria-labelledby="reserves-heading">
       <div className="flex flex-col gap-2 md:flex-row md:items-baseline md:justify-between">
@@ -55,15 +57,16 @@ export function Reserves({ raidId, table, reserves, lockAt, locked, cancelled, o
       ) : locked ? (
         <p className="text-sm text-warn">{RESERVES.locked}</p>
       ) : null}
-      {canEdit ? <PickerForm key={target.userId} raidId={raidId} table={table} reserves={reserves} target={target} targets={targets} onTarget={setTargetId} /> : !cancelled && !locked && reason && <p className="text-sm text-fg-3">{reason}</p>}
-      <ReserveList table={table} reserves={reserves} target={target} />
+      {canEdit ? <PickerForm key={target.userId} raidId={raidId} table={table} holders={holders} mark={mark} target={target} targets={targets} onTarget={setTargetId} /> : !cancelled && !locked && reason && <p className="text-sm text-fg-3">{reason}</p>}
+      <ReserveList table={table} holders={holders} mark={mark} />
     </section>
   );
 }
 
-type FormProps = { raidId: string; table: LootTableView; reserves: ReserveView[]; target: ReserveTarget; targets: ReserveTarget[]; onTarget: (id: string) => void };
+type Holders = ReturnType<typeof reserveHolders<ReserveView>>;
+type FormProps = { raidId: string; table: LootTableView; holders: Holders; mark: OwnMark; target: ReserveTarget; targets: ReserveTarget[]; onTarget: (id: string) => void };
 
-function PickerForm({ raidId, table, reserves, target, targets, onTarget }: FormProps) {
+function PickerForm({ raidId, table, holders, mark, target, targets, onTarget }: FormProps) {
   const router = useRouter();
   const toast = useToast();
   const main = target.characters.find((c) => c.isMain) ?? target.characters[0];
@@ -72,8 +75,7 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
   const [sr, setSr] = useState<number | null>(target.current.sr);
   const [busy, setBusy] = useState(false);
 
-  // Both views describe saved reserves, including the member being edited, not the draft.
-  const counts = useMemo(() => reserveCounts(reserves), [reserves]);
+  // The picker's names and counts describe saved reserves, including the member being edited, not the draft.
   const blocked = new Set(target.blockedHr[characterId] ?? []);
 
   async function save(next: { hr: number | null; sr: number | null }) {
@@ -148,7 +150,7 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
           </select>
         </Field>
       </div>
-      <ReservePicker table={table} counts={counts} blocked={blocked} hr={hr} sr={sr}
+      <ReservePicker table={table} holders={holders} mark={mark} blocked={blocked} hr={hr} sr={sr}
         forName={target.self ? null : target.name}
         onChange={(kind, itemId) => { if (kind === 'HR') setHr(itemId); else setSr(itemId); }} />
       <div className="flex justify-end">
@@ -158,17 +160,11 @@ function PickerForm({ raidId, table, reserves, target, targets, onTarget }: Form
   );
 }
 
-/** Everyone's reserves by item, hard reserves first. */
-function ReserveList({ table, reserves, target }: { table: LootTableView; reserves: ReserveView[]; target?: ReserveTarget }) {
-  const byItem = new Map<number, ReserveView[]>();
-  for (const r of reserves) {
-    const list = byItem.get(r.itemId) ?? [];
-    list.push(r);
-    byItem.set(r.itemId, list);
-  }
-  const rows = [...byItem.entries()]
+/** Everyone's reserves by item, hard reserves first; each count opens the names. */
+function ReserveList({ table, holders, mark }: { table: LootTableView; holders: Holders; mark?: OwnMark }) {
+  const rows = [...holders.entries()]
     .filter(([id]) => table.items[id])
-    .sort(([a, ra], [b, rb]) => rb.filter((r) => r.kind === 'HR').length - ra.filter((r) => r.kind === 'HR').length || table.items[a].name.localeCompare(table.items[b].name));
+    .sort(([a, ha], [b, hb]) => hb.HR.length - ha.HR.length || table.items[a].name.localeCompare(table.items[b].name));
   return (
     <div className="flex flex-col gap-2">
       <h3 className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">{RESERVES.listHeading}</h3>
@@ -176,35 +172,23 @@ function ReserveList({ table, reserves, target }: { table: LootTableView; reserv
         <p className="text-sm text-fg-3">{RESERVES.listEmpty}</p>
       ) : (
         <ul className="divide-y divide-line-faint rounded-card border border-line-faint">
-          {rows.map(([itemId, list]) => (
-            <li key={itemId} className="grid gap-x-4 gap-y-1 px-3 py-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] md:items-center">
-              <ItemName item={table.items[itemId]} />
-              <Holders kind="HR" list={list.filter((r) => r.kind === 'HR')} target={target} />
-              <Holders kind="SR" list={list.filter((r) => r.kind === 'SR')} target={target} />
-            </li>
-          ))}
+          {rows.map(([itemId, list]) => {
+            const item = table.items[itemId];
+            const own = mark && (['HR', 'SR'] as const).find((kind) => list[kind].some((r) => r.userId === mark.userId));
+            return (
+              <li key={itemId} className="flex items-center gap-2 px-3 py-1">
+                <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2">
+                  <ItemName item={item} className="text-sm" />
+                  {own && <span className={cn('text-xs font-semibold', own === 'HR' ? 'text-sand' : 'text-teal')}>
+                    {mark.label}<span className="sr-only"> ({own === 'HR' ? RESERVES.hr : RESERVES.sr})</span>
+                  </span>}
+                </span>
+                {(['HR', 'SR'] as const).map((kind) => list[kind].length > 0 && <ReserverCount key={kind} kind={kind} item={item.name} list={list[kind]} mark={mark} />)}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
-  );
-}
-
-function Holders({ kind, list, target }: { kind: ReserveKind; list: ReserveView[]; target?: ReserveTarget }) {
-  if (list.length === 0) return <span className="hidden md:block" />;
-  return (
-    <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
-      <span className={cn('font-semibold', kind === 'HR' ? 'text-sand' : 'text-teal')}>
-        {kind === 'HR' ? RESERVES.hrShort : RESERVES.srShort} <span className="tabular">{list.length}</span>
-      </span>
-      {list.map((r, i) => (
-        <span key={r.userId} className="text-fg">
-          {r.name}{r.userId === target?.userId ? ` (${target.self ? RESERVES.yours : RESERVES.editing})` : ''}{' '}
-          <span className="text-fg-3">
-            (<span style={{ color: CLASS_COLORS[r.wowClass].onInk }}>{r.characterName}</span>)
-          </span>
-          {i < list.length - 1 ? ',' : ''}
-        </span>
-      ))}
-    </span>
   );
 }
