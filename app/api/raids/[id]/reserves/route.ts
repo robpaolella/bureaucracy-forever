@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { lootEnabled } from '@/lib/flags';
 import { hrAwardsFor, signupAnswer, tableItemIds } from '@/lib/loot-data';
 import { decideReserve } from '@/lib/loot-rules';
-import { blockedItemIds, lockReserveTier } from '@/lib/loot-blocks';
+import { blockedItemIds, lockReserveTier, winLimits } from '@/lib/loot-blocks';
 import { getSession } from '@/lib/session';
 import { ensureUser } from '@/lib/users';
 import { isUniqueViolation } from '../../../_loot';
@@ -54,12 +54,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const decision = await db.$transaction(async (tx) => {
       if (raid.templateId) await lockReserveTier(tx, raid.templateId);
       const blocked = raid.templateId ? await blockedItemIds(raid.templateId, tx) : new Set<number>();
+      const limits = raid.templateId ? await winLimits(raid.templateId, tx) : {};
       const existing = await tx.reserve.findMany({ where: { raidId, userId: target.id } });
       const result = decideReserve(
         { role: session.role },
         { cancelled: raid.cancelledAt !== null, startsAt: raid.startsAt, hasLootTable: items.size > 0 },
         { characterId, hr, sr },
-        { response: signupAnswer(signup?.response).response, ownCharacterIds: target.characters.map((c) => c.id), tableItemIds: items, hrAwards, blockedItemIds: blocked, existingReserves: existing },
+        { response: signupAnswer(signup?.response).response, ownCharacterIds: target.characters.map((c) => c.id), tableItemIds: items, hrAwards, blockedItemIds: blocked, winLimits: limits, existingReserves: existing },
         new Date(),
         officer,
       );
