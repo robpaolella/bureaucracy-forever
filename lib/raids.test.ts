@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, emptyRaidInput, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, parseRequirements, promptsReserves, raidDate, raidWeekday, responseToast, sourceSplit, totalCounts, ZERO_COUNTS, type RaidCard, type SignupRow } from './raids';
+import { applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, emptyRaidInput, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, linkOpensReserves, parseRequirements, promptsReserves, raidDate, raidWeekday, reservesUrl, responseToast, sourceSplit, totalCounts, viewerReserves, ZERO_COUNTS, type RaidCard, type SignupRow } from './raids';
 
 describe('requirements and counts', () => {
   it('parses a JSON requirements column defensively', () => {
@@ -91,6 +91,68 @@ describe('promptsReserves', () => {
   it('looks only at the viewer, not members an officer could reserve for', () => {
     expect(promptsReserves('accept', { ...open, targets: [{ self: false, current: { hr: null, sr: null } }] })).toBe(false);
     expect(promptsReserves('accept', { ...open, targets: [{ self: false, current: { hr: 1, sr: 2 } }, me(null, null)] })).toBe(true);
+  });
+});
+
+describe('linkOpensReserves', () => {
+  const me = (hr: number | null, sr: number | null) => ({ self: true, current: { hr, sr } });
+  const other = { self: false, current: { hr: null, sr: null } };
+  const open = { locked: false, cancelled: false, targets: [me(null, null)] };
+
+  it("opens the viewer's own window from the link, with or without saved reserves", () => {
+    expect(linkOpensReserves('1', open)).toBe(true);
+    expect(linkOpensReserves('1', { ...open, targets: [me(100, 200)] })).toBe(true);
+  });
+
+  it.each([
+    ['no link', undefined, open],
+    ['another value', '0', open],
+    ['a repeated query', ['1', '1'], open],
+    ['loot off, no loot table or a social member (no window)', '1', null],
+    ['locked reserves', '1', { ...open, locked: true }],
+    ['a cancelled raid', '1', { ...open, cancelled: true }],
+    ['Absent, unanswered or no character (no target of their own)', '1', { ...open, targets: [] }],
+    ["an officer who isn't eligible, even with members to reserve for", '1', { ...open, targets: [other] }],
+  ] as const)('shows the page without it for %s', (_label, param, window) => {
+    expect(linkOpensReserves(param, window)).toBe(false);
+  });
+
+  it("opens for an officer who is eligible (on their own reserves, which Reserves picks first)", () => {
+    expect(linkOpensReserves('1', { ...open, targets: [other, me(null, null)] })).toBe(true);
+  });
+});
+
+describe('viewerReserves', () => {
+  const now = new Date('2026-11-04T12:00:00Z');
+  const raid = { id: 'r1', startsAt: new Date('2026-11-05T04:00:00Z'), hasLootTable: true };
+
+  it('gives the link and the lock, table and completeness the bot needs', () => {
+    expect(viewerReserves(raid, ['HR', 'SR'], now, true)).toEqual({
+      lootTable: true,
+      reservesLocked: false,
+      reservesComplete: true,
+      reservesUrl: 'https://www.bureauguild.com/members/calendar/r1?reserves=1',
+    });
+    expect(reservesUrl('r1')).toBe('https://www.bureauguild.com/members/calendar/r1?reserves=1');
+  });
+
+  it('has no loot table while loot is off or the tier has none', () => {
+    expect(viewerReserves(raid, [], now, false).lootTable).toBe(false);
+    expect(viewerReserves({ ...raid, hasLootTable: false }, [], now, true).lootTable).toBe(false);
+  });
+
+  it('locks at the reserve lock, two hours before the start, not the sign-up lock', () => {
+    expect(viewerReserves(raid, [], new Date('2026-11-05T01:59:59Z'), true).reservesLocked).toBe(false);
+    expect(viewerReserves(raid, [], new Date('2026-11-05T02:00:00Z'), true).reservesLocked).toBe(true);
+  });
+
+  it.each([
+    ['none', [], false],
+    ['a hard reserve only', ['HR'], false],
+    ['a soft reserve only', ['SR'], false],
+    ['both', ['SR', 'HR'], true],
+  ] as const)('is complete only with both reserves: %s', (_label, kinds, complete) => {
+    expect(viewerReserves(raid, kinds, now, true).reservesComplete).toBe(complete);
   });
 });
 
