@@ -4,13 +4,15 @@ import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Button, Choice, Field, Input, Modal, Select, Tag, ToastHost, useToast } from '@/components/ui';
 import { SAVE_FAILED } from '@/content/calendar';
-import { LOOT_EDIT, LOOT_TABLE } from '@/content/loot-admin';
+import { LOOT_EDIT, LOOT_RESERVES, LOOT_TABLE } from '@/content/loot-admin';
 import type { ItemSource } from '@/lib/loot-rules';
 import type { ItemView } from '@/lib/loot-items';
 import { ItemName } from './ItemName';
+import { ItemReservesDialog, type ReservesTarget } from './ItemReservesDialog';
 
 export type EditorBoss = { id: string; name: string; isTrash: boolean; items: ItemView[] };
-type Props = { templateId: string; bosses: EditorBoss[]; defaultSource: ItemSource };
+/** blockedIds: items switched off for reserves across this tier (LootReserveSetting). */
+type Props = { templateId: string; bosses: EditorBoss[]; defaultSource: ItemSource; blockedIds: number[] };
 
 async function send(url: string, method: string, body?: unknown): Promise<{ ok: boolean; json: Record<string, unknown> }> {
   const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), credentials: 'same-origin' });
@@ -27,11 +29,13 @@ export function LootTableEditor(props: Props) {
   );
 }
 
-function Editor({ templateId, bosses, defaultSource }: Props) {
+function Editor({ templateId, bosses, defaultSource, blockedIds }: Props) {
   const router = useRouter();
   const toast = useToast();
   const [editing, setEditing] = useState<EditorBoss | null>(null);
   const [deleting, setDeleting] = useState<EditorBoss | null>(null);
+  const [reserves, setReserves] = useState<ReservesTarget | null>(null);
+  const blocked = new Set(blockedIds);
   const [busy, setBusy] = useState<string | null>(null);
   // A tier refresh in progress: where it started, how many are left, and ids that failed.
   const [round, setRound] = useState<{ round: string; remaining: number; skip: number[] } | null>(null);
@@ -96,17 +100,34 @@ function Editor({ templateId, bosses, defaultSource }: Props) {
             {boss.items.length === 0 ? (
               <p className="py-2 text-sm text-fg-3">{LOOT_TABLE.noItems}</p>
             ) : (
-              <ul className="grid grid-cols-1 gap-x-6 md:grid-cols-2 xl:grid-cols-3">
+              // Rows never wrap from 768px: one column up to 1279px, two from 1280px; the name truncates instead.
+              <ul className="grid grid-cols-1 gap-x-6 xl:grid-cols-2">
                 {boss.items.map((item) => (
-                  <li key={item.id} className="flex min-w-0 items-center gap-1">
-                    <ItemName item={item} className="min-w-0 flex-1" />
-                    <span className="tabular shrink-0 text-xs text-fg-3">{LOOT_TABLE.itemId(item.id)}</span>
-                    <Button variant="ghost" iconOnly aria-label={LOOT_EDIT.refreshItem(item.name)} disabled={busy !== null} loading={busy === `refresh-${item.id}`} onClick={() => run(`refresh-${item.id}`, () => send('/api/loot/items/refresh', 'POST', { itemId: item.id }), () => LOOT_EDIT.refreshed(item.name))}>
-                      {busy === `refresh-${item.id}` ? null : '↻'}
-                    </Button>
-                    <Button variant="ghost" iconOnly className="text-stop" aria-label={LOOT_EDIT.remove(item.name, boss.name)} disabled={busy !== null} onClick={() => run(`remove-${boss.id}-${item.id}`, () => send(`/api/loot/bosses/${boss.id}/items/${item.id}`, 'DELETE'), () => LOOT_EDIT.removed(item.name))}>
-                      ×
-                    </Button>
+                  <li key={item.id} className="flex min-w-0 flex-wrap items-center gap-x-1 border-line-faint max-md:border-t max-md:first:border-t-0 md:flex-nowrap">
+                    <div className="flex min-w-0 flex-1 items-center max-md:basis-full max-md:flex-wrap">
+                      <ItemName item={item} className="min-w-0 max-md:basis-full" />
+                      {blocked.has(item.id) && <Tag className="shrink-0 whitespace-nowrap max-md:mb-1 max-md:ml-[26px] md:ml-1.5">{LOOT_RESERVES.blockedTag}</Tag>}
+                    </div>
+                    <div className="ml-auto flex shrink-0 items-center gap-1 max-md:ml-0 max-md:w-full max-md:pb-2 max-md:pl-[26px]">
+                      <span className="tabular text-xs text-fg-3 max-md:mr-auto">{LOOT_TABLE.itemId(item.id)}</span>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        // 32px to look, 44px to hit: the ::after reaches the row's full height.
+                        className="relative h-8 px-2.5 after:absolute after:inset-x-0 after:-inset-y-1.5"
+                        aria-label={LOOT_RESERVES.buttonLabel(item.name)}
+                        aria-haspopup="dialog"
+                        onClick={() => setReserves({ item, blocked: blocked.has(item.id), otherBosses: bosses.filter((b) => b.id !== boss.id && b.items.some((x) => x.id === item.id)).map((b) => b.name) })}
+                      >
+                        {LOOT_RESERVES.button}
+                      </Button>
+                      <Button variant="ghost" iconOnly aria-label={LOOT_EDIT.refreshItem(item.name)} disabled={busy !== null} loading={busy === `refresh-${item.id}`} onClick={() => run(`refresh-${item.id}`, () => send('/api/loot/items/refresh', 'POST', { itemId: item.id }), () => LOOT_EDIT.refreshed(item.name))}>
+                        {busy === `refresh-${item.id}` ? null : '↻'}
+                      </Button>
+                      <Button variant="ghost" iconOnly className="text-stop" aria-label={LOOT_EDIT.remove(item.name, boss.name)} disabled={busy !== null} onClick={() => run(`remove-${boss.id}-${item.id}`, () => send(`/api/loot/bosses/${boss.id}/items/${item.id}`, 'DELETE'), () => LOOT_EDIT.removed(item.name))}>
+                        ×
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -121,6 +142,7 @@ function Editor({ templateId, bosses, defaultSource }: Props) {
         </section>
       ))}
 
+      <ItemReservesDialog templateId={templateId} target={reserves} onClose={() => setReserves(null)} />
       <BossModal
         boss={editing}
         onClose={() => setEditing(null)}
