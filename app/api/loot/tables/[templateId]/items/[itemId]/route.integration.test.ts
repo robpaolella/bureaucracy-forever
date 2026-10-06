@@ -27,6 +27,11 @@ const block = async (remove: string[]) => {
   const res = await PUT(new Request('http://localhost/test', { method: 'PUT', body: JSON.stringify({ blocked: true, remove }) }), { params: Promise.resolve({ templateId: 't1', itemId: '100' }) });
   return { status: res.status, json: await res.json() };
 };
+const setLimit = async (winLimit: number) => {
+  state.role = 'officer';
+  const res = await PUT(new Request('http://localhost/test', { method: 'PUT', body: JSON.stringify({ winLimit }) }), { params: Promise.resolve({ templateId: 't1', itemId: '100' }) });
+  return { status: res.status, json: await res.json() };
+};
 const save = async () => {
   state.role = 'member';
   return saveReserves(new Request('http://localhost/test', { method: 'PUT', body: JSON.stringify({ characterId: 'c1', hr: 100, sr: null }) }), { params: Promise.resolve({ id: 'r-open' }) });
@@ -82,6 +87,7 @@ describe.skipIf(process.env.LOOT_BLOCK_INTEGRATION !== '1')('real PostgreSQL blo
     state.db = client;
     await client.reserve.deleteMany();
     await client.lootReserveSetting.deleteMany();
+    await client.lootAward.deleteMany();
   });
 
   const hold = (raidId: string, user: string, kind: 'HR' | 'SR') =>
@@ -176,5 +182,49 @@ describe.skipIf(process.env.LOOT_BLOCK_INTEGRATION !== '1')('real PostgreSQL blo
     state.db = client;
     expect(await blocked()).toBe(true);
     expect(await client.reserve.count({ where: { itemId: 100, raidId: 'r-open' } })).toBe(0);
+  }, 20_000);
+
+  it('the migration reads existing items as limit 1 and the database refuses a limit outside 1 to 5', async () => {
+    await pool.query(`INSERT INTO "LootReserveSetting" ("templateId", "itemId", "blocked") VALUES ('t1', 100, true)`);
+    expect(await client.lootReserveSetting.findFirst({ where: { itemId: 100 } })).toMatchObject({ blocked: true, winLimit: 1 });
+    for (const bad of [0, 6]) await expect(pool.query(`UPDATE "LootReserveSetting" SET "winLimit" = ${bad}`)).rejects.toThrow(/winLimit_check/);
+  });
+
+  it('setting the limit keeps blocked, and blocking or unblocking keeps the limit', async () => {
+    await hold('r-open', '1', 'HR');
+    expect(await setLimit(3)).toEqual({ status: 200, json: { itemId: 100, winLimit: 3 } });
+    expect(await client.lootReserveSetting.findFirst({ where: { itemId: 100 } })).toMatchObject({ blocked: false, winLimit: 3 });
+    expect((await block(['r-open:c1:HR'])).status).toBe(200);
+    expect(await client.lootReserveSetting.findFirst({ where: { itemId: 100 } })).toMatchObject({ blocked: true, winLimit: 3 });
+    expect((await setLimit(1)).status).toBe(200);
+    expect(await client.lootReserveSetting.findFirst({ where: { itemId: 100 } })).toMatchObject({ blocked: true, winLimit: 1 });
+  });
+
+  it('lowering the limit keeps saved reserves', async () => {
+    await hold('r-open', '1', 'HR');
+    await hold('r-locked', '3', 'SR');
+    await setLimit(2);
+    await setLimit(1);
+    expect(await client.reserve.count()).toBe(2);
+  });
+
+  it('with limit 2 a character with one win can reserve again, and with two cannot', async () => {
+    const win = () => client.lootAward.create({ data: { raidId: 'r-past', itemId: 100, userId: 'u1', characterId: 'c1', characterName: 'Sample c1', method: 'HR', recordedById: 'u1' } });
+    await win();
+    expect((await save()).status).toBe(409);
+    await setLimit(2);
+    expect((await save()).status).toBe(200);
+    await win();
+    expect((await save()).status).toBe(409);
+  });
+
+  it('a limit change waits for a save holding the tier lock', async () => {
+    const gate = wrap({ pause: true });
+    const saving = save();
+    await gate.acquired.promise;
+    const limiting = setLimit(2);
+    try { await waitForBlockedQuery(); } finally { gate.release.resolve(); }
+    expect((await saving).status).toBe(200);
+    expect((await limiting).status).toBe(200);
   }, 20_000);
 });

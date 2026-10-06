@@ -65,7 +65,7 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
 
   const boss = table.bosses.find((b) => b.id === bossId);
   const characters = useMemo(() => new Map(candidates.flatMap((c) => c.characters.map((ch) => [ch.id, { ...ch, owner: c.name, userId: c.userId }] as const))), [candidates]);
-  const resolution = itemId === null ? null : resolveDrop(itemId, reserves, given, hrGiven);
+  const resolution = itemId === null ? null : resolveDrop(itemId, reserves, given, hrGiven, [], table.winLimits);
 
   function pickItem(id: number | null) {
     setItemId(id);
@@ -73,7 +73,7 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
     setRoll('');
     setNote('');
     if (id !== null) {
-      const next = resolveDrop(id, reserves, given, hrGiven);
+      const next = resolveDrop(id, reserves, given, hrGiven, [], table.winLimits);
       setMethod(defaultMethodFor(next.mode));
       // One reserve holder: they are the winner unless the officer says otherwise.
       if (next.contenders.length === 1) setWinner(next.contenders[0].characterId);

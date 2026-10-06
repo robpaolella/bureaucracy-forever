@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ signups: vi.fn(), awards: vi.fn(), reserves: vi.fn(), bosses: vi.fn(), blocked: vi.fn() }));
-vi.mock('@/lib/db', () => ({ db: { signup: { findMany: mocks.signups }, lootAward: { findMany: mocks.awards }, reserve: { findMany: mocks.reserves }, lootBoss: { findMany: mocks.bosses } } }));
-vi.mock('@/lib/loot-blocks', () => ({ blockedItemIds: mocks.blocked }));
+const mocks = vi.hoisted(() => ({ signups: vi.fn(), awards: vi.fn(), reserves: vi.fn(), bosses: vi.fn(), blocked: vi.fn(), limits: vi.fn(), raid: vi.fn() }));
+vi.mock('@/lib/db', () => ({ db: { signup: { findMany: mocks.signups }, lootAward: { findMany: mocks.awards }, reserve: { findMany: mocks.reserves }, lootBoss: { findMany: mocks.bosses }, raid: { findUnique: mocks.raid } } }));
+vi.mock('@/lib/loot-blocks', () => ({ blockedItemIds: mocks.blocked, winLimits: mocks.limits }));
 
 import { hrAwardsFor, loadActiveReserves, loadLootTable, loadReserveTargets } from './loot-data';
 import { decideReserve, resolveDrop, REASONS } from './loot-rules';
@@ -13,6 +13,8 @@ beforeEach(() => {
   mocks.signups.mockReset();
   mocks.awards.mockReset().mockResolvedValue([]);
   mocks.reserves.mockReset();
+  mocks.limits.mockReset().mockResolvedValue({});
+  mocks.raid.mockReset().mockResolvedValue({ templateId: 't1' });
 });
 
 describe('loadLootTable', () => {
@@ -25,6 +27,15 @@ describe('loadLootTable', () => {
     expect(mocks.blocked).toHaveBeenCalledWith('t1');
     expect(table?.blocked).toEqual([100, 300]);
     expect(table?.bosses).toEqual([{ id: 'b1', name: 'Onyxia', isTrash: false, itemIds: [300, 100] }]);
+    expect(table?.winLimits).toEqual({});
+  });
+
+  it('carries the tier’s win limits for drop resolution', async () => {
+    mocks.bosses.mockResolvedValue([{ id: 'b1', name: 'Onyxia', isTrash: false, entries: [{ item: item(100) }] }]);
+    mocks.blocked.mockResolvedValue(new Set());
+    mocks.limits.mockResolvedValue({ 100: 2 });
+    expect((await loadLootTable('t1'))?.winLimits).toEqual({ 100: 2 });
+    expect(mocks.limits).toHaveBeenCalledWith('t1');
   });
 
   it('is null with no items, blocks or not', async () => {
@@ -90,6 +101,26 @@ describe('loadReserveTargets', () => {
     expect(reason).toBeNull();
     expect(targets.map((t) => t.name)).toEqual(['me', 'zed']);
     expect(targets[1]).toMatchObject({ current: { characterId: 'zed-c', hr: null, sr: 5 }, blockedHr: { 'zed-c': [9] }, characters: [{ wowClass: 'mage' }] });
+  });
+
+  it('marks an item previously won only once the character reaches its win limit', async () => {
+    mocks.signups.mockResolvedValue([{ response: 'ACCEPT', user: user('me', 'd1', [{ id: 'c1', name: 'One', class: 'MAGE', isMain: true }, { id: 'c2', name: 'Two', class: 'MAGE', isMain: false }]) }]);
+    const won = (characterId: string, itemId: number) => ({ characterId, itemId });
+    mocks.awards.mockResolvedValue([won('c1', 100), won('c1', 200), won('c1', 200), won('c2', 100), won('c1', 300)]);
+    mocks.limits.mockResolvedValue({ 100: 2, 200: 2 });
+    const { targets } = await loadReserveTargets('r1', 'd1', false);
+    expect(mocks.raid).toHaveBeenCalledWith({ where: { id: 'r1' }, select: { templateId: true } });
+    expect(mocks.limits).toHaveBeenCalledWith('t1');
+    // 100: one win of two; 200: two of two; 300: limit 1. c2's single win of 100 is below its limit.
+    expect(targets[0].blockedHr).toEqual({ c1: [200, 300] });
+  });
+
+  it('uses limit 1 for a raid without a tier', async () => {
+    mocks.raid.mockResolvedValue({ templateId: null });
+    mocks.signups.mockResolvedValue([{ response: 'ACCEPT', user: user('me', 'd1') }]);
+    mocks.awards.mockResolvedValue([{ characterId: 'me-c', itemId: 100 }]);
+    expect((await loadReserveTargets('r1', 'd1', false)).targets[0].blockedHr).toEqual({ 'me-c': [100] });
+    expect(mocks.limits).not.toHaveBeenCalled();
   });
 
   it('says why the viewer has nothing to set', async () => {
