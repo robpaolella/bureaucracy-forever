@@ -33,3 +33,6 @@
 - Site-wide: the dimmest grey text is just under the 4.5:1 contrast minimum; lift it.
 - Loot blocks (#135): the two real-database suites (raids/[id]/reserves and the items route) copy the same container and lock-pause harness; move it into a shared test helper. `setItemBlocked(…, true)` is kept only for the reserves suite's direct-block cases; switch those to `blockItem` and drop it.
 - Loot log (#122): `mergeAwards` counts only local HR records as reserve wins, so an SR win recorded in this tab doesn't hold that holder back from the next drop until the page refreshes; count SR too.
+- Reserves section (#119): after the lock the lede still says reserves "will lock at", and a cancelled raid still shows the lock time (the approved design's wording); ask Robert for past-tense / no-time variants.
+- Reserves (#119): HR/SR rules are no longer explained in the section (approved wording); link the lede or the slot cards to Loot rules.
+- Reserves window (#119): an officer's own empty picks show "Change reserves" next to the chooser; "Pick reserves" may read better (state not in the approved design).

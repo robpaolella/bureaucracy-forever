@@ -57,7 +57,7 @@ export function Reserves({ raid, table, reserves, lockAt, locked, cancelled, off
         {RESERVES.heading}
       </h2>
       <p className="max-w-[720px] text-sm text-fg-2">
-        {RESERVES.lede} <LocalTime startsAt={lockAt} durationMin={0} />.
+        {RESERVES.lede} <LocalTime startsAt={lockAt} durationMin={0} className="whitespace-nowrap" />.
       </p>
       {cancelled ? (
         <p className="text-sm text-stop">{RESERVES.cancelled}</p>

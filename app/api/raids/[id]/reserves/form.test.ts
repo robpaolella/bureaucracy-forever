@@ -49,6 +49,12 @@ describe('reserve picker', () => {
     expect(html).not.toMatch(/>Clear<|>None</);
   });
 
+  it('names the member an officer picks for in the other slot’s reason', () => {
+    const html = render({ officer: true, targets: target({ self: false, blockedHr: {}, current: { characterId: 'c1', hr: null, sr: 100 } }) });
+    expect(html).toContain('Picked as SR — redtape&#x27;s soft reserve');
+    expect(html).not.toContain('Your soft reserve');
+  });
+
   it('allows removing a saved pick even if it became ineligible', () => {
     const html = render({ targets: target({ self: false, current: { characterId: 'c1', hr: 100, sr: null } }) });
     expect(html).toContain('Picked as redtape&#x27;s hard reserve');

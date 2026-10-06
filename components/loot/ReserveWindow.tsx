@@ -133,7 +133,7 @@ export function ReserveWindow({ open, onClose, raid, data, targetId, confirm, no
       intro={
         <div className="flex flex-col gap-1.5 text-[13px] leading-normal text-fg-2">
           <p>{raid.name} · {raidDate(raid.startsAt)}</p>
-          <p>{RESERVES.windowLede} <LocalTime startsAt={lockAt} durationMin={0} className="text-[13px]" />.</p>
+          <p>{RESERVES.windowLede} <LocalTime startsAt={lockAt} durationMin={0} className="whitespace-nowrap text-[13px]" />.</p>
         </div>
       }
       actions={<>
@@ -185,8 +185,9 @@ function Labelled({ label, children }: { label: string; children: ReactNode }) {
 
 /**
  * After a web sign-up, opens the window when `promptsReserves` says so, loading the raid's table
- * and the viewer's reserves first (the calendar has neither). `afterAnswer` resolves false when it
- * stays closed, so the caller shows its usual toast instead.
+ * and the viewer's reserves first (the calendar has neither). The caller shows its toast at once;
+ * `afterAnswer` resolves true when the window opened and took over that line. A newer call,
+ * including one with a null answer for an undo, supersedes one still loading.
  */
 export function useReservePrompt(notify: (toast: ToastData) => void) {
   const [prompt, setPrompt] = useState<{ raid: WindowRaid; data: ReserveWindowData; confirm: Confirm } | null>(null);

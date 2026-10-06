@@ -48,9 +48,10 @@ export function RaidResponseControl({ raid: initial, viewer, past, now }: Props)
       }
       const copy = responseToast(raid, response, zone?.zone ?? null);
       const toast: ToastData = { tone: 'ok', title: copy.title, detail: copy.detail, action: { label: 'Undo', onClick: undo } };
-      // Accept or Tentative may open the reserves window instead, which carries the same line and Undo.
-      if (undone) setToast(toast);
-      else void afterAnswer(raid, response, { text: copy.title, onUndo: undo }).then((opened) => { if (!opened) setToast(toast); });
+      setToast(toast);
+      // Accept or Tentative may then open the reserves window, which takes over the line and Undo.
+      // An undo never prompts, and it stops a prompt still loading for the answer it reverted.
+      void afterAnswer(raid, undone ? null : response, { text: copy.title, onUndo: undo }).then((opened) => { if (opened) setToast(null); });
       router.refresh();
     },
     [zone, router, afterAnswer],

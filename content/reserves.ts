@@ -36,7 +36,8 @@ export const RESERVES = {
   choose: (kind: 'HR' | 'SR') => `Choose as ${kind === 'HR' ? 'hard' : 'soft'} reserve`,
   picked: (kind: 'HR' | 'SR') => `Picked as ${kind}`,
   pickedDetails: (kind: 'HR' | 'SR', name: string | null) => `Picked as ${name === null ? 'your' : `${name}'s`} ${kind === 'HR' ? 'hard' : 'soft'} reserve`,
-  otherSlot: (kind: 'HR' | 'SR') => `Your ${kind === 'HR' ? 'hard' : 'soft'} reserve`,
+  /** `name` is null when choosing for yourself. */
+  otherSlot: (kind: 'HR' | 'SR', name: string | null) => `${name === null ? 'Your' : `${name}'s`} ${kind === 'HR' ? 'hard' : 'soft'} reserve`,
   ineligible: 'This item is ineligible to be reserved for this raid.',
   remove: 'Remove',
   yours: 'yours',
