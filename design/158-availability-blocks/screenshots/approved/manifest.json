@@ -1,0 +1,164 @@
+{
+  "images": [
+    {
+      "image": "approved-empty-default-390.png",
+      "version": "approved",
+      "state": "empty",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 931
+    },
+    {
+      "image": "approved-empty-default-1440.png",
+      "version": "approved",
+      "state": "empty",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1202
+    },
+    {
+      "image": "approved-typical-default-390.png",
+      "version": "approved",
+      "state": "typical",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 931
+    },
+    {
+      "image": "approved-typical-default-1440.png",
+      "version": "approved",
+      "state": "typical",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1202
+    },
+    {
+      "image": "approved-hover-default-390.png",
+      "version": "approved",
+      "state": "hover",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 931
+    },
+    {
+      "image": "approved-hover-default-1440.png",
+      "version": "approved",
+      "state": "hover",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1202
+    },
+    {
+      "image": "approved-selected-default-390.png",
+      "version": "approved",
+      "state": "selected",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 931
+    },
+    {
+      "image": "approved-selected-default-1440.png",
+      "version": "approved",
+      "state": "selected",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1202
+    },
+    {
+      "image": "approved-selected-short-default-390.png",
+      "version": "approved",
+      "state": "selected-short",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 931
+    },
+    {
+      "image": "approved-selected-short-default-1440.png",
+      "version": "approved",
+      "state": "selected-short",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1202
+    },
+    {
+      "image": "approved-dragging-default-390.png",
+      "version": "approved",
+      "state": "dragging",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 931
+    },
+    {
+      "image": "approved-dragging-default-1440.png",
+      "version": "approved",
+      "state": "dragging",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1202
+    },
+    {
+      "image": "approved-all-day-default-390.png",
+      "version": "approved",
+      "state": "all-day",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 931
+    },
+    {
+      "image": "approved-all-day-default-1440.png",
+      "version": "approved",
+      "state": "all-day",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1202
+    },
+    {
+      "image": "approved-busy-default-390.png",
+      "version": "approved",
+      "state": "busy",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 931
+    },
+    {
+      "image": "approved-busy-default-1440.png",
+      "version": "approved",
+      "state": "busy",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1202
+    }
+  ]
+}
