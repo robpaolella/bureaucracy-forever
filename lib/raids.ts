@@ -145,7 +145,7 @@ export function reservesUrl(raidId: string): string {
  * with a character). It opens whether or not they have reserves, so they can change them, and
  * never for anyone else, officers included.
  */
-export function linkOpensReserves(param: string | string[] | undefined, window: { locked: boolean; cancelled: boolean; targets: readonly { self: boolean }[] } | null): boolean {
+export function linkOpensReserves(param: string | readonly string[] | undefined, window: { locked: boolean; cancelled: boolean; targets: readonly { self: boolean }[] } | null): boolean {
   return param === '1' && !!window && !window.locked && !window.cancelled && window.targets.some((t) => t.self);
 }
 
