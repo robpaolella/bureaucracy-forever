@@ -28,3 +28,7 @@
 - Reserve picker (#96 review): render each row's Wowhead tooltip only while open instead of mounting ~160 hidden tooltips; add a draft-logic test for HR→SR auto-advance and Enter-doesn't-submit; skip search refocus after Choose on phone so the keyboard doesn't pop up.
 - Loot table editor (#131 design → #123): the item row's refresh button shows ↻ as an empty box on the live site (the font lacks the glyph); swap it for an icon or a glyph the font has.
 - Loot table editor (#123 critique): a disabled boss move arrow (↑ on the first boss) looks filled while the enabled one looks plain; check the ghost button's disabled style there.
+- Reserve names pop-up (#109): say visibly which slot is "yours" (HR or SR).
+- Reserve names pop-up (#109): list the member's own pick first.
+- Site-wide: the dimmest grey text is just under the 4.5:1 contrast minimum; lift it.
+- Loot blocks (#135): the two real-database suites (raids/[id]/reserves and the items route) copy the same container and lock-pause harness; move it into a shared test helper. `setItemBlocked(…, true)` is kept only for the reserves suite's direct-block cases; switch those to `blockItem` and drop it.
