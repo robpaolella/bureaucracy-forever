@@ -191,6 +191,17 @@ describe('viewerTime', () => {
     const late = zonedTimeToUtc(2026, 9, 29, 20, 0, LA);
     expect(viewerTime(late, 180, LON)).toMatchObject({ text: 'Wed 4:00 – 7:00 AM GMT+1', guild: 'Tue 8:00 – 11:00 PM guild time (PDT)' });
   });
+
+  it('names the weekday always or never when asked', () => {
+    expect(viewerTime(start, 0, NY, 'en-US', { weekday: 'always' })).toMatchObject({ text: 'Tue 8:00 PM EDT', guild: 'Tue 5:00 PM guild time (PDT)' });
+    expect(viewerTime(start, 0, LON, 'en-US', { weekday: 'never' })).toMatchObject({ text: '1:00 AM GMT+1', guild: '5:00 PM guild time (PDT)' });
+    expect(viewerTime(start, 0, LA, 'en-US', { weekday: 'always' }).text).toBe('Tue 5:00 PM guild time');
+  });
+
+  it('drops the zone name from the text, never from the accessible name', () => {
+    expect(viewerTime(start, 0, NY, 'en-US', { zoneName: false })).toEqual({ text: '8:00 PM', guild: '5:00 PM guild time (PDT)', label: '8:00 PM EDT, 5:00 PM guild time (PDT)' });
+    expect(viewerTime(start, 0, LA, 'en-US', { zoneName: false })).toEqual({ text: '5:00 PM', guild: null, label: '5:00 PM guild time' });
+  });
 });
 
 describe('relativeDate', () => {
