@@ -312,8 +312,10 @@ export function ReserverCount({ kind, item, list, mark, wide = false }: {
         </p>
         <ul className="mt-1.5 flex flex-col gap-0.5">
           {list.map((r) => <li key={r.userId}>
-            {r.name}{r.userId === mark?.userId ? ` (${mark.label})` : ''}{' '}
+            {r.name}{' '}
             <span className="text-fg-3">(<span style={{ color: CLASS_COLORS[r.wowClass].onInk }}>{r.characterName}</span>)</span>
+            {/* The same mark as the "Who reserved what" lines, not a second set of brackets. */}
+            {r.userId === mark?.userId && <span className={cn('ml-1.5 text-xs font-semibold', tone)}>{mark.label}</span>}
           </li>)}
         </ul>
       </div>
