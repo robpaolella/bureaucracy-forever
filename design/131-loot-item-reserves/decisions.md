@@ -46,6 +46,7 @@ was removed after this final offline proof; `index.html` is self-contained.
 ## Comments and changes
 | ID / source | Version / element | Original note | Agreed change and verification | Resolved |
 | --- | --- | --- | --- | --- |
+| PR review nits (Sonnet 5.5) | b / wording, backdrop, truncation | One holder read "1 reserves"; decision 7 still listed the withdrawn raise wording; backdrop behaviour unstated; truncation not shown | Singular "Block and remove 1 reserve" / "Removed 1 reserve."; brief decision 7 marked withdrawn; brief states a click outside closes the window (as the site's Modal); 1280 capture added under `screenshots/extra/`. | 2026-10-05 |
 | herdr, decisions 10–14 | b / layout and added wording | "just do it" | Recommendations accepted as recorded in brief.md. | 2026-10-05 |
 | cmt_0034fb33 (pin 1) | b / raise confirmation title | "Don't ask for confirmation." | Raise confirmation removed (state `raise-confirm` dropped); "+" saves straight away with toast "Win limit N.", like "−". Amends decisions 2 and 12. Verified offline. | 2026-10-05, resolved |
 | cmt_a536bc04 (pin 2) | b / item row with tags | Long tags push the Reserves button to a second row; maybe fade them; decide a good practice. | Rows never wrap from 768px up: at most one tag (a blocked item shows only "Not open to reserves"), shown whole; the name truncates instead; one item column from 768 to 1279px, two from 1280px. Fading was tried and rejected (it hid the limit number). Verified offline at 1024, 1280 and 1440: no wrapped rows. | 2026-10-05, resolved |

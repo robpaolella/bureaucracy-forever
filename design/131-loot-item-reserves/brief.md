@@ -37,12 +37,12 @@ item names, up to ~15 holders across raids including a cancelled one.
 | State slug | Situation | Content and wording | Actions / feedback |
 | --- | --- | --- | --- |
 | table-default | nothing changed | table as today plus a "Reserves" button on each row | opens window |
-| table-changed | some items changed | one grey tag after a name: "Not open to reserves" or "Win limit 3"; shared item tagged on both bosses; a long blocked name with a raised limit (Ancient Cornerstone Grimoire) shows one tag and truncates on one line | — |
+| table-changed | some items changed | one grey tag after a name: "Not open to reserves" or "Win limit 3"; shared item tagged on both bosses; a long blocked name with a raised limit (Ancient Cornerstone Grimoire) shows one tag and truncates on one line at 1280 wide ([capture](screenshots/extra/table-changed-1280.png)) | — |
 | settings | window for a normal item | title "Reserves: [item]"; switch "Open to reserves"; win limit − 1 + with hint "How many times one character can win this through a hard or soft reserve."; "Done" | − disabled at 1 |
 | settings-shared | item on two bosses | adds "Also drops from [boss]. This setting applies there too." | — |
 | settings-blocked | item blocked | switch off; limit greyed with "Blocked items can't be reserved, whatever the limit." | switch on unblocks; toast "[item] is open to reserves again. Removed reserves aren't restored." |
 | limit-max | limit at 5 | + disabled; hint "5 is the most." | — |
-| block-confirm | switch off, 2–3 holders | "Block [item]?" holders grouped by raid (raid name, date in guild time, "Cancelled" tag), each character + HR/SR; "Reserves on locked and past raids stay. They won't be told. Let them know in Discord." Cancel / "Block and remove N reserves" (danger) | confirm → toast "Blocked [item]. Removed N reserves." |
+| block-confirm | switch off, 2–3 holders (one holder reads "1 reserve") | "Block [item]?" holders grouped by raid (raid name, date in guild time, "Cancelled" tag), each character + HR/SR; "Reserves on locked and past raids stay. They won't be told. Let them know in Discord." Cancel / "Block and remove N reserves" (danger) | confirm → toast "Blocked [item]. Removed N reserves." |
 | block-confirm-many | ~15 holders across 4 raids | list scrolls inside the window; title and buttons stay | as above |
 | block-stale | list changed meanwhile | notice "The list changed since you opened this. Check it and confirm again." with refreshed names | confirm again |
 | blocked-direct | blocked an item nobody held | window shows the switch off; toast "Blocked [item]."; tag on the table behind | — |
@@ -55,7 +55,8 @@ limit-lowered). Not applicable: loading (page loading skeleton unchanged; contro
 existing button loading state); empty table (no items, no button, unchanged); no permission
 (non-officers get 404, unchanged); locked (settings apply per tier, not per raid).
 Keyboard: the button opens the native dialog with focus inside; Escape closes the innermost
-step; focus returns to the row's button. Status never by colour alone.
+step (a confirmation goes back to the settings); a click outside the window closes it, as the
+site's other windows do; focus returns to the row's button. Status never by colour alone.
 
 ## Host snapshot and offline proof
 - Source commit `bc69675` (origin/main), worktree `docs/131-design-loot-item-reserves`. Skill:
@@ -88,7 +89,8 @@ step; focus returns to the row's button. Status never by colour alone.
 4. Grey tag after the name only when not default: "Not open to reserves", "Win limit 3".
 5. Window contents as in the states table; confirmations replace the window's contents.
 6. Small "Reserves" text button beside refresh/remove; phone rows wrap to a second line.
-7. Wording in the states table approved, including "Let one character win [item] up to 2 times?",
+7. Wording in the states table approved, including "Let one character win [item] up to 2 times?"
+   (withdrawn by pin 1),
    "Block and remove N reserves", the toasts and "5 is the most."
 8. New element approved for the design: the − n + stepper (not a 1–5 select).
 9. Brief confirmed; proceed (Robert, 2026-10-05: "7-9. All approved as you wrote.").

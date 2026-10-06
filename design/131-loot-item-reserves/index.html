@@ -217,7 +217,7 @@ dialog.p-dlg::backdrop{background:rgb(6 8 11 / .72)}
       });
       html += '<p class="p-foot">Reserves on locked and past raids stay. They won\'t be told. Let them know in Discord.</p>';
       body.innerHTML = html;
-      act.innerHTML = '<button type="button" class="p-btn" data-act="back">Cancel</button><button type="button" class="p-btn danger" data-act="block">Block and remove ' + list.length + ' reserves</button>';
+      act.innerHTML = '<button type="button" class="p-btn" data-act="back">Cancel</button><button type="button" class="p-btn danger" data-act="block">Block and remove ' + list.length + (list.length === 1 ? ' reserve' : ' reserves') + '</button>';
     }
   }
   dlg.addEventListener('click', function (e) {
@@ -235,7 +235,7 @@ dialog.p-dlg::backdrop{background:rgb(6 8 11 / .72)}
     else if (b.dataset.act === 'back') { mode = 'settings'; stale = false; render(); focusId('p-open'); }
     else if (b.dataset.act === 'block') {
       var n = holders(cur).length; c.blocked = true; delete HOLDERS[cur]; stale = false; mode = 'settings'; renderTags(); render(); focusId('p-open');
-      toast('Blocked ' + cur + '. Removed ' + n + ' reserves.');
+      toast('Blocked ' + cur + '. Removed ' + n + (n === 1 ? ' reserve.' : ' reserves.'));
     } else if (b.dataset.act === 'done') close();
   });
   function focusId(id) { var el = document.getElementById(id); if (el) el.focus(); }
