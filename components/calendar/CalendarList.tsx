@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
+import { useReservePrompt } from '@/components/loot/ReserveWindow';
 import { ScheduleRaidModal } from '@/components/raid/ScheduleRaidModal';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { Button, EmptyState, SegmentedControl, Toast, type ToastData } from '@/components/ui';
@@ -51,16 +52,20 @@ export function CalendarList({ raids: initial, viewer, schedule }: Props) {
     [closeSchedule, router, zone],
   );
 
+  const { afterAnswer, window: reserveWindow } = useReservePrompt(setToast);
   const onResult = useCallback(
-    (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void) => {
+    (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void, undone: boolean) => {
       if (!ok) {
         setToast({ tone: 'stop', title: SAVE_FAILED });
         return;
       }
       const copy = responseToast(raid, response, zone?.zone ?? null);
-      setToast({ tone: 'ok', title: copy.title, detail: copy.detail, action: { label: 'Undo', onClick: undo } });
+      const toast: ToastData = { tone: 'ok', title: copy.title, detail: copy.detail, action: { label: 'Undo', onClick: undo } };
+      // Accept or Tentative may open the reserves window instead, which carries the same line and Undo.
+      if (undone) setToast(toast);
+      else void afterAnswer(raid, response, { text: copy.title, onUndo: undo }).then((opened) => { if (!opened) setToast(toast); });
     },
-    [zone],
+    [zone, afterAnswer],
   );
   const { raids, respond } = useSignup(initial, viewer.raidRole, onResult);
 
@@ -148,6 +153,7 @@ export function CalendarList({ raids: initial, viewer, schedule }: Props) {
       )}
 
       {schedule && <ScheduleRaidModal open={scheduling} initial={schedule.initial} onClose={closeSchedule} onScheduled={onScheduled} />}
+      {reserveWindow}
       <Toast toast={toast} onDismiss={() => setToast(null)} />
     </div>
   );

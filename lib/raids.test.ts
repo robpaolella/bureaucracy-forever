@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, emptyRaidInput, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, parseRequirements, raidWeekday, responseToast, sourceSplit, totalCounts, ZERO_COUNTS, type RaidCard, type SignupRow } from './raids';
+import { applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, emptyRaidInput, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, parseRequirements, promptsReserves, raidDate, raidWeekday, responseToast, sourceSplit, totalCounts, ZERO_COUNTS, type RaidCard, type SignupRow } from './raids';
 
 describe('requirements and counts', () => {
   it('parses a JSON requirements column defensively', () => {
@@ -62,6 +62,35 @@ describe('timing', () => {
 
   it('names the weekday in guild time', () => {
     expect(raidWeekday(raid.startsAt)).toBe('Wednesday');
+    expect(raidDate(raid.startsAt)).toBe('Wednesday, Nov 4');
+  });
+});
+
+describe('promptsReserves', () => {
+  const me = (hr: number | null, sr: number | null) => ({ self: true, current: { hr, sr } });
+  const open = { locked: false, cancelled: false, targets: [me(null, null)] };
+
+  it('opens after Accept or Tentative when the viewer can reserve and has no reserves', () => {
+    expect(promptsReserves('accept', open)).toBe(true);
+    expect(promptsReserves('tentative', open)).toBe(true);
+  });
+
+  it.each([
+    ['Absent', 'absent', open],
+    ['a withdrawn answer', null, open],
+    ['loot off or no loot table', 'accept', null],
+    ['locked reserves', 'accept', { ...open, locked: true }],
+    ['a cancelled raid', 'accept', { ...open, cancelled: true }],
+    ['no character to reserve with', 'accept', { ...open, targets: [] }],
+    ['a saved hard reserve (Accept and Tentative switching)', 'tentative', { ...open, targets: [me(100, null)] }],
+    ['a saved soft reserve', 'accept', { ...open, targets: [me(null, 200)] }],
+  ] as const)('stays closed for %s', (_label, answer, window) => {
+    expect(promptsReserves(answer, window)).toBe(false);
+  });
+
+  it('looks only at the viewer, not members an officer could reserve for', () => {
+    expect(promptsReserves('accept', { ...open, targets: [{ self: false, current: { hr: null, sr: null } }] })).toBe(false);
+    expect(promptsReserves('accept', { ...open, targets: [{ self: false, current: { hr: 1, sr: 2 } }, me(null, null)] })).toBe(true);
   });
 });
 

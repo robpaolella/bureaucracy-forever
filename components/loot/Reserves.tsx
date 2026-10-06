@@ -1,24 +1,24 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState } from 'react';
 import { LocalTime } from '@/components/time/LocalTime';
 import { Button, Field, useToast } from '@/components/ui';
 import { CONTROL } from '@/components/ui/Field';
-import { SAVE_FAILED } from '@/content/calendar';
 import { RESERVES } from '@/content/reserves';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
+import { itemSources, sourceLabel } from '@/lib/item-search';
 import type { LootTableView, ReserveTargetRow, ReserveView } from '@/lib/loot-data';
-import { draftPickFor, reserveHolders } from '@/lib/loot-rules';
+import { reserveHolders, type ReserveKind } from '@/lib/loot-rules';
 import { ItemName } from './ItemName';
-import { ReservePicker, ReserverCount, type OwnMark } from './ReservePicker';
+import { ReserverCount, type OwnMark } from './ReservePicker';
+import { ReserveWindow } from './ReserveWindow';
 
 /** A member whose reserves the viewer may set: themselves, or anyone eligible for an officer. */
 export type ReserveTarget = ReserveTargetRow;
 
 type Props = {
-  raidId: string;
+  raid: { id: string; name: string; startsAt: string };
   table: LootTableView;
   reserves: ReserveView[];
   lockAt: string;
@@ -31,134 +31,100 @@ type Props = {
   reason: string | null;
 };
 
-/** Raid detail § Loot reserves: the picker and everyone's reserves, visible to all members. */
-export function Reserves({ raidId, table, reserves, lockAt, locked, cancelled, officer, targets, reason }: Props) {
+/**
+ * Raid detail § Loot reserves: the saved picks with "Pick reserves" or "Change reserves", which
+ * open the reserves window until the lock (officers after it too, for anyone eligible), and
+ * everyone's reserves, visible to all members.
+ */
+export function Reserves({ raid, table, reserves, lockAt, locked, cancelled, officer, targets, reason }: Props) {
+  const toast = useToast();
   const [targetId, setTargetId] = useState(targets.find((t) => t.self)?.userId ?? targets[0]?.userId);
+  const [open, setOpen] = useState(false);
   const target = targets.find((t) => t.userId === targetId) ?? targets[0];
-  const canEdit = !cancelled && target && (!locked || officer);
+  const canChange = !cancelled && target && (!locked || officer);
+  const chooser = officer && targets.length > 1;
   const holders = useMemo(() => reserveHolders(reserves), [reserves]);
+  const sources = useMemo(() => itemSources(table.bosses), [table.bosses]);
   const mark = target && { userId: target.userId, label: target.self ? RESERVES.yours : RESERVES.editing };
+  const picks = target && (['HR', 'SR'] as const).map((kind) => ({ kind, itemId: kind === 'HR' ? target.current.hr : target.current.sr }));
+  const character = target?.characters.find((c) => c.id === target.current.characterId);
+  const button = (label: string, primary: boolean) => canChange && (
+    <Button variant={primary ? 'primary' : 'secondary'} size={primary ? 'md' : 'sm'} onClick={() => setOpen(true)}>{label}</Button>
+  );
   return (
     <section id="loot-reserves" className="flex scroll-mt-24 flex-col gap-5 rounded-card border border-line bg-ink-850 p-4 md:p-5" aria-labelledby="reserves-heading">
-      <div className="flex flex-col gap-2 md:flex-row md:items-baseline md:justify-between">
-        <h2 id="reserves-heading" className="font-display text-2xl font-medium">
-          {RESERVES.heading}
-        </h2>
-        {!cancelled && (
-          <span className="flex flex-wrap items-baseline gap-x-2 text-sm">
-            <span className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">{RESERVES.locksAt}</span>
-            <LocalTime startsAt={lockAt} durationMin={0} />
-          </span>
-        )}
-      </div>
-      <p className="max-w-[720px] text-sm text-fg-2">{RESERVES.lede}</p>
+      <h2 id="reserves-heading" className="font-display text-2xl font-medium">
+        {RESERVES.heading}
+      </h2>
+      <p className="max-w-[720px] text-sm text-fg-2">
+        {RESERVES.lede} <LocalTime startsAt={lockAt} durationMin={0} />.
+      </p>
       {cancelled ? (
         <p className="text-sm text-stop">{RESERVES.cancelled}</p>
       ) : locked ? (
-        <p className="text-sm text-warn">{RESERVES.locked}</p>
+        <p className="text-sm text-warn">{officer ? RESERVES.lockedOfficer : RESERVES.locked}</p>
       ) : null}
-      {canEdit ? <PickerForm key={target.userId} raidId={raidId} table={table} holders={holders} mark={mark} target={target} targets={targets} onTarget={setTargetId} /> : !cancelled && !locked && reason && <p className="text-sm text-fg-3">{reason}</p>}
+      {cancelled ? null : !target || !picks ? (
+        reason && <p className="text-sm text-fg-3">{reason}</p>
+      ) : (
+        <div className="flex flex-col gap-3 rounded-card border border-line-faint bg-ink-900 p-4">
+          {chooser ? (
+            <div className="flex flex-wrap items-end gap-4">
+              <Field label={RESERVES.forWhom}>
+                <select className={cn(CONTROL, 'h-[46px] w-auto min-w-[150px] px-3')} value={target.userId} onChange={(e) => setTargetId(e.target.value)}>
+                  {targets.map((t) => (
+                    <option key={t.userId} value={t.userId}>
+                      {t.self ? RESERVES.you(t.name) : t.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              {button(RESERVES.change, false)}
+            </div>
+          ) : picks.some((p) => p.itemId !== null) ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">
+                {[RESERVES.yourReserves, character?.name, character && CLASS_COLORS[character.wowClass].label].filter(Boolean).join(' · ')}
+              </span>
+              {button(RESERVES.change, false)}
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-fg">{RESERVES.none}</p>
+              {button(RESERVES.pick, true)}
+            </div>
+          )}
+          {(chooser || picks.some((p) => p.itemId !== null)) && (
+            <div className="flex flex-col gap-1.5">
+              {picks.map(({ kind, itemId }) => <PickRow key={kind} kind={kind} item={itemId === null ? undefined : table.items[itemId]} from={itemId === null ? [] : sources.get(itemId) ?? []} />)}
+            </div>
+          )}
+        </div>
+      )}
       <ReserveList table={table} holders={holders} mark={mark} />
+      {canChange && <ReserveWindow open={open} onClose={() => setOpen(false)} raid={raid} data={{ table, reserves, targets, lockAt }} targetId={target.userId} notify={toast} />}
     </section>
   );
 }
 
 type Holders = ReturnType<typeof reserveHolders<ReserveView>>;
-type FormProps = { raidId: string; table: LootTableView; holders: Holders; mark: OwnMark; target: ReserveTarget; targets: ReserveTarget[]; onTarget: (id: string) => void };
 
-function PickerForm({ raidId, table, holders, mark, target, targets, onTarget }: FormProps) {
-  const router = useRouter();
-  const toast = useToast();
-  const main = target.characters.find((c) => c.isMain) ?? target.characters[0];
-  const [characterId, setCharacterId] = useState(target.current.characterId ?? main.id);
-  const [hr, setHr] = useState<number | null>(target.current.hr);
-  const [sr, setSr] = useState<number | null>(target.current.sr);
-  const [busy, setBusy] = useState(false);
-
-  // The picker's names and counts describe saved reserves, including the member being edited, not the draft.
-  const won = new Set(target.blockedHr[characterId] ?? []);
-
-  async function save(next: { hr: number | null; sr: number | null }) {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/raids/${raidId}/reserves`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ characterId, ...next, forUserId: target.self ? undefined : target.userId }),
-      });
-      const body = (await res.json().catch(() => null)) as { error?: string } | null;
-      if (!res.ok) {
-        toast({ tone: 'stop', title: body?.error ?? SAVE_FAILED });
-        return;
-      }
-      if (next.hr === null && next.sr === null) {
-        setHr(null);
-        setSr(null);
-      }
-      toast({ tone: 'ok', title: next.hr === null && next.sr === null ? RESERVES.cleared : target.self ? RESERVES.saved : RESERVES.savedFor(target.name) });
-      router.refresh();
-    } catch {
-      toast({ tone: 'stop', title: SAVE_FAILED });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    if (hr !== null && hr === sr) {
-      toast({ tone: 'stop', title: RESERVES.sameItem });
-      return;
-    }
-    void save({ hr, sr });
-  }
-
-  const select = cn(CONTROL, 'h-[46px] min-w-0 px-3');
+/** One saved pick in the section: kind, the item with its tooltip, and where it drops. */
+function PickRow({ kind, item, from }: { kind: ReserveKind; item?: LootTableView['items'][number]; from: string[] }) {
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4 rounded-card border border-line-faint bg-ink-900 p-4">
-      <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {targets.length > 1 && (
-          <Field label={RESERVES.forWhom}>
-            <select className={select} value={target.userId} onChange={(e) => onTarget(e.target.value)}>
-              {targets.map((t) => (
-                <option key={t.userId} value={t.userId}>
-                  {t.self ? RESERVES.you(t.name) : t.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
-        <Field label={RESERVES.character}>
-          <select
-            className={select}
-            value={characterId}
-            onChange={(e) => {
-              const next = e.target.value;
-              setCharacterId(next);
-              // Neither reserve may select an item this character already won through HR or SR,
-              // and a pick on a blocked item is kept only for the character it was saved with.
-              const rules = { won: target.blockedHr[next] ?? [], blocked: table.blocked, saved: target.current };
-              setHr(draftPickFor('HR', hr, next, rules));
-              setSr(draftPickFor('SR', sr, next, rules));
-            }}
-          >
-            {target.characters.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} · {CLASS_COLORS[c.wowClass].label}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
-      <ReservePicker table={table} holders={holders} mark={mark} won={won} hr={hr} sr={sr}
-        forName={target.self ? null : target.name}
-        onChange={(kind, itemId) => { if (kind === 'HR') setHr(itemId); else setSr(itemId); }} />
-      <div className="flex justify-end">
-        <Button type="submit" size="sm" loading={busy}>{RESERVES.save}</Button>
-      </div>
-    </form>
+    <div className="flex min-h-8 flex-wrap items-center gap-x-2.5 gap-y-1 text-sm">
+      <span className={cn('w-7 shrink-0 font-semibold', kind === 'HR' ? 'text-sand' : 'text-teal')}>
+        {kind}<span className="sr-only"> ({kind === 'HR' ? RESERVES.hr : RESERVES.sr})</span>
+      </span>
+      {item ? (
+        <>
+          <ItemName item={item} className="text-sm" />
+          <span className="text-[13px] text-fg-2">{sourceLabel(from)}</span>
+        </>
+      ) : (
+        <span className="text-fg-3">{RESERVES.noPick}</span>
+      )}
+    </div>
   );
 }
 

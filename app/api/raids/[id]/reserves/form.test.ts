@@ -2,20 +2,28 @@ import { createElement, type ComponentProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { Reserves } from '@/components/loot/Reserves';
+import { ReserveWindow } from '@/components/loot/ReserveWindow';
 import { ToastHost } from '@/components/ui/ToastHost';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const props: ComponentProps<typeof Reserves> = {
-  raidId: 'r1',
+  raid: { id: 'r1', name: "Onyxia's Lair", startsAt: '2030-01-01T02:00:00Z' },
   table: { bosses: [{ id: 'boss', name: 'Onyxia', isTrash: false, itemIds: [100] }], items: { 100: { id: 100, name: 'Deathbringer', quality: 4, icon: '', tooltipHtml: '' } }, blocked: [] },
   reserves: [], lockAt: '2030-01-01T00:00:00Z', locked: false, cancelled: false, officer: false,
   targets: [{ userId: 'u1', name: 'redtape', self: true, characters: [{ id: 'c1', name: 'Redtape', wowClass: 'warrior', isMain: true }], current: { characterId: 'c1', hr: null, sr: null }, blockedHr: { c1: [100] } }],
   reason: null,
 };
 
-function render(overrides: Partial<typeof props> = {}) {
+/** The section, read-only parts and buttons; the picker itself is in the window. */
+function section(overrides: Partial<typeof props> = {}) {
   return renderToStaticMarkup(createElement(ToastHost, null, createElement(Reserves, { ...props, ...overrides })));
+}
+
+/** The open reserves window over the same data. */
+function render(overrides: Partial<typeof props> = {}) {
+  const p = { ...props, ...overrides };
+  return renderToStaticMarkup(createElement(ReserveWindow, { open: true, onClose: () => {}, raid: p.raid, data: p, notify: () => {} }));
 }
 
 function target(overrides: Partial<(typeof props.targets)[number]>) {
@@ -80,10 +88,11 @@ describe('reserve picker', () => {
     expect(html).not.toContain('You can keep it or remove it.');
   });
 
-  it.each([{ locked: true }, { cancelled: true }, { targets: [], reason: 'Sign up as Accept or Tentative to reserve.' }])('keeps the picker out of read-only states: %j', (state) => {
-    const html = render(state);
+  it.each([{ locked: true }, { cancelled: true }, { targets: [], reason: 'You must be signed up for this raid to reserve items.' }])('keeps the window out of read-only states: %j', (state) => {
+    const html = section(state);
     expect(html).not.toContain('role="listbox"');
     expect(html).not.toContain('>Save reserves<');
+    expect(html).not.toMatch(/>(Pick|Change) reserves</);
   });
 
   it('describes all shared sources and saved counts without changing the item name', () => {
@@ -96,5 +105,80 @@ describe('reserve picker', () => {
     expect(html).toContain('>Shared<');
     expect(html).toContain('Drops from Onyxia and Nefarian');
     expect(html).toContain('Deathbringer<span class="sr-only">');
+  });
+});
+
+describe('reserves section', () => {
+  const saved = target({ current: { characterId: 'c1', hr: 100, sr: null } });
+
+  it('shows the lock time once, in the lede', () => {
+    const html = section();
+    expect(html).toContain('Reserves for this raid will lock at <');
+    expect(html).not.toContain('Reserves lock<');
+  });
+
+  it('offers "Pick reserves" with no picks, and "Change reserves" with saved ones', () => {
+    expect(section()).toContain('You haven&#x27;t picked reserves for this raid.');
+    expect(section()).toMatch(/>Pick reserves<\/button>/);
+    const html = section({ targets: saved });
+    expect(html).toContain('Your reserves · Redtape · Warrior');
+    expect(html).toMatch(/>Change reserves<\/button>/);
+    expect(html).toContain('HR<span class="sr-only"> (Hard reserve)</span>');
+    expect(html).toContain('>Onyxia<');
+    expect(html).toContain('SR<span class="sr-only"> (Soft reserve)</span></span><span class="text-fg-3">None</span>');
+  });
+
+  it('shows a member their picks read-only after the lock', () => {
+    const html = section({ locked: true, targets: saved });
+    expect(html).toContain('Reserves are locked. Please contact an officer to request a change.');
+    expect(html).toContain('Your reserves · Redtape · Warrior');
+    expect(html).not.toMatch(/>(Pick|Change) reserves</);
+  });
+
+  it('lets an officer choose a member and still change reserves after the lock', () => {
+    const other = { ...props.targets[0], userId: 'u2', name: 'codicil', self: false };
+    const html = section({ officer: true, locked: true, targets: [...props.targets, other] });
+    expect(html).toContain('Reserves are locked. As an officer, you can still change them.');
+    expect(html).toContain('Reserves for');
+    expect(html).toContain('>redtape (you)</option>');
+    expect(html).toContain('>codicil</option>');
+    expect(html).toMatch(/>Change reserves<\/button>/);
+  });
+
+  it('explains why a member who is not signed up cannot reserve', () => {
+    const html = section({ targets: [], reason: 'You must be signed up for this raid to reserve items.' });
+    expect(html).toContain('You must be signed up for this raid to reserve items.');
+    expect(html).not.toContain('<button');
+  });
+
+  it('shows only the cancelled message on a cancelled raid', () => {
+    const html = section({ cancelled: true, targets: saved });
+    expect(html).toContain('This raid was cancelled.');
+    expect(html).not.toContain('Your reserves');
+  });
+});
+
+describe('reserves window', () => {
+  const open = (extra: Partial<ComponentProps<typeof ReserveWindow>> = {}) =>
+    renderToStaticMarkup(createElement(ReserveWindow, { open: true, onClose: () => {}, raid: props.raid, data: props, notify: () => {}, ...extra }));
+
+  it('follows a sign-up with its line and Undo, the raid, the lock and "Not now"', () => {
+    const html = open({ confirm: { text: "You're in for Wednesday — Onyxia's Lair", onUndo: () => {} } });
+    expect(html).toContain('>Pick your reserves<');
+    expect(html).toContain('You&#x27;re in for Wednesday — Onyxia&#x27;s Lair');
+    expect(html).toMatch(/>Undo<\/button>/);
+    expect(html).toContain('Onyxia&#x27;s Lair · Monday, Dec 31');
+    expect(html).toContain('You can change your selection until <');
+    expect(html).toMatch(/>Not now<\/button>/);
+    expect(html).toMatch(/type="submit"[^>]*>Save reserves<\/button>/);
+  });
+
+  it('opens from the section with "Cancel", and names the member an officer picks for', () => {
+    const other = { ...props.targets[0], userId: 'u2', name: 'codicil', self: false };
+    const html = open({ data: { ...props, targets: [...props.targets, other] }, targetId: 'u2' });
+    expect(html).toContain('>Pick reserves for codicil<');
+    expect(html).toContain('Reserves for');
+    expect(html).toMatch(/>Cancel<\/button>/);
+    expect(html).not.toContain('Undo');
   });
 });
