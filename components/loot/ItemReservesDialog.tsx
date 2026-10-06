@@ -1,14 +1,15 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Modal, Tag, Toast, Toggle, useToast, type ToastData } from '@/components/ui';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { Button, FIELD_LABEL, Modal, Tag, Toast, Toggle, useToast, type ToastData } from '@/components/ui';
 import { SAVE_FAILED } from '@/content/calendar';
 import { LOOT_RESERVES } from '@/content/loot-admin';
 import { RESERVES } from '@/content/reserves';
 import { cn } from '@/lib/cn';
 import type { Holder } from '@/lib/loot-blocks';
 import type { ItemView } from '@/lib/loot-items';
+import { WIN_LIMIT_MAX } from '@/lib/loot-rules';
 
 export type ReservesTarget = { item: ItemView; blocked: boolean; otherBosses: string[] };
 
@@ -17,6 +18,15 @@ type Step = { kind: 'settings' } | { kind: 'confirm'; holders: Holder[]; stale: 
 type Change = { blocked: boolean; remove: string[] };
 
 const SETTINGS: Step = { kind: 'settings' };
+
+/**
+ * The toast after a win-limit save from `from` to `to`. A failure's Retry sends the same
+ * change again through `resend`; without one (the window moved on) there is no Retry.
+ */
+export function limitToast(ok: boolean, from: number, to: number, resend?: (from: number, to: number) => void): ToastData {
+  if (!ok) return { tone: 'stop', title: SAVE_FAILED, action: resend ? { label: LOOT_RESERVES.retry, onClick: () => resend(from, to) } : undefined };
+  return { tone: 'ok', title: to > from ? LOOT_RESERVES.raised(to) : LOOT_RESERVES.lowered(to) };
+}
 
 /**
  * The "Reserves" window for one item (design #131): its reserve settings for the whole tier,
@@ -30,6 +40,8 @@ export function ItemReservesDialog({ templateId, target, onClose }: { templateId
   const [step, setStep] = useState<Step>(SETTINGS);
   // Holders when the window opened (null until read), so a direct block that finds some can say the list changed.
   const [known, setKnown] = useState<Holder[] | null>(null);
+  // The stored win limit, null until the read answers (and if it fails), so the counter never guesses.
+  const [limit, setLimit] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<ToastData | null>(null);
   const dismiss = useCallback(() => setToast(null), []);
@@ -39,6 +51,7 @@ export function ItemReservesDialog({ templateId, target, onClose }: { templateId
     setBlocked(target?.blocked ?? false);
     setStep(SETTINGS);
     setKnown(null);
+    setLimit(null);
     setBusy(false);
     setToast(null);
   }
@@ -49,15 +62,16 @@ export function ItemReservesDialog({ templateId, target, onClose }: { templateId
   const pageToast = useToast();
   const body = useRef<HTMLDivElement>(null);
   const actions = useRef<HTMLDivElement>(null);
-  const focusTo = useRef<'switch' | 'cancel' | 'confirm' | null>(null);
+  const focusTo = useRef<'switch' | 'cancel' | 'confirm' | 'lower' | 'raise' | null>(null);
 
   useEffect(() => {
     if (!target) return;
     let live = true;
     fetch(`/api/loot/tables/${templateId}/items/${target.item.id}`, { credentials: 'same-origin' })
       .then((res) => (res.ok ? res.json() : null))
-      .then((json: { holders?: Holder[] } | null) => {
+      .then((json: { holders?: Holder[]; winLimit?: number } | null) => {
         if (live && json?.holders) setKnown(json.holders);
+        if (live && typeof json?.winLimit === 'number') setLimit(json.winLimit);
       }, () => {});
     return () => {
       live = false;
@@ -69,7 +83,12 @@ export function ItemReservesDialog({ templateId, target, onClose }: { templateId
     const to = focusTo.current;
     focusTo.current = null;
     if (to === 'switch') body.current?.querySelector<HTMLElement>('[role="switch"]')?.focus();
-    else if (to) actions.current?.querySelector<HTMLElement>(`[data-act="${to}"]`)?.focus();
+    else if (to === 'lower' || to === 'raise') {
+      // At 1 or 5 the pressed button is now disabled; move to the other one rather than out of the window.
+      const step = (name: string) => body.current?.querySelector<HTMLButtonElement>(`[data-step="${name}"]`);
+      const pressed = step(to);
+      (pressed?.disabled ? step(to === 'lower' ? 'raise' : 'lower') : pressed)?.focus();
+    } else if (to) actions.current?.querySelector<HTMLElement>(`[data-act="${to}"]`)?.focus();
   });
 
   const back = useCallback(() => {
@@ -142,6 +161,37 @@ export function ItemReservesDialog({ templateId, target, onClose }: { templateId
     router.refresh();
   }
 
+  async function saveLimit(from: number, to: number) {
+    if (saving.current) return;
+    const mine = shown.current;
+    saving.current = true;
+    setBusy(true);
+    setToast(null);
+    const res = await fetch(`/api/loot/tables/${templateId}/items/${item.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ winLimit: to }),
+      credentials: 'same-origin',
+    }).catch(() => null);
+    saving.current = false;
+    const here = shown.current === mine;
+    // The counter keeps its old value on failure, and shows the new one only once saved.
+    if (here) {
+      setBusy(false);
+      if (res?.ok) setLimit(to);
+      focusTo.current = to > from ? 'raise' : 'lower';
+    }
+    const resend = (f: number, t: number) => {
+      // The Retry button goes with the toast, so focus moves back to the counter first.
+      body.current?.querySelector<HTMLElement>(`[data-step="${t > f ? 'raise' : 'lower'}"]`)?.focus();
+      void saveLimit(f, t);
+    };
+    const next = limitToast(Boolean(res?.ok), from, to, here ? resend : undefined);
+    if (here) setToast(next);
+    else pageToast(next);
+    if (res?.ok) router.refresh();
+  }
+
   function onSwitch(open: boolean) {
     if (open) return void save({ blocked: false, remove: [] }, false);
     if (known?.length) {
@@ -185,12 +235,49 @@ export function ItemReservesDialog({ templateId, target, onClose }: { templateId
           <div className="flex flex-col gap-3 pb-2">
             {/* Dimmed rather than disabled while saving: disabling the focused switch would drop focus out of the window. */}
             <Toggle label={<span className="font-semibold text-fg">{LOOT_RESERVES.open}</span>} checked={!blocked} onChange={(open) => !saving.current && onSwitch(open)} className={busy ? 'cursor-progress opacity-50' : undefined} />
+            <hr className="my-0.5 border-line" />
+            <WinLimitCounter value={limit} blocked={blocked} busy={busy} onStep={(to) => limit !== null && void saveLimit(limit, to)} />
             {otherBosses.length > 0 && <p className="rounded-card border border-teal-line bg-teal-wash px-3 py-2.5 text-[13px] text-fg-2">{LOOT_RESERVES.shared(otherBosses)}</p>}
           </div>
         )}
         <Toast toast={toast} onDismiss={dismiss} />
       </div>
     </Modal>
+  );
+}
+
+/**
+ * "Win limit − n +", 1 to WIN_LIMIT_MAX. Disabled until the stored value is known (`value`
+ * null) and while the item is blocked, which keeps the limit for when it's unblocked.
+ * While saving it's dimmed rather than disabled, as the switch is, so focus stays put.
+ */
+export function WinLimitCounter({ value, blocked, busy, onStep }: { value: number | null; blocked: boolean; busy: boolean; onStep: (to: number) => void }) {
+  const labelId = useId();
+  const step = 'flex h-11 w-11 items-center justify-center rounded-control text-xl font-semibold text-fg disabled:cursor-not-allowed disabled:text-fg-3 disabled:opacity-50';
+  return (
+    <div>
+      <div className={cn(blocked && 'opacity-50', busy && 'cursor-progress opacity-50')}>
+        <span id={labelId} className={cn(FIELD_LABEL, 'mb-2 block')}>
+          {LOOT_RESERVES.limit}
+        </span>
+        <div role="group" aria-labelledby={labelId} className="inline-flex items-center rounded-control border border-line-strong bg-ink-700">
+          <button type="button" data-step="lower" aria-label={LOOT_RESERVES.lower} disabled={value === null || blocked || value <= 1} onClick={() => value !== null && onStep(value - 1)} className={step}>
+            −
+          </button>
+          <output aria-live="polite" className="tabular min-w-10 border-x border-line-strong text-center text-base font-semibold leading-[44px] text-fg">
+            {value ?? '–'}
+          </output>
+          <button type="button" data-step="raise" aria-label={LOOT_RESERVES.raise} disabled={value === null || blocked || value >= WIN_LIMIT_MAX} onClick={() => value !== null && onStep(value + 1)} className={step}>
+            +
+          </button>
+        </div>
+        <p className="mt-2 text-[13px] text-fg-3">
+          {LOOT_RESERVES.limitHint}
+          {value !== null && value >= WIN_LIMIT_MAX && ` ${LOOT_RESERVES.limitMax(WIN_LIMIT_MAX)}`}
+        </p>
+      </div>
+      {blocked && <p className="mt-2 text-[13px] text-fg-3">{LOOT_RESERVES.limitBlocked}</p>}
+    </div>
   );
 }
 
