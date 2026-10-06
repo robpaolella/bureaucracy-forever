@@ -1,13 +1,23 @@
 'use client';
 
 import { useState } from 'react';
+import { useHourLabels } from '@/components/availability/useHourLabels';
 import { fmtSlot, SLOTS, type WeekDay } from '@/lib/availability';
 import { cn } from '@/lib/cn';
 import { heatStep, type Heatmap } from '@/lib/heatmap';
 import { HEAT_BG } from './HeatGrid';
 import { InspectorBody } from './Inspector';
 
-type Props = { heat: Heatmap; days: WeekDay[]; offsetSlots: number };
+type Props = {
+  heat: Heatmap;
+  days: WeekDay[];
+  /** Half-hour slots the guild clock is ahead of `zone`; 0 means the labels are guild time. */
+  offsetSlots: number;
+  /** The zone the grid is projected onto. */
+  zone: string;
+  /** ISO start of a (day, slot) this week in `zone`. */
+  slotAt: (day: number, slot: number) => string;
+};
 
 function Chevron({ dir }: { dir: 'left' | 'right' }) {
   return (
@@ -22,9 +32,10 @@ function Chevron({ dir }: { dir: 'left' | 'right' }) {
  * each with a 48-block heat strip and the day's peak, and a single-day column with
  * tap-to-inspect once a row is chosen.
  */
-export function DaySummary({ heat, days, offsetSlots }: Props) {
+export function DaySummary({ heat, days, offsetSlots, zone, slotAt }: Props) {
   const [open, setOpen] = useState<number | null>(null);
   const [slot, setSlot] = useState<number | null>(null);
+  const hours = useHourLabels(zone, slotAt, 'text-[11px] font-normal text-fg-muted', 34);
 
   if (open !== null) {
     const day = days[open];
@@ -48,17 +59,17 @@ export function DaySummary({ heat, days, offsetSlots }: Props) {
         </div>
         {slot !== null && (
           <div className="rounded-card border border-line-strong bg-ink-800 px-[18px] py-4">
-            <InspectorBody day={day} slot={slot} cell={heat.cells[open][slot]} members={heat.members} memberCount={heat.memberCount} offsetSlots={offsetSlots} />
+            <InspectorBody cell={heat.cells[open][slot]} members={heat.members} memberCount={heat.memberCount} zone={zone} startsAt={slotAt(open, slot)} />
           </div>
         )}
-        <p className="text-xs text-fg-3">Tap a half-hour to see who is free.</p>
+        <p className="text-xs text-fg-3">Tap a half-hour to see who is free.{offsetSlots === 0 && ' Times are guild time.'}</p>
         <ol className="overflow-hidden rounded-card border border-line bg-ink-900">
           {Array.from({ length: SLOTS }, (_, s) => {
             const cell = heat.cells[open][s];
             const onHour = s % 2 === 0;
             return (
               <li key={s} className={cn('flex h-[34px] items-stretch border-b', onHour ? 'border-line-faint' : 'border-line-hairline')}>
-                <span className="tabular flex w-[76px] shrink-0 items-center pl-3 text-[11px] text-fg-muted">{onHour ? fmtSlot(s) : ''}</span>
+                <span className="tabular flex w-[76px] shrink-0 items-center pl-3 text-[11px] text-fg-muted">{hours[s]}</span>
                 <button
                   type="button"
                   aria-label={`${day.name} ${fmtSlot(s)}, ${cell.total} available`}
@@ -68,7 +79,6 @@ export function DaySummary({ heat, days, offsetSlots }: Props) {
                 >
                   {cell.total > 0 ? cell.total : ''}
                 </button>
-                <span className="tabular flex w-[76px] shrink-0 items-center justify-end border-l border-line-faint pr-3 text-[11px] text-fg-3">{onHour ? fmtSlot(s + offsetSlots) : ''}</span>
               </li>
             );
           })}
