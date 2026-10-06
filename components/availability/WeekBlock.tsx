@@ -1,5 +1,6 @@
 'use client';
 
+import { Fragment } from 'react';
 import { blockLabel, blockRange, blockRemoveLabel, SLOTS, STATE_WORD, type Block } from '@/lib/availability';
 import { cn } from '@/lib/cn';
 
@@ -57,16 +58,28 @@ export function WeekBlock({ block, selected, resizing, idle, onRemove }: Props) 
       style={{ top: block.start * ROW + 1, height }}
     >
       <span className="sr-only">{blockLabel(block)}</span>
+      {/* The range matters most: on a narrow column a one-line block gives up the state word
+          first, and a taller block wraps its range, clipping at its own bottom edge. */}
       <div
         aria-hidden
         className={cn(
-          'tabular pointer-events-none absolute left-[7px] whitespace-nowrap',
+          'tabular pointer-events-none absolute left-[7px]',
           selected && !resizing ? 'right-7' : 'right-[7px]',
-          one ? 'top-1/2 flex -translate-y-1/2 justify-between gap-1.5' : 'top-1.5',
+          one ? 'top-1/2 flex -translate-y-1/2 justify-between gap-1.5 whitespace-nowrap' : 'bottom-0.5 top-1.5 overflow-hidden',
         )}
       >
-        <div className="truncate font-semibold">{blockRange(block)}</div>
-        <div className="truncate">{STATE_WORD[block.state]}</div>
+        <div className={cn('font-semibold', one && 'min-w-0 truncate')}>
+          {/* Wrap only at the dash, never inside a time. */}
+          {blockRange(block)
+            .split(' – ')
+            .map((part, i, parts) => (
+              <Fragment key={i}>
+                <span className="inline-block max-w-full truncate align-top">{i < parts.length - 1 ? `${part} –` : part}</span>
+                {i < parts.length - 1 && ' '}
+              </Fragment>
+            ))}
+        </div>
+        <div className={cn('truncate', one && 'min-w-0 shrink-[8]')}>{STATE_WORD[block.state]}</div>
       </div>
 
       {(['start', 'end'] as const).map((edge) => (

@@ -21,10 +21,11 @@ const render = (selected: Block | null) =>
 describe('WeekGrid blocks', () => {
   it('draws each run once, with its range, state word and screen-reader name', () => {
     const html = render(null);
+    const text = html.replace(/<!-- -->|<[^>]+>/g, '');
     expect(html.match(/role="listitem"/g)).toHaveLength(3);
-    expect(html).toContain('7:00 – 11:00 PM');
-    expect(html).toContain('11:00 PM – 12:00 AM');
-    expect(html).toContain('6:30 – 7:00 PM');
+    expect(text).toContain('7:00 – 11:00 PMAvailable');
+    expect(text).toContain('11:00 PM – 12:00 AMIf needed');
+    expect(text).toContain('6:30 – 7:00 PMIf needed');
     expect(html).toContain('Available, Tuesday 7:00 PM to 11:00 PM');
     expect(html).toContain('If needed, Thursday 6:30 PM to 7:00 PM');
     // No per-cell buttons and no Tab stops in the body: the day headers are the keyboard route.

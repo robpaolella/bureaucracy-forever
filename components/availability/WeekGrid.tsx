@@ -79,6 +79,21 @@ export function WeekGrid({ week, days, offsetSlots, zone, slotAt, mode, onWeek, 
     return () => document.removeEventListener('pointerdown', onDown);
   }, [selected, onSelect]);
 
+  // Escape mid-resize puts the block back as it was; the editor's own Escape then deselects.
+  useEffect(() => {
+    if (active?.kind !== 'resize') return;
+    const onKey = (e: KeyboardEvent) => {
+      const g = gesture.current;
+      if (e.key !== 'Escape' || g?.kind !== 'resize') return;
+      gesture.current = null;
+      setActive(null);
+      weekRef.current = g.base;
+      onWeek(g.base);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [active, onWeek]);
+
   const commit = (next: Week) => {
     if (next === weekRef.current) return;
     weekRef.current = next;
