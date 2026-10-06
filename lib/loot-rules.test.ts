@@ -201,10 +201,10 @@ describe('reserve picker totals and ownership copy', () => {
     expect(reserveCounts([]).size).toBe(0);
   });
 
-  it('puts counts before long item names and identifies whose saved pick it is', () => {
-    expect(RESERVES.counts(2, 0) + RESERVES.ownPick('HR', null) + 'Choker of Enlightenment').toBe('HR 2, SR 0 · your HR · Choker of Enlightenment');
-    expect(RESERVES.ownPick('SR', 'redtape')).toBe("redtape's SR · ");
-    expect(RESERVES.counts(0, 0)).toBe('');
+  it('identifies the chosen slot separately from the item name and counts', () => {
+    expect(RESERVES.picked('HR')).toBe('Picked as HR');
+    expect(RESERVES.pickedDetails('HR', null)).toBe('Picked as your hard reserve');
+    expect(RESERVES.pickedDetails('SR', 'redtape')).toBe("Picked as redtape's soft reserve");
   });
 });
 
