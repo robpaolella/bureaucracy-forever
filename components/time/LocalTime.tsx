@@ -110,7 +110,13 @@ export function LocalTime({ startsAt, durationMin, className, zone, weekday, den
       </button>
       {/* pt-1 rather than a margin: the gap stays inside the container, so the pointer can
           move onto the popup without closing it. */}
-      <span ref={panelRef} id={panelId} role="tooltip" className={cn(dense ? 'fixed z-40 py-1' : 'absolute left-0 top-full z-30 pt-1', open ? 'block' : 'hidden')}>
+      <span
+        ref={panelRef}
+        id={panelId}
+        role="tooltip"
+        // A dense popup covers the next rows; presses go through it to their controls.
+        className={cn(dense ? 'pointer-events-none fixed z-40 py-1' : 'absolute left-0 top-full z-30 pt-1', open ? 'block' : 'hidden')}
+      >
         <span className="block whitespace-nowrap font-normal rounded-card border border-line-strong bg-ink-800 px-3 py-2 text-[13px] text-fg shadow-pop">{time.guild}</span>
       </span>
     </span>
