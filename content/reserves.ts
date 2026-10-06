@@ -39,6 +39,11 @@ export const RESERVES = {
   savedFor: (name: string) => `Saved ${name}'s reserves`,
   cleared: 'Reserves cleared',
   sameItem: 'Pick two different items.',
+  reservedForRaid: 'reserved for this raid',
+  reservedBy: 'Currently reserved by',
+  noOne: 'No one has reserved this yet.',
+  /** Read after the visible "HR 4" on a count pill. */
+  showNames: (kind: 'HR' | 'SR', count: number, item: string) => ` ${kind === 'HR' ? 'hard' : 'soft'} reserve${count === 1 ? '' : 's'} for ${item}: show names`,
   listHeading: 'Who reserved what',
   listEmpty: 'No reserves yet.',
   hrShort: 'HR',

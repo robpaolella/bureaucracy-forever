@@ -1,19 +1,27 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Button, Sheet } from '@/components/ui';
 import { CONTROL } from '@/components/ui/Field';
 import { RESERVES } from '@/content/reserves';
 import { cn } from '@/lib/cn';
+import { CLASS_COLORS } from '@/lib/design/class-colors';
 import { itemQuality } from '@/lib/design/item-quality';
 import { filterItems, itemSources, sourceDetails, sourceLabel } from '@/lib/item-search';
-import type { LootTableView } from '@/lib/loot-data';
+import type { LootTableView, ReserveView } from '@/lib/loot-data';
 import type { ReserveKind } from '@/lib/loot-rules';
 import { ItemLabel, ItemName } from './ItemName';
 
+type Holders = Record<ReserveKind, ReserveView[]>;
+const NO_HOLDERS: Holders = { HR: [], SR: [] };
+
+/** The member whose saved picks are marked: "yours", or "editing" when an officer picks for them. */
+export type OwnMark = { userId: string; label: string };
+
 type Props = {
   table: LootTableView;
-  counts: Map<number, { HR: number; SR: number }>;
+  holders: Map<number, Holders>;
+  mark: OwnMark;
   blocked: Set<number>;
   hr: number | null;
   sr: number | null;
@@ -23,7 +31,7 @@ type Props = {
 };
 
 /** Selection previews an item; only Choose/Remove changes a draft reserve. */
-export function ReservePicker({ table, counts, blocked, hr, sr, forName, onChange }: Props) {
+export function ReservePicker({ table, holders, mark, blocked, hr, sr, forName, onChange }: Props) {
   const [slot, setSlot] = useState<ReserveKind>('HR');
   const [query, setQuery] = useState('');
   const items = useMemo(() => filterItems(Object.values(table.items), ''), [table.items]);
@@ -83,6 +91,7 @@ export function ReservePicker({ table, counts, blocked, hr, sr, forName, onChang
   const details = preview ? (
     <ItemDetails key={`${preview.id}-${slot}`} item={preview} sources={sources.get(preview.id) ?? []}
       slot={slot} picked={picked(preview.id) === slot} reason={reason(preview.id)} forName={forName}
+      holders={holders.get(preview.id) ?? NO_HOLDERS} mark={mark}
       onChoose={() => choose(preview.id)} onRemove={() => choose(null)} />
   ) : <p className="text-sm text-fg-2">{RESERVES.detailsEmpty}</p>;
 
@@ -136,7 +145,8 @@ export function ReservePicker({ table, counts, blocked, hr, sr, forName, onChang
           <div ref={list} id={`${id}-list`} role="listbox" aria-label={RESERVES.items} className="max-h-[430px] overflow-y-auto">
             {filtered.map((item) => {
               const from = sources.get(item.id) ?? [];
-              const count = counts.get(item.id) ?? { HR: 0, SR: 0 };
+              const { HR, SR } = holders.get(item.id) ?? NO_HOLDERS;
+              const count = { HR: HR.length, SR: SR.length };
               const own = picked(item.id);
               const unavailable = reason(item.id);
               const label = [item.name, itemQuality(item.quality).label, from.join(', '), `HR ${count.HR}, SR ${count.SR}`, own && RESERVES.picked(own), unavailable].filter(Boolean).join(' — ');
@@ -172,9 +182,9 @@ export function ReservePicker({ table, counts, blocked, hr, sr, forName, onChang
   );
 }
 
-function ItemDetails({ item, sources, slot, picked, reason, forName, onChoose, onRemove }: {
+function ItemDetails({ item, sources, slot, picked, reason, forName, holders, mark, onChoose, onRemove }: {
   item: LootTableView['items'][number]; sources: string[]; slot: ReserveKind; picked: boolean; reason: string | null;
-  forName: string | null; onChoose: () => void; onRemove: () => void;
+  forName: string | null; holders: Holders; mark: OwnMark; onChoose: () => void; onRemove: () => void;
 }) {
   const id = useId();
   return <div className="flex min-w-0 flex-col gap-3.5">
@@ -194,5 +204,107 @@ function ItemDetails({ item, sources, slot, picked, reason, forName, onChoose, o
         <p id={id} className={cn('text-sm', reason === RESERVES.blocked ? 'text-stop' : 'text-warn')}><span className="sr-only">{RESERVES.ineligible} </span>{reason}</p>
       </> : <Button onClick={onChoose}>{RESERVES.choose(slot)}</Button>}
     </div>
+    <p className="text-sm">
+      <span className="font-semibold text-sand">{RESERVES.hrShort}</span> <b className="tabular">{holders.HR.length}</b>
+      {' · '}<span className="font-semibold text-teal">{RESERVES.srShort}</span> <b className="tabular">{holders.SR.length}</b>
+      {' '}<span className="text-fg-3">{RESERVES.reservedForRaid}</span>
+    </p>
+    {holders.HR.length + holders.SR.length ? <div className="flex flex-col gap-2">
+      <span className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">{RESERVES.reservedBy}</span>
+      <div className="grid grid-cols-2 gap-2">
+        {(['HR', 'SR'] as const).map((kind) => holders[kind].length
+          ? <ReserverCount key={kind} kind={kind} item={item.name} list={holders[kind]} mark={mark} wide />
+          : <span key={kind} />)}
+      </div>
+    </div> : <p className="text-sm text-fg-2">{RESERVES.noOne}</p>}
   </div>;
+}
+
+/**
+ * "HR 4": a pill that opens the names behind a count on mouse hover, click, tap or Enter.
+ * The pop-up sits in the top layer, above a scrolling list or the phone's Sheet, and follows
+ * the pill when either scrolls. Escape, an outside tap and tabbing away close it.
+ */
+export function ReserverCount({ kind, item, list, mark, wide = false }: {
+  kind: ReserveKind; item: string; list: ReserveView[]; mark?: OwnMark; wide?: boolean;
+}) {
+  const [open, setOpen] = useState<'hover' | 'pinned' | null>(null);
+  const root = useRef<HTMLSpanElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const pop = useRef<HTMLDivElement>(null);
+  const id = useId();
+
+  useLayoutEffect(() => {
+    const panel = pop.current;
+    const anchor = button.current;
+    if (!panel || !anchor) return;
+    if (!open) { panel.hidePopover(); return; }
+    panel.showPopover();
+    const place = () => {
+      const at = anchor.getBoundingClientRect();
+      const box = panel.getBoundingClientRect();
+      panel.style.left = `${Math.max(8, Math.min(at.left, window.innerWidth - box.width - 8))}px`;
+      panel.style.top = `${at.bottom + 6 + box.height > window.innerHeight - 8 ? Math.max(8, at.top - box.height - 6) : at.bottom + 6}px`;
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const escape = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      // Consume Escape before it reaches the Sheet's native cancel handler.
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(null);
+      button.current?.focus();
+    };
+    const dismiss = (e: Event) => { if (!root.current?.contains(e.target as Node)) setOpen(null); };
+    document.addEventListener('keydown', escape, true);
+    document.addEventListener('pointerdown', dismiss);
+    document.addEventListener('focusin', dismiss);
+    return () => {
+      document.removeEventListener('keydown', escape, true);
+      document.removeEventListener('pointerdown', dismiss);
+      document.removeEventListener('focusin', dismiss);
+    };
+  }, [open]);
+
+  const tone = kind === 'HR' ? 'text-sand' : 'text-teal';
+  return (
+    <span ref={root} className={cn('inline-flex', wide && 'w-full')}
+      onPointerEnter={(e) => { if (e.pointerType === 'mouse' && !open) setOpen('hover'); }}
+      onPointerLeave={(e) => { if (e.pointerType === 'mouse' && open === 'hover') setOpen(null); }}
+    >
+      <button ref={button} type="button" aria-expanded={open !== null} aria-controls={id}
+        onClick={() => setOpen(open === 'pinned' ? null : 'pinned')}
+        className={cn('inline-flex min-h-11 items-center gap-1.5 rounded-full border px-2.5 text-[13px] tabular-nums hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal',
+          open ? 'border-teal bg-teal-wash' : 'border-line-strong bg-ink-800', wide && 'w-full justify-center')}
+      >
+        <span className={cn('font-semibold', tone)}>{kind}</span> {list.length}
+        <span className="sr-only">{RESERVES.showNames(kind, list.length, item)}</span>
+        {wide && <span aria-hidden="true" className="text-fg-3">▾</span>}
+      </button>
+      {/* After the pill in the DOM, so a screen reader reaches the names next. */}
+      <div ref={pop} id={id} popover="manual"
+        className="fixed inset-auto m-0 max-h-[calc(100dvh-16px)] w-[260px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-card border border-line-strong bg-ink-800 px-3 py-2.5 text-sm text-fg shadow-pop"
+      >
+        <p className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">
+          <span className={tone}>{kind === 'HR' ? RESERVES.hr : RESERVES.sr}</span> · {list.length} · {item}
+        </p>
+        <ul className="mt-1.5 flex flex-col gap-0.5">
+          {list.map((r) => <li key={r.userId}>
+            {r.name}{r.userId === mark?.userId ? ` (${mark.label})` : ''}{' '}
+            <span className="text-fg-3">(<span style={{ color: CLASS_COLORS[r.wowClass].onInk }}>{r.characterName}</span>)</span>
+          </li>)}
+        </ul>
+      </div>
+    </span>
+  );
 }
