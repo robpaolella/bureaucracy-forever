@@ -59,12 +59,14 @@ export function WeekGrid({ week, days, offsetSlots, zone, slotAt, mode, onWeek, 
   const bodyRef = useRef<HTMLDivElement>(null);
   const cols = useRef<Array<HTMLDivElement | null>>([]);
   const gesture = useRef<Gesture | null>(null);
-  // Latest week for chaining several changes inside one frame, before state re-renders.
+  // The week as this grid last changed it, so moves arriving faster than renders chain
+  // onto each other. A render mid-gesture can carry an older week, so it only resyncs
+  // between gestures.
   const weekRef = useRef(week);
   const [active, setActive] = useState<{ kind: 'paint' } | { kind: 'resize'; edge: 'start' | 'end' } | null>(null);
 
   useEffect(() => {
-    weekRef.current = week;
+    if (!gesture.current) weekRef.current = week;
   }, [week]);
 
   // A press anywhere outside the grid's body deselects.
@@ -100,6 +102,7 @@ export function WeekGrid({ week, days, offsetSlots, zone, slotAt, mode, onWeek, 
     if (e.button !== 0 || !col || (!handle && target.closest('button'))) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
+    weekRef.current = week;
     const day = Number(col.dataset.day);
     if (handle) {
       const origin = blockAt(weekRef.current, day, Number(handle.closest<HTMLElement>('[data-start]')?.dataset.start));
