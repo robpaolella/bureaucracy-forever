@@ -72,7 +72,8 @@ function Settings({ templateId, target }: { templateId: string; target: Reserves
 
   return (
     <div ref={switchRow} className="flex flex-col gap-3 pb-2" aria-busy={busy}>
-      <Toggle label={<span className="font-semibold text-fg">{LOOT_RESERVES.open}</span>} checked={!blocked} onChange={(open) => void save(!open)} />
+      {/* Dimmed rather than disabled while saving: disabling the focused switch would drop focus out of the window. */}
+      <Toggle label={<span className="font-semibold text-fg">{LOOT_RESERVES.open}</span>} checked={!blocked} onChange={(open) => void save(!open)} className={busy ? 'cursor-progress opacity-50' : undefined} />
       {otherBosses.length > 0 && <p className="rounded-card border border-teal-line bg-teal-wash px-3 py-2.5 text-[13px] text-fg-2">{LOOT_RESERVES.shared(otherBosses)}</p>}
       <Toast toast={toast} onDismiss={dismiss} />
     </div>

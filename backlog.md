@@ -27,3 +27,4 @@
 - Reserve picker (#96 critique): seek approval before making a filled slot reveal its selected item's Remove action automatically, including what happens to an active search filter.
 - Reserve picker (#96 review): render each row's Wowhead tooltip only while open instead of mounting ~160 hidden tooltips; add a draft-logic test for HR→SR auto-advance and Enter-doesn't-submit; skip search refocus after Choose on phone so the keyboard doesn't pop up.
 - Loot table editor (#131 design → #123): the item row's refresh button shows ↻ as an empty box on the live site (the font lacks the glyph); swap it for an icon or a glyph the font has.
+- Loot table editor (#123 critique): a disabled boss move arrow (↑ on the first boss) looks filled while the enabled one looks plain; check the ghost button's disabled style there.
