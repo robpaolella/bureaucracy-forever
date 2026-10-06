@@ -108,13 +108,14 @@ export function WeekBlock({ block, selected, resizing, idle, onRemove }: Props) 
       {selected && !resizing && (
         <button
           type="button"
-          // Blocks are not Tab stops; the day header's list is the keyboard route.
+          // Blocks are not Tab stops; the day header's list is the keyboard route. The
+          // ::after hit area is 44×44 measured from inside the 1px border.
           tabIndex={-1}
           aria-label={blockRemoveLabel(block)}
           onClick={onRemove}
           className={cn(
             'absolute right-0.5 z-[6] flex items-center justify-center rounded-full border border-line-strong bg-ink-800 p-0 text-fg transition-colors duration-[120ms] after:absolute after:content-[""] hover:bg-ink-700',
-            one ? 'top-1/2 h-4 w-4 -translate-y-1/2 after:-inset-3.5' : 'top-0.5 h-5 w-5 after:-inset-3',
+            one ? 'top-1/2 h-4 w-4 -translate-y-1/2 after:-inset-[15px]' : 'top-0.5 h-5 w-5 after:-inset-[13px]',
           )}
         >
           <svg width="10" height="10" viewBox="0 0 10 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
