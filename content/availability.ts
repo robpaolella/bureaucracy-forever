@@ -9,6 +9,10 @@ export const AVAILABILITY_HEAD = {
 /** Above the desktop grid, in the phone hint's style (design/158-availability-blocks). */
 export const AVAILABILITY_DESKTOP_HINT = 'Drag to paint a run of half-hours. Click a block to resize or remove it.';
 
+/** Above the phone day column (design/158-availability-blocks). */
+export const AVAILABILITY_PHONE_HINT =
+  'Tap a half-hour to paint it, or tap a block to resize or remove it. Hold, then drag, to paint a run. Swipe sideways for another day.';
+
 export const AVAILABILITY_LEGEND_NOTE = 'Bronze rows on the left mark the top of each hour. Only officers see who painted what.';
 
 /** Copy for the officer heatmap (docs/05 § Officer view; artboard Availability-Officer.html). */
