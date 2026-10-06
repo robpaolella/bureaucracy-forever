@@ -101,6 +101,9 @@ Shared rules: same-colour back-to-back half-hours form one rounded block with no
 lines; different colours stay separate with a thin gap; minimum block is one half-hour; a
 resize can't pass the block's other edge; dragging empty space paints a new block in the
 chosen mode; painting over the same colour changes nothing.
+While drag-painting a new run there is no separate tag: the new block appears at once
+and its own label shows the live range. The tag is for resizing an edge only (as in the
+approved prototype).
 
 ## Version question
 Confirmed by Robert, 2026-10-06: where the start and end times sit in the block.
