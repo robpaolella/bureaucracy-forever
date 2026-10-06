@@ -21,7 +21,7 @@ export function RunOfNight() {
         <table className="w-full border-separate border-spacing-0 text-[15px] [&_tr:first-child>th:first-child]:rounded-tl-card [&_tr:first-child>th:last-child]:rounded-tr-card [&_tr:last-child>td:first-child]:rounded-bl-card [&_tr:last-child>td:last-child]:rounded-br-card">
           <thead>
             <tr className="bg-ink-850">
-              <th scope="col" className={`${TH} text-sand`}>
+              <th scope="col" className={`${TH} w-[240px] text-fg-3`}>
                 Time
               </th>
               <th scope="col" className={`${TH} text-fg-3`}>

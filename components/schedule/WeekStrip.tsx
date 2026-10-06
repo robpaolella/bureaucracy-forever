@@ -42,7 +42,7 @@ export function WeekStrip() {
             <li
               key={day}
               className={cn(
-                'flex min-h-[176px] flex-col gap-2.5 rounded-card border px-5 py-[26px]',
+                'flex flex-col gap-2.5 rounded-card border px-5 py-[26px] md:min-h-[176px]',
                 night.optional ? 'border-line-strong bg-ink-850' : 'border-sand-dim bg-ink-800',
               )}
             >
