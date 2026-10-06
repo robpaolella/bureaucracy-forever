@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ query: vi.fn(), find: vi.fn(), upsert: vi.fn(), count: vi.fn(), transaction: vi.fn() }));
+const mocks = vi.hoisted(() => ({ query: vi.fn(), find: vi.fn(), upsert: vi.fn(), holders: vi.fn(), remove: vi.fn(), transaction: vi.fn() }));
 vi.mock('@/lib/db', () => ({ db: {
   $transaction: mocks.transaction,
   $queryRaw: mocks.query,
   lootReserveSetting: { findMany: mocks.find, upsert: mocks.upsert },
-  reserve: { count: mocks.count },
+  reserve: { findMany: mocks.holders, deleteMany: mocks.remove },
 } }));
 import { db } from '@/lib/db';
-import { blockedItemIds, setItemBlocked, unlockedHolderCount } from './loot-blocks';
+import { blockItem, blockedItemIds, setItemBlocked, unlockedHolders } from './loot-blocks';
 
 const NOW = new Date('2026-10-05T18:00:00Z');
 
@@ -17,8 +17,16 @@ beforeEach(() => {
   mocks.transaction.mockImplementation((run) => run(db));
   mocks.query.mockResolvedValue([{ id: 't1' }]);
   mocks.find.mockResolvedValue([]);
-  mocks.count.mockResolvedValue(0);
+  mocks.holders.mockResolvedValue([]);
+  mocks.remove.mockResolvedValue({ count: 0 });
 });
+
+const row = (raidId: string, characterId: string, kind: 'HR' | 'SR', cancelled = false) => ({
+  raidId, characterId, kind, character: { name: `Char ${characterId}` },
+  raid: { name: 'Sample raid', startsAt: new Date('2026-10-08T03:00:00Z'), cancelledAt: cancelled ? new Date('2026-10-05T00:00:00Z') : null },
+});
+// Starts later than now + 120 minutes: locked and past raids don't count; no cancelled filter.
+const UNLOCKED = { itemId: 100, raid: { templateId: 't1', startsAt: { gt: new Date('2026-10-05T20:00:00Z') } } };
 
 describe('tier reserve settings', () => {
   it('defaults to no blocks, and reads only blocked items in the requested tier', async () => {
@@ -37,24 +45,69 @@ describe('tier reserve settings', () => {
     expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: 'ReadCommitted' });
   });
 
-  it('counts holders under the lock and refuses a block, writing nothing, while anyone holds the item on an unlocked raid', async () => {
-    mocks.count.mockResolvedValue(2);
+  it('a direct block is refused, writing nothing, while anyone holds the item on an unlocked raid', async () => {
+    mocks.holders.mockResolvedValue([row('r1', 'c1', 'HR'), row('r1', 'c2', 'SR')]);
     expect(await setItemBlocked('t1', 100, true, NOW)).toEqual({ ok: false, holders: 2 });
-    expect(mocks.query.mock.invocationCallOrder[0]).toBeLessThan(mocks.count.mock.invocationCallOrder[0]);
+    expect(mocks.query.mock.invocationCallOrder[0]).toBeLessThan(mocks.holders.mock.invocationCallOrder[0]);
+    expect(mocks.remove).not.toHaveBeenCalled();
     expect(mocks.upsert).not.toHaveBeenCalled();
   });
 
-  it('unblocks whatever is held, without counting holders', async () => {
-    mocks.count.mockResolvedValue(2);
+  it('unblocks whatever is held, without reading holders', async () => {
     expect(await setItemBlocked('t1', 100, false, NOW)).toEqual({ ok: true });
-    expect(mocks.count).not.toHaveBeenCalled();
+    expect(mocks.holders).not.toHaveBeenCalled();
     expect(mocks.upsert).toHaveBeenCalledOnce();
   });
 
-  it('holders are reserves on this tier whose raid starts after the 2-hour reserve lock, cancelled raids included', async () => {
-    mocks.count.mockResolvedValue(1);
-    expect(await unlockedHolderCount(db, 't1', 100, NOW)).toBe(1);
-    // Starts later than now + 120 minutes: locked and past raids don't count; no cancelled filter.
-    expect(mocks.count).toHaveBeenCalledWith({ where: { itemId: 100, raid: { templateId: 't1', startsAt: { gt: new Date('2026-10-05T20:00:00Z') } } } });
+  it('lists holders on unlocked raids of this tier, cancelled raids included, by raid then name', async () => {
+    mocks.holders.mockResolvedValue([row('r1', 'c1', 'HR', true)]);
+    expect(await unlockedHolders(db, 't1', 100, NOW)).toEqual([
+      { key: 'r1:c1:HR', character: 'Char c1', kind: 'HR', raid: { id: 'r1', name: 'Sample raid', startsAt: '2026-10-08T03:00:00.000Z', cancelled: true } },
+    ]);
+    expect(mocks.holders).toHaveBeenCalledWith(expect.objectContaining({
+      where: UNLOCKED,
+      orderBy: [{ raid: { startsAt: 'asc' } }, { raidId: 'asc' }, { character: { name: 'asc' } }],
+    }));
+  });
+});
+
+describe('blocking with the holders the officer confirmed', () => {
+  it('removes the confirmed reserves on unlocked raids and blocks, under the lock, in one transaction', async () => {
+    mocks.holders.mockResolvedValue([row('r1', 'c1', 'HR'), row('r2', 'c2', 'SR', true)]);
+    mocks.remove.mockResolvedValue({ count: 2 });
+    expect(await blockItem('t1', 100, ['r1:c1:HR', 'r2:c2:SR'], NOW)).toEqual({ ok: true, removed: 2 });
+    expect(mocks.remove).toHaveBeenCalledWith({ where: UNLOCKED });
+    expect(mocks.upsert).toHaveBeenCalledWith({ where: { templateId_itemId: { templateId: 't1', itemId: 100 } }, create: { templateId: 't1', itemId: 100, blocked: true }, update: { blocked: true } });
+    const [lock] = mocks.query.mock.invocationCallOrder;
+    expect(lock).toBeLessThan(mocks.holders.mock.invocationCallOrder[0]);
+    expect(mocks.holders.mock.invocationCallOrder[0]).toBeLessThan(mocks.remove.mock.invocationCallOrder[0]);
+    expect(mocks.transaction).toHaveBeenCalledOnce();
+    expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: 'ReadCommitted' });
+  });
+
+  it('refuses a stale list, writing nothing, when a holder appeared or changed slot since it was shown', async () => {
+    mocks.holders.mockResolvedValue([row('r1', 'c1', 'SR'), row('r1', 'c2', 'HR')]);
+    const result = await blockItem('t1', 100, ['r1:c1:HR', 'r1:c2:HR'], NOW);
+    expect(result).toMatchObject({ ok: false, holders: [{ key: 'r1:c1:SR' }, { key: 'r1:c2:HR' }] });
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.upsert).not.toHaveBeenCalled();
+  });
+
+  it('still blocks when a confirmed holder dropped their reserve meanwhile, counting what it removed', async () => {
+    mocks.holders.mockResolvedValue([row('r1', 'c2', 'SR')]);
+    mocks.remove.mockResolvedValue({ count: 1 });
+    expect(await blockItem('t1', 100, ['r1:c1:HR', 'r1:c2:SR'], NOW)).toEqual({ ok: true, removed: 1 });
+  });
+
+  it('blocks an item nobody holds without deleting anything', async () => {
+    expect(await blockItem('t1', 100, [], NOW)).toEqual({ ok: true, removed: 0 });
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.upsert).toHaveBeenCalledOnce();
+  });
+
+  it('a failure part-way rejects, so the transaction rolls the removal back', async () => {
+    mocks.holders.mockResolvedValue([row('r1', 'c1', 'HR')]);
+    mocks.upsert.mockRejectedValue(new Error('connection lost'));
+    await expect(blockItem('t1', 100, ['r1:c1:HR'], NOW)).rejects.toThrow('connection lost');
   });
 });
