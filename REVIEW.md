@@ -13,8 +13,11 @@ Flag each violation with file:line and the concrete failure.
 - Availability is stored in member-local time: one row per member, `slots` keyed `day:slot`
   (day 0 = Monday, 48 half-hour slots) in that member's own `timezone`, converted on read. Flag any UTC normalisation of availability slots. It shifts painted
   weeks when US and EU clocks change on different dates.
-- Every time renders twice, guild time and the viewer's local time, each labelled. Flag any
-  bare time render.
+- Times render in the viewer's zone with its label, guild time on hover, tap and focus and in
+  the accessible name (`components/time/LocalTime`). Before the zone is known, or when it is
+  guild time, guild time shows once, labelled "guild time". Officer scheduling forms (raid
+  form, series form, raid planner) show both side by side, each labelled. Flag any unlabelled
+  time render.
 - Guild time comes from `GUILD_TIMEZONE` in `lib/config.ts`. Flag any page that derives or
   hardcodes the zone itself.
 

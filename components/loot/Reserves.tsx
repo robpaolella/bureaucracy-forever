@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, type FormEvent } from 'react';
-import { DualTime } from '@/components/time/DualTime';
+import { LocalTime } from '@/components/time/LocalTime';
 import { Button, Field, useToast } from '@/components/ui';
 import { CONTROL } from '@/components/ui/Field';
 import { SAVE_FAILED } from '@/content/calendar';
@@ -47,7 +47,7 @@ export function Reserves({ raidId, table, reserves, lockAt, locked, cancelled, o
         {!cancelled && (
           <span className="flex flex-wrap items-baseline gap-x-2 text-sm">
             <span className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">{RESERVES.locksAt}</span>
-            <DualTime startsAt={lockAt} durationMin={0} />
+            <LocalTime startsAt={lockAt} durationMin={0} />
           </span>
         )}
       </div>

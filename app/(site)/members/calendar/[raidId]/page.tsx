@@ -10,7 +10,7 @@ import { RaidResponseControl } from '@/components/raid/RaidResponse';
 import { RaidSummary } from '@/components/raid/RaidSummary';
 import { RosterByRole } from '@/components/raid/RosterByRole';
 import { UnansweredCard } from '@/components/raid/UnansweredCard';
-import { DualTime } from '@/components/time/DualTime';
+import { LocalTime } from '@/components/time/LocalTime';
 import { ToastHost } from '@/components/ui';
 import { db } from '@/lib/db';
 import type { Role, WowClass } from '@/lib/design/class-colors';
@@ -157,7 +157,7 @@ export default async function RaidDetailPage({ params }: Params) {
               {raid.name}
               {card.cancelled && <span className="ml-3 align-middle text-base font-normal text-stop">Cancelled</span>}
             </h1>
-            <DualTime startsAt={card.startsAt} durationMin={card.durationMin} />
+            <LocalTime startsAt={card.startsAt} durationMin={card.durationMin} />
             {table && reserveTargets && (
               <a href="#loot-reserves" className="inline-flex min-h-11 items-center self-start text-small text-teal underline underline-offset-4">
                 {RESERVES.heading}

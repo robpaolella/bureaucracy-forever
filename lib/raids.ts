@@ -5,7 +5,7 @@
  */
 import type { Role, WowClass } from '@/lib/design/class-colors';
 import { GUILD_TIMEZONE } from '@/lib/config';
-import { formatClock, nextOccurrence, zonedParts, zonedTimeToUtc, type Weekday } from '@/lib/time';
+import { nextOccurrence, viewerTime, zonedParts, zonedTimeToUtc, type Weekday } from '@/lib/time';
 
 export type RaidResponse = 'accept' | 'tentative' | 'absent';
 export const RESPONSES: readonly RaidResponse[] = ['accept', 'tentative', 'absent'];
@@ -113,9 +113,17 @@ export function raidWeekday(startsAt: string): string {
 
 /**
  * Toast copy for a response (docs/04 § Sign-up confirmation): "You're in for Wednesday —
- * Blackwing Lair" with the dual time beneath. Clearing an answer reads as withdrawn.
+ * Blackwing Lair" with the viewer's time and zone beneath ("10:00 PM CDT"); guild time,
+ * labelled, until the zone is known. A toast can't be hovered, so it carries one time like the
+ * rows behind it. Clearing an answer reads as withdrawn. `locale` names the zone; it defaults to
+ * the browser's language, since toasts are only built in the browser.
  */
-export function responseToast(raid: { name: string; startsAt: string }, response: RaidResponse | null, viewerZone: string | null): { title: string; detail: string } {
+export function responseToast(
+  raid: { name: string; startsAt: string },
+  response: RaidResponse | null,
+  viewerZone: string | null,
+  locale: string | undefined = typeof navigator === 'undefined' ? undefined : navigator.language,
+): { title: string; detail: string } {
   const day = raidWeekday(raid.startsAt);
   const title =
     response === 'accept'
@@ -125,10 +133,7 @@ export function responseToast(raid: { name: string; startsAt: string }, response
         : response === 'absent'
           ? `Marked absent for ${day} — ${raid.name}`
           : `Answer withdrawn for ${day} — ${raid.name}`;
-  const start = new Date(raid.startsAt);
-  const guild = `${formatClock(start, GUILD_TIMEZONE)} guild`;
-  const detail = viewerZone && viewerZone !== GUILD_TIMEZONE ? `${guild} · ${formatClock(start, viewerZone)} your time` : guild;
-  return { title, detail };
+  return { title, detail: viewerTime(new Date(raid.startsAt), 0, viewerZone, locale).text };
 }
 
 export type SignupSource = 'web' | 'discord';
