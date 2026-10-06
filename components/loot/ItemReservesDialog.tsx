@@ -2,11 +2,14 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { LocalTime } from '@/components/time/LocalTime';
+import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { Button, FIELD_LABEL, Modal, Tag, Toast, Toggle, useToast, type ToastData } from '@/components/ui';
 import { SAVE_FAILED } from '@/content/calendar';
 import { LOOT_RESERVES } from '@/content/loot-admin';
 import { RESERVES } from '@/content/reserves';
 import { cn } from '@/lib/cn';
+import { GUILD_TIMEZONE } from '@/lib/config';
 import type { Holder } from '@/lib/loot-blocks';
 import type { ItemView } from '@/lib/loot-items';
 import { WIN_LIMIT_MAX } from '@/lib/loot-rules';
@@ -282,7 +285,9 @@ export function WinLimitCounter({ value, blocked, busy, onStep }: { value: numbe
 }
 
 /** Holders grouped by raid, in start order, each with their character and HR/SR. */
-function Confirmation({ holders, stale }: { holders: Holder[]; stale: boolean }) {
+export function Confirmation({ holders, stale }: { holders: Holder[]; stale: boolean }) {
+  // The date follows the viewer's zone, as LocalTime's time does; guild time until it's known.
+  const zone = useViewerTimeZone()?.zone ?? GUILD_TIMEZONE;
   const raids: { raid: Holder['raid']; holders: Holder[] }[] = [];
   for (const h of holders) {
     const group = raids.find((r) => r.raid.id === h.raid.id);
@@ -300,7 +305,9 @@ function Confirmation({ holders, stale }: { holders: Holder[]; stale: boolean })
       {raids.map(({ raid, holders: list }) => (
         <section key={raid.id} className="mt-3">
           <h3 className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[13px] font-semibold text-fg">
-            {raid.name} <span className="font-normal text-fg-3">{LOOT_RESERVES.raidWhen(new Date(raid.startsAt))}</span>
+            {raid.name} <span className="font-normal text-fg-3">
+              {LOOT_RESERVES.raidDate(new Date(raid.startsAt), zone)}, <LocalTime startsAt={raid.startsAt} durationMin={0} className="text-[13px] font-normal text-fg-3" />
+            </span>
             {raid.cancelled && <Tag className="py-[1px]">{LOOT_RESERVES.cancelled}</Tag>}
           </h3>
           <ul>
