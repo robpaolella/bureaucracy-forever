@@ -18,6 +18,8 @@ export const RESERVES = {
   blocked: 'Previously won',
   /** An officer closed this item to reserves; the same words the reserve route refuses with. */
   notOpen: REASONS.itemBlocked,
+  /** Under a saved pick on an item blocked after it was saved; the route keeps it until removed. */
+  keptBlocked: `${REASONS.itemBlocked}. You can keep it or remove it.`,
   search: 'Search items',
   items: 'Items',
   choosingSlot: "Which reserve you're choosing",
