@@ -206,6 +206,7 @@ function ItemDetails({ item, sources, slot, picked, reason, forName, holders, ma
       {picked ? <>
         <p className={cn('text-sm', slot === 'HR' ? 'text-sand' : 'text-teal')}>{RESERVES.pickedDetails(slot, forName)}</p>
         <Button variant="ghost" onClick={onRemove}>{RESERVES.remove}</Button>
+        {reason?.kind === 'blocked' && <p className="basis-full text-sm text-fg-2">{RESERVES.keptBlocked}</p>}
       </> : reason ? <>
         <span className="group relative">
           <Button aria-disabled="true" aria-describedby={id} className="cursor-not-allowed bg-ink-700 text-fg-3 hover:brightness-100" onClick={() => {}}>{RESERVES.choose(slot)}</Button>

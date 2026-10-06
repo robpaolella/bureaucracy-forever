@@ -71,6 +71,13 @@ describe('reserve picker', () => {
     expect(html).toMatch(/<button[^>]*>Remove<\/button>/);
     expect(html).not.toContain('>Choose as hard reserve<');
     expect(html).toContain('Picked as HR — Not open to reserves');
+    expect(html).toContain('<p class="basis-full text-sm text-fg-2">Not open to reserves. You can keep it or remove it.</p>');
+  });
+
+  it('adds no note under a saved pick on an open item', () => {
+    const html = render({ targets: target({ blockedHr: {}, current: { characterId: 'c1', hr: 100, sr: null } }) });
+    expect(html).toMatch(/<button[^>]*>Remove<\/button>/);
+    expect(html).not.toContain('You can keep it or remove it.');
   });
 
   it.each([{ locked: true }, { cancelled: true }, { targets: [], reason: 'Sign up as Accept or Tentative to reserve.' }])('keeps the picker out of read-only states: %j', (state) => {
