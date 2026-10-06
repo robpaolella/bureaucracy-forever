@@ -66,6 +66,8 @@ export const RESERVES = {
   /** Read after the visible "HR 4" on a count pill. */
   showNames: (kind: 'HR' | 'SR', count: number, item: string) => ` ${kind === 'HR' ? 'hard' : 'soft'} reserve${count === 1 ? '' : 's'} for ${item}: show names`,
   listHeading: 'Who reserved what',
+  showList: (count: number) => `Show who reserved what · ${count} ${count === 1 ? 'item' : 'items'}`,
+  hideList: 'Hide who reserved what',
   listEmpty: 'No reserves yet.',
   hrShort: 'HR',
   srShort: 'SR',
