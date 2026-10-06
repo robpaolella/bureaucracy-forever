@@ -5,7 +5,8 @@ import { LOCKOUT_RESET, RAID_NIGHTS, WEEK_NOTE_PREFIX, WEEK_ORDER } from '@/cont
 import { LocalTime } from '@/components/time/LocalTime';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { cn } from '@/lib/cn';
-import { minutesBetween, nextOccurrence, WEEKDAY_NAMES, zonedParts } from '@/lib/time';
+import { minutesBetween, nextOccurrence, WEEKDAY_NAMES } from '@/lib/time';
+import { resetDayLabel } from './resetDay';
 
 /**
  * Seven equal cells, Monday first. Raid nights: ink-800 fill, sand-dim border, the night's
@@ -18,8 +19,7 @@ export function WeekStrip() {
   const viewer = useViewerTimeZone();
   const byDay = new Map(RAID_NIGHTS.map((n) => [n.day, n]));
   const resetAt = nextOccurrence(LOCKOUT_RESET.day, LOCKOUT_RESET.time);
-  // When the reset falls on another day for the viewer, LocalTime names that day itself.
-  const resetDay = viewer && zonedParts(resetAt, viewer.zone).weekday !== LOCKOUT_RESET.day ? '' : `${WEEKDAY_NAMES[LOCKOUT_RESET.day]} `;
+  const resetDay = resetDayLabel(LOCKOUT_RESET.day, resetAt, viewer?.zone ?? null);
 
   return (
     <div className="flex flex-col gap-4">
