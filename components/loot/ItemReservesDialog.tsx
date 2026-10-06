@@ -1,8 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useRef, useState } from 'react';
-import { Button, Modal, Toast, Toggle, type ToastData } from '@/components/ui';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Button, Modal, Toast, Toggle, useToast, type ToastData } from '@/components/ui';
 import { SAVE_FAILED } from '@/content/calendar';
 import { LOOT_RESERVES } from '@/content/loot-admin';
 import type { ItemView } from '@/lib/loot-items';
@@ -41,6 +41,16 @@ function Settings({ templateId, target }: { templateId: string; target: Reserves
   const [toast, setToast] = useState<ToastData | null>(null);
   const dismiss = useCallback(() => setToast(null), []);
   const switchRow = useRef<HTMLDivElement>(null);
+  // Closed before the answer came back: the page's own toast reports it instead.
+  const pageToast = useToast();
+  const open = useRef(true);
+  useEffect(() => {
+    open.current = true;
+    return () => {
+      open.current = false;
+    };
+  }, []);
+  const show = (next: ToastData) => (open.current ? setToast(next) : pageToast(next));
 
   async function save(next: boolean) {
     if (saving.current) return;
@@ -62,11 +72,11 @@ function Settings({ templateId, target }: { templateId: string; target: Reserves
         switchRow.current?.querySelector<HTMLElement>('[role="switch"]')?.focus();
         void save(next);
       };
-      setToast({ tone: 'stop', title: SAVE_FAILED, action: { label: LOOT_RESERVES.retry, onClick: retry } });
+      show({ tone: 'stop', title: SAVE_FAILED, action: { label: LOOT_RESERVES.retry, onClick: retry } });
       return;
     }
     setBlocked(next);
-    setToast({ tone: 'ok', title: next ? LOOT_RESERVES.blocked(item.name) : LOOT_RESERVES.unblocked(item.name) });
+    show({ tone: 'ok', title: next ? LOOT_RESERVES.blocked(item.name) : LOOT_RESERVES.unblocked(item.name) });
     router.refresh();
   }
 

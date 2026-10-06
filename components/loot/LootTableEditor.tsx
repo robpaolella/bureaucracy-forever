@@ -104,6 +104,7 @@ function Editor({ templateId, bosses, defaultSource, blockedIds }: Props) {
               <ul className="grid grid-cols-1 gap-x-6 xl:grid-cols-2">
                 {boss.items.map((item) => (
                   <li key={item.id} className="flex min-w-0 flex-wrap items-center gap-x-1 border-line-faint max-md:border-t max-md:first:border-t-0 md:flex-nowrap">
+                    {/* Phones: 26px = the 18px icon plus its 8px gap, so the tag and controls line up under the name. */}
                     <div className="flex min-w-0 flex-1 items-center max-md:basis-full max-md:flex-wrap">
                       <ItemName item={item} className="min-w-0 max-md:basis-full" />
                       {blocked.has(item.id) && <Tag className="shrink-0 whitespace-nowrap max-md:mb-1 max-md:ml-[26px] md:ml-1.5">{LOOT_RESERVES.blockedTag}</Tag>}
