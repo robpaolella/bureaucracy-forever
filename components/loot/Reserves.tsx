@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { LocalTime } from '@/components/time/LocalTime';
 import { Button, Field, useToast } from '@/components/ui';
 import { CONTROL } from '@/components/ui/Field';
@@ -10,6 +10,7 @@ import { CLASS_COLORS } from '@/lib/design/class-colors';
 import { itemSources, sourceLabel } from '@/lib/item-search';
 import type { LootTableView, ReserveTargetRow, ReserveView } from '@/lib/loot-data';
 import { reserveHolders, type ReserveKind } from '@/lib/loot-rules';
+import { RESERVES_PARAM } from '@/lib/raids';
 import { ItemName } from './ItemName';
 import { ReserverCount, type OwnMark } from './ReservePicker';
 import { ReserveWindow } from './ReserveWindow';
@@ -29,6 +30,8 @@ type Props = {
   targets: ReserveTarget[];
   /** Why the viewer cannot reserve, when `targets` is empty. */
   reason: string | null;
+  /** Open the window on the viewer's own reserves at load (the bot's reserves link). */
+  openOnLoad?: boolean;
 };
 
 /**
@@ -36,13 +39,20 @@ type Props = {
  * open the reserves window until the lock (officers after it too, for anyone eligible), and
  * everyone's reserves, visible to all members.
  */
-export function Reserves({ raid, table, reserves, lockAt, locked, cancelled, officer, targets, reason }: Props) {
+export function Reserves({ raid, table, reserves, lockAt, locked, cancelled, officer, targets, reason, openOnLoad = false }: Props) {
   const toast = useToast();
   const [targetId, setTargetId] = useState(targets.find((t) => t.self)?.userId ?? targets[0]?.userId);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(openOnLoad);
   const target = targets.find((t) => t.userId === targetId) ?? targets[0];
   const canChange = !cancelled && target && (!locked || officer);
   const chooser = officer && targets.length > 1;
+  // Drop the link's query once it has opened the window, so a reload or Back doesn't reopen it.
+  useEffect(() => {
+    if (!openOnLoad) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete(RESERVES_PARAM);
+    window.history.replaceState(null, '', url);
+  }, [openOnLoad]);
   const holders = useMemo(() => reserveHolders(reserves), [reserves]);
   const sources = useMemo(() => itemSources(table.bosses), [table.bosses]);
   const mark = target && { userId: target.userId, label: target.self ? RESERVES.yours : RESERVES.editing };

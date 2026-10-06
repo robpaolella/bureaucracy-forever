@@ -4,7 +4,8 @@
  * unit-tested rather than improvised in components.
  */
 import type { Role, WowClass } from '@/lib/design/class-colors';
-import { GUILD_TIMEZONE } from '@/lib/config';
+import { GUILD_TIMEZONE, SITE_URL } from '@/lib/config';
+import { reservesLocked } from '@/lib/loot-rules';
 import { nextOccurrence, viewerTime, zonedParts, zonedTimeToUtc, type Weekday } from '@/lib/time';
 
 export type RaidResponse = 'accept' | 'tentative' | 'absent';
@@ -127,6 +128,39 @@ export function promptsReserves(
 ): boolean {
   const me = window?.targets.find((t) => t.self);
   return (answer === 'accept' || answer === 'tentative') && !!window && !window.locked && !window.cancelled && !!me && me.current.hr === null && me.current.sr === null;
+}
+
+/** The query that opens the raid page with the reserves window up, for the bot's messages. */
+export const RESERVES_PARAM = 'reserves';
+
+/** The raid page link that opens the signed-in member's own reserves window. */
+export function reservesUrl(raidId: string): string {
+  return `${SITE_URL}/members/calendar/${raidId}?${RESERVES_PARAM}=1`;
+}
+
+/**
+ * Whether the reserves link opens the window on page load: the link asked for it, loot is on
+ * with a table for this member (`window` is null otherwise, as for social members), the raid
+ * is not cancelled or locked, and the viewer can reserve for themselves (Accept or Tentative
+ * with a character). It opens whether or not they have reserves, so they can change them, and
+ * never for anyone else, officers included.
+ */
+export function linkOpensReserves(param: string | string[] | undefined, window: { locked: boolean; cancelled: boolean; targets: readonly { self: boolean }[] } | null): boolean {
+  return param === '1' && !!window && !window.locked && !window.cancelled && window.targets.some((t) => t.self);
+}
+
+/**
+ * The reserve fields of the bot's `viewer` block (SYNC-SPEC §4). `lootTable` is false while loot
+ * is off; `reservesLocked` is the reserve lock, not the sign-up lock; `reservesComplete` needs
+ * both a hard and a soft reserve, like the reserve reminder.
+ */
+export function viewerReserves(raid: { id: string; startsAt: Date; hasLootTable: boolean }, kinds: readonly ('HR' | 'SR')[], now: Date, enabled: boolean) {
+  return {
+    lootTable: enabled && raid.hasLootTable,
+    reservesLocked: reservesLocked(raid.startsAt, now),
+    reservesComplete: kinds.includes('HR') && kinds.includes('SR'),
+    reservesUrl: reservesUrl(raid.id),
+  };
 }
 
 /**
