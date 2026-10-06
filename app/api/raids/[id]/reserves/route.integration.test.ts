@@ -105,19 +105,41 @@ describe.skipIf(process.env.LOOT_BLOCK_INTEGRATION !== '1')('real PostgreSQL res
     await client.reserve.deleteMany();
   }, 20_000);
 
-  it('save first: block waits, leaves the existing reserve, and editing SR keeps its row unchanged', async () => {
+  it('save first: block waits, sees the new holder and is refused, leaving the setting unblocked', async () => {
     const gate = pauseFirstLock();
     const saving = save();
     await gate.acquired.promise;
     const blocking = setItemBlocked('t1', 100, true);
     try { await waitForBlockedQuery(); } finally { gate.release.resolve(); }
     expect((await saving).status).toBe(200);
-    await blocking;
+    expect(await blocking).toEqual({ ok: false, holders: 1 });
     state.db = client;
+    expect(await blockedItemIds('t1')).toEqual(new Set());
+    // The first test's unblock left the row at blocked=false; the refusal leaves it there.
+    expect(await client.lootReserveSetting.findMany({ select: { itemId: true, blocked: true } })).toEqual([{ itemId: 100, blocked: false }]);
+    expect(await client.reserve.count()).toBe(1);
+  }, 20_000);
+
+  it('a reserve kept on a blocked item survives editing the other slot unchanged', async () => {
+    // A reserve can still sit on a blocked item (one held only on a locked raid when it was
+    // blocked); write the setting directly, as setItemBlocked refuses while r1 is unlocked.
+    await client.lootReserveSetting.update({ where: { templateId_itemId: { templateId: 't1', itemId: 100 } }, data: { blocked: true } });
     const kept = await client.reserve.findFirstOrThrow({ where: { kind: 'HR' } });
-    expect(await blockedItemIds('t1')).toEqual(new Set([100]));
     expect((await save(200)).status).toBe(200);
     expect(await client.reserve.findUnique({ where: { id: kept.id } })).toEqual(kept);
     expect(await client.reserve.count()).toBe(2);
-  }, 20_000);
+    await client.reserve.deleteMany();
+    await client.lootReserveSetting.deleteMany();
+  });
+
+  it('a holder only on a locked or past raid does not stop the block', async () => {
+    const now = Date.now();
+    for (const [id, startsAt] of [['r-past', new Date(now - 86_400_000)], ['r-locked', new Date(now + 60 * 60_000)]] as const) {
+      await client.raid.create({ data: { id, name: 'Block test', templateId: 't1', startsAt, locksAt: startsAt, requirements: {} } });
+      await client.reserve.create({ data: { raidId: id, userId: 'u1', characterId: 'c1', itemId: 200, kind: 'SR' } });
+    }
+    expect(await setItemBlocked('t1', 200, true)).toEqual({ ok: true });
+    expect(await blockedItemIds('t1')).toEqual(new Set([200]));
+    expect(await client.reserve.count({ where: { itemId: 200 } })).toBe(2);
+  });
 });

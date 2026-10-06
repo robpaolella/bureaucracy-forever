@@ -61,3 +61,17 @@ export const LOOT_EDIT = {
   refreshDone: (saved: number, failed: number) => `Refreshed ${saved} ${saved === 1 ? 'item' : 'items'}${failed ? `, ${failed} failed` : ''}`,
   failedIds: (ids: number[]) => `Wowhead had nothing for ${ids.map((id) => `#${id}`).join(', ')}.`,
 };
+
+/** The "Reserves" window for one item: settings shared by every boss in the tier (design #131). */
+export const LOOT_RESERVES = {
+  button: 'Reserves',
+  buttonLabel: (item: string) => `Reserves for ${item}`,
+  title: (item: string) => `Reserves: ${item}`,
+  open: 'Open to reserves',
+  shared: (bosses: string[]) => `Also drops from ${bosses.length > 1 ? `${bosses.slice(0, -1).join(', ')} and ${bosses[bosses.length - 1]}` : bosses[0]}. This setting applies there too.`,
+  done: 'Done',
+  blockedTag: 'Not open to reserves',
+  blocked: (item: string) => `Blocked ${item}.`,
+  unblocked: (item: string) => `${item} is open to reserves again. Removed reserves aren't restored.`,
+  retry: 'Retry',
+};
