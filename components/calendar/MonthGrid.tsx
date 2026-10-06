@@ -55,7 +55,7 @@ export function MonthGrid({ raids, now }: { raids: RaidCard[]; now: Date }) {
                 {cell.raids.map((r) => {
                   const start = new Date(r.startsAt);
                   const cancelled = r.cancelled || r.status === 'CANCELLED';
-                  const both = viewerTime(start, 0, viewer?.zone ?? null).label;
+                  const both = viewerTime(start, 0, viewer?.zone ?? null, viewer ? navigator.language : undefined).label;
                   const state = [cancelled && MONTH.cancelled, r.mine && MONTH.answered].filter(Boolean).join(', ');
                   return (
                     <Link

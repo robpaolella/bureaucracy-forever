@@ -25,7 +25,8 @@ const HOVER_CLICK_MS = 400;
  */
 export function LocalTime({ startsAt, durationMin, className }: Props) {
   const viewer = useViewerTimeZone();
-  const time = viewerTime(new Date(startsAt), durationMin, viewer?.zone ?? null);
+  // `viewer` is null on the server, so navigator is only read in the browser.
+  const time = viewerTime(new Date(startsAt), durationMin, viewer?.zone ?? null, viewer ? navigator.language : undefined);
   const containerRef = useRef<HTMLSpanElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLSpanElement>(null);

@@ -181,6 +181,12 @@ describe('viewerTime', () => {
     expect(viewerTime(after, 0, LON)).toMatchObject({ text: '4:00 PM GMT', guild: '8:00 AM guild time (PST)' });
   });
 
+  it("names the viewer's zone in their language, keeping the clock as is", () => {
+    expect(viewerTime(start, 180, LON, 'en-GB').text).toBe('Wed 1:00 – 4:00 AM BST');
+    expect(viewerTime(start, 180, 'Australia/Sydney', 'en-AU').text).toBe('Wed 10:00 AM – 1:00 PM AEST');
+    expect(viewerTime(start, 180, LON, 'en-GB').guild).toBe('Tue 5:00 – 8:00 PM guild time (PDT)');
+  });
+
   it("names the weekday when the viewer's day is not the guild's", () => {
     const late = zonedTimeToUtc(2026, 9, 29, 20, 0, LA);
     expect(viewerTime(late, 180, LON)).toMatchObject({ text: 'Wed 4:00 – 7:00 AM GMT+1', guild: 'Tue 8:00 – 11:00 PM guild time (PDT)' });

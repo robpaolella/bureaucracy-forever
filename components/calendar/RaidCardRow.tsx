@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { LocalTime } from '@/components/time/LocalTime';
+import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { SegmentedControl } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { GUILD_TIMEZONE } from '@/lib/config';
 import { ROLE_SHORT, ROLES } from '@/lib/design/class-colors';
-import { countTone, raidWeekday, type RaidCard, type RaidResponse } from '@/lib/raids';
+import { countTone, type RaidCard, type RaidResponse } from '@/lib/raids';
 import { signupsClosed } from '@/lib/raid-detail';
-import { zonedParts } from '@/lib/time';
+import { WEEKDAY_NAMES, zonedParts } from '@/lib/time';
 import { RESPONSE_NOTES } from '@/content/raid';
 
 type Props = {
@@ -32,12 +33,14 @@ const RESPONSE_OPTIONS = [
 ] as const;
 
 /**
- * One raid (docs/04 § Raid calendar § Rows): a 56px date block in guild time, the name
- * and the viewer's time (guild time on hover), four role stacks that turn warn below the requirement and stop at zero,
- * and the viewer's three-way response. Tonight's raid takes a sand-dim border and eyebrow.
+ * One raid (docs/04 § Raid calendar § Rows): a 56px date block on the viewer's calendar (guild
+ * time until their zone is known), so it agrees with the time beside it and the month grid; the
+ * name and the viewer's time (guild time on hover); four role stacks that turn warn below the
+ * requirement and stop at zero; and the viewer's three-way response. Tonight's raid takes a sand-dim border and eyebrow.
  */
 export function RaidCardRow({ raid, tonight, canRespond, past, now, onRespond }: Props) {
-  const p = zonedParts(new Date(raid.startsAt), GUILD_TIMEZONE);
+  const viewer = useViewerTimeZone();
+  const p = zonedParts(new Date(raid.startsAt), viewer?.zone ?? GUILD_TIMEZONE);
   // SYNC-SPEC §7: no answers after the lock, and no Absent for a member off the roster.
   const closed = signupsClosed(raid, past, new Date(now));
   const options = raid.onRoster === false ? RESPONSE_OPTIONS.filter((o) => o.value !== 'absent') : RESPONSE_OPTIONS;
@@ -46,7 +49,7 @@ export function RaidCardRow({ raid, tonight, canRespond, past, now, onRespond }:
       <div className="flex items-center gap-4 md:flex-1">
         <div className="flex w-14 shrink-0 flex-col items-center rounded-control border border-line bg-ink-900 py-2">
           <span className="sr-only">
-            {raidWeekday(raid.startsAt)}, {MONTH_SHORT[p.month - 1]} {p.day}
+            {WEEKDAY_NAMES[p.weekday]}, {MONTH_SHORT[p.month - 1]} {p.day}
           </span>
           <span className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3" aria-hidden>
             {MONTH_SHORT[p.month - 1]}
