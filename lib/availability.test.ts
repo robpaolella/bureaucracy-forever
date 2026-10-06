@@ -2,7 +2,20 @@ import { describe, expect, it } from 'vitest';
 import {
   applyPaint,
   applyPaintRun,
+  blockAt,
+  blockLabel,
+  blockRange,
+  blockRemoveLabel,
   cellLabel,
+  dayBlocks,
+  dragEdge,
+  DAYS,
+  removeBlock,
+  resizeBlock,
+  sameBlock,
+  SLOTS,
+  weekFromBlocks,
+  type Block,
   countStates,
   fmtSlot,
   isValidTimeZone,
@@ -65,6 +78,171 @@ describe('painting', () => {
 
   it('counts states', () => {
     expect(countStates({ '1:1': 'available', '1:2': 'available', '1:3': 'if-needed' })).toEqual({ available: 2, ifNeeded: 1 });
+  });
+});
+
+describe('blocks', () => {
+  /** Tue 7:00–11:00 PM available, then 11:00 PM – midnight if needed. */
+  const tue: Week = { ...applyPaintRun({}, 1, 38, 45, 'available'), ...applyPaintRun({}, 1, 46, 47, 'if-needed') };
+  const avail: Block = { day: 1, start: 38, end: 46, state: 'available' };
+  const late: Block = { day: 1, start: 46, end: 48, state: 'if-needed' };
+
+  describe('grouping', () => {
+    it('merges back-to-back slots of one state and keeps states apart', () => {
+      expect(dayBlocks(tue, 1)).toEqual([avail, late]);
+      expect(dayBlocks(tue, 0)).toEqual([]);
+    });
+
+    it('splits a run at a gap', () => {
+      const week = applyPaint(applyPaintRun({}, 2, 10, 15, 'available'), '2:12', 'erase');
+      expect(dayBlocks(week, 2)).toEqual([
+        { day: 2, start: 10, end: 12, state: 'available' },
+        { day: 2, start: 13, end: 16, state: 'available' },
+      ]);
+    });
+
+    it('makes a half-hour block, one running to midnight and an all-day block', () => {
+      expect(dayBlocks({ '3:37': 'if-needed' }, 3)).toEqual([{ day: 3, start: 37, end: 38, state: 'if-needed' }]);
+      expect(dayBlocks({ '3:47': 'available' }, 3)).toEqual([{ day: 3, start: 47, end: 48, state: 'available' }]);
+      expect(dayBlocks(applyPaintRun({}, 0, 0, 47, 'available'), 0)).toEqual([{ day: 0, start: 0, end: SLOTS, state: 'available' }]);
+    });
+
+    it('finds the block under a slot', () => {
+      expect(blockAt(tue, 1, 38)).toEqual(avail);
+      expect(blockAt(tue, 1, 45)).toEqual(avail);
+      expect(blockAt(tue, 1, 46)).toEqual(late);
+      expect(blockAt(tue, 1, 37)).toBeNull();
+    });
+
+    it('rebuilds an existing week identically, down to its saved JSON', () => {
+      const saved: Week = { '6:40': 'available', '0:0': 'if-needed', '1:41': 'available', '1:42': 'if-needed', '5:47': 'available' };
+      const blocks = Array.from({ length: DAYS }, (_, d) => dayBlocks(saved, d)).flat();
+      const rebuilt = weekFromBlocks(blocks);
+      expect(rebuilt).toEqual(saved);
+      expect(isWeek(rebuilt)).toBe(true);
+      // Reading blocks never writes, and an unmoved edge returns the same object, so an
+      // untouched week saves byte-identical JSON.
+      const json = JSON.stringify(saved);
+      for (let d = 0; d < DAYS; d++) dayBlocks(saved, d);
+      expect(JSON.stringify(saved)).toBe(json);
+      const block = dayBlocks(saved, 6)[0];
+      expect(JSON.stringify(resizeBlock(saved, block, 'end', block.end))).toBe(json);
+    });
+  });
+
+  describe('resizing', () => {
+    it('grows and shrinks either edge in half-hour steps', () => {
+      expect(dayBlocks(resizeBlock(tue, avail, 'start', 36), 1)[0]).toEqual({ ...avail, start: 36 });
+      expect(dayBlocks(resizeBlock(tue, avail, 'start', 40), 1)[0]).toEqual({ ...avail, start: 40 });
+      expect(dayBlocks(resizeBlock(tue, avail, 'end', 44), 1)).toEqual([{ ...avail, end: 44 }, late]);
+      const grown = resizeBlock(tue, late, 'start', 47);
+      expect(dayBlocks(grown, 1)).toEqual([{ ...avail, end: 46 }, { ...late, start: 47 }]);
+      expect(grown['1:46']).toBeUndefined();
+    });
+
+    it('stops one half-hour short of the other edge', () => {
+      expect(dayBlocks(resizeBlock(tue, avail, 'start', 46), 1)[0]).toEqual({ ...avail, start: 45 });
+      expect(dayBlocks(resizeBlock(tue, avail, 'end', 30), 1)[0]).toEqual({ ...avail, end: 39 });
+      const one: Block = { day: 4, start: 20, end: 21, state: 'available' };
+      const week = { '4:20': 'available' } as Week;
+      expect(resizeBlock(week, one, 'end', 20)).toBe(week);
+      expect(resizeBlock(week, one, 'start', 21)).toBe(week);
+      // An edge released where it started changes nothing.
+      expect(resizeBlock(tue, avail, 'start', 38)).toBe(tue);
+      expect(resizeBlock(tue, avail, 'end', 46)).toBe(tue);
+    });
+
+    it('clamps to the day', () => {
+      expect(dayBlocks(resizeBlock(tue, avail, 'start', -5), 1)[0]).toEqual({ ...avail, start: 0 });
+      const week = { '2:40': 'available' } as Week;
+      const block = dayBlocks(week, 2)[0];
+      expect(dayBlocks(resizeBlock(week, block, 'end', 60), 2)).toEqual([{ ...block, end: SLOTS }]);
+      expect(Object.keys(resizeBlock(week, block, 'end', 60)).every((k) => k.startsWith('2:'))).toBe(true);
+    });
+
+    it('merges into a same-state block it grows over', () => {
+      const week: Week = { ...applyPaintRun({}, 2, 36, 39, 'available'), ...applyPaintRun({}, 2, 42, 44, 'available') };
+      const [first] = dayBlocks(week, 2);
+      expect(dayBlocks(resizeBlock(week, first, 'end', 43), 2)).toEqual([{ day: 2, start: 36, end: 45, state: 'available' }]);
+    });
+
+    it('replaces the other state it grows over, shrinking or removing that block', () => {
+      // The approved dragging state: Tue 7:00–11:00 PM pulled down to 11:30 PM.
+      expect(dayBlocks(resizeBlock(tue, avail, 'end', 47), 1)).toEqual([{ ...avail, end: 47 }, { ...late, start: 47 }]);
+      expect(dayBlocks(resizeBlock(tue, avail, 'end', 48), 1)).toEqual([{ ...avail, end: 48 }]);
+      expect(dayBlocks(resizeBlock(tue, late, 'start', 30), 1)).toEqual([{ ...late, start: 30 }]);
+    });
+
+    it('returns a valid week and leaves the input untouched', () => {
+      const before = JSON.stringify(tue);
+      for (const to of [-3, 0, 20, 38, 45, 46, 47, 48, 70]) {
+        expect(isWeek(resizeBlock(tue, avail, 'start', to))).toBe(true);
+        expect(isWeek(resizeBlock(tue, avail, 'end', to))).toBe(true);
+      }
+      expect(JSON.stringify(tue)).toBe(before);
+    });
+  });
+
+  describe('dragging an edge', () => {
+    it('moves the dragged edge to a boundary and keeps the fixed edge', () => {
+      // Bottom edge to 11:30 PM: the block takes that half-hour from the If needed block.
+      const down = dragEdge(tue, avail, 'end', 47);
+      expect(down.block).toEqual({ ...avail, end: 47 });
+      expect(dayBlocks(down.week, 1)).toEqual([{ ...avail, end: 47 }, { ...late, start: 47 }]);
+      expect(dragEdge(tue, avail, 'start', 36).block).toEqual({ ...avail, start: 36 });
+      // Past the other edge, it stops one half-hour short.
+      expect(dragEdge(tue, avail, 'end', 10).block).toEqual({ ...avail, end: 39 });
+      expect(dragEdge(tue, avail, 'start', 47).block).toEqual({ ...avail, start: 45 });
+    });
+
+    it('returns the merged block, and pulling back restores what it covered', () => {
+      const week: Week = { ...applyPaintRun({}, 2, 36, 39, 'available'), ...applyPaintRun({}, 2, 42, 44, 'available') };
+      const [first] = dayBlocks(week, 2);
+      expect(dragEdge(week, first, 'end', 43).block).toEqual({ day: 2, start: 36, end: 45, state: 'available' });
+      // Each step starts from the week as the drag began: past the If needed block, then back.
+      expect(dayBlocks(dragEdge(tue, avail, 'end', 48).week, 1)).toEqual([{ ...avail, end: 48 }]);
+      const back = dragEdge(tue, avail, 'end', 46);
+      expect(back.week).toBe(tue);
+      expect(dayBlocks(back.week, 1)).toEqual([avail, late]);
+    });
+
+    it('compares blocks by run and state', () => {
+      expect(sameBlock(avail, { ...avail })).toBe(true);
+      expect(sameBlock(avail, { ...avail, state: 'if-needed' })).toBe(false);
+      expect(sameBlock(avail, late)).toBe(false);
+      expect(sameBlock(null, avail)).toBe(false);
+    });
+  });
+
+  it('removes exactly a block’s slots', () => {
+    const next = removeBlock(tue, avail);
+    expect(next).toEqual(applyPaintRun({}, 1, 46, 47, 'if-needed'));
+    expect(isWeek(next)).toBe(true);
+    expect(dayBlocks(removeBlock(next, late), 1)).toEqual([]);
+  });
+
+  describe('labels', () => {
+    const allDay: Block = { day: 0, start: 0, end: SLOTS, state: 'available' };
+
+    it('prints the range as the design does', () => {
+      expect(blockRange(avail)).toBe('7:00 – 11:00 PM');
+      expect(blockRange(late)).toBe('11:00 PM – 12:00 AM');
+      expect(blockRange(allDay)).toBe('All day');
+      expect(blockRange({ day: 3, start: 37, end: 38, state: 'if-needed' })).toBe('6:30 – 7:00 PM');
+      expect(blockRange({ day: 4, start: 22, end: 26, state: 'available' })).toBe('11:00 AM – 1:00 PM');
+      expect(blockRange({ day: 4, start: 0, end: 2, state: 'available' })).toBe('12:00 – 1:00 AM');
+      // Ends at midnight but starts in the morning: both halves are AM, yet it is not a short range.
+      expect(blockRange({ day: 4, start: 2, end: SLOTS, state: 'available' })).toBe('1:00 AM – 12:00 AM');
+    });
+
+    it('names a block for screen readers and its remove button', () => {
+      expect(blockLabel(avail)).toBe('Available, Tuesday 7:00 PM to 11:00 PM');
+      expect(blockLabel(late)).toBe('If needed, Tuesday 11:00 PM to 12:00 AM');
+      expect(blockLabel(allDay)).toBe('Available, Monday all day');
+      expect(blockRemoveLabel(avail)).toBe('Remove available 7:00 – 11:00 PM');
+      expect(blockRemoveLabel(late)).toBe('Remove if needed 11:00 PM – 12:00 AM');
+      expect(blockRemoveLabel(allDay)).toBe('Remove available all day');
+    });
   });
 });
 

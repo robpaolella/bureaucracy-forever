@@ -75,6 +75,105 @@ export function applyPaintRun(week: Week, day: number, fromSlot: number, toSlot:
   return next;
 }
 
+/**
+ * A run of same-state slots on one day, as the editor draws it. `end` is exclusive, so a
+ * block running to midnight has `end` = SLOTS and a half-hour block has `end` = `start` + 1.
+ */
+export type Block = { day: number; start: number; end: number; state: SlotState };
+
+/** A day's blocks, top to bottom. A gap or a change of state starts a new block. */
+export function dayBlocks(week: Week, day: number): Block[] {
+  const blocks: Block[] = [];
+  for (let slot = 0; slot < SLOTS; slot++) {
+    const state = week[slotKey(day, slot)];
+    if (!state) continue;
+    const last = blocks[blocks.length - 1];
+    if (last && last.end === slot && last.state === state) last.end = slot + 1;
+    else blocks.push({ day, start: slot, end: slot + 1, state });
+  }
+  return blocks;
+}
+
+/** The block covering a slot, or null for an empty slot. */
+export function blockAt(week: Week, day: number, slot: number): Block | null {
+  return dayBlocks(week, day).find((b) => slot >= b.start && slot < b.end) ?? null;
+}
+
+/** The week a set of blocks describes; the inverse of grouping every day. */
+export function weekFromBlocks(blocks: Block[]): Week {
+  let week: Week = {};
+  for (const b of blocks) week = applyPaintRun(week, b.day, b.start, b.end - 1, b.state);
+  return week;
+}
+
+/**
+ * Move one edge of a block to a new boundary, in half-hour steps, immutably. The edge stops
+ * one half-hour short of the other edge and at the day's ends. Growing paints the block's
+ * state, so it merges with a same-state block and takes slots from the other state;
+ * shrinking clears the slots it leaves. Pass a block grouped from this same week; a stale
+ * block paints or clears slots that no longer match it.
+ */
+export function resizeBlock(week: Week, block: Block, edge: 'start' | 'end', to: number): Week {
+  const { day, start, end, state } = block;
+  // applyPaintRun swaps a reversed range, so an unmoved edge must return before it.
+  if (edge === 'start') {
+    const next = Math.min(Math.max(0, to), end - 1);
+    if (next === start) return week;
+    return next < start ? applyPaintRun(week, day, next, start - 1, state) : applyPaintRun(week, day, start, next - 1, 'erase');
+  }
+  const next = Math.max(Math.min(SLOTS, to), start + 1);
+  if (next === end) return week;
+  return next > end ? applyPaintRun(week, day, end, next - 1, state) : applyPaintRun(week, day, next, end - 1, 'erase');
+}
+
+/**
+ * One step of an edge drag to the boundary `to` nearest the pointer. Pass the week and block
+ * as they were when the drag began, so pulling back past another block restores it. Returns
+ * the new week and the block now holding the fixed edge, which stays selected; after a
+ * merge it is the merged block.
+ */
+export function dragEdge(week: Week, block: Block, edge: 'start' | 'end', to: number): { week: Week; block: Block } {
+  const next = resizeBlock(week, block, edge, to);
+  const fixed = edge === 'end' ? block.start : block.end - 1;
+  return { week: next, block: blockAt(next, block.day, fixed) ?? block };
+}
+
+/** Whether two blocks are the same run, e.g. a selection and a block on the grid. */
+export function sameBlock(a: Block | null, b: Block | null): boolean {
+  return !!a && !!b && a.day === b.day && a.start === b.start && a.end === b.end && a.state === b.state;
+}
+
+/** Clear exactly a block's slots, immutably. Pass a block grouped from this same week. */
+export function removeBlock(week: Week, block: Block): Week {
+  return applyPaintRun(week, block.day, block.start, block.end - 1, 'erase');
+}
+
+export const STATE_WORD: Record<SlotState, string> = { available: 'Available', 'if-needed': 'If needed' };
+
+function isAllDay(block: Block): boolean {
+  return block.start === 0 && block.end === SLOTS;
+}
+
+/** The range printed in a block: "7:00 – 11:00 PM", "11:00 PM – 12:00 AM", "All day". */
+export function blockRange(block: Block): string {
+  if (isAllDay(block)) return 'All day';
+  const [from, fromHalf] = fmtSlot(block.start).split(' ');
+  const [to, toHalf] = fmtSlot(block.end).split(' ');
+  return fromHalf === toHalf && block.end < SLOTS ? `${from} – ${to} ${toHalf}` : `${from} ${fromHalf} – ${to} ${toHalf}`;
+}
+
+/** What a screen reader hears for a block: "Available, Tuesday 7:00 PM to 11:00 PM". */
+export function blockLabel(block: Block): string {
+  const when = isAllDay(block) ? 'all day' : `${fmtSlot(block.start)} to ${fmtSlot(block.end)}`;
+  return `${STATE_WORD[block.state]}, ${DAY_LONG[block.day]} ${when}`;
+}
+
+/** The remove button's label: "Remove available 7:00 – 11:00 PM". */
+export function blockRemoveLabel(block: Block): string {
+  const range = isAllDay(block) ? 'all day' : blockRange(block);
+  return `Remove ${STATE_WORD[block.state].toLowerCase()} ${range}`;
+}
+
 /** "8:30 PM". Slots wrap, so a guild-time label past midnight reads correctly. */
 export function fmtSlot(slot: number): string {
   const i = ((slot % SLOTS) + SLOTS) % SLOTS;
