@@ -1,4 +1,4 @@
-import { DualTime } from '@/components/time/DualTime';
+import { LocalTime } from '@/components/time/LocalTime';
 import { ProgressTrack } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { ROLE_LABELS, ROLES } from '@/lib/design/class-colors';
@@ -65,7 +65,7 @@ export function RaidSummary({ counts, requirements, split, notes, cancelled, sta
       {status === 'SCHEDULED' && !cancelled && (
         <div className="flex flex-col gap-1 border-t border-line-faint pt-4">
           <h3 className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">{SUMMARY.locksAt}</h3>
-          <DualTime startsAt={locksAt} durationMin={0} />
+          <LocalTime startsAt={locksAt} durationMin={0} />
         </div>
       )}
 

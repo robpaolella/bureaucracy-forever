@@ -1,5 +1,5 @@
 /**
- * Time helpers built on Intl only. docs/01 § Time: no time is ever rendered alone, the
+ * Time helpers built on Intl only. docs/01 § Time: no time is ever rendered unlabelled, the
  * guild zone is one constant, and offsets are real (DST transitions differ by zone).
  */
 import { GUILD_TIMEZONE } from '@/lib/config';
@@ -179,6 +179,41 @@ export function zoneAbbreviation(date: Date, zone: string): string {
     .formatToParts(date)
     .find((p) => p.type === 'timeZoneName');
   return part?.value ?? zone;
+}
+
+export type ViewerTime = {
+  /** What the page shows: the viewer's time with its zone, or guild time labelled. */
+  text: string;
+  /** Guild time for the hover/tap/focus popup; null when `text` already is guild time. */
+  guild: string | null;
+  /** Both, for the accessible name. */
+  label: string;
+};
+
+const SHORT_WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+/**
+ * A time as the viewer reads it: "8:00 – 11:00 PM EDT", with guild time
+ * ("5:00 – 8:00 PM guild time (PDT)") kept for the popup. Before the viewer's zone is known,
+ * or when it matches guild time, the guild time shows once, labelled. When the viewer's day
+ * differs from the guild's, both carry their weekday so a date shown in guild time still reads
+ * right. `durationMin` 0 is a single instant.
+ */
+export function viewerTime(start: Date, durationMin: number, viewerZone: string | null): ViewerTime {
+  const end = new Date(start.getTime() + durationMin * 60_000);
+  const text = (zone: string) => (durationMin > 0 ? formatRange(start, end, zone) : formatClock(start, zone));
+  const sameAsGuild = (zone: string) => [start, end].every((d) => tzOffsetMs(d, zone) === tzOffsetMs(d, GUILD_TIMEZONE));
+  if (!viewerZone || sameAsGuild(viewerZone)) {
+    const guild = `${text(GUILD_TIMEZONE)} guild time`;
+    return { text: guild, guild: null, label: guild };
+  }
+  const local = zonedParts(start, viewerZone);
+  const home = zonedParts(start, GUILD_TIMEZONE);
+  const otherDay = local.day !== home.day;
+  const day = (p: ZonedParts) => (otherDay ? `${SHORT_WEEKDAY[p.weekday]} ` : '');
+  const shown = `${day(local)}${text(viewerZone)} ${zoneAbbreviation(start, viewerZone)}`;
+  const guild = `${day(home)}${text(GUILD_TIMEZONE)} guild time (${zoneAbbreviation(start, GUILD_TIMEZONE)})`;
+  return { text: shown, guild, label: `${shown}, ${guild}` };
 }
 
 /** The viewer's IANA zone. Falls back to UTC where Intl cannot say. */

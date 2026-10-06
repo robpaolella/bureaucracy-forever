@@ -12,6 +12,7 @@ import {
   parseHHMM,
   relativeDate,
   tzOffsetMs,
+  viewerTime,
   zoneAbbreviation,
   zonedTimeToUtc,
 } from './time';
@@ -142,6 +143,47 @@ describe('formatting', () => {
   it('names zones', () => {
     expect(zoneAbbreviation(new Date('2026-09-29T00:00:00Z'), CHI)).toBe('CDT');
     expect(zoneAbbreviation(new Date('2026-12-29T00:00:00Z'), CHI)).toBe('CST');
+  });
+});
+
+describe('viewerTime', () => {
+  const NY = 'America/New_York';
+  // Tue 29 Sep 2026, 5:00 PM in Los Angeles (guild time).
+  const start = zonedTimeToUtc(2026, 9, 29, 17, 0, LA);
+
+  it("shows the viewer's time with its zone and keeps guild time for the popup", () => {
+    expect(viewerTime(start, 180, NY)).toEqual({
+      text: '8:00 – 11:00 PM EDT',
+      guild: '5:00 – 8:00 PM guild time (PDT)',
+      label: '8:00 – 11:00 PM EDT, 5:00 – 8:00 PM guild time (PDT)',
+    });
+    expect(viewerTime(start, 0, NY).text).toBe('8:00 PM EDT');
+  });
+
+  it('shows guild time once when the viewer is in guild time', () => {
+    const once = { text: '5:00 – 8:00 PM guild time', guild: null, label: '5:00 – 8:00 PM guild time' };
+    expect(viewerTime(start, 180, LA)).toEqual(once);
+    // Another zone on the same clock counts as guild time too.
+    expect(viewerTime(start, 180, 'America/Vancouver')).toEqual(once);
+  });
+
+  it('labels guild time before the viewer is known', () => {
+    expect(viewerTime(start, 0, null)).toEqual({ text: '5:00 PM guild time', guild: null, label: '5:00 PM guild time' });
+  });
+
+  it('follows each zone across a DST change', () => {
+    // London falls back on 25 Oct, Los Angeles on 1 Nov: the gap is 7 hours, then 8.
+    const before = zonedTimeToUtc(2026, 10, 20, 8, 0, LA);
+    const between = zonedTimeToUtc(2026, 10, 27, 8, 0, LA);
+    const after = zonedTimeToUtc(2026, 11, 3, 8, 0, LA);
+    expect(viewerTime(before, 0, LON)).toMatchObject({ text: '4:00 PM GMT+1', guild: '8:00 AM guild time (PDT)' });
+    expect(viewerTime(between, 0, LON)).toMatchObject({ text: '3:00 PM GMT', guild: '8:00 AM guild time (PDT)' });
+    expect(viewerTime(after, 0, LON)).toMatchObject({ text: '4:00 PM GMT', guild: '8:00 AM guild time (PST)' });
+  });
+
+  it("names the weekday when the viewer's day is not the guild's", () => {
+    const late = zonedTimeToUtc(2026, 9, 29, 20, 0, LA);
+    expect(viewerTime(late, 180, LON)).toMatchObject({ text: 'Wed 4:00 – 7:00 AM GMT+1', guild: 'Tue 8:00 – 11:00 PM guild time (PDT)' });
   });
 });
 

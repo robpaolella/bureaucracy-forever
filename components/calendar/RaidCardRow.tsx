@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { DualTime } from '@/components/time/DualTime';
+import { LocalTime } from '@/components/time/LocalTime';
 import { SegmentedControl } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { GUILD_TIMEZONE } from '@/lib/config';
@@ -33,7 +33,7 @@ const RESPONSE_OPTIONS = [
 
 /**
  * One raid (docs/04 § Raid calendar § Rows): a 56px date block in guild time, the name
- * and dual time, four role stacks that turn warn below the requirement and stop at zero,
+ * and the viewer's time (guild time on hover), four role stacks that turn warn below the requirement and stop at zero,
  * and the viewer's three-way response. Tonight's raid takes a sand-dim border and eyebrow.
  */
 export function RaidCardRow({ raid, tonight, canRespond, past, now, onRespond }: Props) {
@@ -63,7 +63,7 @@ export function RaidCardRow({ raid, tonight, canRespond, past, now, onRespond }:
             </Link>
             {raid.cancelled && <span className="ml-2 text-sm font-normal text-stop">Cancelled</span>}
           </h2>
-          <DualTime startsAt={raid.startsAt} durationMin={raid.durationMin} />
+          <LocalTime startsAt={raid.startsAt} durationMin={raid.durationMin} />
         </div>
       </div>
 
