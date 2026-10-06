@@ -126,6 +126,8 @@ export function ItemReservesDialog({ templateId, target, onClose }: { templateId
         control?.focus();
         void save(change, stale);
       };
+      // The confirm button was disabled while loading, which dropped focus; put it back.
+      if (here && change.remove.length) focusTo.current = 'confirm';
       show({ tone: 'stop', title: SAVE_FAILED, action: here ? { label: LOOT_RESERVES.retry, onClick: retry } : undefined });
       return;
     }
