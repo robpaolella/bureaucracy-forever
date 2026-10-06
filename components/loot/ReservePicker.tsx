@@ -293,7 +293,7 @@ export function ReserverCount({ kind, item, list, mark, wide = false }: {
     >
       <button ref={button} type="button" aria-expanded={open !== null} aria-controls={id}
         onClick={() => setOpen(open === 'pinned' ? null : 'pinned')}
-        className={cn('inline-flex min-h-11 min-w-14 items-center justify-center gap-1.5 rounded-full border px-2.5 text-[13px] tabular-nums hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal',
+        className={cn('inline-flex min-h-11 min-w-16 items-center justify-center gap-1.5 rounded-full border px-2.5 text-[13px] tabular-nums hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal',
           open ? 'border-teal bg-teal-wash' : 'border-line-strong bg-ink-800', wide && 'w-full')}
       >
         <span className={cn('font-semibold', tone)}>{kind}</span> {list.length}
