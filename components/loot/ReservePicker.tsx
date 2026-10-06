@@ -56,7 +56,7 @@ export function ReservePicker({ table, holders, mark, won, hr, sr, forName, onCh
   const reason = (itemId: number): Unavailable | null => {
     const kind = pickUnavailable(itemId, { won, otherSlotPick: slot === 'HR' ? sr : hr, blocked });
     if (!kind) return null;
-    return { kind, text: kind === 'won' ? RESERVES.blocked : kind === 'otherSlot' ? RESERVES.otherSlot(slot === 'HR' ? 'SR' : 'HR') : RESERVES.notOpen };
+    return { kind, text: kind === 'won' ? RESERVES.blocked : kind === 'otherSlot' ? RESERVES.otherSlot(slot === 'HR' ? 'SR' : 'HR', forName) : RESERVES.notOpen };
   };
 
   useEffect(() => {

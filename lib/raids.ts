@@ -111,6 +111,24 @@ export function raidWeekday(startsAt: string): string {
   return WEEKDAY_LONG[zonedParts(new Date(startsAt), GUILD_TIMEZONE).weekday];
 }
 
+/** "Wednesday, Oct 7", in guild time like `raidWeekday`. */
+export function raidDate(startsAt: string): string {
+  return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: GUILD_TIMEZONE }).format(new Date(startsAt));
+}
+
+/**
+ * Whether answering opens the reserves window: only Accept or Tentative, on a raid with loot on
+ * and a table (`window` is null otherwise), not cancelled, before the lock, for a viewer who can
+ * reserve and has no reserves yet, so switching Accept and Tentative after reserving never asks again.
+ */
+export function promptsReserves(
+  answer: RaidResponse | null,
+  window: { locked: boolean; cancelled: boolean; targets: readonly { self: boolean; current: { hr: number | null; sr: number | null } }[] } | null,
+): boolean {
+  const me = window?.targets.find((t) => t.self);
+  return (answer === 'accept' || answer === 'tentative') && !!window && !window.locked && !window.cancelled && !!me && me.current.hr === null && me.current.sr === null;
+}
+
 /**
  * Toast copy for a response (docs/04 § Sign-up confirmation): "You're in for Wednesday —
  * Blackwing Lair" with the viewer's time and zone beneath ("10:00 PM CDT"); guild time,

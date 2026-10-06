@@ -1,5 +1,6 @@
 import NextAuth from 'next-auth';
-import Discord, { type DiscordProfile } from 'next-auth/providers/discord';
+import type { DiscordProfile } from 'next-auth/providers/discord';
+import { discordProvider } from '@/lib/auth/discord-provider';
 import { lookupGuildMember } from '@/lib/auth/discord';
 import { roleIdsFromEnv, templateAdminIdsFromEnv } from '@/lib/auth/roles';
 import { asRole, claimsForSignIn, refreshClaims } from '@/lib/auth/token-roles';
@@ -31,10 +32,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: 'jwt' },
   pages: { signIn: '/login' },
   providers: [
-    Discord({
-      // `identify` only: roles are read server-side with the bot token, not the user's.
-      authorization: { params: { scope: 'identify' } },
-    }),
+    discordProvider(),
   ],
   callbacks: {
     async jwt({ token, account, profile }) {

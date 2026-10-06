@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useMemo, useState } from 'react';
+import { LocalTime } from '@/components/time/LocalTime';
 import { ButtonLink, Card, CONTROL, FIELD_LABEL } from '@/components/ui';
 import { fmtSlot, type WeekDay } from '@/lib/availability';
 import { cn } from '@/lib/cn';
@@ -9,7 +10,15 @@ import { DEFAULT_MINIMA, findWindows, formatRoleMinima, scheduleHref, topWindows
 import { WINDOW_FINDER } from '@/content/availability';
 import { SCHEDULE_FROM_WINDOW } from '@/content/calendar';
 
-type Props = { heat: Heatmap | null; days: WeekDay[]; offsetSlots: number };
+type Props = {
+  heat: Heatmap | null;
+  days: WeekDay[];
+  offsetSlots: number;
+  /** The zone the grid is projected onto. */
+  zone: string;
+  /** ISO start of a (day, slot) this week in `zone`. */
+  slotAt: (day: number, slot: number) => string;
+};
 
 const ROLE_LABEL: Record<HeatRole, string> = { tank: 'Min tanks', healer: 'Min healers', melee: 'Min melee', ranged: 'Min ranged' };
 const LENGTH_LABEL: Record<(typeof WINDOW_LENGTHS)[number], string> = { 4: '2 hours', 6: '3 hours', 8: '4 hours' };
@@ -19,7 +28,7 @@ const LENGTH_LABEL: Record<(typeof WINDOW_LENGTHS)[number], string> = { 4: '2 ho
  * ranked results, recomputed on every change. The count in the header is the full count;
  * the list shows at most one window per day, five in all.
  */
-export function WindowFinder({ heat, days, offsetSlots }: Props) {
+export function WindowFinder({ heat, days, offsetSlots, zone, slotAt }: Props) {
   const [length, setLength] = useState<number>(6);
   const [minima, setMinima] = useState<RoleCounts>(DEFAULT_MINIMA);
   const baseId = useId();
@@ -100,14 +109,7 @@ export function WindowFinder({ heat, days, offsetSlots }: Props) {
               const day = days[w.day];
               return (
                 <li key={`${w.day}:${w.start}`} className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-line-strong bg-ink-800 px-4 py-3.5">
-                  <div className="flex flex-col gap-[3px]">
-                    <span className="tabular text-[15px] font-semibold">
-                      {day.name} {fmtSlot(w.start)} – {fmtSlot(w.start + w.length)}
-                    </span>
-                    <span className="tabular text-[11px] text-fg-3">
-                      {fmtSlot(w.start + offsetSlots)} – {fmtSlot(w.start + w.length + offsetSlots)} guild time
-                    </span>
-                  </div>
+                  <LocalTime zone={zone} weekday="always" startsAt={slotAt(w.day, w.start)} durationMin={w.length * 30} className="text-[15px]" />
                   <div className="flex flex-col items-end gap-[3px]">
                     <span className="tabular text-base font-bold text-ok">{w.score}</span>
                     <span className="tabular text-[11px] text-fg-2">{formatRoleMinima(w.roles)}</span>
