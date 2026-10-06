@@ -38,3 +38,7 @@
 - Reserves section (#119): after the lock the lede still says reserves "will lock at", and a cancelled raid still shows the lock time (the approved design's wording); ask Robert for past-tense / no-time variants.
 - Reserves (#119): HR/SR rules are no longer explained in the section (approved wording); link the lede or the slot cards to Loot rules.
 - Reserves window (#119): an officer's own empty picks show "Change reserves" next to the chooser; "Pick reserves" may read better (state not in the approved design).
+- Availability desktop grid (#162): the pointer gestures (paint, select, resize, Escape-cancel) have no automated test; the repo has no DOM test library, so add one or a Playwright smoke test.
+- Availability desktop grid (#162): × removes a block with no undo; offer Undo on the existing toast (new behaviour, Robert to approve).
+- Availability desktop grid (#162): on tablets the desktop layout is touch, but its handles are 20px tall (Robert accepted them as a pointer-only exception); revisit with #163's touch handling.
+- Site header at 768 wide: "Members" overlaps "Join Discord" and "Loot rules" wraps (pre-existing, seen during #162).

@@ -3,17 +3,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { Button, Toast, type ToastData } from '@/components/ui';
-import { AVAILABILITY_HEAD, AVAILABILITY_LEGEND_NOTE } from '@/content/availability';
+import { AVAILABILITY_DESKTOP_HINT, AVAILABILITY_HEAD, AVAILABILITY_LEGEND_NOTE } from '@/content/availability';
 import {
   applyPaint,
   countStates,
+  dayBlocks,
   offsetDescription,
   relativeTime,
   guildOffsetSlots,
+  sameBlock,
   slotKey,
   slotStartsAt,
   weekDays,
   weekStart,
+  type Block,
   type PaintMode,
   type SlotState,
   type Week,
@@ -30,10 +33,11 @@ export type StoredAvailability = { timezone: string; slots: Week; updatedAt: str
 
 type Props = { initial: StoredAvailability | null };
 
-const MODES: Array<{ mode: PaintMode; label: string; chip: string }> = [
+// Erase is phone-only now: on desktop a block's × removes it (design/158-availability-blocks).
+const MODES: Array<{ mode: PaintMode; label: string; chip: string; className?: string }> = [
   { mode: 'available', label: 'Available', chip: 'bg-slot-available' },
   { mode: 'if-needed', label: 'If needed', chip: 'bg-slot-ifNeeded' },
-  { mode: 'erase', label: 'Erase', chip: 'bg-slot-empty border border-line-strong' },
+  { mode: 'erase', label: 'Erase', chip: 'bg-slot-empty border border-line-strong', className: 'md:hidden' },
 ];
 
 const AUTOSAVE_MS = 2000;
@@ -73,6 +77,7 @@ export function AvailabilityEditor({ initial }: Props) {
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(initial ? new Date(initial.updatedAt) : null);
   const [now, setNow] = useState(() => new Date());
   const [openDay, setOpenDay] = useState<WeekDay | null>(null);
+  const [selection, setSelection] = useState<Block | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
   const [zonePromptDismissed, setZonePromptDismissed] = useState(false);
   const version = useRef(0);
@@ -90,26 +95,35 @@ export function AvailabilityEditor({ initial }: Props) {
   const offsetSlots = useMemo(() => guildOffsetSlots(weekStart(now, effectiveZone), effectiveZone), [now, effectiveZone]);
   const slotAt = useCallback((day: number, slot: number) => slotStartsAt(now, effectiveZone, day, slot), [now, effectiveZone]);
   const counts = countStates(week);
+  // A selection the week no longer holds (cleared, or changed in the day list) is dropped.
+  const selected = selection && dayBlocks(week, selection.day).some((b) => sameBlock(b, selection)) ? selection : null;
+
+  // Erase is hidden on the desktop layout, so a window widened past it falls back to Available.
+  useEffect(() => {
+    if (mode !== 'erase') return;
+    const desktop = window.matchMedia('(min-width: 768px)');
+    const onChange = () => {
+      if (desktop.matches) setMode('available');
+    };
+    onChange();
+    desktop.addEventListener('change', onChange);
+    return () => desktop.removeEventListener('change', onChange);
+  }, [mode]);
+
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelection(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selected]);
 
   const change = useCallback((next: Week) => {
     version.current += 1;
     setWeek(next);
     setDirty(true);
   }, []);
-
-  const paintCell = useCallback(
-    (key: string) => {
-      setWeek((current) => {
-        const next = applyPaint(current, key, mode);
-        if (next !== current) {
-          version.current += 1;
-          setDirty(true);
-        }
-        return next;
-      });
-    },
-    [mode],
-  );
 
   const setSlot = useCallback(
     (day: number, slot: number, state: SlotState | null) => {
@@ -256,6 +270,7 @@ export function AvailabilityEditor({ initial }: Props) {
                 className={cn(
                   'flex h-11 items-center justify-center gap-2.5 rounded-control border px-3 text-sm font-semibold transition-colors duration-[120ms] md:justify-start md:px-4',
                   mode === m.mode ? 'border-teal bg-teal-wash' : 'border-line-strong bg-ink-800 hover:bg-ink-700',
+                  m.className,
                 )}
               >
                 <span aria-hidden className={cn('h-3.5 w-3.5 rounded-tag', m.chip)} />
@@ -264,7 +279,15 @@ export function AvailabilityEditor({ initial }: Props) {
             ))}
           </div>
           <div className="mx-1.5 hidden h-7 w-px bg-line md:block" aria-hidden />
-          <Button variant="ghost" size="sm" className="hidden border border-line md:inline-flex" onClick={() => change({})}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="hidden border border-line md:inline-flex"
+            onClick={() => {
+              change({});
+              setSelection(null);
+            }}
+          >
             Clear week
           </Button>
         </div>
@@ -285,8 +308,20 @@ export function AvailabilityEditor({ initial }: Props) {
         </div>
       </section>
 
-      <div className="hidden md:block">
-        <WeekGrid week={week} days={days} offsetSlots={offsetSlots} zone={effectiveZone} slotAt={slotAt} paintCell={paintCell} onOpenDay={setOpenDay} />
+      <div className="hidden flex-col gap-3 md:flex">
+        <p className="-mt-2 text-xs text-fg-3">{AVAILABILITY_DESKTOP_HINT}</p>
+        <WeekGrid
+          week={week}
+          days={days}
+          offsetSlots={offsetSlots}
+          zone={effectiveZone}
+          slotAt={slotAt}
+          mode={mode}
+          onWeek={change}
+          selected={selected}
+          onSelect={setSelection}
+          onOpenDay={setOpenDay}
+        />
       </div>
       <div className="md:hidden">
         <DayColumn week={week} days={days} offsetSlots={offsetSlots} zone={effectiveZone} slotAt={slotAt} mode={mode} onWeek={change} onOpenDay={setOpenDay} />

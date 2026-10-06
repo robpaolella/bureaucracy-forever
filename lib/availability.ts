@@ -126,12 +126,29 @@ export function resizeBlock(week: Week, block: Block, edge: 'start' | 'end', to:
   return next > end ? applyPaintRun(week, day, end, next - 1, state) : applyPaintRun(week, day, next, end - 1, 'erase');
 }
 
+/**
+ * One step of an edge drag to the boundary `to` nearest the pointer. Pass the week and block
+ * as they were when the drag began, so pulling back past another block restores it. Returns
+ * the new week and the block now holding the fixed edge, which stays selected; after a
+ * merge it is the merged block.
+ */
+export function dragEdge(week: Week, block: Block, edge: 'start' | 'end', to: number): { week: Week; block: Block } {
+  const next = resizeBlock(week, block, edge, to);
+  const fixed = edge === 'end' ? block.start : block.end - 1;
+  return { week: next, block: blockAt(next, block.day, fixed) ?? block };
+}
+
+/** Whether two blocks are the same run, e.g. a selection and a block on the grid. */
+export function sameBlock(a: Block | null, b: Block | null): boolean {
+  return !!a && !!b && a.day === b.day && a.start === b.start && a.end === b.end && a.state === b.state;
+}
+
 /** Clear exactly a block's slots, immutably. Pass a block grouped from this same week. */
 export function removeBlock(week: Week, block: Block): Week {
   return applyPaintRun(week, block.day, block.start, block.end - 1, 'erase');
 }
 
-const STATE_WORD: Record<SlotState, string> = { available: 'Available', 'if-needed': 'If needed' };
+export const STATE_WORD: Record<SlotState, string> = { available: 'Available', 'if-needed': 'If needed' };
 
 function isAllDay(block: Block): boolean {
   return block.start === 0 && block.end === SLOTS;

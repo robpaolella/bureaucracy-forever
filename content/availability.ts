@@ -6,6 +6,9 @@ export const AVAILABILITY_HEAD = {
   lede: 'Click and drag to paint the half-hours you can make. Officers see the whole roster stacked on one grid — this is how the schedule gets set.',
 };
 
+/** Above the desktop grid, in the phone hint's style (design/158-availability-blocks). */
+export const AVAILABILITY_DESKTOP_HINT = 'Drag to paint a run of half-hours. Click a block to resize or remove it.';
+
 export const AVAILABILITY_LEGEND_NOTE = 'Bronze rows on the left mark the top of each hour. Only officers see who painted what.';
 
 /** Copy for the officer heatmap (docs/05 § Officer view; artboard Availability-Officer.html). */
