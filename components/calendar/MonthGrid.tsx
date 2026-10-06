@@ -55,7 +55,7 @@ export function MonthGrid({ raids, now }: { raids: RaidCard[]; now: Date }) {
                 {cell.raids.map((r) => {
                   const start = new Date(r.startsAt);
                   const cancelled = r.cancelled || r.status === 'CANCELLED';
-                  const both = viewerTime(start, 0, viewer?.zone ?? null, viewer ? navigator.language : undefined).label;
+                  const when = viewerTime(start, 0, viewer?.zone ?? null, viewer ? navigator.language : undefined).label;
                   const state = [cancelled && MONTH.cancelled, r.mine && MONTH.answered].filter(Boolean).join(', ');
                   return (
                     <Link
@@ -66,14 +66,14 @@ export function MonthGrid({ raids, now }: { raids: RaidCard[]; now: Date }) {
                         r.mine ? 'border-sand' : 'border-transparent',
                         cancelled && 'line-through opacity-60',
                       )}
-                      title={`${r.name} · ${both}${state ? ` · ${state}` : ''}`}
+                      title={`${r.name} · ${when}${state ? ` · ${state}` : ''}`}
                     >
                       <span className="truncate">
                         {r.short ?? r.name.split(' ')[0]} <span className="tabular font-normal text-fg-3">· {formatClockShort(start, zone)}</span>
                       </span>
                       <span className="sr-only">
                         {' '}
-                        {r.name}, {both}
+                        {r.name}, {when}
                         {state ? `, ${state}` : ''}
                       </span>
                     </Link>
