@@ -21,7 +21,9 @@
     "save-failed",
     "blocked-direct",
     "limit-lowered",
-    "unblocked"
+    "unblocked",
+    "block-failed",
+    "block-direct-stale"
   ],
   "themes": [
     "default"

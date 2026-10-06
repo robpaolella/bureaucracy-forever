@@ -8,7 +8,7 @@
       "width": 390,
       "height": 844,
       "pixelWidth": 390,
-      "pixelHeight": 4519
+      "pixelHeight": 4544
     },
     {
       "image": "approved-table-default-default-1440.png",
@@ -28,7 +28,7 @@
       "width": 390,
       "height": 844,
       "pixelWidth": 390,
-      "pixelHeight": 4661
+      "pixelHeight": 4686
     },
     {
       "image": "approved-table-changed-default-1440.png",
@@ -48,7 +48,7 @@
       "width": 390,
       "height": 844,
       "pixelWidth": 390,
-      "pixelHeight": 4661
+      "pixelHeight": 4686
     },
     {
       "image": "approved-settings-default-1440.png",
@@ -68,7 +68,7 @@
       "width": 390,
       "height": 844,
       "pixelWidth": 390,
-      "pixelHeight": 4661
+      "pixelHeight": 4686
     },
     {
       "image": "approved-settings-shared-default-1440.png",
@@ -88,7 +88,7 @@
       "width": 390,
       "height": 844,
       "pixelWidth": 390,
-      "pixelHeight": 4661
+      "pixelHeight": 4686
     },
     {
       "image": "approved-settings-blocked-default-1440.png",
@@ -108,7 +108,7 @@
       "width": 390,
       "height": 844,
       "pixelWidth": 390,
-      "pixelHeight": 4661
+      "pixelHeight": 4686
     },
     {
       "image": "approved-limit-max-default-1440.png",
@@ -128,7 +128,7 @@
       "width": 390,
       "height": 844,
       "pixelWidth": 390,
-      "pixelHeight": 4661
+      "pixelHeight": 4686
     },
     {
       "image": "approved-block-confirm-default-1440.png",
@@ -148,7 +148,7 @@
       "width": 390,
       "height": 844,
       "pixelWidth": 390,
-      "pixelHeight": 4661
+      "pixelHeight": 4686
     },
     {
       "image": "approved-block-confirm-many-default-1440.png",
@@ -168,7 +168,7 @@
       "width": 390,
       "height": 844,
       "pixelWidth": 390,
-      "pixelHeight": 4661
+      "pixelHeight": 4686
     },
     {
       "image": "approved-block-stale-default-1440.png",
@@ -188,7 +188,7 @@
       "width": 390,
       "height": 844,
       "pixelWidth": 390,
-      "pixelHeight": 4661
+      "pixelHeight": 4686
     },
     {
       "image": "approved-save-failed-default-1440.png",
@@ -208,7 +208,7 @@
       "width": 390,
       "height": 844,
       "pixelWidth": 390,
-      "pixelHeight": 4690
+      "pixelHeight": 4715
     },
     {
       "image": "approved-blocked-direct-default-1440.png",
@@ -228,7 +228,7 @@
       "width": 390,
       "height": 844,
       "pixelWidth": 390,
-      "pixelHeight": 4661
+      "pixelHeight": 4686
     },
     {
       "image": "approved-limit-lowered-default-1440.png",
@@ -248,12 +248,52 @@
       "width": 390,
       "height": 844,
       "pixelWidth": 390,
-      "pixelHeight": 4633
+      "pixelHeight": 4658
     },
     {
       "image": "approved-unblocked-default-1440.png",
       "version": "approved",
       "state": "unblocked",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1693
+    },
+    {
+      "image": "approved-block-failed-default-390.png",
+      "version": "approved",
+      "state": "block-failed",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4686
+    },
+    {
+      "image": "approved-block-failed-default-1440.png",
+      "version": "approved",
+      "state": "block-failed",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1693
+    },
+    {
+      "image": "approved-block-direct-stale-default-390.png",
+      "version": "approved",
+      "state": "block-direct-stale",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4686
+    },
+    {
+      "image": "approved-block-direct-stale-default-1440.png",
+      "version": "approved",
+      "state": "block-direct-stale",
       "theme": "default",
       "width": 1440,
       "height": 900,

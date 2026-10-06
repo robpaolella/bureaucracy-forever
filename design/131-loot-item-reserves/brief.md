@@ -48,7 +48,9 @@ item names, up to ~15 holders across raids including a cancelled one.
 | blocked-direct | blocked an item nobody held | window shows the switch off; toast "Blocked [item]."; tag on the table behind | — |
 | limit-lowered | lowered a limit from 3 to 2 | window shows 2; toast "Win limit 2. Existing reserves stay." | — |
 | unblocked | switched a blocked item back on | window shows the switch on; toast "[item] is open to reserves again. Removed reserves aren't restored."; tag gone | — |
-| save-failed | save errored | error toast (site's "Couldn't save" copy); setting shows its previous value | retry |
+| save-failed | lowering a limit failed | toast "Couldn't save that — try again." with **Retry**; the setting keeps its previous value | Retry sends the same change again (Robert, #17) |
+| block-failed | "Block and remove N reserves" failed | the confirmation and its list stay open; same toast with **Retry** | Retry sends the same block again (Robert, #17) |
+| block-direct-stale | officer flips the switch on an item that had no holders, but someone reserved it meanwhile | instead of blocking, the confirmation opens with "The list changed since you opened this. Check it and confirm again." and the new holder ("Block and remove 1 reserve") | confirm again (Robert, #18) |
 
 Blocking an item nobody holds and lowering a limit save straight away (blocked-direct,
 limit-lowered). Not applicable: loading (page loading skeleton unchanged; controls use the
@@ -107,6 +109,12 @@ Approved as recommended (decisions 10–14, Robert, 2026-10-05: "just do it").
 - (Withdrawn by pin 1: the raise confirmation and its body text are gone.)
 - Toast after a raise: "Win limit N." Toasts show above the window while it is open.
 - On phones, window buttons stack full width, main action on top.
+
+## Decided after approval (Robert, 2026-10-05: "just decide whatz best and do it")
+16. Continue after the missing #96 worktrees (conductor: its own cleanup).
+17. Failed saves show the site's toast with a **Retry** action (as the availability editor does); a
+    failed block keeps the confirmation and its list open.
+18. A direct block that finds new holders shows the confirmation with the stale notice instead of blocking.
 
 ## Real-site experiment
 None.
