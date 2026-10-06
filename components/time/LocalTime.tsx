@@ -42,12 +42,12 @@ export function LocalTime({ startsAt, durationMin, className }: Props) {
     if (overflow > 0) panel.style.left = `${-overflow}px`;
   }, [open]);
 
-  if (!time.guild) return <span className={cn('tabular text-sm text-fg-2', className)}>{time.text}</span>;
+  if (!time.guild) return <span className={cn('tabular text-sm font-semibold text-fg', className)}>{time.text}</span>;
 
   return (
     <span
       ref={containerRef}
-      className={cn('relative inline-block tabular text-sm text-fg-2', className)}
+      className={cn('relative inline-block tabular text-sm font-semibold text-fg', className)}
       onPointerLeave={(e) => {
         if (e.pointerType === 'mouse' && open) close();
       }}
@@ -79,7 +79,7 @@ export function LocalTime({ startsAt, durationMin, className }: Props) {
       {/* pt-1 rather than a margin: the gap stays inside the container, so the pointer can
           move onto the popup without closing it. */}
       <span ref={panelRef} id={panelId} role="tooltip" className={cn('absolute left-0 top-full z-30 pt-1', open ? 'block' : 'hidden')}>
-        <span className="block whitespace-nowrap rounded-card border border-line-strong bg-ink-800 px-3 py-2 text-[13px] text-fg shadow-pop">{time.guild}</span>
+        <span className="block whitespace-nowrap font-normal rounded-card border border-line-strong bg-ink-800 px-3 py-2 text-[13px] text-fg shadow-pop">{time.guild}</span>
       </span>
     </span>
   );
