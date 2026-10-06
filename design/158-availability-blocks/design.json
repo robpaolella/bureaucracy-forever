@@ -1,0 +1,23 @@
+{
+  "design_issue": 158,
+  "covers": [
+    157
+  ],
+  "revision": 1,
+  "versions": {
+    "approved": "index.html"
+  },
+  "states": [
+    "empty",
+    "typical",
+    "hover",
+    "selected",
+    "selected-short",
+    "dragging",
+    "all-day",
+    "busy"
+  ],
+  "themes": [
+    "default"
+  ]
+}
