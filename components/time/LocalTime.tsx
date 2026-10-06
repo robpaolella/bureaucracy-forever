@@ -3,7 +3,7 @@
 import { useId, useLayoutEffect, useRef } from 'react';
 import { useDisclosure } from '@/components/shell/useDismiss';
 import { cn } from '@/lib/cn';
-import { viewerTime } from '@/lib/time';
+import { viewerTime, type ViewerTimeOptions } from '@/lib/time';
 import { useViewerTimeZone } from './useViewerTimeZone';
 
 type Props = {
@@ -12,6 +12,15 @@ type Props = {
   /** 0 renders a single instant ("8:00 PM") instead of a range. */
   durationMin: number;
   className?: string;
+  /** Show this zone instead of the viewer's: an availability week shows the zone it was painted in. */
+  zone?: string;
+  weekday?: ViewerTimeOptions['weekday'];
+  /**
+   * For a row label in a dense grid, under a header that names the zone: no zone name, the
+   * hit area is the label itself rather than 44px (which would cover the neighbouring rows),
+   * and the popup is placed against the viewport so the grid's scroll box cannot clip it.
+   */
+  dense?: boolean;
 };
 
 /** A click this soon after a hover opened the popup is the same gesture, not a toggle. */
@@ -23,10 +32,10 @@ const HOVER_CLICK_MS = 400;
  * is guild time, it shows guild time once, labelled, with no popup. The popup is the item
  * tooltip's disclosure (ItemName): Escape, an outside press and tabbing away close it.
  */
-export function LocalTime({ startsAt, durationMin, className }: Props) {
+export function LocalTime({ startsAt, durationMin, className, zone, weekday, dense = false }: Props) {
   const viewer = useViewerTimeZone();
   // `viewer` is null on the server, so navigator is only read in the browser.
-  const time = viewerTime(new Date(startsAt), durationMin, viewer?.zone ?? null, viewer ? navigator.language : undefined);
+  const time = viewerTime(new Date(startsAt), durationMin, zone ?? viewer?.zone ?? null, viewer ? navigator.language : undefined, { weekday, zoneName: !dense });
   const containerRef = useRef<HTMLSpanElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLSpanElement>(null);
@@ -37,11 +46,28 @@ export function LocalTime({ startsAt, durationMin, className }: Props) {
   // Keep the popup inside the viewport: shift it left when the time sits near the right edge.
   useLayoutEffect(() => {
     const panel = panelRef.current;
-    if (!open || !panel) return;
-    panel.style.left = '0px';
-    const overflow = panel.getBoundingClientRect().right - (window.innerWidth - 16);
-    if (overflow > 0) panel.style.left = `${-overflow}px`;
-  }, [open]);
+    const trigger = triggerRef.current;
+    if (!open || !panel || !trigger) return;
+    if (!dense) {
+      panel.style.left = '0px';
+      const overflow = panel.getBoundingClientRect().right - (window.innerWidth - 16);
+      if (overflow > 0) panel.style.left = `${-overflow}px`;
+      return;
+    }
+    // Fixed, below the label, or above it when there is no room below.
+    const t = trigger.getBoundingClientRect();
+    const p = panel.getBoundingClientRect();
+    panel.style.left = `${Math.max(16, Math.min(t.left, window.innerWidth - 16 - p.width))}px`;
+    panel.style.top = `${t.bottom + p.height > window.innerHeight ? t.top - p.height : t.bottom}px`;
+    // A fixed popup would drift from its label on scroll, so scrolling closes it.
+    const onScroll = () => close();
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll, { capture: true });
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [open, dense, close]);
 
   if (!time.guild) return <span className={cn('tabular text-sm font-semibold text-fg', className)}>{time.text}</span>;
 
@@ -73,13 +99,16 @@ export function LocalTime({ startsAt, durationMin, className }: Props) {
           if (!open && e.currentTarget.matches(':focus-visible')) toggle();
         }}
         // The 44px hit area sits on a pseudo-element, so the line keeps its height.
-        className="relative rounded-sm text-left underline decoration-fg-3 decoration-dotted underline-offset-4 after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal"
+        className={cn(
+          'relative rounded-sm text-left underline decoration-fg-3 decoration-dotted focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal',
+          dense ? 'underline-offset-2' : "underline-offset-4 after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-['']",
+        )}
       >
         {time.text}
       </button>
       {/* pt-1 rather than a margin: the gap stays inside the container, so the pointer can
           move onto the popup without closing it. */}
-      <span ref={panelRef} id={panelId} role="tooltip" className={cn('absolute left-0 top-full z-30 pt-1', open ? 'block' : 'hidden')}>
+      <span ref={panelRef} id={panelId} role="tooltip" className={cn(dense ? 'fixed z-40 py-1' : 'absolute left-0 top-full z-30 pt-1', open ? 'block' : 'hidden')}>
         <span className="block whitespace-nowrap font-normal rounded-card border border-line-strong bg-ink-800 px-3 py-2 text-[13px] text-fg shadow-pop">{time.guild}</span>
       </span>
     </span>

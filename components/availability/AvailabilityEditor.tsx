@@ -11,6 +11,7 @@ import {
   relativeTime,
   guildOffsetSlots,
   slotKey,
+  slotStartsAt,
   weekDays,
   weekStart,
   type PaintMode,
@@ -87,6 +88,7 @@ export function AvailabilityEditor({ initial }: Props) {
 
   const days = useMemo(() => weekDays(now, effectiveZone), [now, effectiveZone]);
   const offsetSlots = useMemo(() => guildOffsetSlots(weekStart(now, effectiveZone), effectiveZone), [now, effectiveZone]);
+  const slotAt = useCallback((day: number, slot: number) => slotStartsAt(now, effectiveZone, day, slot), [now, effectiveZone]);
   const counts = countStates(week);
 
   const change = useCallback((next: Week) => {
@@ -284,10 +286,10 @@ export function AvailabilityEditor({ initial }: Props) {
       </section>
 
       <div className="hidden md:block">
-        <WeekGrid week={week} days={days} offsetSlots={offsetSlots} paintCell={paintCell} onOpenDay={setOpenDay} />
+        <WeekGrid week={week} days={days} offsetSlots={offsetSlots} zone={effectiveZone} slotAt={slotAt} paintCell={paintCell} onOpenDay={setOpenDay} />
       </div>
       <div className="md:hidden">
-        <DayColumn week={week} days={days} offsetSlots={offsetSlots} mode={mode} onWeek={change} onOpenDay={setOpenDay} />
+        <DayColumn week={week} days={days} zone={effectiveZone} slotAt={slotAt} mode={mode} onWeek={change} onOpenDay={setOpenDay} />
       </div>
 
       <section className="flex flex-col gap-3 text-[13px] text-fg-2 md:flex-row md:items-center md:justify-between">
@@ -313,7 +315,7 @@ export function AvailabilityEditor({ initial }: Props) {
         {saveControl('w-full justify-between')}
       </div>
 
-      <DayListModal day={openDay} week={week} offsetSlots={offsetSlots} onSet={setSlot} onClose={() => setOpenDay(null)} />
+      <DayListModal day={openDay} week={week} zone={effectiveZone} slotAt={slotAt} onSet={setSlot} onClose={() => setOpenDay(null)} />
       <Toast toast={toast} onDismiss={dismissToast} />
     </div>
   );

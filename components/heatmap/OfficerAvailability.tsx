@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Skeleton } from '@/components/ui';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
-import { guildOffsetSlots, weekDays, weekStart } from '@/lib/availability';
+import { guildOffsetSlots, slotStartsAt, weekDays, weekStart } from '@/lib/availability';
 import { GUILD_TIMEZONE } from '@/lib/config';
 import type { Heatmap, HeatmapMember } from '@/lib/heatmap';
 import { OFFICER_AVAILABILITY_HEAD } from '@/content/availability';
@@ -53,6 +53,7 @@ export function OfficerAvailability({ memberCount, submitted, notSubmitted }: Pr
 
   const days = useMemo(() => weekDays(now, zone), [now, zone]);
   const offsetSlots = useMemo(() => guildOffsetSlots(weekStart(now, zone), zone), [now, zone]);
+  const slotAt = useCallback((day: number, slot: number) => slotStartsAt(now, zone, day, slot), [now, zone]);
   const weekLabel = useMemo(() => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', timeZone: zone }).format(weekStart(now, zone)), [now, zone]);
   return (
     <div className="flex flex-col gap-6 px-4 pb-12 pt-8 md:px-12 md:pt-11">
@@ -106,17 +107,17 @@ export function OfficerAvailability({ memberCount, submitted, notSubmitted }: Pr
           {heat && (
             <>
               <div className="hidden lg:block">
-                <HeatGrid heat={heat} days={days} offsetSlots={offsetSlots} />
+                <HeatGrid heat={heat} days={days} offsetSlots={offsetSlots} zone={zone} slotAt={slotAt} />
               </div>
               <div className="lg:hidden">
-                <DaySummary heat={heat} days={days} offsetSlots={offsetSlots} />
+                <DaySummary heat={heat} days={days} zone={zone} slotAt={slotAt} />
               </div>
             </>
           )}
         </div>
 
         <div className="flex flex-col gap-4">
-          <WindowFinder heat={heat} days={days} offsetSlots={offsetSlots} />
+          <WindowFinder heat={heat} days={days} offsetSlots={offsetSlots} zone={zone} slotAt={slotAt} />
           <NotSubmitted members={notSubmitted} />
         </div>
       </section>

@@ -12,10 +12,12 @@ import {
   parseKey,
   relativeTime,
   guildOffsetSlots,
+  slotStartsAt,
   weekDays,
   weekStart,
   type Week,
 } from './availability';
+import { viewerTime } from './time';
 
 describe('keys and validation', () => {
   it('parses valid keys and rejects the rest', () => {
@@ -142,5 +144,42 @@ describe('week and offsets', () => {
     expect(isValidTimeZone('Mars/Olympus')).toBe(false);
     expect(isValidTimeZone('')).toBe(false);
     expect(isValidTimeZone(42)).toBe(false);
+  });
+});
+
+describe('slot instants', () => {
+  const LON = 'Europe/London';
+  // Wed 30 Sep 2026: the week of Mon 28 Sep, London on BST (UTC+1), guild time on PDT (UTC−7).
+  const now = new Date('2026-09-30T12:00:00Z');
+  const gutter = (slot: number) => viewerTime(new Date(slotStartsAt(now, LON, 0, slot)), 0, LON, 'en-US', { weekday: 'never', zoneName: false });
+
+  it("starts each slot on the zone's own clock", () => {
+    expect(slotStartsAt(now, LON, 0, 0)).toBe('2026-09-27T23:00:00.000Z');
+    expect(slotStartsAt(now, LON, 0, 40)).toBe('2026-09-28T19:00:00.000Z');
+    expect(slotStartsAt(now, LON, 6, 47)).toBe('2026-10-04T22:30:00.000Z');
+  });
+
+  it('labels every gutter row as fmtSlot does, with the guild time the old gutter showed', () => {
+    const offset = guildOffsetSlots(weekStart(now, LON), LON);
+    for (let slot = 0; slot < 48; slot += 2) {
+      const t = gutter(slot);
+      expect(t.text).toBe(fmtSlot(slot));
+      expect(t.guild).toBe(`${fmtSlot(slot + offset)} guild time (PDT)`);
+    }
+  });
+
+  it('gives guild time for a row past midnight, no weekday', () => {
+    // 1:00 AM Monday in London is 5:00 PM Sunday in guild time.
+    expect(gutter(2)).toEqual({ text: '1:00 AM', guild: '5:00 PM guild time (PDT)', label: '1:00 AM GMT+1, 5:00 PM guild time (PDT)' });
+  });
+
+  it('keeps the label on the wall clock in a week with a DST change', () => {
+    // Week of Mon 19 Oct 2026: London falls back on Sunday 25 Oct, Los Angeles a week later.
+    const dst = new Date('2026-10-21T12:00:00Z');
+    // Sunday 10:00 AM GMT is 10:00Z, so 3:00 AM PDT: a real hour later than the week-start
+    // offset (−16 slots, 2:00 AM) says, and the popup tells the truth for that day.
+    const sunday = new Date(slotStartsAt(dst, LON, 6, 20));
+    expect(sunday.toISOString()).toBe('2026-10-25T10:00:00.000Z');
+    expect(viewerTime(sunday, 0, LON, 'en-US', { weekday: 'never', zoneName: false })).toMatchObject({ text: '10:00 AM', guild: '3:00 AM guild time (PDT)' });
   });
 });

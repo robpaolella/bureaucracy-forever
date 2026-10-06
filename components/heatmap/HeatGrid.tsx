@@ -1,27 +1,37 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { useHourLabels } from '@/components/availability/useHourLabels';
 import { fmtSlot, SLOTS, type WeekDay } from '@/lib/availability';
 import { cn } from '@/lib/cn';
 import { heatStep, type Heatmap } from '@/lib/heatmap';
 import { NOBODY_SUBMITTED } from '@/content/availability';
 import { InspectorBody, InspectorPopover, type InspectorTarget } from './Inspector';
 
-type Props = { heat: Heatmap; days: WeekDay[]; offsetSlots: number };
+type Props = {
+  heat: Heatmap;
+  days: WeekDay[];
+  offsetSlots: number;
+  /** The zone the grid is projected onto. */
+  zone: string;
+  /** ISO start of a (day, slot) this week in `zone`. */
+  slotAt: (day: number, slot: number) => string;
+};
 
 export const HEAT_BG = ['bg-heat-0', 'bg-heat-1', 'bg-heat-2', 'bg-heat-3', 'bg-heat-4', 'bg-heat-5'] as const;
 const ROW = 17;
 const GUTTER = 'w-[72px] shrink-0';
 
 /**
- * The officer heatmap (docs/05 § Heatmap): the member grid's geometry at 17px rows and
- * 72px gutters, each cell filled from the six-step ramp. Cells are buttons with the count
+ * The officer heatmap (docs/05 § Heatmap): the member grid's geometry at 17px rows and a
+ * 72px gutter whose hour labels give guild time on hover, tap and focus, each cell filled from the six-step ramp. Cells are buttons with the count
  * in their label, so the numbers reach a screen reader and the keyboard; hover or focus
  * opens the inspector, leaving the grid closes it.
  */
-export function HeatGrid({ heat, days, offsetSlots }: Props) {
+export function HeatGrid({ heat, days, offsetSlots, zone, slotAt }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const [target, setTarget] = useState<InspectorTarget | null>(null);
+  const hours = useHourLabels(zone, slotAt, 'text-[10px] font-normal text-fg-muted');
 
   const show = (day: number, slot: number, el: HTMLElement) => {
     const grid = container.current;
@@ -44,8 +54,8 @@ export function HeatGrid({ heat, days, offsetSlots }: Props) {
       onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setTarget(null)}
     >
       <div className="flex h-11 items-stretch rounded-t-card border-b border-line bg-ink-850" role="row">
-        <div className={cn(GUTTER, 'flex items-center pl-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-teal')} role="columnheader">
-          Yours
+        <div className={cn(GUTTER, 'flex items-center pl-3 text-[10px] font-semibold uppercase tracking-[0.12em]', offsetSlots === 0 ? 'text-sand' : 'text-teal')} role="columnheader">
+          {offsetSlots === 0 ? 'Guild' : 'Yours'}
         </div>
         {days.map((d) => (
           <div key={d.day} className="flex flex-1 basis-0 flex-col justify-center gap-px border-l border-line-faint pl-2.5" role="columnheader">
@@ -53,9 +63,6 @@ export function HeatGrid({ heat, days, offsetSlots }: Props) {
             <span className="text-[10px] text-fg-3">{d.date}</span>
           </div>
         ))}
-        <div className={cn(GUTTER, 'flex items-center justify-end border-l border-line-faint pr-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-sand')} role="columnheader">
-          Guild
-        </div>
       </div>
 
       {Array.from({ length: SLOTS }, (_, slot) => {
@@ -64,7 +71,7 @@ export function HeatGrid({ heat, days, offsetSlots }: Props) {
         return (
           <div key={slot} className="flex items-stretch" style={{ height: ROW }} role="row">
             <div className={cn(GUTTER, 'tabular flex items-center border-b pl-3 text-[10px] text-fg-muted', line)} role="rowheader">
-              {onHour ? fmtSlot(slot) : ''}
+              {hours[slot]}
             </div>
             {days.map((d) => {
               const cell = heat.cells[d.day][slot];
@@ -84,16 +91,13 @@ export function HeatGrid({ heat, days, offsetSlots }: Props) {
                 />
               );
             })}
-            <div className={cn(GUTTER, 'tabular flex items-center justify-end border-b border-l border-l-line-faint pr-3 text-[10px] text-fg-3', line)} role="gridcell">
-              {onHour ? fmtSlot(slot + offsetSlots) : ''}
-            </div>
           </div>
         );
       })}
 
       {target && (
         <InspectorPopover target={target} gridHeight={44 + SLOTS * ROW}>
-          <InspectorBody day={days[target.day]} slot={target.slot} cell={heat.cells[target.day][target.slot]} members={heat.members} memberCount={heat.memberCount} offsetSlots={offsetSlots} />
+          <InspectorBody cell={heat.cells[target.day][target.slot]} members={heat.members} memberCount={heat.memberCount} startsAt={slotAt(target.day, target.slot)} />
         </InspectorPopover>
       )}
 

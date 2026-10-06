@@ -1,13 +1,18 @@
 'use client';
 
-import { cellLabel, fmtSlot, SLOTS, slotKey, type Week, type WeekDay } from '@/lib/availability';
+import { cellLabel, SLOTS, slotKey, type Week, type WeekDay } from '@/lib/availability';
 import { cn } from '@/lib/cn';
+import { useHourLabels } from './useHourLabels';
 import { usePaintStroke } from './paint';
 
 type Props = {
   week: Week;
   days: WeekDay[];
   offsetSlots: number;
+  /** The zone the week is painted in. */
+  zone: string;
+  /** ISO start of a (day, slot) this week in `zone`. */
+  slotAt: (day: number, slot: number) => string;
   paintCell: (key: string) => void;
   onOpenDay: (day: WeekDay) => void;
 };
@@ -18,12 +23,14 @@ export const FILL: Record<string, string> = {
 };
 
 /**
- * The desktop grid (docs/05 § The grid): 92px gutters, a 46px header, 48 rows of 19px.
+ * The desktop grid (docs/05 § The grid): a 92px gutter, a 46px header, 48 rows of 19px.
  * Cells are real buttons with "Tue 8:30 PM" labels; they are the one exception to the
- * 44px rule, and the day headers open the keyboard alternative.
+ * 44px rule, and the day headers open the keyboard alternative. Hour labels give guild time
+ * on hover, tap and focus; when the zone is guild time the gutter says so instead.
  */
-export function WeekGrid({ week, days, offsetSlots, paintCell, onOpenDay }: Props) {
+export function WeekGrid({ week, days, offsetSlots, zone, slotAt, paintCell, onOpenDay }: Props) {
   const stroke = usePaintStroke(paintCell);
+  const hours = useHourLabels(zone, slotAt, 'text-[10px] font-normal text-fg-muted');
 
   return (
     <div
@@ -35,8 +42,8 @@ export function WeekGrid({ week, days, offsetSlots, paintCell, onOpenDay }: Prop
       aria-rowcount={SLOTS}
     >
       <div className="flex h-[46px] items-stretch border-b border-line bg-ink-850" role="row">
-        <div className="flex w-[92px] shrink-0 items-center pl-3.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-teal" role="columnheader">
-          Yours
+        <div className={cn('flex w-[92px] shrink-0 items-center pl-3.5 text-[10px] font-semibold uppercase tracking-[0.12em]', offsetSlots === 0 ? 'text-sand' : 'text-teal')} role="columnheader">
+          {offsetSlots === 0 ? 'Guild' : 'Yours'}
         </div>
         {days.map((d) => (
           <div key={d.day} className="flex flex-1 basis-0 border-l border-line-faint" role="columnheader">
@@ -52,9 +59,6 @@ export function WeekGrid({ week, days, offsetSlots, paintCell, onOpenDay }: Prop
             </button>
           </div>
         ))}
-        <div className="flex w-[92px] shrink-0 items-center justify-end border-l border-line-faint pr-3.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-sand" role="columnheader">
-          Guild
-        </div>
       </div>
 
       {Array.from({ length: SLOTS }, (_, slot) => {
@@ -63,7 +67,7 @@ export function WeekGrid({ week, days, offsetSlots, paintCell, onOpenDay }: Prop
         return (
           <div key={slot} className="flex h-[19px] items-stretch" role="row">
             <div className={cn('tabular flex w-[92px] shrink-0 items-center border-b pl-3.5 text-[10px] text-fg-muted', line)} role="rowheader">
-              {onHour ? fmtSlot(slot) : ''}
+              {hours[slot]}
             </div>
             {days.map((d) => {
               const key = slotKey(d.day, slot);
@@ -88,9 +92,6 @@ export function WeekGrid({ week, days, offsetSlots, paintCell, onOpenDay }: Prop
                 />
               );
             })}
-            <div className={cn('tabular flex w-[92px] shrink-0 items-center justify-end border-b border-l border-l-line-faint pr-3.5 text-[10px] text-fg-3', line)} role="gridcell">
-              {onHour ? fmtSlot(slot + offsetSlots) : ''}
-            </div>
           </div>
         );
       })}

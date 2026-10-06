@@ -102,6 +102,17 @@ export function weekStart(now: Date, zone: string): Date {
   return zonedTimeToUtc(monday.getUTCFullYear(), monday.getUTCMonth() + 1, monday.getUTCDate(), 0, 0, zone);
 }
 
+/**
+ * When a slot of the week containing `now` starts, as `zone`'s clocks read it (day 0 =
+ * Monday), so a label built from it always reads `fmtSlot(slot)` in `zone`. A gutter row
+ * stands for every day and uses day 0, which carries the week-start offset `guildOffsetSlots`
+ * uses; a later day in a week with a DST change gets that day's real guild time.
+ */
+export function slotStartsAt(now: Date, zone: string, day: number, slot: number): string {
+  const monday = zonedParts(weekStart(now, zone), zone);
+  return zonedTimeToUtc(monday.year, monday.month, monday.day + day, Math.floor(slot / 2), (slot % 2) * 30, zone).toISOString();
+}
+
 export type WeekDay = { day: number; name: (typeof DAY_SHORT)[number]; longName: (typeof DAY_LONG)[number]; date: string; isToday: boolean };
 
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

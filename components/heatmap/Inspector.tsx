@@ -1,6 +1,6 @@
 'use client';
 
-import { fmtSlot, type WeekDay } from '@/lib/availability';
+import { LocalTime } from '@/components/time/LocalTime';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
 import type { HeatCell, HeatmapMember } from '@/lib/heatmap';
 
@@ -14,17 +14,12 @@ export type InspectorTarget = {
 const NAME_CAP = 12;
 
 /** The contents of the hover inspector (docs/05 § Hover inspector), also used as a card on mobile. */
-export function InspectorBody({ day, slot, cell, members, memberCount, offsetSlots }: { day: WeekDay; slot: number; cell: HeatCell; members: HeatmapMember[]; memberCount: number; offsetSlots: number }) {
+export function InspectorBody({ startsAt, cell, members, memberCount }: { startsAt: string; cell: HeatCell; members: HeatmapMember[]; memberCount: number }) {
   const shown = cell.who.slice(0, NAME_CAP);
   const more = cell.who.length - shown.length;
   return (
     <div className="flex flex-col gap-3.5">
-      <div className="flex flex-col gap-[3px]">
-        <span className="tabular text-sm font-semibold">
-          {day.name} {fmtSlot(slot)} — your time
-        </span>
-        <span className="tabular text-[11px] text-fg-3">{fmtSlot(slot + offsetSlots)} guild time</span>
-      </div>
+      <LocalTime weekday="always" startsAt={startsAt} durationMin={0} className="self-start" />
       <div className="flex items-baseline gap-2">
         <span className="tabular text-[28px] font-semibold leading-none text-teal">{cell.total}</span>
         <span className="text-xs text-fg-2">

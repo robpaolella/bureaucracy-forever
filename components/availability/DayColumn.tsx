@@ -3,12 +3,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { applyPaint, applyPaintRun, fmtSlot, parseKey, SLOTS, slotKey, type PaintMode, type Week, type WeekDay } from '@/lib/availability';
 import { cn } from '@/lib/cn';
+import { useHourLabels } from './useHourLabels';
 import { FILL } from './WeekGrid';
 
 type Props = {
   week: Week;
   days: WeekDay[];
-  offsetSlots: number;
+  /** The zone the week is painted in. */
+  zone: string;
+  /** ISO start of a (day, slot) this week in `zone`. */
+  slotAt: (day: number, slot: number) => string;
   mode: PaintMode;
   onWeek: (next: Week) => void;
   /** Opens the list alternative for a day (the keyboard/no-drag path). */
@@ -49,7 +53,7 @@ function Chevron({ dir }: { dir: 'left' | 'right' }) {
  * wrapping. With a mouse, a vertical drag paints straight away. Chevrons and the list do
  * the same jobs, so nothing is gesture-only.
  */
-export function DayColumn({ week, days, offsetSlots, mode, onWeek, onOpenDay }: Props) {
+export function DayColumn({ week, days, zone, slotAt, mode, onWeek, onOpenDay }: Props) {
   const [dayIndex, setDayIndex] = useState(() => days.find((d) => d.isToday)?.day ?? 0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture | null>(null);
@@ -59,6 +63,7 @@ export function DayColumn({ week, days, offsetSlots, mode, onWeek, onOpenDay }: 
   const modeRef = useRef(mode);
   const onWeekRef = useRef(onWeek);
   const day = days[dayIndex];
+  const hours = useHourLabels(zone, slotAt, 'text-[11px] font-normal text-fg-muted');
 
   useEffect(() => {
     weekRef.current = week;
@@ -113,7 +118,8 @@ export function DayColumn({ week, days, offsetSlots, mode, onWeek, onOpenDay }: 
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0) return;
+    // A press on a time label is the label's (its guild-time popup), never a paint or swipe.
+    if (e.button !== 0 || (e.target as HTMLElement).closest('button:not([data-key])')) return;
     const key = (e.target as HTMLElement).closest<HTMLElement>('[data-key]')?.dataset.key ?? null;
     const g: Gesture = { pointerType: e.pointerType, x: e.clientX, y: e.clientY, key, kind: 'undecided', last: null, hold: null };
     if (e.pointerType === 'touch' && key) g.hold = setTimeout(() => startPaint(g), HOLD_MS);
@@ -199,7 +205,7 @@ export function DayColumn({ week, days, offsetSlots, mode, onWeek, onOpenDay }: 
           const line = onHour ? 'border-line-faint' : 'border-line-hairline';
           return (
             <div key={slot} className="flex items-stretch" style={{ height: ROW }}>
-              <div className={cn('tabular flex w-[76px] shrink-0 items-center border-b pl-3 text-[11px] text-fg-muted', line)}>{onHour ? fmtSlot(slot) : ''}</div>
+              <div className={cn('tabular flex w-[76px] shrink-0 items-center border-b pl-3 text-[11px] text-fg-muted', line)}>{hours[slot]}</div>
               <button
                 type="button"
                 data-key={key}
@@ -209,7 +215,6 @@ export function DayColumn({ week, days, offsetSlots, mode, onWeek, onOpenDay }: 
                 title={state === 'available' ? 'Available' : state === 'if-needed' ? 'If needed' : undefined}
                 className={cn('flex-1 border-b border-l border-l-line-faint', line, state ? FILL[state] : 'bg-slot-empty')}
               />
-              <div className={cn('tabular flex w-[76px] shrink-0 items-center justify-end border-b border-l border-l-line-faint pr-3 text-[11px] text-fg-3', line)}>{onHour ? fmtSlot(slot + offsetSlots) : ''}</div>
             </div>
           );
         })}
