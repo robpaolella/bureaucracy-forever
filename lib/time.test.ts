@@ -196,6 +196,10 @@ describe('viewerTime', () => {
     expect(viewerTime(start, 0, NY, 'en-US', { weekday: 'always' })).toMatchObject({ text: 'Tue 8:00 PM EDT', guild: 'Tue 5:00 PM guild time (PDT)' });
     expect(viewerTime(start, 0, LON, 'en-US', { weekday: 'never' })).toMatchObject({ text: '1:00 AM GMT+1', guild: '5:00 PM guild time (PDT)' });
     expect(viewerTime(start, 0, LA, 'en-US', { weekday: 'always' }).text).toBe('Tue 5:00 PM guild time');
+    // 'guild': the shown time sits beside a date in the viewer's zone, so only the popup names a day.
+    expect(viewerTime(start, 0, LON, 'en-US', { weekday: 'guild' })).toMatchObject({ text: '1:00 AM GMT+1', guild: 'Tue 5:00 PM guild time (PDT)' });
+    expect(viewerTime(start, 0, NY, 'en-US', { weekday: 'guild' })).toMatchObject({ text: '8:00 PM EDT', guild: '5:00 PM guild time (PDT)' });
+    expect(viewerTime(start, 0, LA, 'en-US', { weekday: 'guild' }).text).toBe('5:00 PM guild time');
   });
 
   it('drops the zone name from the text, never from the accessible name', () => {

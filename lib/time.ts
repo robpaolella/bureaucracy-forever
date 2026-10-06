@@ -194,8 +194,11 @@ export type ViewerTime = {
 const SHORT_WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
 export type ViewerTimeOptions = {
-  /** When both times carry a weekday: only when the days differ (default), always, or never. */
-  weekday?: 'differs' | 'always' | 'never';
+  /**
+   * When both times carry a weekday: only when the days differ (default), always, or never.
+   * 'guild' is 'differs' for the popup only, for a time shown beside a date in the viewer's zone.
+   */
+  weekday?: 'differs' | 'always' | 'never' | 'guild';
   /** false drops the viewer's zone name from `text` (a column header names it); `label` keeps it. */
   zoneName?: boolean;
 };
@@ -215,13 +218,13 @@ export function viewerTime(start: Date, durationMin: number, viewerZone: string 
   const sameAsGuild = (zone: string) => [start, end].every((d) => tzOffsetMs(d, zone) === tzOffsetMs(d, GUILD_TIMEZONE));
   const home = zonedParts(start, GUILD_TIMEZONE);
   const local = viewerZone ? zonedParts(start, viewerZone) : home;
-  const showDay = weekday === 'always' || (weekday === 'differs' && local.day !== home.day);
+  const showDay = weekday === 'always' || ((weekday === 'differs' || weekday === 'guild') && local.day !== home.day);
   const day = (p: ZonedParts) => (showDay ? `${SHORT_WEEKDAY[p.weekday]} ` : '');
   if (!viewerZone || sameAsGuild(viewerZone)) {
     const guild = `${day(home)}${text(GUILD_TIMEZONE)} guild time`;
     return { text: zoneName ? guild : `${day(home)}${text(GUILD_TIMEZONE)}`, guild: null, label: guild };
   }
-  const clock = `${day(local)}${text(viewerZone)}`;
+  const clock = `${weekday === 'guild' ? '' : day(local)}${text(viewerZone)}`;
   const named = `${clock} ${zoneAbbreviation(start, viewerZone, locale)}`;
   const guild = `${day(home)}${text(GUILD_TIMEZONE)} guild time (${zoneAbbreviation(start, GUILD_TIMEZONE)})`;
   return { text: zoneName ? named : clock, guild, label: `${named}, ${guild}` };

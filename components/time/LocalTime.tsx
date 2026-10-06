@@ -24,6 +24,20 @@ type Props = {
   hitHeight?: number;
 };
 
+/** The visible area of the nearest scrolling ancestor, within the viewport. */
+function clipBox(el: HTMLElement): { top: number; bottom: number } {
+  let top = 0;
+  let bottom = window.innerHeight;
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    if (getComputedStyle(node).overflowY === 'visible') continue;
+    const r = node.getBoundingClientRect();
+    top = Math.max(top, r.top);
+    bottom = Math.min(bottom, r.bottom);
+    break;
+  }
+  return { top, bottom };
+}
+
 /** A click this soon after a hover opened the popup is the same gesture, not a toggle. */
 const HOVER_CLICK_MS = 400;
 
@@ -53,6 +67,11 @@ export function LocalTime({ startsAt, durationMin, className, zone, weekday, den
       panel.style.left = '0px';
       const overflow = panel.getBoundingClientRect().right - (window.innerWidth - 16);
       if (overflow > 0) panel.style.left = `${-overflow}px`;
+      // Above the time when the box that clips it (a scrolling dialog body, or the viewport) has no room below.
+      delete panel.dataset.flip;
+      const clip = clipBox(panel);
+      const p = panel.getBoundingClientRect();
+      if (p.bottom > clip.bottom && trigger.getBoundingClientRect().top - p.height >= clip.top) panel.dataset.flip = '';
       return;
     }
     // Fixed, below the label, or above it when there is no room below.
@@ -115,7 +134,10 @@ export function LocalTime({ startsAt, durationMin, className, zone, weekday, den
         id={panelId}
         role="tooltip"
         // A dense popup covers the next rows; presses go through it to their controls.
-        className={cn(dense ? 'pointer-events-none fixed z-40 py-1' : 'absolute left-0 top-full z-30 pt-1', open ? 'block' : 'hidden')}
+        className={cn(
+          dense ? 'pointer-events-none fixed z-40 py-1' : 'absolute left-0 top-full z-30 pt-1 data-[flip]:bottom-full data-[flip]:top-auto data-[flip]:pb-1 data-[flip]:pt-0',
+          open ? 'block' : 'hidden',
+        )}
       >
         <span className="block whitespace-nowrap font-normal rounded-card border border-line-strong bg-ink-800 px-3 py-2 text-[13px] text-fg shadow-pop">{time.guild}</span>
       </span>

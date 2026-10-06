@@ -306,7 +306,7 @@ export function Confirmation({ holders, stale }: { holders: Holder[]; stale: boo
         <section key={raid.id} className="mt-3">
           <h3 className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[13px] font-semibold text-fg">
             {raid.name} <span className="font-normal text-fg-3">
-              {LOOT_RESERVES.raidDate(new Date(raid.startsAt), zone)}, <LocalTime startsAt={raid.startsAt} durationMin={0} className="text-[13px] font-normal text-fg-3" />
+              {LOOT_RESERVES.raidDate(new Date(raid.startsAt), zone)}, <LocalTime startsAt={raid.startsAt} durationMin={0} weekday="guild" className="text-[13px] font-normal text-fg-3" />
             </span>
             {raid.cancelled && <Tag className="py-[1px]">{LOOT_RESERVES.cancelled}</Tag>}
           </h3>
