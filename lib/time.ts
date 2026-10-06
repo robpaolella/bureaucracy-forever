@@ -178,7 +178,8 @@ export function zoneAbbreviation(date: Date, zone: string, locale = 'en-US'): st
   const part = new Intl.DateTimeFormat(locale, { timeZone: zone, timeZoneName: 'short' })
     .formatToParts(date)
     .find((p) => p.type === 'timeZoneName');
-  return part?.value ?? zone;
+  // Some browsers' Intl data says "GMT+0" where Node says "GMT"; show the plain name.
+  return part?.value.replace(/^(GMT|UTC)[+−-]0$/, '$1') ?? zone;
 }
 
 export type ViewerTime = {
