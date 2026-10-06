@@ -54,6 +54,4 @@ export const MONTH = {
   days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
   answered: 'you answered',
   cancelled: 'cancelled',
-  yours: 'yours',
-  guild: 'guild',
 };
