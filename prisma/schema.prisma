@@ -433,13 +433,17 @@ model LootTableEntry {
   @@index([itemId])
 }
 
-/// Per-item reserve policy shared by every boss and raid in a tier. Missing rows allow reserves.
+/// Per-item reserve policy shared by every boss and raid in a tier. Missing rows allow reserves,
+/// with a win limit of 1.
 model LootReserveSetting {
   templateId String
   template   RaidTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   itemId     Int
   item       LootItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
   blocked    Boolean @default(false)
+  /// HR/SR wins one character may have of this item before it can't reserve it again, 1 to 5
+  /// (a CHECK constraint in the migration). A blocked item stays blocked whatever this is.
+  winLimit   Int     @default(1)
 
   @@id([templateId, itemId])
   @@index([itemId])

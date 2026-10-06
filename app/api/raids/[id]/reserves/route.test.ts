@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
   query: vi.fn(),
   settings: vi.fn(),
+  limits: vi.fn(),
   existing: vi.fn(),
 }));
 
@@ -30,7 +31,8 @@ vi.mock('@/lib/db', () => ({
     user: { findUnique: mocks.user },
     signup: { findUnique: mocks.signup },
     reserve: { deleteMany: mocks.deleteMany, createMany: mocks.createMany, findMany: mocks.existing },
-    lootReserveSetting: { findMany: mocks.settings },
+    // Blocks and win limits are separate reads of the same settings rows.
+    lootReserveSetting: { findMany: (args: { where: object }) => ('winLimit' in args.where ? mocks.limits(args) : mocks.settings(args)) },
     $queryRaw: mocks.query,
     $transaction: mocks.transaction,
   },
@@ -55,6 +57,7 @@ beforeEach(() => {
   mocks.createMany.mockImplementation((args) => args);
   mocks.query.mockReset().mockResolvedValue([{ id: 't1' }]);
   mocks.settings.mockReset().mockResolvedValue([]);
+  mocks.limits.mockReset().mockResolvedValue([]);
   mocks.existing.mockReset().mockResolvedValue([]);
   mocks.transaction.mockImplementation(async (run) => run((await import('@/lib/db')).db));
 });
@@ -184,6 +187,40 @@ describe('PUT /api/raids/[id]/reserves', () => {
     expect(mocks.deleteMany).not.toHaveBeenCalled();
     expect(mocks.createMany).not.toHaveBeenCalled();
     expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: 'ReadCommitted' });
+  });
+
+  it.each(['HR', 'SR'] as const)('with win limit 2, allows a second %s after one win and refuses after two', async (kind) => {
+    mocks.limits.mockResolvedValue([{ itemId: 100, winLimit: 2 }]);
+    const picks = kind === 'HR' ? { hr: 100, sr: 200 } : { hr: 200, sr: 100 };
+    mocks.awards.mockResolvedValue([{ characterId: 'c1', itemId: 100 }]);
+    expect((await call({ characterId: 'c1', ...picks })).status).toBe(200);
+    expect(mocks.limits).toHaveBeenCalledWith({ where: { templateId: 't1', winLimit: { gt: 1 } }, select: { itemId: true, winLimit: true } });
+    mocks.createMany.mockClear();
+    mocks.awards.mockResolvedValue([{ characterId: 'c1', itemId: 100 }, { characterId: 'c1', itemId: 100 }]);
+    const res = await call({ characterId: 'c1', ...picks });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'This character already won that item.' });
+    expect(mocks.createMany).not.toHaveBeenCalled();
+  });
+
+  it('reads the win limit after waiting for the tier lock, so a limit change and a save are serialized', async () => {
+    let release!: () => void;
+    let arrived!: () => void;
+    const waiting = new Promise<void>((resolve) => { arrived = resolve; });
+    const lock = new Promise<void>((resolve) => { release = resolve; });
+    mocks.query.mockImplementation(async () => { arrived(); await lock; return [{ id: 't1' }]; });
+    mocks.awards.mockResolvedValue([{ characterId: 'c1', itemId: 100 }]);
+    mocks.limits.mockResolvedValue([{ itemId: 100, winLimit: 2 }]);
+    const saving = call(BODY);
+    await waiting;
+    expect(mocks.limits).not.toHaveBeenCalled();
+    // An officer lowers the limit to 1 while the save waits for the tier lock.
+    mocks.limits.mockResolvedValue([]);
+    release();
+    const response = await saving;
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: 'This character already won that item.' });
+    expect(mocks.createMany).not.toHaveBeenCalled();
   });
 
   it('answers 409 when the database unique index catches a race', async () => {

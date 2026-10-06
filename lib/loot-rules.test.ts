@@ -10,11 +10,13 @@ import {
   LOOT_LOG_METHODS,
   parseAwardInput,
   parseItemRef,
+  parseWinLimit,
   pickUnavailable,
   REASONS,
   reserveHolders,
   reservesLockAt,
   resolveDrop,
+  winLimitOf,
   type ActiveReserve,
   type ReserveContext,
   type ReserveRaid,
@@ -237,6 +239,69 @@ describe('resolveDrop', () => {
       200: { HR: [], SR: [r('d', 'SR', 200)] },
       300: { HR: [r('e', 'HR', 300)], SR: [] },
     });
+  });
+});
+
+describe('win limits', () => {
+  const win = { characterId: 'c1', itemId: 100 };
+  const save = (hrAwards: typeof win[], limit?: number, extra: Partial<ReserveContext> = {}) =>
+    decideReserve(member, raid, pick, { ...ctx, hrAwards, ...(limit ? { winLimits: { 100: limit } } : {}), ...extra }, now);
+  const sr = { characterId: 'c1', hr: 300, sr: 100 };
+
+  it('reads 1 for an item with no setting', () => {
+    expect(winLimitOf(100)).toBe(1);
+    expect(winLimitOf(100, { 200: 3 })).toBe(1);
+    expect(winLimitOf(200, { 200: 3 })).toBe(3);
+  });
+
+  it('limit 1 is the "won once" rule, for HR and SR', () => {
+    for (const limit of [undefined, 1]) {
+      expect(save([], limit)).toEqual({ ok: true });
+      expect(save([win], limit)).toMatchObject({ ok: false, reason: REASONS.hrReceived });
+      expect(decideReserve(member, raid, sr, { ...ctx, hrAwards: [win], winLimits: limit ? { 100: limit } : undefined }, now)).toMatchObject({ reason: REASONS.hrReceived });
+    }
+  });
+
+  it('limit 2 allows another HR or SR after one win and refuses after two', () => {
+    expect(save([win], 2)).toEqual({ ok: true });
+    expect(decideReserve(member, raid, sr, { ...ctx, hrAwards: [win], winLimits: { 100: 2 } }, now)).toEqual({ ok: true });
+    expect(save([win, win], 2)).toMatchObject({ ok: false, reason: REASONS.hrReceived });
+    expect(decideReserve(member, raid, sr, { ...ctx, hrAwards: [win, win], winLimits: { 100: 2 } }, now)).toMatchObject({ reason: REASONS.hrReceived });
+    // Another character's wins and another item's limit don't count.
+    expect(save([{ ...win, characterId: 'c2' }, { ...win, characterId: 'c2' }], 2)).toEqual({ ok: true });
+    expect(decideReserve(member, raid, pick, { ...ctx, hrAwards: [win], winLimits: { 200: 5 } }, now)).toMatchObject({ reason: REASONS.hrReceived });
+  });
+
+  it('a blocked item stays blocked whatever its limit', () => {
+    for (const limit of [1, 2, 5]) expect(save([], limit, { blockedItemIds: new Set([100]) })).toMatchObject({ reason: REASONS.itemBlocked });
+  });
+
+  it('drop resolution skips holders at the limit, HR then SR', () => {
+    const r = (userId: string, kind: 'HR' | 'SR'): ActiveReserve => ({ userId, characterId: `char-${userId}`, itemId: 100, kind });
+    const reserves = [r('a', 'HR'), r('b', 'SR')];
+    const wins = (id: string, n: number) => Array.from({ length: n }, () => ({ characterId: `char-${id}`, itemId: 100 }));
+    expect(resolveDrop(100, reserves, [], wins('a', 1), [], { 100: 2 })).toEqual({ mode: 'HR', contenders: [r('a', 'HR')] });
+    expect(resolveDrop(100, reserves, [], wins('a', 2), [], { 100: 2 })).toEqual({ mode: 'SR', contenders: [r('b', 'SR')] });
+    expect(resolveDrop(100, reserves, [], [...wins('a', 2), ...wins('b', 2)], [], { 100: 2 })).toEqual({ mode: 'OPEN', contenders: [] });
+    expect(resolveDrop(100, reserves, [], wins('a', 1))).toEqual({ mode: 'SR', contenders: [r('b', 'SR')] });
+  });
+
+  it('lowering the limit keeps a saved reserve but holds it back from drops and new saves', () => {
+    // Saved at limit 2 after one win, then the officer lowers it to 1. Nothing in the rules
+    // removes the row; it just stops counting.
+    const saved = { userId: 'u1', characterId: 'c1', itemId: 100, kind: 'HR' as const };
+    expect(save([win], 2)).toEqual({ ok: true });
+    expect(resolveDrop(100, [saved], [], [win], [], { 100: 2 })).toEqual({ mode: 'HR', contenders: [saved] });
+    expect(resolveDrop(100, [saved], [], [win], [], { 100: 1 })).toEqual({ mode: 'OPEN', contenders: [] });
+    expect(save([win], 1, { existingReserves: [saved] })).toMatchObject({ reason: REASONS.hrReceived });
+  });
+
+  it.each([
+    [1, true], [5, true], [3, true],
+    [0, false], [6, false], [2.5, false], ['abc', false], ['2', false], [null, false], [undefined, false], [Number.NaN, false], [-1, false],
+  ])('accepts %s as a limit: %s', (value, ok) => {
+    const result = parseWinLimit(value);
+    expect(result).toEqual(ok ? { ok: true, value } : { ok: false, error: 'The win limit must be a whole number from 1 to 5.' });
   });
 });
 

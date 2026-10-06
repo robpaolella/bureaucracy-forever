@@ -2,7 +2,7 @@ import 'server-only';
 
 import { db } from '@/lib/db';
 import type { Prisma } from '@/lib/generated/prisma/client';
-import { RESERVE_LOCK_MINUTES } from '@/lib/loot-rules';
+import { RESERVE_LOCK_MINUTES, type WinLimits } from '@/lib/loot-rules';
 
 /**
  * Shared lock for reserve saves and block changes. Acquire before reading settings/holders,
@@ -18,6 +18,35 @@ export async function lockReserveTier(tx: Prisma.TransactionClient, templateId: 
 export async function blockedItemIds(templateId: string, client: Pick<Prisma.TransactionClient, 'lootReserveSetting'> = db): Promise<Set<number>> {
   const rows = await client.lootReserveSetting.findMany({ where: { templateId, blocked: true }, select: { itemId: true } });
   return new Set(rows.map((row) => row.itemId));
+}
+
+/** Items whose win limit is above 1; missing settings mean limit 1. Pass the locked transaction when enforcing a save. */
+export async function winLimits(templateId: string, client: Pick<Prisma.TransactionClient, 'lootReserveSetting'> = db): Promise<WinLimits> {
+  const rows = await client.lootReserveSetting.findMany({ where: { templateId, winLimit: { gt: 1 } }, select: { itemId: true, winLimit: true } });
+  return Object.fromEntries(rows.map((row) => [row.itemId, row.winLimit]));
+}
+
+/** One item's win limit, 1 when it has no setting. */
+export async function itemWinLimit(templateId: string, itemId: number): Promise<number> {
+  const row = await db.lootReserveSetting.findUnique({ where: { templateId_itemId: { templateId, itemId } }, select: { winLimit: true } });
+  return row?.winLimit ?? 1;
+}
+
+/**
+ * Server-only; callers must authorize officers and validate the limit (lib/loot-rules.ts
+ * parseWinLimit). Takes the tier lock, so a reserve save sees the old limit or the new one,
+ * never a mix. Keeps `blocked` as it is, and removes no reserves, even when lowering: a saved
+ * reserve past the new limit stays, and drop resolution skips it.
+ */
+export async function setItemWinLimit(templateId: string, itemId: number, winLimit: number): Promise<void> {
+  await db.$transaction(async (tx) => {
+    await lockReserveTier(tx, templateId);
+    await tx.lootReserveSetting.upsert({
+      where: { templateId_itemId: { templateId, itemId } },
+      create: { templateId, itemId, winLimit },
+      update: { winLimit },
+    });
+  }, { isolationLevel: 'ReadCommitted' });
 }
 
 /**

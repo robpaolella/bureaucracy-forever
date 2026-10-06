@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { blockItem, setItemBlocked, unlockedHolders } from '@/lib/loot-blocks';
+import { blockItem, itemWinLimit, setItemBlocked, setItemWinLimit, unlockedHolders } from '@/lib/loot-blocks';
+import { parseWinLimit } from '@/lib/loot-rules';
 import { requireLootOfficer } from '../../../../../_loot';
 import { jsonBody, NO_STORE } from '../../../../../_officer';
 
@@ -17,15 +18,17 @@ async function tableItem({ params }: Params): Promise<{ templateId: string; id: 
 }
 
 /**
- * GET /api/loot/tables/[templateId]/items/[itemId] — `{ holders }`: who would lose a reserve if
- * the item were blocked now. The window reads it on opening, to tell a changed list apart.
+ * GET /api/loot/tables/[templateId]/items/[itemId] — `{ holders, winLimit }`: who would lose a
+ * reserve if the item were blocked now, and its win limit (1 for an item with no setting). The
+ * window reads it on opening, to tell a changed list apart.
  */
 export async function GET(_request: Request, ctx: Params) {
   const auth = await requireLootOfficer();
   if ('deny' in auth) return auth.deny;
   const item = await tableItem(ctx);
   if ('deny' in item) return item.deny;
-  return NextResponse.json({ holders: await unlockedHolders(db, item.templateId, item.id, new Date()) }, { headers: NO_STORE });
+  const [holders, winLimit] = await Promise.all([unlockedHolders(db, item.templateId, item.id, new Date()), itemWinLimit(item.templateId, item.id)]);
+  return NextResponse.json({ holders, winLimit }, { headers: NO_STORE });
 }
 
 /**
@@ -34,12 +37,26 @@ export async function GET(_request: Request, ctx: Params) {
  * the reserves on raids that haven't locked; `remove` lists the holder keys the officer confirmed
  * (none for a direct block). If the holders differ, it's refused with 409 and the current
  * `holders`, writing nothing.
+ *
+ * Or body `{ winLimit }`, on its own: how many HR/SR wins of the item one character may have
+ * before it can't reserve it again, a whole number from 1 to 5. It keeps `blocked`, as blocking
+ * and unblocking keep the limit, and removes no reserves.
  */
 export async function PUT(request: Request, ctx: Params) {
   const auth = await requireLootOfficer();
   if ('deny' in auth) return auth.deny;
-  const body = (await jsonBody(request)) as { blocked?: unknown; remove?: unknown } | null;
-  if (typeof body?.blocked !== 'boolean') return NextResponse.json({ error: 'Say whether the item is blocked.' }, { status: 400, headers: NO_STORE });
+  const raw = await jsonBody(request);
+  const body = (raw && typeof raw === 'object' ? raw : {}) as { blocked?: unknown; remove?: unknown; winLimit?: unknown };
+  if ('winLimit' in body) {
+    if ('blocked' in body || 'remove' in body) return NextResponse.json({ error: 'Change one setting at a time.' }, { status: 400, headers: NO_STORE });
+    const limit = parseWinLimit(body.winLimit);
+    if (!limit.ok) return NextResponse.json({ error: limit.error }, { status: 400, headers: NO_STORE });
+    const item = await tableItem(ctx);
+    if ('deny' in item) return item.deny;
+    await setItemWinLimit(item.templateId, item.id, limit.value);
+    return NextResponse.json({ itemId: item.id, winLimit: limit.value }, { headers: NO_STORE });
+  }
+  if (typeof body.blocked !== 'boolean') return NextResponse.json({ error: 'Say whether the item is blocked, or give its win limit.' }, { status: 400, headers: NO_STORE });
   const remove = body.remove ?? [];
   if (!Array.isArray(remove) || !remove.every((key) => typeof key === 'string')) return NextResponse.json({ error: 'List the reserves to remove.' }, { status: 400, headers: NO_STORE });
   const item = await tableItem(ctx);
