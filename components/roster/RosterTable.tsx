@@ -29,6 +29,20 @@ type Props = {
   viewer?: { id: string; rank: RosterRow['rank']; characters: MemberCharacter[] };
 };
 
+function altLines(row: RosterRow) {
+  if (!row.character || row.alts.length === 0) return null;
+  return (
+    <ul aria-label={`Alts for ${row.name}`} className="bg-ink-850/40">
+      {row.alts.map((alt) => (
+        <li key={alt.id} className="break-words border-t border-line-faint py-3 pl-14 pr-4 text-[13px] text-fg-3 first:border-t-0 md:pl-[60px]">
+          <span style={{ color: CLASS_COLORS[alt.wowClass].onInk }}>{alt.name}</span>
+          {' · '}{CLASS_COLORS[alt.wowClass].label}{' · '}{alt.spec}{' · '}{ROLE_LABELS[alt.role]}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 const RANK_LABEL: Record<(typeof RANK_ORDER)[number], string> = { officer: 'Officer', raider: 'Raider', trial: 'Trial', social: 'Social' };
 const GROUPS: { value: GroupBy; label: string }[] = [
   { value: 'flat', label: 'Flat' },
@@ -153,6 +167,7 @@ export function RosterTable({ rows, viewer }: Props) {
             rows={shown}
             groups={groups}
             rowKey={(r) => r.id}
+            renderSubRow={altLines}
             sortKey={sortKey}
             sortDir={sortDir}
             onSort={onSort}
@@ -169,7 +184,8 @@ export function RosterTable({ rows, viewer }: Props) {
                 )}
                 <ul className="flex flex-col divide-y divide-line-faint overflow-hidden rounded-card border border-line bg-ink-900">
                   {g.rows.map((r) => (
-                    <li key={r.id} className="flex items-center gap-3 px-4 py-3">
+                    <li key={r.id}>
+                      <div className="flex items-center gap-3 px-4 py-3">
                       <ClassAvatar name={r.name} wowClass={r.wowClass} size={28} />
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <div className="flex items-center gap-2.5">
@@ -182,6 +198,8 @@ export function RosterTable({ rows, viewer }: Props) {
                         {r.id === viewer?.id && <div className="pt-2"><MemberCharacterDialog characters={viewer.characters} rank={viewer.rank} /></div>}
                       </div>
                       <span className="tabular shrink-0 text-sm text-fg-2">{formatAttendance(r.attendance)}</span>
+                      </div>
+                      {r.character && r.alts.length > 0 && <div className="border-t border-line-faint">{altLines(r)}</div>}
                     </li>
                   ))}
                 </ul>

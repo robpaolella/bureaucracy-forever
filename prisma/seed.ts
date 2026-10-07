@@ -76,6 +76,10 @@ async function main() {
       include: { characters: { select: { id: true } } },
     });
     users.push({ id: user.id, characterId: user.characters[0].id, role: m.role, raidRole: m.raidRole, timezone: m.timezone, name: m.name });
+    // Keep the main's id above for signups; extra sample characters are never mains.
+    if (m.alts.length) await db.character.createMany({
+      data: m.alts.map((alt) => ({ userId: user.id, name: alt.name, class: CLASS[alt.wowClass], spec: alt.spec, raidRole: RAID_ROLE[alt.raidRole], rank: m.rank, isMain: false })),
+    });
     // Most members have painted; a few have not (drives the "Not submitted" states).
     if (m.role !== 'SOCIAL' && random() < 0.88) {
       await db.availability.create({ data: { userId: user.id, timezone: m.timezone, slots: paintWeek(m.timezone, random, now) } });
