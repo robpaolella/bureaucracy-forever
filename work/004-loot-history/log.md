@@ -129,7 +129,14 @@ Rebased unpublished branch cleanly on origin/main **55d8781** (#186); resulting 
 
 Final overlap check: #191 doesn't overlap. **#190 touches backlog.md**, newly added by this session for required review follow-ups. Reported to conductor BEFORE PR: recommend opening with documentation-only overlap and merge order #190 then #100, sync after #190. Await explicit decision under start-work in-flight rule. No push/PR yet. Once cleared: commit outstanding docs if needed, recheck main/overlap, push; gh pr create --attach supports image paths and substitutes them in Markdown body. Attach six approved/build pairs plus approved-live/main/build shared-row pairs and main roster/menu comparisons. Get Vercel Preview URL after push. Verify issue100 closure/risk:high/CI and actual rendered attachments (delegate image reads to fresh Claude reviewer, parent stays image-free). No staging or merge without conductor direction. Stop/report link once open.
 
+## Shipped to review — 2026-10-07
+
+Conductor approved the additive backlog.md overlap with #190: whichever merges second syncs and retains both sets of lines. Also added the two queued #103 comment lines verbatim (populated-history fixture recipe; former-member character-editing gap), reran lint PASS and pushed. PR **https://github.com/robpaolella/bureaucracy-forever/pull/192** is open against main, closes100, risk:high.
+
+22 actual PNG attachments uploaded successfully. Fresh Sonnet5.5 medium attachment check fetched all22 with HTTP200 and matched SHA256/dimensions to local approved/build/main originals. Parent then opened actual public PR in browser and captured pr-rendered-1440.png plus pr-rendered-images.txt (26 displayed instances including reuse, all complete/nonzero dimensions); same-model fixes-only rendering check inspected10 cropped strips and returned PASS. See attachment-verdict.txt and attachment-render-verdict.txt; repo Unchanged. Parent never viewed images. Public browser stopped. No local sites or helper sessions running.
+
+CI and Vercel SUCCESS on d78d28f. Vercel posted no PR comment; exact preview retrieved read-only from GitHub deployment6917519723 for that SHA: https://bureaucracy-forever-apz5raq06-roberts-projects-f78421c0.vercel.app — now in How to verify with provenance and Vercel-login/Discord limitation. No staging deploy, no merge. Full review findings/limitations and sample-data evidence are in PR body, not just local logs. Final work-doc-only commit follows; no implementation changes after passed checks/reviews.
+
 ## Still open
 
-- #1 Conductor approval to open #100 despite backlog.md overlap with #190; recommend #190 first, then sync #100.
-- Remaining execution: commit docs, push/open PR with evidence, Preview URL, issue/risk/CI and rendered attachment checks; report link and stop.
+No unanswered decisions. PR awaits Robert/conductor testing and merge. Worker stops, remains available for requested sync; never merge without explicit instruction.

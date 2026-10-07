@@ -17,5 +17,5 @@
 - [x] Final repo checks in required order: all pass, 890 tests pass / 36 skipped; targeted Postgres integration 9/9.
 - [x] Independent cross-company high-risk code review: Opus 5.5 medium PASS; no blocking fixes.
 - [x] Cleanup both fresh verification runs PASS; all owned browser/overlay sessions stopped. No herdr helper tabs created.
-- [ ] Recheck open PR overlap, push and open PR closing #100 with attached evidence and Preview URL; verify CI/issue link/attachments.
-- [ ] Report PR link to conductor and stop; do not merge.
+- [x] Recheck overlap: conductor approved additive backlog.md overlap with #190 (second merge syncs and keeps both). Pushed and opened PR #192 closing #100, risk:high; all 22 uploads hash-matched and rendered tables independently verified PASS. Preview URL added from successful GitHub deployment (Vercel posted no PR comment); CI and Vercel passed.
+- [x] Report PR #192 link to conductor and stop; do not merge. Available for later sync request.
