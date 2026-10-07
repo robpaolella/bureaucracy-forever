@@ -3,6 +3,17 @@
  * loot council and is marked "[confirm this is still your system]". Replace before launch.
  */
 
+/** Approved member raid list; separate from the placeholder public policy below. */
+export const RAID_LOOT = {
+  heading: 'Loot',
+  lede: 'In the order officers record it.',
+  live: 'Updates every 30 seconds during the raid.',
+  empty: 'Nothing recorded yet.',
+  refreshFailed: "Loot couldn't update. Trying again.",
+  columns: ['Item', 'Winner', 'Method · roll', 'Boss'],
+  deleted: 'deleted',
+};
+
 export const LOOT_HEAD = {
   eyebrow: 'Policy',
   title: 'Loot rules',
