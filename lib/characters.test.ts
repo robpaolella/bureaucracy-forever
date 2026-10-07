@@ -44,6 +44,14 @@ it('checks alt-only removal inside the transaction, even for a sole main', async
   expect(tx.character.count).not.toHaveBeenCalled();
   expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: 'Serializable' });
 });
+it('checks alt-only editing inside the transaction before writing', async () => {
+  const tx = { character: { findFirst: vi.fn().mockResolvedValue({ id: 'character', isMain: true }), update: vi.fn() } };
+  mocks.transaction.mockImplementationOnce((run) => run(tx));
+  expect(await editCharacter('member', 'character', valid, { altOnly: true })).toEqual({ status: 409, reason: 'main', error: 'Only alt characters can be edited.' });
+  expect(tx.character.findFirst).toHaveBeenCalledExactlyOnceWith({ where: { id: 'character', userId: 'member' } });
+  expect(tx.character.update).not.toHaveBeenCalled();
+  expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: 'Serializable' });
+});
 it('retries a main swap as a whole after a serialization conflict', async () => {
   mocks.transaction.mockRejectedValueOnce(conflict('P2034')).mockResolvedValueOnce({ status: 200 });
   expect(await changeMain('chosen')).toEqual({ status: 200 });

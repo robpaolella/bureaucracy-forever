@@ -153,7 +153,10 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
     expect(await db.signup.findMany({ where: { userId: user.id }, orderBy: { raidId: 'asc' } })).toEqual(signups);
     expect(await jobs()).toEqual(jobsBefore);
     expect(await changeMain('missing')).toMatchObject({ status: 404, reason: 'not_found' });
-    // #174: a bot's earlier read of this alt cannot authorize deletion after promotion.
+    // #170/#174: an earlier read of this alt cannot authorize edits/deletion after promotion.
+    expect(await editCharacter(user.id, alt.id, input('Forbidden'), { altOnly: true })).toMatchObject({ status: 409, reason: 'main' });
+    expect(await db.character.findUnique({ where: { id: alt.id } })).toMatchObject({ name: 'Newmain', raidRole: 'HEALER' });
+    expect(await editCharacter(user.id, oldMain.id, input('Demoted'), { altOnly: true })).toMatchObject({ status: 200 });
     expect(await removeCharacter(user.id, alt.id, { altOnly: true })).toMatchObject({ status: 409, reason: 'main' });
     expect(await removeCharacter(user.id, oldMain.id, { altOnly: true })).toMatchObject({ status: 200 });
     expect(await removeCharacter(user.id, alt.id, { altOnly: true })).toMatchObject({ status: 409, reason: 'main' });

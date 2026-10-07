@@ -65,12 +65,13 @@ export async function addAlt(userId: string, input: unknown): Promise<CharacterR
   });
 }
 
-export async function editCharacter(userId: string, characterId: string, input: unknown): Promise<CharacterResult> {
+export async function editCharacter(userId: string, characterId: string, input: unknown, options: { altOnly?: boolean } = {}): Promise<CharacterResult> {
   const parsed = fields(input);
   if (!parsed.ok) return failure(400, 'invalid', parsed.error);
   return change(async (tx) => {
     const existing = await tx.character.findFirst({ where: { id: characterId, userId } });
     if (!existing) return missing();
+    if (existing.isMain && options.altOnly) return failure(409, 'main', 'Only alt characters can be edited.');
     const named = await tx.character.findFirst({ where: { id: { not: characterId }, name: { equals: parsed.value.name, mode: 'insensitive' } } });
     if (named) return nameTaken(named.userId === userId);
     const character = await tx.character.update({ where: { id: characterId }, data: parsed.value });
