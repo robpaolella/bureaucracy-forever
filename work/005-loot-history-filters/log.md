@@ -29,3 +29,8 @@
 - At the conductor's request, merged origin/main `a75c854` (#197) into this already-pushed branch, without conflicts. Incoming changes are roster self-service main/alt character management, its dialog/tests and roster copy (six files); loot-history files unchanged.
 - Re-ran Checks in order: lint, typecheck, test, build PASS (930 passed / 94 skipped). Explicit disposable-Postgres older-route suite also PASS (10 tests). Evidence `sync-197-*.txt` under `/tmp/loot-180-evidence`.
 - #200 stays off staging; #199 goes first, per conductor. No deployment or merge permission.
+
+## 2026-10-07 — Sync after #198
+- Merged origin/main `a123c8a` (#198) without conflicts. Incoming changes add the bot raid-character switching endpoint, its integration tests and the shared contract entry; loot-history files unchanged.
+- Checks in order PASS: lint, typecheck, test (930 passed / 119 skipped), build. Explicit Postgres history/older-route suite PASS (10 tests). Evidence: `/tmp/loot-180-evidence/sync-198-*.txt`.
+- Pushing the synced branch; #200 remains off staging and unmerged.
