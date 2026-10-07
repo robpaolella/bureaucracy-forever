@@ -12,6 +12,7 @@ import { toItemView, type ItemView } from '@/lib/loot-items';
 import type { LoggedAward, LoggedHr } from '@/lib/loot-log-state';
 import { hrBlocked, isEligible, winLimitOf, type LootMethod, type ReserveKind, type WinLimits } from '@/lib/loot-rules';
 import type { RaidResponse } from '@/lib/raids';
+import { characterBrought } from '@/lib/signup-character';
 
 export type LootTableView = {
   bosses: { id: string; name: string; isTrash: boolean; itemIds: number[] }[];
@@ -99,6 +100,7 @@ export async function loadReserveTargets(raidId: string, viewerDiscordId: string
     where: { raidId, ...(officer ? {} : { user: { discordId: viewerDiscordId } }) },
     select: {
       response: true,
+      character: { select: { id: true } },
       user: {
         select: {
           id: true,
@@ -130,7 +132,7 @@ export async function loadReserveTargets(raidId: string, viewerDiscordId: string
         self: s.user.discordId === viewerDiscordId,
         characters: s.user.characters.map((c) => ({ id: c.id, name: c.name, wowClass: lower(c.class) as WowClass, isMain: c.isMain })),
         current: {
-          characterId: s.user.reserves[0]?.characterId ?? null,
+          characterId: s.user.reserves[0]?.characterId ?? characterBrought({ character: s.character, user: { characters: s.user.characters.filter((c) => c.isMain) } })?.id ?? null,
           hr: s.user.reserves.find((r) => r.kind === 'HR')?.itemId ?? null,
           sr: s.user.reserves.find((r) => r.kind === 'SR')?.itemId ?? null,
         },
