@@ -427,6 +427,23 @@ dialog#pl-sheet::backdrop { background: rgb(6 8 11 / 0.72); }
     else if (opts.refocus) { var c = histRoot.querySelector('.md\\:flex [data-filter="' + opts.refocus + '"]'); if (c) c.focus(); }
   }
   var current;
+  /** history-menu and history-filters open the control that exists at the current width, again on resize. */
+  function applyOpen() {
+    if (current !== 'history-menu' && current !== 'history-filters') return;
+    var phone = window.innerWidth < 768;
+    var drawer = document.querySelector('dialog[aria-label="Site menu"]');
+    var sheet = document.getElementById('pl-sheet');
+    var dropdown = document.querySelector('header nav button[aria-controls]');
+    var panel = dropdown && document.getElementById(dropdown.getAttribute('aria-controls'));
+    var menu = current === 'history-menu';
+    if (drawer && drawer.open && !(menu && phone)) drawer.close();
+    if (sheet && sheet.open && !(!menu && phone)) sheet.close();
+    if (panel) { var on = menu && !phone; dropdown.setAttribute('aria-expanded', String(on)); panel.classList.toggle('hidden', !on); panel.classList.toggle('flex', on); }
+    if (menu && phone && drawer && !drawer.open) drawer.showModal();
+    if (!menu && phone && sheet && !sheet.open) sheet.showModal();
+  }
+  var resizeTimer;
+  window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(applyOpen, 50); });
   function go(state, opts) {
     opts = opts || {};
     current = state;
@@ -451,11 +468,7 @@ dialog#pl-sheet::backdrop { background: rgb(6 8 11 / 0.72); }
     window.history.replaceState(null, '', u);
     document.documentElement.setAttribute('data-state', state);
     document.documentElement.setAttribute('data-theme', 'default');
-    if (state === 'history-menu') {
-      if (window.innerWidth < 768) document.querySelector('button[aria-label="Open menu"]').click();
-      else document.querySelector('header button[aria-controls]').click();
-    }
-    if (state === 'history-filters' && window.innerWidth < 768) document.getElementById('pl-sheet').showModal();
+    applyOpen();
     if (opts.focus) { var h = histRoot.querySelector('h1'); if (h) { h.tabIndex = -1; h.focus(); } }
     if (opts.keepFilters && !opts.keepSheet && !opts.refocus && history) window.scrollTo(0, 0);
   }

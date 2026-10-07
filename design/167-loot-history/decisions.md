@@ -9,6 +9,16 @@ Pending. Set 1 (raid page "Loot" list, #99) first; set 2 (history page, #100) af
 chooses set 1. Only Robert merging the design PR approves the design for building.
 
 ## Alternatives
+Set 1 evidence (all versions, captured before a and b were removed): [manifest](screenshots/all/set-1/manifest.json),
+16 images (2 versions × 4 states × default × 390/1440).
+
+Set 2 (2026-10-06): one decision varied, one character's layout (Robert, decision 9). Both carry set 1's b.
+
+| Version | What differs | Outcome |
+| --- | --- | --- |
+| b1 | Grouped by raid in both Everyone and one character's view | Pending |
+| b2 | Everyone grouped by raid; one character's view is a flat table with Raid + date as a column | Pending |
+
 Set 1 (2026-10-06): one decision varied, list layout (Robert, decision 3).
 
 | Version | What differs | Outcome |
@@ -27,6 +37,16 @@ Set 1 (2026-10-06): one decision varied, list layout (Robert, decision 3).
   1. Version b groups by boss, but #99 says "ordered by the order recorded". **Escalated to Robert**
      (decision 8): choosing b changes #99's rule to "grouped by boss in kill order, recorded order
      within each boss"; a keeps #99 as written.
+
+- Set 2 verdict (same reviewer and model, `critique-2.txt`): **FIXES**, 32 images inspected, all readable.
+  1. History dates didn't say they're guild dates (#100). **Fixed:** lede adds "Raid dates are in guild time."
+  2. Open menu and phone filter sheet had no images. **Fixed:** states `history-menu` and `history-filters`.
+- Fixes-only re-check (`critique-3.txt`): **1 PASS**; **2 still FIXES**: the helper resizes after load, so
+  the prototype opened the control for the wrong width (closed menus at both widths, a sheet at 1440).
+  The maker then made both states follow resizes and refreshed all 40 images; the maker inspected
+  the eight affected captures (menu dropdown at 1440, phone menu at 390, sheet at 390 with Treaty,
+  Molten Core, Clear filters and Done, desktop bar at 1440) and they show the open states. Per the
+  one-re-check rule this was escalated to Robert rather than re-reviewed (decision 12).
 
 ## Comments and changes
 | ID / source | Version / element | Original note | Agreed change and verification | Resolved |
