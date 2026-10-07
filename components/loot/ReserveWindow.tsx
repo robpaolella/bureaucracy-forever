@@ -9,6 +9,7 @@ import { SAVE_FAILED } from '@/content/calendar';
 import { RESERVES } from '@/content/reserves';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
+import type { RemovedReserve } from '@/lib/character-switch';
 import type { ReserveTargetRow, ReserveWindowData } from '@/lib/loot-data';
 import { draftPickFor, reserveHolders } from '@/lib/loot-rules';
 import { promptsReserves, raidDate, type RaidResponse } from '@/lib/raids';
@@ -54,6 +55,7 @@ export function ReserveWindow({ open, onClose, raid, data, targetId, confirm, no
   const [draft, setDraft] = useState(() => draftFor(targets, targetId));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [lockedUser, setLockedUser] = useState<string | null>(null);
   const [openings, setOpenings] = useState(0);
   const [wasOpen, setWasOpen] = useState(false);
   const formId = useId();
@@ -65,6 +67,7 @@ export function ReserveWindow({ open, onClose, raid, data, targetId, confirm, no
     if (open) {
       setDraft(draftFor(targets, targetId));
       setError(null);
+      setLockedUser(null);
       setOpenings((n) => n + 1);
     }
   }
@@ -85,6 +88,21 @@ export function ReserveWindow({ open, onClose, raid, data, targetId, confirm, no
     }
     setBusy(true);
     setError(null);
+    const cleared = draft.hr === null && draft.sr === null;
+    const originalCharacter = draftFor(targets, target.userId)!.characterId;
+    const switchAfterClear = cleared && draft.characterId !== originalCharacter;
+    let picksCleared = false;
+    const fail = (reason: string, status?: number) => {
+      if (status === 409 && /^(Sign-ups|Reserves) are locked\./.test(reason)) {
+        setLockedUser(target.userId);
+        if (!picksCleared) setDraft(draftFor(targets, target.userId));
+      }
+      if (picksCleared) {
+        setDraft({ ...draft, characterId: originalCharacter });
+        router.refresh();
+      }
+      setError(picksCleared ? RESERVES.switchFailed(reason) : reason);
+    };
     try {
       const res = await fetch(`/api/raids/${raid.id}/reserves`, {
         method: 'PUT',
@@ -92,16 +110,35 @@ export function ReserveWindow({ open, onClose, raid, data, targetId, confirm, no
         credentials: 'same-origin',
         body: JSON.stringify({ characterId: draft.characterId, hr: draft.hr, sr: draft.sr, forUserId: target.self ? undefined : target.userId }),
       });
-      const result = (await res.json().catch(() => null)) as { error?: string } | null;
+      const result = (await res.json().catch(() => null)) as { error?: string; removed?: RemovedReserve[] } | null;
       if (!res.ok) {
-        setError(result?.error ?? SAVE_FAILED);
+        fail(result?.error ?? SAVE_FAILED, res.status);
         return;
       }
-      notify({ tone: 'ok', title: draft.hr === null && draft.sr === null ? RESERVES.cleared : target.self ? RESERVES.saved : RESERVES.savedFor(target.name) });
+      let removed = result?.removed ?? [];
+      if (switchAfterClear) {
+        // Clearing never switches characters. Keep that successful save even if the switch fails.
+        picksCleared = true;
+        const switched = await fetch(`/api/raids/${raid.id}/signup/character`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+          body: JSON.stringify({ characterId: draft.characterId, forUserId: target.self ? undefined : target.userId }),
+        });
+        const answer = (await switched.json().catch(() => null)) as { error?: string; removed?: RemovedReserve[] } | null;
+        if (!switched.ok) {
+          fail(answer?.error ?? SAVE_FAILED, switched.status);
+          return;
+        }
+        removed = [...removed, ...(answer?.removed ?? [])];
+      }
+      notify({ tone: 'ok', title: cleared ? RESERVES.cleared : target.self ? RESERVES.saved : RESERVES.savedFor(target.name),
+        detail: removed.length ? removed.map((r) => RESERVES.removed(r.kind, r.itemName, r.reason)).join(' ') : undefined });
       onClose();
       router.refresh();
     } catch {
-      setError(SAVE_FAILED);
+      if (picksCleared) {
+        router.refresh();
+        setError(RESERVES.switchUnconfirmed);
+      } else setError(SAVE_FAILED);
     } finally {
       setBusy(false);
     }
@@ -118,14 +155,14 @@ export function ReserveWindow({ open, onClose, raid, data, targetId, confirm, no
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={() => { if (!busy) onClose(); }}
       wide
       title={target && !target.self ? RESERVES.titleFor(target.name) : RESERVES.title}
       eyebrow={confirm && (
         <div role="status" className="flex flex-wrap items-center gap-x-2.5 text-sm font-semibold text-fg">
           <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-ok" />
           {confirm.text}
-          <button type="button" onClick={() => { confirm.onUndo(); onClose(); }} className="flex min-h-11 items-center border-b border-teal-dim text-sm font-semibold text-teal transition-[filter] duration-[120ms] hover:brightness-110">
+          <button type="button" disabled={busy} onClick={() => { confirm.onUndo(); onClose(); }} className="flex min-h-11 items-center border-b border-teal-dim text-sm font-semibold text-teal transition-[filter] duration-[120ms] hover:brightness-110">
             {RESERVES.undo}
           </button>
         </div>
@@ -142,13 +179,14 @@ export function ReserveWindow({ open, onClose, raid, data, targetId, confirm, no
             <span aria-hidden>!</span>{error}
           </p>
         )}
-        <Button variant="ghost" onClick={onClose}>{confirm ? RESERVES.notNow : RESERVES.cancel}</Button>
+        <Button variant="ghost" disabled={busy} onClick={onClose}>{confirm ? RESERVES.notNow : RESERVES.cancel}</Button>
         <Button type="submit" form={formId} loading={busy}>{RESERVES.save}</Button>
       </>}
     >
       {/* Only while open: the closed window keeps no second copy of the item list in the page. */}
       {open && draft && target && (
-        <form ref={body} id={formId} onSubmit={save} className="flex flex-col gap-3.5">
+        <form ref={body} id={formId} onSubmit={save}>
+          <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3.5">
           <div className="flex flex-wrap gap-x-6 gap-y-3">
             {targets.length > 1 && (
               <Labelled label={RESERVES.forWhom}>
@@ -157,8 +195,8 @@ export function ReserveWindow({ open, onClose, raid, data, targetId, confirm, no
                 </select>
               </Labelled>
             )}
-            <Labelled label={RESERVES.character}>
-              <select className={SELECT} value={draft.characterId} onChange={(e) => chooseCharacter(e.target.value)}>
+            <Labelled label={target.characters.length > 1 ? RESERVES.character : RESERVES.singleCharacter}>
+              <select className={SELECT} disabled={lockedUser === target.userId} value={draft.characterId} onChange={(e) => chooseCharacter(e.target.value)}>
                 {target.characters.map((c) => <option key={c.id} value={c.id}>{c.name} · {CLASS_COLORS[c.wowClass].label}</option>)}
               </select>
             </Labelled>
@@ -168,6 +206,7 @@ export function ReserveWindow({ open, onClose, raid, data, targetId, confirm, no
             won={new Set(target.blockedHr[draft.characterId] ?? [])} hr={draft.hr} sr={draft.sr}
             forName={target.self ? null : target.name}
             onChange={(kind, itemId) => setDraft({ ...draft, [kind === 'HR' ? 'hr' : 'sr']: itemId })} />
+          </fieldset>
         </form>
       )}
     </Modal>
