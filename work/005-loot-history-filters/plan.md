@@ -6,4 +6,4 @@
 - [x] Run design check, including main comparison and independent verdict.
 - [x] Sync branch and run the repository Checks.
 - [x] Review (`review` skill).
-- [ ] Open PR.
+- [x] Open PR #200 (targets main, closes #180); not merged.
