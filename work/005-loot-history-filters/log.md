@@ -33,4 +33,10 @@
 ## 2026-10-07 — Sync after #198
 - Merged origin/main `a123c8a` (#198) without conflicts. Incoming changes add the bot raid-character switching endpoint, its integration tests and the shared contract entry; loot-history files unchanged.
 - Checks in order PASS: lint, typecheck, test (930 passed / 119 skipped), build. Explicit Postgres history/older-route suite PASS (10 tests). Evidence: `/tmp/loot-180-evidence/sync-198-*.txt`.
-- Pushing the synced branch; #200 remains off staging and unmerged.
+- Pushing the synced branch; #200 remained off staging and unmerged at that point.
+
+## 2026-10-07 — Sync after #199 and authorised staging
+- Conductor explicitly requested syncing #199 and putting PR #200 on the now-free staging environment.
+- Merged origin/main `406df44` without conflicts. Incoming: reserve-window character selector, its tests/copy and the jsdom test dependency; installed the updated lockfile with npm ci.
+- All Checks PASS: lint, typecheck, test (940 passed / 119 skipped), build. Explicit Postgres history/older-route suite PASS (10 tests). Evidence `/tmp/loot-180-evidence/sync-199-*.txt`.
+- Staging slot checked free. Next: push, merge feature into staging, label #200 on-staging, update PR and confirm exact staging deployment. No permission to merge #200 into main.
