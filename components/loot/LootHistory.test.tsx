@@ -27,6 +27,10 @@ describe('LootHistory', () => {
     const html = render({ ...base, raids: [], filteredTotal: 0, filters: { characterName: 'Stipulate', templateId: 't1' } });
     expect(html).toContain('0 of 4 awards'); expect(html).toContain('No loot matches those filters.'); expect(html).toContain('Clear filters'); expect(html).toContain('border-dashed');
   });
+  it('keeps the filtered summary when a filter matches every award', () => {
+    expect(render({ ...base, filteredTotal: 4 })).toContain('4 of 4 awards');
+    expect(render({ ...base, filters: {}, filteredTotal: 4 })).toContain('<option value="" selected="">Everyone</option>');
+  });
   it('does not offer filters when no visible awards exist', () => {
     const html = render({ ...base, raids: [], total: 0, filteredTotal: 0, filters: {} });
     expect(html).toContain('No loot recorded yet'); expect(html).not.toContain('Filters');

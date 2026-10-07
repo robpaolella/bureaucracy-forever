@@ -8,6 +8,14 @@
 - Conductor clarified this is settled: create/populate started raids via the actual officer UI (same approved method as #99/#100), record several awards over two/three raids for several characters including an alt, void one, then capture populated Everyone, filtered, character, and no-results states at 390/1440. Hand-recording >50 awards is not required; the Postgres test is acceptable paging proof and must be stated in the PR.
 - The next worker should start a single new run, use the local verification map's actual UI flow, and edit a generated raid's start to a few minutes in the future through the UI, wait until it starts, then use officer loot log. Do not direct-write the database or fake time. Keep one local site at a time and do not read many screenshots into the session.
 
+## 2026-10-07 — Retry progress
+- Rebased unpublished branch on main `89e38b0` (#194). Checks passed: lint, typecheck, test (911 passed / 79 skipped), build; explicit disposable-Postgres older-route tests 10 passed.
+- Evidence root `/tmp/loot-180-evidence`. Main baseline history captured with real recorded awards; first main raid capture timed out on lazy image decoding, so a second owned run recaptures it. First main run Cleanup PASS.
+- Build browser proof completed through real officer UI on two Onyxia raids: 7 awards, one voided, member history 6 visible, Ledgerline 3. Character link, native filters, phone sheet, Done/Clear, no-results and unknown-filter fallback exercised. No private void reason in member output. Build Cleanup PASS.
+- Browser InputTime `fill` did not persist the edit; actual keyboard Hours/Minutes + Tab did. Reload verified future times before waiting for real starts. Never changed database/time directly.
+- Dual isolated Impeccable critique: 33/40, two fixes (44px link targets; approved character metadata grouping/grid). Fixed both; refreshed captures. Corrected X-of-X filtered totals/default Everyone selection and added regression test. Existing calendar contrast finding already in backlog, added #180 reference. No redesign.
+- Pending: finish main raid recapture; independent design verdict then code review; final Checks; PR with actual attachments. See manifest and critique reports in evidence root.
+
 ## Next session
 Route resolved: OpenAI GPT-6 Astra, low thinking.
 

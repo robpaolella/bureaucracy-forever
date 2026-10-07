@@ -12,7 +12,7 @@ import { GUILD_TIMEZONE } from '@/lib/config';
 import type { LootHistoryFilters, LootHistoryView, MemberAwardView } from '@/lib/member-loot';
 
 const guildDate = new Intl.DateTimeFormat('en-US', { timeZone: GUILD_TIMEZONE, weekday: 'short', month: 'short', day: 'numeric' });
-const columns = 'md:grid md:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))] md:items-center md:gap-x-4 md:px-4';
+const columns = 'md:grid md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)_repeat(2,minmax(0,1fr))] md:items-center md:gap-x-4 md:px-4';
 const separator = "before:mx-2 before:text-fg-3 before:content-['·'] md:before:hidden";
 
 function query(filters: LootHistoryFilters, cursor?: { startsAt: string; id: string }) {
@@ -40,8 +40,8 @@ function CharacterAward({ award, raid }: { award: MemberAwardView; raid: LootHis
   return <li className={`min-w-0 px-3 pb-2 pt-1 text-sm md:min-h-11 md:py-0 ${columns}`}>
     <ItemName item={award.item} className="text-sm [&_button>span>span]:whitespace-normal [&_button>span>span]:[overflow-wrap:anywhere]" />
     <span className="flex flex-wrap items-baseline gap-y-0.5 text-fg-2 md:contents">
-      <span className="min-w-0 [overflow-wrap:anywhere]"><Link href={`/members/calendar/${raid.id}`} className="font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-current">{raid.name}</Link> <time dateTime={raid.startsAt}>{guildDate.format(new Date(raid.startsAt))}</time></span>
-      <span className={separator}><span className={award.method === 'HR' ? 'font-semibold text-sand' : award.method === 'SR' ? 'font-semibold text-teal' : award.method === 'DISENCHANT_BANK' ? 'text-fg-2' : 'font-semibold text-fg'}>{METHOD_LABEL[award.method]}</span>{award.roll !== null && <span className="tabular-nums"> · {award.roll}</span>}</span>
+      <span className="min-w-0 basis-full [overflow-wrap:anywhere]"><Link href={`/members/calendar/${raid.id}`} className="inline-flex min-h-11 min-w-11 items-center font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-current">{raid.name}</Link> <time dateTime={raid.startsAt} className="text-[13px]">{guildDate.format(new Date(raid.startsAt))}</time></span>
+      <span><span className={award.method === 'HR' ? 'font-semibold text-sand' : award.method === 'SR' ? 'font-semibold text-teal' : award.method === 'DISENCHANT_BANK' ? 'text-fg-2' : 'font-semibold text-fg'}>{METHOD_LABEL[award.method]}</span>{award.roll !== null && <span className="tabular-nums"> · {award.roll}</span>}</span>
       <span className={`text-[13px] ${separator}`}>{award.bossName ?? '—'}</span>
     </span>
   </li>;
@@ -58,7 +58,7 @@ export function LootHistory({ initial }: { initial: LootHistoryView }) {
   if (!history) return null;
   const activeCount = Number(Boolean(history.filters.characterId || history.filters.characterName)) + Number(Boolean(history.filters.templateId));
   const characterSelected = Boolean(history.filters.characterId || history.filters.characterName);
-  const selectedCharacter = history.filters.characterId ?? `former:${history.filters.characterName ?? ''}`;
+  const selectedCharacter = history.filters.characterId ?? (history.filters.characterName ? `former:${history.filters.characterName}` : '');
   const update = (next: LootHistoryFilters) => router.push(`/members/loot${query(next) ? `?${query(next)}` : ''}`);
   async function older() {
     const current = history;
@@ -77,7 +77,7 @@ export function LootHistory({ initial }: { initial: LootHistoryView }) {
   }
   if (history.total === 0) return <EmptyState title={LOOT_HISTORY.emptyTitle}>{LOOT_HISTORY.empty}</EmptyState>;
   return <div className="flex flex-col gap-6">
-    <FilterBar summary={history.filteredTotal === history.total ? LOOT_HISTORY.total(history.total) : LOOT_HISTORY.filteredTotal(history.filteredTotal, history.total)} activeCount={activeCount} onClear={() => update({})}>
+    <FilterBar summary={activeCount ? LOOT_HISTORY.filteredTotal(history.filteredTotal, history.total) : LOOT_HISTORY.total(history.total)} activeCount={activeCount} onClear={() => update({})}>
       <select aria-label="Character" value={selectedCharacter} onChange={(event) => {
         const value = event.target.value;
         update({ ...(history.filters.templateId && { templateId: history.filters.templateId }), ...(value && (value.startsWith('former:') ? { characterName: value.slice(7) } : { characterId: value })) });
