@@ -7,7 +7,7 @@ import { PrismaClient } from '@/lib/generated/prisma/client';
 
 const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient }));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
-import { addAlt, editCharacter, removeCharacter } from './characters';
+import { addAlt, changeMain, editCharacter, removeCharacter } from './characters';
 
 const input = (name: string, healer = false) => ({ name, wowClass: 'paladin', spec: healer ? 'Holy' : 'Protection', role: healer ? 'healer' : 'tank' });
 
@@ -27,21 +27,21 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
   } });
   const jobs = async () => (await db.outboxJob.findMany({ where: { type: 'raid.update' } })).map((j) => (j.payload as { raidId: string }).raidId).sort();
 
-  // Both real transactions finish reading before either can insert; retries do not wait.
-  async function race(adds: (() => ReturnType<typeof addAlt>)[]) {
+  // Both real transactions finish the selected read before either can write; retries do not wait.
+  async function race(changes: (() => ReturnType<typeof addAlt>)[], model: 'User' | 'Character' = 'User') {
     let arrived = 0, release!: () => void;
     const ready = new Promise<void>((resolve) => { release = resolve; });
     const timer = setTimeout(release, 5000);
-    state.db = db.$extends({ query: { user: { async findUnique({ args, query }) {
-      const user = await query(args);
-      if (++arrived <= 2) {
+    state.db = db.$extends({ query: { $allModels: { async $allOperations({ model: queriedModel, operation, args, query }) {
+      const result = await query(args);
+      if (queriedModel === model && operation === 'findUnique' && ++arrived <= 2) {
         if (arrived === 2) release();
         await ready;
         if (arrived < 2) throw new Error('Concurrent transactions did not overlap');
       }
-      return user;
+      return result;
     } } } }) as unknown as PrismaClient;
-    try { return await Promise.all(adds.map((add) => add())); }
+    try { return await Promise.all(changes.map((run) => run())); }
     finally { clearTimeout(timer); state.db = db; }
   }
 
@@ -123,6 +123,75 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
     await editCharacter(user.id, main.id, input('Editor', true));
     expect(await jobs()).toEqual(['main-choice', 'null-choice']);
     await db.outboxJob.deleteMany();
+  });
+  it('swaps mains, mirrors officer rank and preserves explicit and legacy raid choices', async () => {
+    const user = await member('Switcher'), oldMain = user.characters[0];
+    const added = await addAlt(user.id, input('Newmain', true));
+    if (!('character' in added)) throw new Error('Expected alt');
+    const alt = added.character;
+    await db.user.update({ where: { id: user.id }, data: { rank: 'OFFICER' } });
+    const memberStats = { joinedAt: new Date('2020-01-01'), attendance: 87.5 };
+    await db.character.update({ where: { id: oldMain.id }, data: memberStats });
+    await db.character.update({ where: { id: alt.id }, data: { joinedAt: new Date('2025-01-01'), attendance: 10 } });
+    for (const [id, choice, status] of [
+      ['swap-past-null', null, 'DONE'], ['swap-future-null', null, 'SCHEDULED'],
+      ['swap-past-main', oldMain.id, 'DONE'], ['swap-future-main', oldMain.id, 'SCHEDULED'],
+      ['swap-future-alt', alt.id, 'LOCKED'],
+    ] as const) {
+      await raid(id, user.id, choice, true, status);
+      if (status === 'DONE') await db.raid.update({ where: { id }, data: { startsAt: new Date('2020-01-01') } });
+    }
+    const jobsBefore = await jobs();
+    expect(await changeMain(alt.id)).toMatchObject({ status: 200, character: { id: alt.id, isMain: true, rank: 'OFFICER', raidRole: 'HEALER' } });
+    expect(await db.character.findUnique({ where: { id: alt.id } })).toMatchObject(memberStats);
+    expect(await db.character.findUnique({ where: { id: oldMain.id } })).toMatchObject({ isMain: false, raidRole: 'TANK', ...memberStats });
+    expect(await db.character.count({ where: { userId: user.id, isMain: true } })).toBe(1);
+    const signups = await db.signup.findMany({ where: { userId: user.id }, orderBy: { raidId: 'asc' } });
+    expect(signups.map((s) => [s.raidId, s.characterId])).toEqual([
+      ['swap-future-alt', alt.id], ['swap-future-main', oldMain.id], ['swap-future-null', oldMain.id],
+      ['swap-past-main', oldMain.id], ['swap-past-null', oldMain.id],
+    ]);
+    const characters = await db.character.findMany({ where: { userId: user.id }, orderBy: { id: 'asc' } });
+    expect(await changeMain(alt.id)).toMatchObject({ status: 200 });
+    expect(await db.character.findMany({ where: { userId: user.id }, orderBy: { id: 'asc' } })).toEqual(characters);
+    expect(await db.signup.findMany({ where: { userId: user.id }, orderBy: { raidId: 'asc' } })).toEqual(signups);
+    expect(await jobs()).toEqual(jobsBefore);
+    expect(await changeMain('missing')).toMatchObject({ status: 404, reason: 'not_found' });
+    // #170/#174: an earlier read of this alt cannot authorize edits/deletion after promotion.
+    expect(await editCharacter(user.id, alt.id, input('Forbidden'), { altOnly: true })).toMatchObject({ status: 409, reason: 'main' });
+    expect(await db.character.findUnique({ where: { id: alt.id } })).toMatchObject({ name: 'Newmain', raidRole: 'HEALER' });
+    expect(await editCharacter(user.id, oldMain.id, input('Demoted'), { altOnly: true })).toMatchObject({ status: 200 });
+    expect(await removeCharacter(user.id, alt.id, { altOnly: true })).toMatchObject({ status: 409, reason: 'main' });
+    expect(await removeCharacter(user.id, oldMain.id, { altOnly: true })).toMatchObject({ status: 200 });
+    expect(await removeCharacter(user.id, alt.id, { altOnly: true })).toMatchObject({ status: 409, reason: 'main' });
+    await db.outboxJob.deleteMany();
+  });
+  it('rolls back pinned signups and demotion when promotion fails', async () => {
+    const user = await member('Rollback');
+    const added = await addAlt(user.id, input('Rollbackalt'));
+    if (!('character' in added)) throw new Error('Expected alt');
+    await raid('rollback-null', user.id, null);
+    await pool.query(`CREATE FUNCTION reject_promotion() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+      IF NEW."isMain" AND NOT OLD."isMain" THEN RAISE EXCEPTION 'promotion unavailable'; END IF; RETURN NEW; END $$;
+      CREATE TRIGGER reject_promotion BEFORE UPDATE ON "Character" FOR EACH ROW EXECUTE FUNCTION reject_promotion();`);
+    try {
+      await expect(changeMain(added.character.id)).rejects.toThrow('promotion unavailable');
+      expect(await db.character.findUnique({ where: { id: user.characters[0].id } })).toMatchObject({ isMain: true });
+      expect(await db.character.findUnique({ where: { id: added.character.id } })).toMatchObject({ isMain: false });
+      expect(await db.signup.findUnique({ where: { raidId_userId: { raidId: 'rollback-null', userId: user.id } } })).toMatchObject({ characterId: null });
+    } finally {
+      await pool.query('DROP TRIGGER reject_promotion ON "Character"; DROP FUNCTION reject_promotion();');
+    }
+  });
+  it('concurrent swaps leave exactly one main and keep the original legacy choice', async () => {
+    const user = await member('Swapracer');
+    const alts = [await addAlt(user.id, input('Swapone')), await addAlt(user.id, input('Swaptwo'))];
+    const ids = alts.map((r) => { if (!('character' in r)) throw new Error('Expected alt'); return r.character.id; });
+    await raid('race-null', user.id, null);
+    const results = await race(ids.map((id) => () => changeMain(id)), 'Character');
+    expect(results.map((r) => r.status)).toEqual([200, 200]);
+    expect(await db.character.count({ where: { userId: user.id, isMain: true } })).toBe(1);
+    expect(await db.signup.findUnique({ where: { raidId_userId: { raidId: 'race-null', userId: user.id } } })).toMatchObject({ characterId: user.characters[0].id });
   });
   it('removes an alt with loot, cascades reserves, falls back signups and queues refresh atomically', async () => {
     const user = await member('Remover');
