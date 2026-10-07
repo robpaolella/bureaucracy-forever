@@ -64,7 +64,11 @@ describe('gateDecision with the loot flag', () => {
   it('gates loot routes like their area once the flag is on', () => {
     expect(gateDecision('/officers/loot', '', 'officer', { loot: true })).toEqual({ kind: 'next' });
     expect(gateDecision('/officers/loot', '', 'member', { loot: true })).toEqual({ kind: 'notFound' });
-    expect(gateDecision('/members/loot', '', 'member', { loot: true })).toEqual({ kind: 'next' });
+    for (const path of ['/members/loot', '/members/loot/older']) {
+      expect(gateDecision(path, '', 'member', { loot: true })).toEqual({ kind: 'next' });
+      expect(gateDecision(path, '', 'officer', { loot: true })).toEqual({ kind: 'next' });
+      expect(gateDecision(path, '', 'social', { loot: true })).toEqual({ kind: 'notFound' });
+    }
     expect(gateDecision('/members/loot', '', null, { loot: true })).toMatchObject({ kind: 'redirect' });
   });
 
