@@ -9,7 +9,8 @@ export const error = (message: string, status: number) => NextResponse.json({ er
 export async function viewer() {
   const session = await getSession();
   if (!session) return { denied: error('Log in first.', 401) };
-  const user = await db.user.findUnique({ where: { discordId: session.discordId }, select: { id: true } });
+  const user = await db.user.findUnique({ where: { discordId: session.discordId }, select: { id: true, inGuild: true } });
+  if (user && !user.inGuild) return { denied: error('Only current guild members can manage characters.', 403) };
   return { user };
 }
 

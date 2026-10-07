@@ -27,7 +27,7 @@ function call(method: string, data: unknown = body) {
 beforeEach(() => {
   vi.resetAllMocks();
   m.session.mockResolvedValue({ discordId: 'discord-owner', role: 'member' });
-  m.user.mockResolvedValue({ id: 'owner' });
+  m.user.mockResolvedValue({ id: 'owner', inGuild: true });
   m.existing.mockResolvedValue(alt);
   m.list.mockResolvedValue([alt]);
   m.transaction.mockImplementation((run) => run(tx));
@@ -48,6 +48,16 @@ it.each(['GET', 'POST', 'PATCH', 'DELETE'])('%s refuses signed-out callers befor
   expect(m.existing).not.toHaveBeenCalled();
   expect(m.transaction).not.toHaveBeenCalled();
 });
+it.each(['GET', 'POST', 'PATCH', 'DELETE'])('%s refuses former guild members with a leftover main', async (method) => {
+  m.user.mockResolvedValue({ id: 'owner', inGuild: false });
+  const response = await call(method);
+  expect(response.status).toBe(403);
+  expect(await response.json()).toEqual({ error: 'Only current guild members can manage characters.' });
+  expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+  expect(m.existing).not.toHaveBeenCalled();
+  expect(m.list).not.toHaveBeenCalled();
+  expect(m.transaction).not.toHaveBeenCalled();
+});
 it.each(['member', 'officer', 'social'])('%s can list, add, edit and remove their own alts', async (role) => {
   m.session.mockResolvedValue({ discordId: 'discord-owner', role });
   for (const method of ['GET', 'POST', 'PATCH', 'DELETE']) {
@@ -58,7 +68,7 @@ it.each(['member', 'officer', 'social'])('%s can list, add, edit and remove thei
     expect(response.headers.get('Cache-Control')).toBe('private, no-store');
     expect(await response.json()).toEqual(method === 'GET' ? [alt] : { id: 'alt', name: 'Sample' });
   }
-  expect(m.user).toHaveBeenCalledWith({ where: { discordId: 'discord-owner' }, select: { id: true } });
+  expect(m.user).toHaveBeenCalledWith({ where: { discordId: 'discord-owner' }, select: { id: true, inGuild: true } });
   expect(m.list).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'owner' } }));
   // Neither supplied userId, isMain nor rank is writable, including by officers here.
   expect(m.create).toHaveBeenCalledWith({ data: { name: 'Sample', class: 'PALADIN', spec: 'Protection', raidRole: 'TANK', userId: 'owner', isMain: false, rank: 'RAIDER' } });
