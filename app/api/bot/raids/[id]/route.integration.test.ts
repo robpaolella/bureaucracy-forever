@@ -11,6 +11,9 @@ const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient, loot: tru
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
 vi.mock('@/lib/flags', () => ({ lootEnabled: () => state.loot }));
 import { GET } from './route';
+import { POST } from './respond/route';
+import { POST as BENCH } from './bench/route';
+import { REASONS } from '@/lib/signup-rules';
 
 const docker = (...args: string[]) => execFileSync('docker', args, { encoding: 'utf8', timeout: 120_000 }).trim();
 const HOUR = 60 * 60_000;
@@ -47,7 +50,7 @@ describe.skipIf(process.env.RAID_VIEW_INTEGRATION !== '1')('GET /api/bot/raids/:
     state.db = client;
     await client.raidTemplate.create({ data: { id: 't-table', name: 'With table', short: 'WT', size: 10, requirements: {} } });
     await client.raidTemplate.create({ data: { id: 't-empty', name: 'No table', short: 'NT', size: 10, requirements: {} } });
-    await client.user.create({ data: { id: 'u1', discordId: ME, discordName: 'Sample one', characters: { create: { id: 'c1', name: 'Sampleone', class: 'MAGE', spec: 'Frost', raidRole: 'RANGED', isMain: true } } } });
+    await client.user.create({ data: { id: 'u1', discordId: ME, discordName: 'Sample one', role: 'MEMBER', characters: { create: { id: 'c1', name: 'Sampleone', class: 'MAGE', spec: 'Frost', raidRole: 'RANGED', isMain: true } } } });
     const startsAt = new Date(Date.now() + 72 * HOUR);
     for (const [id, templateId, at] of [['r-one', 't-table', startsAt], ['r-two', 't-table', startsAt], ['r-empty', 't-empty', startsAt], ['r-locked', 't-table', new Date(Date.now() + HOUR)]] as const) {
       await client.raid.create({ data: { id, name: `Raid ${id}`, templateId, startsAt: at, locksAt: at, requirements: {}, signups: { create: { userId: 'u1', response: 'ACCEPT', source: 'WEB' } } } });
@@ -70,6 +73,7 @@ describe.skipIf(process.env.RAID_VIEW_INTEGRATION !== '1')('GET /api/bot/raids/:
     expect(await viewer('r-one')).toEqual({
       standing: 'ROSTER',
       response: 'accept',
+      character: { id: 'c1', name: 'Sampleone', wowClass: 'mage', spec: 'Frost', raidRole: 'ranged' },
       lootTable: true,
       reservesLocked: false,
       reservesComplete: false,
@@ -93,5 +97,103 @@ describe.skipIf(process.env.RAID_VIEW_INTEGRATION !== '1')('GET /api/bot/raids/:
 
   it('gives no viewer to a member without a sign-up', async () => {
     expect(await viewer('r-unsigned')).toBeNull();
+  });
+
+  const answer = (id: string, body: object = {}, key?: string, bench = false) => (bench ? BENCH : POST)(new Request(`http://localhost/api/bot/raids/${id}/${bench ? 'bench' : 'respond'}`, {
+    method: 'POST', headers: { authorization: `Bearer ${SECRET}`, ...(key ? { 'Idempotency-Key': key } : {}) },
+    body: JSON.stringify({ discordId: ME, response: 'ACCEPT', ...body }),
+  }), { params: Promise.resolve({ id }) });
+  const saved = (raidId: string) => client.signup.findUniqueOrThrow({ where: { raidId_userId: { raidId, userId: 'u1' } } });
+  const fresh = (id: string) => client.raid.create({ data: { id, name: id, templateId: 't-table', startsAt: new Date('2099-06-01'), locksAt: new Date('2099-06-01'), requirements: {}, discordThreadId: `${id}-thread` } });
+
+  it('creates with the main, preserves a saved choice when omitted, and exposes alts only to their viewer', async () => {
+    await fresh('choice');
+    const first = await answer('choice');
+    expect(first.status).toBe(200);
+    expect(await first.json()).toMatchObject({ removedReserves: [], viewer: { character: { id: 'c1' } } });
+    expect((await saved('choice')).characterId).toBe('c1');
+    expect(await viewer('choice')).not.toHaveProperty('characters');
+    await client.character.create({ data: { id: 'alt', userId: 'u1', name: 'Altone', isMain: false, class: 'PRIEST', spec: 'Holy', raidRole: 'HEALER' } });
+    const selected = await answer('choice', { characterId: 'alt' });
+    expect(selected.status).toBe(200);
+    expect(await selected.json()).toMatchObject({ removedReserves: [], viewer: {
+      character: { id: 'alt', name: 'Altone', wowClass: 'priest', spec: 'Holy', raidRole: 'healer' },
+      characters: [{ id: 'c1', isMain: true }, { id: 'alt', isMain: false }],
+    } });
+    expect((await answer('choice', { response: 'TENTATIVE' })).status).toBe(200);
+    expect((await saved('choice')).characterId).toBe('alt');
+    expect((await viewer('choice')).character.id).toBe('alt');
+    expect(await viewer('choice', '100000000000000009')).toBeNull();
+    await fresh('new-alt');
+    expect((await answer('new-alt', { characterId: 'alt' })).status).toBe(200);
+    expect((await saved('new-alt')).characterId).toBe('alt');
+  });
+
+  it.each([null, '', '   ', 42, {}, 'foreign'])('rejects invalid or foreign character %j without writing', async (characterId) => {
+    if (characterId === 'foreign') await client.user.create({ data: { id: 'stranger', discordId: '100000000000000002', discordName: 'Sample stranger', characters: { create: { id: 'foreign', name: 'Foreign', class: 'MAGE', spec: 'Frost', raidRole: 'RANGED' } } } });
+    const before = await saved('choice');
+    expect((await answer('choice', { characterId })).status).toBe(400);
+    expect(await saved('choice')).toEqual(before);
+  });
+  it.each(['ABSENT', 'decline'])('rejects a character with %s but accepts an absent answer without one', async (response) => {
+    await client.signup.update({ where: { raidId_userId: { raidId: 'choice', userId: 'u1' } }, data: { standing: 'ROSTER' } });
+    expect((await answer('choice', { response, characterId: 'alt' })).status).toBe(400);
+    expect((await answer('choice', { response, reason: 'Away' })).status).toBe(200);
+    expect(await saved('choice')).toMatchObject({ response: 'ABSENT', reason: 'Away', characterId: 'alt' });
+  });
+
+  it('answers before switching, removes incompatible reserves, and replays the complete reply', async () => {
+    await fresh('removals');
+    await client.signup.create({ data: { raidId: 'removals', userId: 'u1', characterId: 'c1', response: 'ABSENT', source: 'WEB' } });
+    for (const [itemId, kind] of [[100, 'HR'], [101, 'SR']] as const) await client.reserve.create({ data: { raidId: 'removals', userId: 'u1', characterId: 'c1', itemId, kind } });
+    await client.lootReserveSetting.create({ data: { templateId: 't-table', itemId: 100, blocked: true } });
+    const res = await answer('removals', { characterId: 'alt' }, 'choose-alt');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.removedReserves).toEqual([{ kind: 'HR', itemName: 'Item 100', reason: 'Not open to reserves' }]);
+    expect(body.viewer.character.id).toBe('alt');
+    expect(body.bars).toEqual({ tank: 0, healer: 1, melee: 0, ranged: 0 });
+    expect(await saved('removals')).toMatchObject({ characterId: 'alt', response: 'ACCEPT', source: 'DISCORD' });
+    expect(await client.reserve.findMany({ where: { raidId: 'removals' } })).toMatchObject([{ kind: 'SR', characterId: 'alt' }]);
+    const replay = await answer('removals', { characterId: 'alt' }, 'choose-alt');
+    expect(replay.headers.get('Idempotent-Replay')).toBe('true');
+    expect(await replay.json()).toEqual(body);
+    expect((await (await answer('removals', { characterId: 'alt' })).json()).removedReserves).toEqual([]);
+  });
+
+  it('rolls the answer and outbox back on a real switch refusal', async () => {
+    await fresh('rollback');
+    // decideRespond uses the stored status; the shared switch additionally checks cancelledAt.
+    await client.raid.update({ where: { id: 'rollback' }, data: { cancelledAt: new Date() } });
+    await client.signup.create({ data: { raidId: 'rollback', userId: 'u1', characterId: 'c1', response: 'ABSENT', reason: 'Original', source: 'WEB' } });
+    await client.reserve.create({ data: { raidId: 'rollback', userId: 'u1', characterId: 'c1', itemId: 101, kind: 'SR' } });
+    const before = await saved('rollback');
+    const reserves = await client.reserve.findMany({ where: { raidId: 'rollback' } });
+    const jobs = await client.outboxJob.count();
+    const res = await answer('rollback', { characterId: 'alt' });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ reason: REASONS.cancelled });
+    expect(await saved('rollback')).toEqual(before);
+    expect(await client.reserve.findMany({ where: { raidId: 'rollback' } })).toEqual(reserves);
+    expect(await client.outboxJob.count()).toBe(jobs);
+  });
+
+  it.each(['locked', 'CANCELLED', 'DONE'] as const)('keeps the existing %s response refusal', async (kind) => {
+    const id = `refuse-${kind}`;
+    await fresh(id);
+    await client.raid.update({ where: { id }, data: kind === 'locked' ? { locksAt: new Date(0) } : { status: kind } });
+    const res = await answer(id, { characterId: 'alt' });
+    expect(res.status).toBe(409);
+    expect(await client.signup.count({ where: { raidId: id } })).toBe(0);
+  });
+  it('leaves bench character choice untouched and supports a viewer with no character', async () => {
+    await fresh('bench');
+    expect((await answer('bench', { characterId: 'alt' }, undefined, true)).status).toBe(200);
+    expect((await saved('bench')).characterId).toBe('c1');
+    await client.user.create({ data: { id: 'empty', discordId: '100000000000000003', discordName: 'Sample empty', role: 'MEMBER' } });
+    const res = await answer('bench', { discordId: '100000000000000003' });
+    expect(res.status).toBe(200);
+    expect((await res.json()).viewer).toMatchObject({ character: null });
+    expect(await viewer('bench', '100000000000000003')).not.toHaveProperty('characters');
   });
 });
