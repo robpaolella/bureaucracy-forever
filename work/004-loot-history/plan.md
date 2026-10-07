@@ -9,13 +9,13 @@
 - [x] Opt-in history Postgres run: 9/9 tests pass (includes 3 integration cases).
 - [x] Build browser: empty, populated, phone/desktop menus; real officer award/void proof; member raid regression captures.
 - [x] Main browser: predecessor roster and menu captures at both widths.
-- [ ] Complete main shared raid-list captures, then inspect all remaining main/build images and write evidence manifest.
-- [ ] Finish browser behavior proof (raid link, item keyboard tooltip, officer history and logged-out denial); record first-page-only paging limitation.
-- [ ] Dual isolated Impeccable assessments and synthesis; no detector run yet.
-- [ ] Independent cross-company design verdict; fix once if needed.
-- [ ] Commit logical changes and sync with origin/main (currently #185 landed since branch creation).
-- [ ] Final repo checks and integration run after any fixes/sync.
-- [ ] Independent cross-company high-risk code review; fix once if needed.
-- [ ] Cleanup both owned verification runs, retain evidence; close helper tabs if any.
+- [x] Complete main shared raid-list captures and evidence manifest; independent Claude reviewers inspected every in-scope main/build/approved image (parent forbidden image reads after earlier failures).
+- [x] Browser menu/raid link, officer history and logged-out denial verified; keyboard focus inspected by A; first-page-only paging limitation recorded (conductor-approved database-test substitute).
+- [x] Dual isolated Impeccable assessments and synthesis: Opus 5.5 A+B, 30/40, no blockers; nonblocking follow-ups backlogged.
+- [x] Independent cross-company design verdict: Sonnet 5.5 medium PASS; no fixes.
+- [x] Implementation committed and unpublished branch rebased cleanly on origin/main 55d8781 (#186).
+- [x] Final repo checks in required order: all pass, 890 tests pass / 36 skipped; targeted Postgres integration 9/9.
+- [x] Independent cross-company high-risk code review: Opus 5.5 medium PASS; no blocking fixes.
+- [x] Cleanup both fresh verification runs PASS; all owned browser/overlay sessions stopped. No herdr helper tabs created.
 - [ ] Recheck open PR overlap, push and open PR closing #100 with attached evidence and Preview URL; verify CI/issue link/attachments.
 - [ ] Report PR link to conductor and stop; do not merge.

@@ -50,5 +50,9 @@
 - Availability desktop grid (#162): resizing measures from the edge rather than where the handle was grabbed, so a grab well off the edge can jump a half-hour (fixed on phone in #163; less likely on desktop's 20px handles).
 - Raid page roster on phones squeezes member names to one letter (pre-existing; seen during design #167, local 390 capture).
 - Loot history (#100): a date filter, if history grows long enough that Character + Raid + "Show more" isn't enough (Robert's idea, design #167).
+- Loot history (#100 critique): preserve loaded raids on a paging failure with an inline retry; new failure wording/state needs Robert's approval before replacing the existing error boundary.
+- Loot history (#100 critique): announce appended raids to screen readers and retain useful keyboard focus when the final "Show older raids" button disappears.
+- Loot history (#100 review): run the opt-in Postgres paging tests in CI and add a mixed active/voided-award budget case; the current 9/9 local run is not CI coverage.
+- Shared member loot row (#99/#100 critique): give screen readers the desktop column associations and an explicit bank-row winner description; current headers are aria-hidden and the labelled dash is not reliably announced.
 - Members switch their own main (Robert, 2026-10-06: "We might want a method for someone to switch their main at some point.")
 - Show socials on the roster so they can manage their alts (Robert, 2026-10-06: leave for now).
