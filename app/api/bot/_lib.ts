@@ -3,6 +3,11 @@ import { verifyBearer } from '@/lib/bot-auth';
 import { db } from '@/lib/db';
 import { MAIN_CHARACTER } from '@/lib/signup-character';
 
+export function botCharacter(character: { id: string; name: string; class: string; spec: string; raidRole: string; isMain: boolean }) {
+  return { id: character.id, name: character.name, wowClass: character.class.toLowerCase(),
+    spec: character.spec, raidRole: character.raidRole.toLowerCase(), isMain: character.isMain };
+}
+
 export const NO_STORE = { 'Cache-Control': 'private, no-store' };
 export const MAX_BODY_BYTES = 64 * 1024;
 

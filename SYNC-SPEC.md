@@ -190,8 +190,9 @@ Robert writes the real one.
 
 ## 4. Site API for the bot
 
-All under `/api/bot/`. JSON in, JSON out. 401 on bad secret. 409 on a state conflict with a
-`reason` string the bot shows verbatim to the user who clicked.
+All under `/api/bot/`. JSON in, JSON out (204 has no body). 401 on bad secret. 409 on a state
+conflict with a `reason` string the bot shows verbatim to the user who clicked, except the
+character routes below: their `reason` is a stable code and `error` is the message to show.
 
 | Method | Route | Purpose |
 |---|---|---|
@@ -208,7 +209,9 @@ All under `/api/bot/`. JSON in, JSON out. 401 on bad secret. 409 on a state conf
 | POST | `/raids/:id/respond` | `{ discordId, response: ACCEPT\|TENTATIVE\|ABSENT, reason? }`. Rules in §7. |
 | POST | `/raids/:id/bench` | `{ discordId }` — opt onto the bench. 409 if already on roster. |
 | POST | `/raids/:id/attendance` | `{ byDiscordId, attended: [discordId], absent: [discordId] }`. Officers only, after `startsAt + durationMin`. |
-| GET | `/members/:discordId` | role, rank, guild membership, main character. 404 if unknown. |
+| GET | `/members/:discordId` | role, rank, guild membership, main character (existing fields unchanged), plus `characters: [{ id, name, wowClass, spec, raidRole, isMain }]`, main first then alts by name. `wowClass` and `raidRole` are lowercase. 404 if unknown. |
+| POST | `/members/:discordId/characters` | `{ name, wowClass, spec, raidRole }` adds an alt using the site's character rules; `raidRole` maps to the rules' `role`. 201 `{ character: { id, name, wowClass, spec, raidRole, isMain } }`; same-name alt for this member returns 200 with the existing character, without changing it. 404 unknown member; 400 `{ reason: "invalid", error }`; 413 `{ error }` for an oversized body; 409 `{ reason: "name_taken"\|"limit"\|"no_main"\|"busy", error }` (`busy` means retries lost a race; retry with a new interaction/key, since the same key replays the same failure). Maximum eight characters including main. Uses `Idempotency-Key`; a replay preserves the original status and body. Does not change Discord class tags. |
+| DELETE | `/members/:discordId/characters/:characterId` | Removes an alt, never a main (including a lone main). 204 with no body when removed or already gone, including a concurrent removal. 404 unknown member or another member's character; 409 `{ reason: "main"\|"busy", error }` if main or retries exhausted (`busy` requires a new interaction/key to retry; the same key replays the failure). Uses `Idempotency-Key`, including bodyless 204 replay. Does not change Discord class tags. |
 | PUT | `/members/:discordId/main` | `{ firstName, secondName, wowClass, spec, raidRole }` from the "Set my main" flow (§9.7). Creates or replaces the member's main on the roster; rank untouched. 404 unknown member, 409 name taken. |
 | GET | `/classes` | Classes, specs and the raid roles each spec fills, for the bot's menus. |
 | POST | `/members/:discordId/trial` | `{ action: promote\|extend, days?, byDiscordId }` from the trial check-in (§3). `byDiscordId` must be an OFFICER, else 403. `days` is 1–7 for extend. 404 unknown member; 409 with `reason` when they are not a trial any more. Answers `{ action, rank, checkInAt? }`. |

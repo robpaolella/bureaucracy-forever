@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { addAlt } from '@/lib/characters';
 import { Prisma } from '@/lib/generated/prisma/client';
 import { setRankFromWeb } from '@/lib/roles-sync';
 import { OFFICER_RANK_ERROR } from '@/content/roster-editor';
@@ -10,7 +11,7 @@ import { toPrismaCharacter } from './fields';
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
 
 /**
- * POST /api/roster — give a member their main character (officers). Body
+ * POST /api/roster — give a member their main character, or an alt with `alt: true` (officers). Body
  * `{ userId, name, wowClass, spec, role, rank }`. A member has one main; a second
  * request for the same member is 409, as is a name already on the roster.
  */
@@ -23,6 +24,10 @@ export async function POST(request: Request) {
   const b = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
   const userId = typeof b.userId === 'string' && b.userId ? b.userId : null;
   if (!userId) return NextResponse.json({ error: 'Pick a member.' }, { status: 400, headers: NO_STORE });
+  if (b.alt === true) {
+    const result = await addAlt(userId, b);
+    return NextResponse.json('error' in result ? { error: result.error } : result.character, { status: result.status, headers: NO_STORE });
+  }
   const parsed = parseCharacterInput(b);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400, headers: NO_STORE });
   if (parsed.value.rank === 'officer') return NextResponse.json({ error: OFFICER_RANK_ERROR }, { status: 400, headers: NO_STORE });
