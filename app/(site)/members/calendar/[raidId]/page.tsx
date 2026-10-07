@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { LootLog } from '@/components/loot/LootLog';
+import { RaidLoot } from '@/components/loot/RaidLoot';
+import { RAID_LOOT } from '@/content/loot';
+import { loadMemberRaidLoot } from '@/lib/member-loot';
 import { Reserves } from '@/components/loot/Reserves';
 import { AttendanceForm } from '@/components/raid/AttendanceForm';
 import { BenchCard } from '@/components/raid/BenchCard';
@@ -145,6 +148,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
         officer ? loadLootLogContext(raid.id) : Promise.resolve(null),
       ])
     : [null, [], null, [], null];
+  const memberLoot = table && reserveTargets && session.role === 'member' ? await loadMemberRaidLoot(raid.id) : null;
   const locked = reservesLocked(raid.startsAt, now);
   // The bot's reserves link (SYNC-SPEC §4) opens the viewer's own window, when they could open it themselves.
   const openReserves = linkOpensReserves(query[RESERVES_PARAM], table && reserveTargets && { locked, cancelled: card.cancelled, targets: reserveTargets.targets });
@@ -164,9 +168,12 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
             </h1>
             <LocalTime startsAt={card.startsAt} durationMin={card.durationMin} />
             {table && reserveTargets && (
-              <a href="#loot-reserves" className="inline-flex min-h-11 items-center self-start text-small text-teal underline underline-offset-4">
-                {RESERVES.heading}
-              </a>
+              <div className="flex flex-wrap gap-x-5">
+                <a href="#loot-reserves" className="inline-flex min-h-11 items-center self-start text-small text-teal underline underline-offset-4">
+                  {RESERVES.heading}
+                </a>
+                {memberLoot && <a href="#raid-loot" className="inline-flex min-h-11 items-center self-start text-small text-teal underline underline-offset-4">{RAID_LOOT.heading}</a>}
+              </div>
             )}
             {card.cancelled && raid.cancelReason && (
               <p className="text-sm text-fg-2">
@@ -204,6 +211,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
             openOnLoad={openReserves}
           />
         )}
+        {memberLoot && <RaidLoot key={raid.id} raidId={raid.id} initial={memberLoot} />}
         {table && logContext && !card.cancelled && (
           <LootLog raidId={raid.id} table={table} reserves={reserves} candidates={logContext.candidates} raidAwards={logContext.raidAwards} hrAwards={logContext.hrAwards} awards={awards} />
         )}
