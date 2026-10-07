@@ -5,12 +5,14 @@ import { Prisma, type Character } from '@/lib/generated/prisma/client';
 import { parseCharacterInput } from '@/lib/roster-edit';
 import { refreshPostedRaidsForCharacter } from '@/lib/roles-sync';
 
+export type CharacterFailureReason = 'no_main' | 'name_taken' | 'limit' | 'main' | 'invalid' | 'not_found' | 'busy';
+
 export type CharacterResult =
   | { status: 200 | 201; character: Character }
-  | { status: 400 | 404 | 409; error: string };
-const failure = (status: 400 | 404 | 409, error: string): CharacterResult => ({ status, error });
-const missing = () => failure(404, 'No such character.');
-const nameTaken = (own: boolean) => failure(409, own
+  | { status: 400 | 404 | 409; reason: CharacterFailureReason; error: string };
+const failure = (status: 400 | 404 | 409, reason: CharacterFailureReason, error: string): CharacterResult => ({ status, reason, error });
+const missing = () => failure(404, 'not_found', 'No such character.');
+const nameTaken = (own: boolean) => failure(409, 'name_taken', own
   ? 'You already have a character with that name.'
   : 'That name is taken by another member.');
 
@@ -27,7 +29,7 @@ async function change(run: (tx: Prisma.TransactionClient) => Promise<CharacterRe
         && error.cause !== null && typeof error.cause === 'object'
         && 'kind' in error.cause && error.cause.kind === 'TransactionWriteConflict';
       if (!knownRace && !commitRace) throw error;
-      if (attempt === 3) return failure(409, 'Characters changed while you were editing. Try again.');
+      if (attempt === 3) return failure(409, 'busy', 'Characters changed while you were editing. Try again.');
     }
   }
 }
@@ -46,18 +48,18 @@ function fields(input: unknown) {
 /** Callers authorize the member first. userId also scopes edits/deletes against cross-member ids. */
 export async function addAlt(userId: string, input: unknown): Promise<CharacterResult> {
   const parsed = fields(input);
-  if (!parsed.ok) return failure(400, parsed.error);
+  if (!parsed.ok) return failure(400, 'invalid', parsed.error);
   return change(async (tx) => {
     const user = await tx.user.findUnique({ where: { id: userId }, select: { rank: true, characters: true } });
-    if (!user) return failure(404, 'No such member.');
-    if (!user.characters.some((c) => c.isMain)) return failure(409, 'Set a main first.');
+    if (!user) return failure(404, 'not_found', 'No such member.');
+    if (!user.characters.some((c) => c.isMain)) return failure(409, 'no_main', 'Set a main first.');
     const named = await tx.character.findFirst({ where: { name: { equals: parsed.value.name, mode: 'insensitive' } } });
     if (named) {
       // Only a previous alt add is a retry; a main with this name is an own-name conflict.
       if (named.userId === userId && !named.isMain) return { status: 200, character: named };
       return nameTaken(named.userId === userId);
     }
-    if (user.characters.length >= 8) return failure(409, 'You can have up to 8 characters.');
+    if (user.characters.length >= 8) return failure(409, 'limit', 'You can have up to 8 characters.');
     const character = await tx.character.create({ data: { ...parsed.value, userId, isMain: false, rank: user.rank } });
     return { status: 201, character };
   });
@@ -65,7 +67,7 @@ export async function addAlt(userId: string, input: unknown): Promise<CharacterR
 
 export async function editCharacter(userId: string, characterId: string, input: unknown): Promise<CharacterResult> {
   const parsed = fields(input);
-  if (!parsed.ok) return failure(400, parsed.error);
+  if (!parsed.ok) return failure(400, 'invalid', parsed.error);
   return change(async (tx) => {
     const existing = await tx.character.findFirst({ where: { id: characterId, userId } });
     if (!existing) return missing();
@@ -82,7 +84,7 @@ export async function removeCharacter(userId: string, characterId: string): Prom
     const existing = await tx.character.findFirst({ where: { id: characterId, userId } });
     if (!existing) return missing();
     if (existing.isMain && await tx.character.count({ where: { userId, id: { not: characterId } } })) {
-      return failure(409, 'Make another character the main first.');
+      return failure(409, 'main', 'Make another character the main first.');
     }
     // Select and queue before SetNull erases the chosen character. Jobs and deletion are atomic.
     await refreshPostedRaidsForCharacter(existing, tx);

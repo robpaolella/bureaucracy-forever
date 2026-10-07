@@ -11,8 +11,8 @@ beforeEach(() => vi.clearAllMocks());
 
 it('validates add and edit before starting any transaction', async () => {
   for (const input of [null, {}, { ...valid, name: '1' }, { ...valid, role: 'healer' }]) {
-    expect(await addAlt('member', input)).toMatchObject({ status: 400 });
-    expect(await editCharacter('member', 'character', input)).toMatchObject({ status: 400 });
+    expect(await addAlt('member', input)).toMatchObject({ status: 400, reason: 'invalid' });
+    expect(await editCharacter('member', 'character', input)).toMatchObject({ status: 400, reason: 'invalid' });
   }
   expect(mocks.transaction).not.toHaveBeenCalled();
 });
@@ -32,7 +32,7 @@ it('retries a pg adapter serialization failure at commit', async () => {
 });
 it('bounds retries and gives an honest conflict rather than a name-index guess', async () => {
   mocks.transaction.mockRejectedValue(conflict('P2002'));
-  expect(await addAlt('member', valid)).toEqual({ status: 409, error: 'Characters changed while you were editing. Try again.' });
+  expect(await addAlt('member', valid)).toEqual({ status: 409, reason: 'busy', error: 'Characters changed while you were editing. Try again.' });
   expect(mocks.transaction).toHaveBeenCalledTimes(4);
 });
 it('does not swallow unexpected database failures', async () => {

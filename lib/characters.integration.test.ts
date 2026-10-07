@@ -74,16 +74,16 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
     expect(added).toMatchObject({ status: 201, character: { isMain: false, rank: 'RAIDER', name: 'Second' } });
     expect(await addAlt('Adder', input('sEcOnD', true))).toMatchObject({ status: 200, character: { spec: 'Protection' } });
     expect(await db.character.count({ where: { userId: 'Adder' } })).toBe(2);
-    expect(await addAlt('Adder', input('aDdEr'))).toEqual({ status: 409, error: 'You already have a character with that name.' });
+    expect(await addAlt('Adder', input('aDdEr'))).toEqual({ status: 409, reason: 'name_taken', error: 'You already have a character with that name.' });
     await member('Other');
-    expect(await addAlt('Other', input('SECOND'))).toEqual({ status: 409, error: 'That name is taken by another member.' });
+    expect(await addAlt('Other', input('SECOND'))).toEqual({ status: 409, reason: 'name_taken', error: 'That name is taken by another member.' });
   });
   it('rejects missing members, missing mains and invalid fields', async () => {
-    expect(await addAlt('missing', input('Valid'))).toEqual({ status: 404, error: 'No such member.' });
+    expect(await addAlt('missing', input('Valid'))).toEqual({ status: 404, reason: 'not_found', error: 'No such member.' });
     await member('Empty', false);
-    expect(await addAlt('Empty', input('Valid'))).toEqual({ status: 409, error: 'Set a main first.' });
+    expect(await addAlt('Empty', input('Valid'))).toEqual({ status: 409, reason: 'no_main', error: 'Set a main first.' });
     for (const bad of [{ name: '1' }, { wowClass: 'bad' }, { spec: 'bad' }, { role: 'ranged' }]) {
-      expect(await addAlt('Empty', { ...input('Valid'), ...bad })).toMatchObject({ status: 400 });
+      expect(await addAlt('Empty', { ...input('Valid'), ...bad })).toMatchObject({ status: 400, reason: 'invalid' });
     }
   });
   it('two simultaneous adds at seven leave eight; a ninth is refused, a retry still works', async () => {
@@ -91,9 +91,9 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
     for (const name of ['Onealt', 'Twoalt', 'Threealt', 'Fouralt', 'Fivealt', 'Sixalt']) await addAlt('Capped', input(name));
     const results = await race(['Raceone', 'Racetwo'].map((name) => () => addAlt('Capped', input(name))));
     expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
-    expect(results.find((r) => r.status === 409)).toEqual({ status: 409, error: 'You can have up to 8 characters.' });
+    expect(results.find((r) => r.status === 409)).toEqual({ status: 409, reason: 'limit', error: 'You can have up to 8 characters.' });
     expect(await db.character.count({ where: { userId: 'Capped' } })).toBe(8);
-    expect(await addAlt('Capped', input('Ninth'))).toEqual({ status: 409, error: 'You can have up to 8 characters.' });
+    expect(await addAlt('Capped', input('Ninth'))).toEqual({ status: 409, reason: 'limit', error: 'You can have up to 8 characters.' });
     expect(await addAlt('Capped', input('Onealt'))).toMatchObject({ status: 200 });
   });
   it('resolves concurrent same-name adds as a retry or other-member collision', async () => {
@@ -102,7 +102,7 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
     expect(same.map((r) => r.status).sort()).toEqual([200, 201]);
     const different = await race([() => addAlt('Racer', input('Contested')), () => addAlt('Rival', input('CONTESTED'))]);
     expect(different.map((r) => r.status).sort()).toEqual([201, 409]);
-    expect(different.find((r) => r.status === 409)).toEqual({ status: 409, error: 'That name is taken by another member.' });
+    expect(different.find((r) => r.status === 409)).toEqual({ status: 409, reason: 'name_taken', error: 'That name is taken by another member.' });
   });
   it('edits safely and refreshes only chosen posted active raids, with null choices for mains', async () => {
     const user = await member('Editor');
@@ -112,9 +112,9 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
     await raid('alt-choice', user.id, alt.id); await raid('locked-choice', user.id, alt.id, true, 'LOCKED');
     await raid('main-choice', user.id, main.id); await raid('null-choice', user.id, null);
     await raid('unposted', user.id, alt.id, false); await raid('completed', user.id, alt.id, true, 'DONE');
-    expect(await editCharacter(user.id, alt.id, input('EDITOR'))).toEqual({ status: 409, error: 'You already have a character with that name.' });
-    expect(await editCharacter(user.id, alt.id, input('OTHER'))).toEqual({ status: 409, error: 'That name is taken by another member.' });
-    expect(await editCharacter('Other', alt.id, input('Stolen'))).toMatchObject({ status: 404 });
+    expect(await editCharacter(user.id, alt.id, input('EDITOR'))).toEqual({ status: 409, reason: 'name_taken', error: 'You already have a character with that name.' });
+    expect(await editCharacter(user.id, alt.id, input('OTHER'))).toEqual({ status: 409, reason: 'name_taken', error: 'That name is taken by another member.' });
+    expect(await editCharacter('Other', alt.id, input('Stolen'))).toMatchObject({ status: 404, reason: 'not_found' });
     expect(await editCharacter(user.id, alt.id, { ...input('Editable', true), rank: 'officer' })).toMatchObject({ status: 200, character: { rank: 'RAIDER' } });
     expect(await jobs()).toEqual(['alt-choice', 'locked-choice']);
     await db.outboxJob.deleteMany();
@@ -133,8 +133,8 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
     await db.lootItem.create({ data: { id: 1, name: 'Sample', quality: 4, icon: 'sample', tooltipHtml: '', source: 'FOREVER', fetchedAt: new Date() } });
     await db.reserve.create({ data: { raidId: 'deletion', userId: user.id, characterId: alt.id, itemId: 1, kind: 'SR' } });
     const award = await db.lootAward.create({ data: { raidId: 'deletion', userId: user.id, characterId: alt.id, characterName: alt.name, itemId: 1, method: 'SR', recordedById: user.id } });
-    expect(await removeCharacter(user.id, user.characters[0].id)).toEqual({ status: 409, error: 'Make another character the main first.' });
-    expect(await removeCharacter('Other', alt.id)).toMatchObject({ status: 404 });
+    expect(await removeCharacter(user.id, user.characters[0].id)).toEqual({ status: 409, reason: 'main', error: 'Make another character the main first.' });
+    expect(await removeCharacter('Other', alt.id)).toMatchObject({ status: 404, reason: 'not_found' });
     // A failed outbox insert must roll back the whole removal.
     await pool.query(`CREATE FUNCTION reject_job() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'outbox unavailable'; END $$;
       CREATE TRIGGER reject_job BEFORE INSERT ON "OutboxJob" FOR EACH ROW EXECUTE FUNCTION reject_job();`);
@@ -151,7 +151,7 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
     expect(await db.reserve.count({ where: { characterId: alt.id } })).toBe(0);
     expect(await db.signup.findUnique({ where: { raidId_userId: { raidId: 'deletion', userId: user.id } } })).toMatchObject({ characterId: null });
     expect(await jobs()).toEqual(['deletion']);
-    expect(await removeCharacter(user.id, alt.id)).toMatchObject({ status: 404 });
+    expect(await removeCharacter(user.id, alt.id)).toMatchObject({ status: 404, reason: 'not_found' });
     expect(await jobs()).toEqual(['deletion']);
     expect(await removeCharacter(user.id, user.characters[0].id)).toMatchObject({ status: 200 });
   });
