@@ -45,10 +45,11 @@ describe.skipIf(process.env.LOOT_HISTORY_INTEGRATION !== '1')('history paging on
     await db.lootItem.create({ data: { id: 1, name: 'Blade', quality: 4, icon: 'inv', tooltipHtml: '<b>Blade</b>', source: 'CLASSIC', fetchedAt: new Date() } });
     await db.raidTemplate.create({ data: { id: 'tier', name: 'Sample', short: 'S', size: 40, requirements: {}, lootBosses: { create: { name: 'Boss', position: 0, entries: { create: { itemId: 1, position: 0 } } } } } });
     await db.raidTemplate.create({ data: { id: 'empty', name: 'Empty', short: 'E', size: 40, requirements: {} } });
+    await db.raidTemplate.create({ data: { id: 'other', name: 'Other', short: 'O', size: 40, requirements: {}, lootBosses: { create: { name: 'Other boss', position: 0, entries: { create: { itemId: 1, position: 0 } } } } } });
     await db.user.create({ data: { id: 'u', discordId: 'sample', discordName: 'Sample', characters: { create: { id: 'c', name: 'Current', class: 'MAGE', spec: 'Frost', raidRole: 'RANGED' } } } });
     for (const [id, count, date, extra] of [
       ['z', 30, '2020-01-03', {}], ['y', 20, '2020-01-03', {}], ['x', 51, '2020-01-02', {}], ['w', 1, '2020-01-01', {}],
-      ['cancelled', 1, '2020-01-04', { cancelledAt: new Date() }], ['future', 1, '2099-01-01', {}], ['no-table', 1, '2020-01-04', { templateId: 'empty' }], ['void-only', 1, '2020-01-04', {}], ['no-awards', 0, '2020-01-04', {}],
+      ['cancelled', 1, '2020-01-04', { cancelledAt: new Date() }], ['future', 1, '2099-01-01', {}], ['no-table', 1, '2020-01-04', { templateId: 'empty' }], ['void-only', 1, '2020-01-04', {}], ['no-awards', 0, '2020-01-04', {}], ['other-raid', 2, '2019-01-01', { templateId: 'other' }],
     ] as const) {
       await db.raid.create({ data: { id, name: id, startsAt: new Date(date), locksAt: new Date(date), requirements: {}, templateId: 'tier', ...extra } });
       for (let i = count - 1; i >= 0; i--) await db.lootAward.create({ data: {
@@ -65,6 +66,8 @@ describe.skipIf(process.env.LOOT_HISTORY_INTEGRATION !== '1')('history paging on
     const first = (await loadMemberLootHistory())!;
     expect(first.raids.map((r) => r.id)).toEqual(['z', 'y']);
     expect(first.raids.map((r) => r.awards.length)).toEqual([30, 20]);
+    expect(first.total).toBe(104); expect(first.filteredTotal).toBe(104);
+    expect(first.options.characters).toEqual([{ id: 'c', name: 'Current' }]); expect(first.options.raids).toEqual([{ id: 'other', name: 'Other' }, { id: 'tier', name: 'Sample' }]);
     expect(first.raids[0].awards.map((a) => a.id)).toEqual(Array.from({ length: 30 }, (_, i) => `z-${String(i).padStart(2, '0')}`));
     expect(JSON.stringify(first)).not.toContain('private');
     expect(first.raids[1].awards[0]).toMatchObject({ characterId: null, characterName: null, roll: null });
@@ -73,13 +76,41 @@ describe.skipIf(process.env.LOOT_HISTORY_INTEGRATION !== '1')('history paging on
     expect(response.status).toBe(200); expect(response.headers.get('cache-control')).toBe('private, no-store');
     expect(second.raids.map((r: { id: string }) => r.id)).toEqual(['x']); expect(second.raids[0].awards).toHaveLength(51);
     const third = (await loadMemberLootHistory(second.next))!;
-    expect(third.raids.map((r) => r.id)).toEqual(['w']); expect(third.next).toBeNull();
+    expect(third.raids.map((r) => r.id)).toEqual(['w', 'other-raid']); expect(third.next).toBeNull();
     // A cursor inside an equal-time pair must not skip the second raid.
     expect((await loadMemberLootHistory({ id: 'z', startsAt: first.raids[0].startsAt }))!.raids.map((r) => r.id)).toEqual(['y']);
   });
-  it('preserves recorded names after deletion and returns empty after the last cursor', async () => {
+  it('filters current characters and template ids before paging, while unknown values fall back', async () => {
+    const current = (await loadMemberLootHistory(null, { characterId: 'c' }))!;
+    expect(current.filters).toEqual({ characterId: 'c' }); expect(current.filteredTotal).toBe(103);
+    expect(current.raids.map((raid) => raid.id)).toEqual(['z', 'y']);
+    const filtered = (await loadMemberLootHistory(null, { characterId: 'c', templateId: 'tier' }))!;
+    expect(filtered.filteredTotal).toBe(101); expect(filtered.next).not.toBeNull();
+    const response = await GET(request(new URLSearchParams({ ...filtered.next!, characterId: 'c', templateId: 'tier' }).toString()));
+    const second = await response.json();
+    expect(response.status).toBe(200); expect(second.filters).toEqual({ characterId: 'c', templateId: 'tier' });
+    expect(second.raids.map((entry: { id: string }) => entry.id)).toEqual(['x']);
+    expect(second.filteredTotal).toBe(101); expect(second.total).toBe(104);
+    const duplicate = await GET(request(`${new URLSearchParams(filtered.next!).toString()}&characterId=c&characterId=missing&templateId=tier`));
+    expect((await duplicate.json()).filters).toEqual({ templateId: 'tier' });
+    const raid = (await loadMemberLootHistory(null, { templateId: 'other' }))!;
+    expect(raid.filters).toEqual({ templateId: 'other' }); expect(raid.filteredTotal).toBe(2); expect(raid.raids.map((entry) => entry.id)).toEqual(['other-raid']);
+    const unknown = (await loadMemberLootHistory(null, { characterId: 'missing', characterName: 'missing', templateId: 'missing' }))!;
+    expect(unknown.filters).toEqual({}); expect(unknown.filteredTotal).toBe(104);
+  });
+  it('preserves recorded names after deletion, filters them separately from ids, and returns empty after the last cursor', async () => {
     await db.character.delete({ where: { id: 'c' } });
-    expect((await loadMemberLootHistory())!.raids[0].awards[0]).toMatchObject({ characterId: null, characterName: 'Recorded', wowClass: null });
-    expect(await loadMemberLootHistory({ id: 'w', startsAt: '2020-01-01T00:00:00.000Z' })).toEqual({ raids: [], next: null });
+    const history = (await loadMemberLootHistory())!;
+    expect(history.raids[0].awards[0]).toMatchObject({ characterId: null, characterName: 'Recorded', wowClass: null });
+    expect(history.options.formerCharacters).toEqual(['Recorded']);
+    const former = (await loadMemberLootHistory(null, { characterName: 'Recorded' }))!;
+    expect(former.filters).toEqual({ characterName: 'Recorded' }); expect(former.filteredTotal).toBe(103);
+    const response = await GET(request(new URLSearchParams({ ...former.next!, characterName: 'Recorded', templateId: 'tier' }).toString()));
+    const second = await response.json();
+    expect(response.status).toBe(200); expect(second.filters).toEqual({ characterName: 'Recorded', templateId: 'tier' });
+    expect(second.raids.map((entry: { id: string }) => entry.id)).toEqual(['x']);
+    expect(second.raids[0].awards).toHaveLength(51); expect(second.filteredTotal).toBe(101);
+    expect((await loadMemberLootHistory(null, { characterId: 'Recorded' }))!.filters).toEqual({});
+    expect(await loadMemberLootHistory({ id: 'other-raid', startsAt: '2019-01-01T00:00:00.000Z' })).toMatchObject({ raids: [], next: null });
   });
 });

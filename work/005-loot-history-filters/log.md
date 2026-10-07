@@ -1,0 +1,42 @@
+# 005 — Log
+
+## 2026-10-07
+- Implementation is committed as `e8e0692 feat(loot): add history filters`. It changes only dispatched paths and adds `components/loot/LootHistory.test.tsx`, also an expected dispatched path. It supplies separate URL parameters `characterId`, `characterName`, and `templateId`, so a recorded name cannot be interpreted as an id.
+- Automated evidence passed before the commit: `npm run lint`, `npm run typecheck`, `npm run test` (909 passed, 62 skipped), `npm run build`, plus `LOOT_HISTORY_INTEGRATION=1 npm run test -- 'app/(site)/members/loot/older/route.test.ts'` (10 passed). The integration test owns a disposable Postgres container and covers totals, valid/unknown character and template filters, former names, and paging.
+- First verification run `/tmp/verify-guild-uYxDna` imported Onyxia verification loot (26 items, 0 failures), captured/inspected the empty history at 1440 and 390, then Cleanup PASS. It had no awards, so cannot prove filters.
+- Second verification run `/tmp/verify-guild-Ikqk2c` also imported 26/0 and opened the existing Onyxia raid as dev officer. An attempted record did not appear in history because that raid had not started under the server clock. Cleanup PASS. Do not reuse either run.
+- Conductor clarified this is settled: create/populate started raids via the actual officer UI (same approved method as #99/#100), record several awards over two/three raids for several characters including an alt, void one, then capture populated Everyone, filtered, character, and no-results states at 390/1440. Hand-recording >50 awards is not required; the Postgres test is acceptable paging proof and must be stated in the PR.
+- The next worker should start a single new run, use the local verification map's actual UI flow, and edit a generated raid's start to a few minutes in the future through the UI, wait until it starts, then use officer loot log. Do not direct-write the database or fake time. Keep one local site at a time and do not read many screenshots into the session.
+
+## 2026-10-07 — Retry progress
+- Rebased unpublished branch on main `89e38b0` (#194). Checks passed: lint, typecheck, test (911 passed / 79 skipped), build; explicit disposable-Postgres older-route tests 10 passed.
+- Evidence root `/tmp/loot-180-evidence`. Main baseline history captured with real recorded awards; first main raid capture timed out on lazy image decoding, so a second owned run recaptures it. First main run Cleanup PASS.
+- Build browser proof completed through real officer UI on two Onyxia raids: 7 awards, one voided, member history 6 visible, Ledgerline 3. Character link, native filters, phone sheet, Done/Clear, no-results and unknown-filter fallback exercised. No private void reason in member output. Build Cleanup PASS.
+- Browser InputTime `fill` did not persist the edit; actual keyboard Hours/Minutes + Tab did. Reload verified future times before waiting for real starts. Never changed database/time directly.
+- Dual isolated Impeccable critique: 33/40, two fixes (44px link targets; approved character metadata grouping/grid). Fixed both; refreshed captures. Corrected X-of-X filtered totals/default Everyone selection and added regression test. Existing calendar contrast finding already in backlog, added #180 reference. No redesign.
+- Pending: finish main raid recapture; independent design verdict then code review; final Checks; PR with actual attachments. See manifest and critique reports in evidence root.
+
+## 2026-10-07 — Ready to open PR
+- Main baseline raid recapture completed in `/tmp/loot-180-evidence/main2`; Doctor/Cleanup PASS. Main, main2 and build local sites all stopped. Final image manifest names every capture and fixture difference; reviewer opened all affected approved/build/baseline images and phone detail crops.
+- Cross-company design gate: Claude Sonnet 5.5, medium, PASS. Coverage supplement initially lacked the requested detail crops; created lossless sharp crops and fixes-only recheck PASS. Files: `design-verdict.txt`, `design-verdict-supplement.txt`, `design-verdict-recheck.txt`.
+- Cross-company code review: same model, found stale paging response and rapid-filter navigation risks plus missing route-filter tests. Fixed as `6ad76b0`: abort/invalidate obsolete requests, guard state append, disable selects/paging during navigation, add stale-page regression and filtered GET/cursor/duplicate-parameter tests. Fixes-only recheck PASS; reviewer also independently inspected all images. `code-verdict.txt`, `code-verdict-recheck.txt`.
+- Final Checks after sync to `79abb57`: lint/typecheck/test/build PASS, 919 passed / 94 skipped; explicit Postgres older route 10 passed. Paging >50 is proven by tests, not hand-recorded browser data. Local stub proof is not real Discord OAuth. No seed alts, so no browser alt fixture fabricated (out of issue scope).
+- Final idle captures are source `130b79d`; reviewer verified later `6ad76b0` only adds request/pending handling and tests, no idle visual changes. No-results final capture uses one filter rather than approval's two; initial combined-filter real-UI proof is recorded and both reviewers accept the fixture difference.
+- PR #199 appeared touching backlog.md. Removed this branch's redundant #180 reference to the existing contrast backlog entry, leaving no backlog diff or overlap. Follow-ups (calendar contrast and stale design sidecar) were already recorded there.
+- Opened PR #200: https://github.com/robpaolella/bureaucracy-forever/pull/200, targets main, closes #180, risk:medium. Uploaded 26 actual images. Final process/container scan found only this worker's Pi/shell and no owned test services. Rendered attachment verification PASS (26 uploads, 30 placements, byte-identical originals, no broken images). Initial CI and Vercel PASS; Preview URL added from successful exact-commit GitHub deployment record because Vercel posted no comment. Keep worker open for sync. No merge permission.
+
+## 2026-10-07 — Sync after #197
+- At the conductor's request, merged origin/main `a75c854` (#197) into this already-pushed branch, without conflicts. Incoming changes are roster self-service main/alt character management, its dialog/tests and roster copy (six files); loot-history files unchanged.
+- Re-ran Checks in order: lint, typecheck, test, build PASS (930 passed / 94 skipped). Explicit disposable-Postgres older-route suite also PASS (10 tests). Evidence `sync-197-*.txt` under `/tmp/loot-180-evidence`.
+- #200 stays off staging; #199 goes first, per conductor. No deployment or merge permission.
+
+## 2026-10-07 — Sync after #198
+- Merged origin/main `a123c8a` (#198) without conflicts. Incoming changes add the bot raid-character switching endpoint, its integration tests and the shared contract entry; loot-history files unchanged.
+- Checks in order PASS: lint, typecheck, test (930 passed / 119 skipped), build. Explicit Postgres history/older-route suite PASS (10 tests). Evidence: `/tmp/loot-180-evidence/sync-198-*.txt`.
+- Pushing the synced branch; #200 remained off staging and unmerged at that point.
+
+## 2026-10-07 — Sync after #199 and authorised staging
+- Conductor explicitly requested syncing #199 and putting PR #200 on the now-free staging environment.
+- Merged origin/main `406df44` without conflicts. Incoming: reserve-window character selector, its tests/copy and the jsdom test dependency; installed the updated lockfile with npm ci.
+- All Checks PASS: lint, typecheck, test (940 passed / 119 skipped), build. Explicit Postgres history/older-route suite PASS (10 tests). Evidence `/tmp/loot-180-evidence/sync-199-*.txt`.
+- Staging slot checked free. Next: push, merge feature into staging, label #200 on-staging, update PR and confirm exact staging deployment. No permission to merge #200 into main.
