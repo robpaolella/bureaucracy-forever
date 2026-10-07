@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@/lib/generated/prisma/client';
 
 const mocks = vi.hoisted(() => ({
+  switchCharacter: vi.fn(),
   session: null as { role: string; discordId: string } | null,
   loot: true,
   raid: vi.fn(),
@@ -21,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   targets: vi.fn(),
 }));
 
+vi.mock('@/lib/character-switch', () => ({ switchCharacterInTransaction: mocks.switchCharacter }));
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.session }));
 vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.loot }));
 vi.mock('@/lib/users', () => ({ ensureUser: async () => ({ id: 'officer-user' }) }));
@@ -53,7 +55,8 @@ beforeEach(() => {
   for (const m of [mocks.raid, mocks.user, mocks.signup, mocks.items, mocks.awards, mocks.deleteMany, mocks.createMany, mocks.transaction]) m.mockReset();
   mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: null, templateId: 't1' });
   mocks.user.mockResolvedValue({ id: 'u1', characters: [{ id: 'c1' }, { id: 'c2' }] });
-  mocks.signup.mockResolvedValue({ response: 'ACCEPT' });
+  mocks.signup.mockResolvedValue({ response: 'ACCEPT', character: { id: 'c1' }, user: { characters: [{ id: 'c1' }] } });
+  mocks.switchCharacter.mockReset().mockResolvedValue({ ok: true, removed: [] });
   mocks.items.mockResolvedValue(new Set([100, 200, 300]));
   mocks.awards.mockResolvedValue([]);
   mocks.deleteMany.mockReturnValue('delete');
@@ -93,7 +96,7 @@ describe('PUT /api/raids/[id]/reserves', () => {
       expect(res.status).toBe(409);
       expect(await res.json()).toEqual({ error: 'This character already won that item.' });
     }
-    expect(mocks.awards).toHaveBeenCalledWith(['c1']);
+    expect(mocks.awards).toHaveBeenCalledWith(['c1'], (await import('@/lib/db')).db);
     expect(mocks.deleteMany).not.toHaveBeenCalled();
     expect(mocks.createMany).not.toHaveBeenCalled();
     expect((await call({ characterId: 'c1', hr: 300, sr: 200, forUserId })).status).toBe(200);
@@ -113,7 +116,7 @@ describe('PUT /api/raids/[id]/reserves', () => {
   });
 
   it.each([
-    ['an absent sign-up', () => mocks.signup.mockResolvedValue({ response: 'ABSENT' }), 409, 'Sign up as Accept or Tentative to reserve.'],
+    ['an absent sign-up', () => mocks.signup.mockResolvedValue({ response: 'ABSENT', character: { id: 'c1' }, user: { characters: [] } }), 409, 'Sign up as Accept or Tentative to reserve.'],
     ['no sign-up', () => mocks.signup.mockResolvedValue(null), 409, 'Sign up as Accept or Tentative to reserve.'],
     ['a cancelled raid', () => mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: new Date(), templateId: 't1' }), 409, 'This raid was cancelled.'],
     ['a locked raid', () => mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1' }), 409, 'Reserves are locked. Ask an officer to change them.'],
@@ -128,7 +131,7 @@ describe('PUT /api/raids/[id]/reserves', () => {
   });
 
   it('lets a member who is no longer eligible clear, but not set', async () => {
-    mocks.signup.mockResolvedValue({ response: 'ABSENT' });
+    mocks.signup.mockResolvedValue({ response: 'ABSENT', character: { id: 'c1' }, user: { characters: [] } });
     expect((await call({ characterId: 'c1', hr: null, sr: null })).status).toBe(200);
   });
 
