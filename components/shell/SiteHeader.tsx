@@ -43,6 +43,9 @@ export function SiteHeader() {
                 <NavLink href={MEMBER_LINKS.calendar.href} variant="menu">
                   {MEMBER_LINKS.calendar.label}
                 </NavLink>
+                {session.loot && session.role !== 'social' && (
+                  <NavLink href={MEMBER_LINKS.loot.href} variant="menu">{MEMBER_LINKS.loot.label}</NavLink>
+                )}
               </NavGroup>
             )}
             {officer && (

@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ session: vi.fn(), flag: vi.fn(), raid: vi.fn(), entries: vi.fn(), awards: vi.fn() }));
+const m = vi.hoisted(() => ({ session: vi.fn(), flag: vi.fn(), raid: vi.fn(), entries: vi.fn(), awards: vi.fn(), transaction: vi.fn() }));
 vi.mock('@/lib/session', () => ({ getSession: m.session }));
 vi.mock('@/lib/flags', () => ({ lootEnabled: m.flag }));
-vi.mock('@/lib/db', () => ({ db: { raid: { findUnique: m.raid }, lootTableEntry: { count: m.entries }, lootAward: { findMany: m.awards } } }));
-import { loadMemberRaidLoot } from './member-loot';
+vi.mock('@/lib/db', () => ({ db: { $transaction: m.transaction, raid: { findUnique: m.raid }, lootTableEntry: { count: m.entries }, lootAward: { findMany: m.awards } } }));
+import { loadMemberLootHistory, loadMemberRaidLoot } from './member-loot';
 
 const raid = { startsAt: new Date('2030-01-01T20:00Z'), durationMin: 180, cancelledAt: null, templateId: 't1' };
 beforeEach(() => {
@@ -13,6 +13,17 @@ beforeEach(() => {
   m.raid.mockResolvedValue(raid); m.entries.mockResolvedValue(1); m.awards.mockResolvedValue([]);
 });
 afterEach(() => vi.useRealTimers());
+
+describe('member history access', () => {
+  it.each([null, { role: 'social' }])('denies %s without querying', async (session) => {
+    m.session.mockResolvedValue(session);
+    expect(await loadMemberLootHistory()).toBeNull(); expect(m.transaction).not.toHaveBeenCalled();
+  });
+  it('denies a disabled flag before session access', async () => {
+    m.flag.mockReturnValue(false);
+    expect(await loadMemberLootHistory()).toBeNull(); expect(m.session).not.toHaveBeenCalled();
+  });
+});
 
 describe('member-safe raid loot', () => {
   it.each([null, { role: 'social' }])('denies %s before querying', async (session) => {
