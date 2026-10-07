@@ -27,7 +27,7 @@ export const NOINDEX_HEADER = ['X-Robots-Tag', 'noindex, nofollow'] as const;
 const LOOT_ROUTES = /^\/(members|officers)\/loot(\/|$)/;
 
 /** Member-area routes that need at least `member`; everything else under /members admits socials. */
-const MEMBER_ONLY = [/^\/members\/availability(\/|$)/];
+const MEMBER_ONLY = [/^\/members\/(availability|loot)(\/|$)/];
 
 /**
  * SYNC-SPEC §2: the bot's bearer secret is honoured only under /api/bot. A bearer header

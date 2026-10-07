@@ -26,6 +26,8 @@ export const MEMBER_LINKS = {
   availability: { href: '/members/availability', label: 'My availability' },
   roster: { href: '/members/roster', label: 'Roster' },
   calendar: { href: '/members/calendar', label: 'Raid calendar' },
+  /** Members and officers only, while Session.loot is on. */
+  loot: { href: '/members/loot', label: 'Loot history' },
 } satisfies Record<string, NavItem>;
 
 export const OFFICER_LINKS = {
