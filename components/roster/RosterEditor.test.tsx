@@ -124,7 +124,7 @@ describe('RosterEditor', () => {
   });
 
   it('keeps plain-language copy ready for the main-change confirmation', () => {
-    expect(EDITOR.makeMainTitle).toBe('Make this character the main?');
+    expect(EDITOR.makeMainTitle('Blue Ink')).toBe('Make Blue Ink the main?');
     expect(EDITOR.makeMainBody).toBe('The current main becomes an alt. Past raids keep the character they recorded.');
     expect(EDITOR.makeMainConfirm).toBe(EDITOR.makeMain);
   });
