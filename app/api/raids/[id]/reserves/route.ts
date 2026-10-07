@@ -79,8 +79,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       const where = { raidId_userId: { raidId, userId: target.id } };
       const brought = await tx.signup.findUnique({ where, include: { character: { select: MAIN_CHARACTER.select }, user: { select: { characters: MAIN_CHARACTER } } } });
       let removed: RemovedReserve[] = [];
-      if (!brought || characterBrought(brought)?.id !== characterId) {
-        const switched = await switchCharacterInTransaction(tx, { raidId, userId: target.id, characterId, actor: { role: session.role }, officerOverride: officer && !!forUserId });
+      // Clearing picks changes no character; legacy mismatched reserves must remain clearable.
+      if (rows.length > 0 && (!brought || characterBrought(brought)?.id !== characterId)) {
+        const switched = await switchCharacterInTransaction(tx, { raidId, userId: target.id, characterId, actor: { role: session.role }, officerOverride: officer && !!forUserId && target.id !== setById });
         if (!switched.ok) throw new ReserveRefusal(switched.status, switched.reason);
         removed = switched.removed;
       }

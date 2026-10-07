@@ -103,6 +103,15 @@ describe('loadReserveTargets', () => {
     expect(targets[1]).toMatchObject({ current: { characterId: 'zed-c', hr: null, sr: 5 }, blockedHr: { 'zed-c': [9] }, characters: [{ wowClass: 'mage' }] });
   });
 
+  it.each(['alt', null])('defaults empty reserves to the brought character (%s), not always the main', async (characterId) => {
+    mocks.signups.mockResolvedValue([{ response: 'ACCEPT', character: characterId ? { id: characterId } : null, user: user('me', 'd1', [
+      { id: 'main', name: 'Main', class: 'MAGE', isMain: true },
+      { id: 'alt', name: 'Alt', class: 'MAGE', isMain: false },
+    ]) }]);
+    expect((await loadReserveTargets('r1', 'd1', false)).targets[0].current).toEqual({ characterId: characterId ?? 'main', hr: null, sr: null });
+    expect(mocks.signups.mock.calls[0][0].select.character).toEqual({ select: { id: true } });
+  });
+
   it('marks an item previously won only once the character reaches its win limit', async () => {
     mocks.signups.mockResolvedValue([{ response: 'ACCEPT', user: user('me', 'd1', [{ id: 'c1', name: 'One', class: 'MAGE', isMain: true }, { id: 'c2', name: 'Two', class: 'MAGE', isMain: false }]) }]);
     const won = (characterId: string, itemId: number) => ({ characterId, itemId });

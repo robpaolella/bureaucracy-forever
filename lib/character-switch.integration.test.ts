@@ -12,6 +12,7 @@ vi.mock('@/lib/flags', () => ({ lootEnabled: () => state.loot }));
 import { switchCharacter, switchCharacterInTransaction } from './character-switch';
 import { PUT } from '@/app/api/raids/[id]/signup/character/route';
 import { REASONS } from './signup-rules';
+import { loadReserveTargets } from './loot-data';
 import { PUT as saveReserves } from '@/app/api/raids/[id]/reserves/route';
 
 // CHARACTER_SWITCH_INTEGRATION=1 npx vitest run lib/character-switch.integration.test.ts
@@ -83,12 +84,36 @@ describe.skipIf(process.env.CHARACTER_SWITCH_INTEGRATION !== '1')('character swi
     expect({ signup: await signup(), reserves: await reserves() }).toEqual(before);
     expect(await db.outboxJob.count()).toBe(0);
   });
-  it.each(['member', 'officer-self', 'officer-other'])('reserve switch respects signup lock for %s', async (actor) => {
+  it('first reserves default to the signed-up alt and keep that character on save', async () => {
+    await db.reserve.deleteMany();
+    await db.signup.update({ where: { id: 'signup' }, data: { characterId: 'alt' } });
+    await db.raid.update({ where: { id: 'raid' }, data: { locksAt: new Date(0) } });
+    const before = await signup();
+    const { targets } = await loadReserveTargets('raid', 'member', false);
+    expect(targets[0].current).toEqual({ characterId: 'alt', hr: null, sr: null });
+    expect((await save({ characterId: targets[0].current.characterId, hr: 1, sr: 2 })).status).toBe(200);
+    expect(await signup()).toEqual(before);
+    expect((await reserves()).map((r) => r.characterId)).toEqual(['alt', 'alt']);
+    expect(await db.outboxJob.count()).toBe(0);
+  });
+  it.each(['accept', 'absent', 'signup-locked'])('clears legacy mismatched reserves without switching (%s)', async (state) => {
+    await db.reserve.updateMany({ data: { characterId: 'alt' } });
+    if (state === 'absent') await db.signup.update({ where: { id: 'signup' }, data: { response: 'ABSENT' } });
+    if (state === 'signup-locked') await db.raid.update({ where: { id: 'raid' }, data: { locksAt: new Date(0) } });
+    const before = await signup();
+    const response = await save({ characterId: 'alt', hr: null, sr: null });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ characterId: 'alt', hr: null, sr: null, removed: [] });
+    expect(await signup()).toEqual(before);
+    expect(await reserves()).toEqual([]);
+    expect(await db.outboxJob.count()).toBe(0);
+  });
+  it.each(['member', 'officer-self', 'officer-explicit-self', 'officer-other'])('reserve switch respects signup lock for %s', async (actor) => {
     await db.raid.update({ where: { id: 'raid' }, data: { locksAt: new Date(0) } });
     if (actor !== 'member') state.session = { discordId: 'stranger', role: 'officer' };
-    if (actor === 'officer-self') state.session!.discordId = 'member';
+    if (actor === 'officer-self' || actor === 'officer-explicit-self') state.session!.discordId = 'member';
     const before = { signup: await signup(), reserves: await reserves() };
-    const response = await save({ characterId: 'alt', hr: 1, sr: 2, ...(actor === 'officer-other' ? { forUserId: 'member' } : {}) });
+    const response = await save({ characterId: 'alt', hr: 1, sr: 2, ...(['officer-other', 'officer-explicit-self'].includes(actor) ? { forUserId: 'member' } : {}) });
     expect(response.status).toBe(actor === 'officer-other' ? 200 : 409);
     if (actor === 'officer-other') expect((await signup()).characterId).toBe('alt');
     else {
