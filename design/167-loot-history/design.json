@@ -1,0 +1,11 @@
+{
+  "design_issue": 167,
+  "covers": [99, 100],
+  "revision": 1,
+  "versions": {
+    "a": "versions/a.html",
+    "b": "versions/b.html"
+  },
+  "states": ["recorded", "empty", "live", "live-failed"],
+  "themes": ["default"]
+}
