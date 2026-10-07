@@ -71,7 +71,7 @@ export function applyResponse(counts: RoleCounts, role: Role | null, from: RaidR
 }
 
 /** The viewer's optimistic answer and the counts that went with it, held apart from the server's card. */
-export type LocalAnswer = Pick<RaidCard, 'mine' | 'counts'>;
+export type LocalAnswer = Pick<RaidCard, 'mine' | 'counts' | 'signupRole'>;
 
 /**
  * The server's cards with the viewer's local answers on top. A local answer is dropped
@@ -81,7 +81,7 @@ export type LocalAnswer = Pick<RaidCard, 'mine' | 'counts'>;
 export function mergeLocal(cards: RaidCard[], local: ReadonlyMap<string, LocalAnswer>): RaidCard[] {
   return cards.map((card) => {
     const mine = local.get(card.id);
-    if (!mine || mine.mine === card.mine) return card;
+    if (!mine || (mine.mine === card.mine && (mine.signupRole === undefined || mine.signupRole === card.signupRole))) return card;
     return { ...card, ...mine };
   });
 }

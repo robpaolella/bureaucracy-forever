@@ -262,6 +262,15 @@ describe('mergeLocal', () => {
     expect(mergeLocal([card({})], local)[0]).toMatchObject({ mine: 'accept', counts: { healer: 7 } });
   });
 
+  it('keeps a changed role with the same answer until the server carries both', () => {
+    const changed = { mine: 'accept' as const, signupRole: 'ranged' as const, counts: { tank: 2, healer: 5, melee: 9, ranged: 12 } };
+    const local = new Map([['x', changed]]);
+    expect(mergeLocal([card({ mine: 'accept', signupRole: 'healer' })], local)[0]).toMatchObject(changed);
+    const fresh = card({ mine: 'accept', signupRole: 'ranged', counts: { ...changed.counts, ranged: 13 } });
+    expect(mergeLocal([fresh], local)[0]).toBe(fresh);
+    expect(mergeLocal([card({ mine: 'tentative', signupRole: 'ranged' })], local)[0]).toMatchObject(changed);
+  });
+
   it('drops the local answer once the server card carries it, so fresher counts win', () => {
     const local = new Map([['x', { mine: 'accept' as const, counts: { tank: 2, healer: 7, melee: 9, ranged: 11 } }]]);
     const fresh = card({ mine: 'accept', counts: { tank: 2, healer: 8, melee: 9, ranged: 11 } });
