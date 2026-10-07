@@ -179,9 +179,9 @@ export function RosterTable({ rows, viewer }: Props) {
                           <RankBadge rank={r.rank} />
                         </div>
                         <span className="truncate text-[13px] text-fg-3">{r.wowClass && r.role ? `${r.character} · ${CLASS_COLORS[r.wowClass].label} · ${r.spec} · ${ROLE_LABELS[r.role]}` : ROSTER_NO_MAIN}</span>
+                        {r.id === viewer?.id && <div className="pt-2"><MemberCharacterDialog characters={viewer.characters} rank={viewer.rank} /></div>}
                       </div>
                       <span className="tabular shrink-0 text-sm text-fg-2">{formatAttendance(r.attendance)}</span>
-                      {r.id === viewer?.id && <div className="ml-11 basis-[calc(100%-44px)] sm:ml-0"><MemberCharacterDialog characters={viewer.characters} rank={viewer.rank} /></div>}
                     </li>
                   ))}
                 </ul>
