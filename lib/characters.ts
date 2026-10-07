@@ -79,10 +79,30 @@ export async function editCharacter(userId: string, characterId: string, input: 
   });
 }
 
-export async function removeCharacter(userId: string, characterId: string): Promise<CharacterResult> {
+/** Officer callers authorize first; ownership and rank come from the stored character. */
+export async function changeMain(characterId: string): Promise<CharacterResult> {
+  return change(async (tx) => {
+    const chosen = await tx.character.findUnique({ where: { id: characterId } });
+    if (!chosen) return missing();
+    if (chosen.isMain) return { status: 200, character: chosen };
+    const user = await tx.user.findUniqueOrThrow({ where: { id: chosen.userId }, select: { rank: true } });
+    const oldMain = await tx.character.findFirst({ where: { userId: chosen.userId, isMain: true } });
+    if (!oldMain) return failure(409, 'no_main', 'Set a main first.');
+    // Pin legacy choices before their current-main fallback would change, including past raids.
+    await tx.signup.updateMany({ where: { userId: chosen.userId, characterId: null }, data: { characterId: oldMain.id } });
+    // The partial unique index is checked per statement: demote before promoting.
+    await tx.character.update({ where: { id: oldMain.id }, data: { isMain: false } });
+    const character = await tx.character.update({ where: { id: characterId }, data: { isMain: true, rank: user.rank } });
+    // Stored choices and their roles are unchanged, so no posted raid needs refreshing.
+    return { status: 200, character };
+  });
+}
+
+export async function removeCharacter(userId: string, characterId: string, options: { altOnly?: boolean } = {}): Promise<CharacterResult> {
   return change(async (tx) => {
     const existing = await tx.character.findFirst({ where: { id: characterId, userId } });
     if (!existing) return missing();
+    if (existing.isMain && options.altOnly) return failure(409, 'main', 'Only alt characters can be removed.');
     if (existing.isMain && await tx.character.count({ where: { userId, id: { not: characterId } } })) {
       return failure(409, 'main', 'Make another character the main first.');
     }

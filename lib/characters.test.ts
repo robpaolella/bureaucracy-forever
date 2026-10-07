@@ -3,7 +3,7 @@ import { Prisma } from '@/lib/generated/prisma/client';
 
 const mocks = vi.hoisted(() => ({ transaction: vi.fn() }));
 vi.mock('@/lib/db', () => ({ db: { $transaction: mocks.transaction } }));
-import { addAlt, editCharacter, removeCharacter } from './characters';
+import { addAlt, changeMain, editCharacter, removeCharacter } from './characters';
 
 const valid = { name: 'Sample', wowClass: 'paladin', spec: 'Protection', role: 'tank' };
 const conflict = (code: string) => new Prisma.PrismaClientKnownRequestError('Race', { code, clientVersion: 'test' });
@@ -34,6 +34,20 @@ it('bounds retries and gives an honest conflict rather than a name-index guess',
   mocks.transaction.mockRejectedValue(conflict('P2002'));
   expect(await addAlt('member', valid)).toEqual({ status: 409, reason: 'busy', error: 'Characters changed while you were editing. Try again.' });
   expect(mocks.transaction).toHaveBeenCalledTimes(4);
+});
+it('checks alt-only removal inside the transaction, even for a sole main', async () => {
+  const tx = { character: { findFirst: vi.fn().mockResolvedValue({ id: 'character', isMain: true }), delete: vi.fn(), count: vi.fn() } };
+  mocks.transaction.mockImplementationOnce((run) => run(tx));
+  expect(await removeCharacter('member', 'character', { altOnly: true })).toEqual({ status: 409, reason: 'main', error: 'Only alt characters can be removed.' });
+  expect(tx.character.findFirst).toHaveBeenCalledWith({ where: { id: 'character', userId: 'member' } });
+  expect(tx.character.delete).not.toHaveBeenCalled();
+  expect(tx.character.count).not.toHaveBeenCalled();
+  expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: 'Serializable' });
+});
+it('retries a main swap as a whole after a serialization conflict', async () => {
+  mocks.transaction.mockRejectedValueOnce(conflict('P2034')).mockResolvedValueOnce({ status: 200 });
+  expect(await changeMain('chosen')).toEqual({ status: 200 });
+  expect(mocks.transaction).toHaveBeenCalledTimes(2);
 });
 it('does not swallow unexpected database failures', async () => {
   mocks.transaction.mockRejectedValue(new Error('unavailable'));
