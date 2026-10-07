@@ -1,11 +1,25 @@
 {
   "design_issue": 167,
-  "covers": [99, 100],
+  "covers": [
+    99,
+    100
+  ],
   "revision": 1,
   "versions": {
-    "a": "versions/a.html",
-    "b": "versions/b.html"
+    "b1": "versions/b1.html",
+    "b2": "versions/b2.html"
   },
-  "states": ["recorded", "empty", "live", "live-failed"],
-  "themes": ["default"]
+  "states": [
+    "raid-recorded",
+    "raid-empty",
+    "raid-live",
+    "raid-live-failed",
+    "history-everyone",
+    "history-character",
+    "history-no-results",
+    "history-empty"
+  ],
+  "themes": [
+    "default"
+  ]
 }
