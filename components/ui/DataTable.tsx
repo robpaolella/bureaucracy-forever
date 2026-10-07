@@ -111,30 +111,32 @@ export function DataTable<T>({
             )}
             {g.rows.map((row, index) => {
               const detail = renderSubRow?.(row);
+              // Detail rows must not shift the existing member-row stripe pattern.
+              const stripe = renderSubRow ? ((index + (g.label ? 1 : 0)) % 2 === 1 && 'bg-ink-850') : 'even:bg-ink-850';
               return (
-              <Fragment key={rowKey(row)}>
-              <tr className={cn('transition-colors duration-[120ms]', renderSubRow ? ((index + (g.label ? 1 : 0)) % 2 === 1 && 'bg-ink-850') : 'even:bg-ink-850', 'hover:bg-ink-850')}>
-                {columns.map((c) => (
-                  <td
-                    key={c.key}
-                    className={cn(
-                      'border-b border-line-faint px-5',
-                      pad,
-                      isRight(c) && 'text-right',
-                      c.numeric && 'tabular',
-                      c.className,
-                    )}
-                  >
-                    {c.render(row)}
-                  </td>
-                ))}
-              </tr>
-              {detail != null && (
-                <tr>
-                  <td colSpan={columns.length} className="border-b border-line-faint">{detail}</td>
-                </tr>
-              )}
-              </Fragment>
+                <Fragment key={rowKey(row)}>
+                  <tr className={cn('transition-colors duration-[120ms]', stripe, 'hover:bg-ink-850')}>
+                    {columns.map((c) => (
+                      <td
+                        key={c.key}
+                        className={cn(
+                          'border-b border-line-faint px-5',
+                          pad,
+                          isRight(c) && 'text-right',
+                          c.numeric && 'tabular',
+                          c.className,
+                        )}
+                      >
+                        {c.render(row)}
+                      </td>
+                    ))}
+                  </tr>
+                  {detail != null && (
+                    <tr>
+                      <td colSpan={columns.length} className="border-b border-line-faint">{detail}</td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
           </tbody>
