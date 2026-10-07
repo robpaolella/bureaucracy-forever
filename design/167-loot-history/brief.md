@@ -34,6 +34,7 @@ reserves" section and its "Who reserved what" fold, the officer loot log and its
 ## Set 1: raid page "Loot" list (#99)
 Decision varied: how awards are listed. **a** one flat list in recorded order; **b** the same
 awards grouped under each boss heading, bosses in kill order. Everything else is identical.
+Chosen: **a** (decision 15, superseding 8). The lede reads "In the order officers record it."
 
 Fixed in both:
 - Members see a "Loot" section directly below "Loot reserves"; the raid header gets a "Loot"
@@ -138,17 +139,23 @@ tooltips embedded; winners are seed sample characters.
 5. The section and its header link appear only once the raid has started.
 6. The winner shows as the character name only, in class colour (not the Discord name).
 7. OpenAI available again for the critique (vendor switch back to `on`).
-8. Set 1 choice: **b**, grouped by boss (Robert: "I like B."). This changes #99's ordering: bosses in
-   kill order (the order their first award was recorded), awards in recorded order within each boss.
+8. Set 1 choice first recorded as **b**, grouped by boss (Robert: "I like B."). **Superseded by 15.**
 9. Set 2 varies one character's layout: b1 grouped by raid, b2 flat table; Everyone is grouped by raid
    in both (Robert: "B is actually better sounding for this, but I like your idea for varying for
    overall vs character view").
 10. Raid filter = raid instance; Character = Everyone or one character; deleted characters listed last.
     No date filter for now (Robert's idea; backlogged as not worth a new control yet).
 11. History states: everyone, character, no-results, empty; newest raids first with "Show older raids".
+12. Robert accepted the maker's check of the menu and filter-sheet captures after the failed re-check
+    ("I accept your check.").
+13. Set 2 choice: **b2** (one character's history as a flat table; Everyone grouped by raid).
+14. Paging by whole raids, about 50 awards' worth, with "Show older raids" ("That's fine.").
+15. The raid page Loot section is one complete list, not grouped by boss (Robert: "the Loot section at the
+    bottom is showing per boss where I wanted a complete list"): set 1's **a** layout (Item, Winner,
+    Method · roll, Boss), in recorded order, as #99 says. Both set 2 versions were updated to it.
 
 ## Real-site experiment
 None.
 
 ## Open decisions
-- Set 2 choice: b1 or b2.
+None.

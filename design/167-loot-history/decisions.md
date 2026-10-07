@@ -16,15 +16,18 @@ Set 2 (2026-10-06): one decision varied, one character's layout (Robert, decisio
 
 | Version | What differs | Outcome |
 | --- | --- | --- |
-| b1 | Grouped by raid in both Everyone and one character's view | Pending |
-| b2 | Everyone grouped by raid; one character's view is a flat table with Raid + date as a column | Pending |
+| b1 | Grouped by raid in both Everyone and one character's view | Not chosen (decision 13) |
+| b2 | Everyone grouped by raid; one character's view is a flat table with Raid + date as a column | **Chosen** (Robert, 2026-10-06: "B2") |
+
+Both set 2 versions were updated to set 1's a raid list (decision 15) before final evidence. Version names
+keep their b1/b2 labels from the round in which they were made.
 
 Set 1 (2026-10-06): one decision varied, list layout (Robert, decision 3).
 
 | Version | What differs | Outcome |
 | --- | --- | --- |
-| a | One flat list in recorded order; boss is a column (desktop) or the last item of the meta line (phone) | Not chosen (decision 8) |
-| b | The same awards grouped under boss headings (count beside each, like the roster's role groups); no boss column | **Chosen for set 1** (Robert, 2026-10-06: "I like B.") |
+| a | One flat list in recorded order; boss is a column (desktop) or the last item of the meta line (phone) | **Chosen** (decision 15, after seeing b inside set 2) |
+| b | The same awards grouped under boss headings (count beside each, like the roster's role groups); no boss column | First chosen ("I like B."), then replaced by a: Robert wanted one complete list |
 
 ## Independent critique
 - Maker: claude-bridge/claude-opus-5-5 (Anthropic). Reviewer: openai/gpt-5.6-terra, medium thinking
@@ -51,6 +54,8 @@ Set 1 (2026-10-06): one decision varied, list layout (Robert, decision 3).
 ## Comments and changes
 | ID / source | Version / element | Original note | Agreed change and verification | Resolved |
 | --- | --- | --- | --- | --- |
+| herdr, Robert 2026-10-06 | b1/b2 raid page Loot section | "the Loot section at the bottom is showing per boss where I wanted a complete list, not grouped by boss" | Raid list switched to set 1's flat a layout with a Boss column, recorded order; lede "In the order officers record it."; checked offline at 1440 (recorded, live-failed) | 2026-10-06 |
+| herdr, decision 12 | review evidence | "I accept your check." | Menu and filter-sheet evidence accepted on the maker's inspection | 2026-10-06 |
 
 ## Experiment
 None.
