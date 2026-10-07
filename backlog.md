@@ -12,7 +12,7 @@
   that repo's onboarding also lands.
 - Local database commands (#74): consider clearer Docker failure diagnostics, tests for rejected port bindings, and cleanup when initial setup is interrupted; normal reruns already recover interrupted setup.
 - Add automated failure-path tests for server identity, container ownership/replacement and cleanup refusal before extending the verification lifecycle helper (review #75; happy-path teardown is browser-run verified).
-- Calendar (#77 dry run, #121/#180 critique): raise role-label and roster/reserve caption contrast from the browser detector's measured 4.4:1 to PRODUCT.md's required 4.5:1 or better.
+- Calendar (#77 dry run, #121 critique): raise role-label and roster/reserve caption contrast from the browser detector's measured 4.4:1 to PRODUCT.md's required 4.5:1 or better.
 - Calendar (#77 dry run): make staffing requirements visible, not screen-reader-only, so sighted members can understand shortfalls without relying on count color.
 - Calendar (#77 dry run): clarify roster-dependent absence choices and improve weekday scanning; weekdays are currently screen-reader-only.
 - Loot sources (#93 review): remove the now-unused `ItemInput.explicit` field and its parser test assertions.

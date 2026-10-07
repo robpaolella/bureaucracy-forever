@@ -16,10 +16,11 @@
 - Dual isolated Impeccable critique: 33/40, two fixes (44px link targets; approved character metadata grouping/grid). Fixed both; refreshed captures. Corrected X-of-X filtered totals/default Everyone selection and added regression test. Existing calendar contrast finding already in backlog, added #180 reference. No redesign.
 - Pending: finish main raid recapture; independent design verdict then code review; final Checks; PR with actual attachments. See manifest and critique reports in evidence root.
 
-## Next session
-Route resolved: OpenAI GPT-6 Astra, low thinking.
-
-Exact start command:
-```bash
-cd /git/bureaucracy-forever-worktrees/feat-180-loot-history-filters && pi --model openai/gpt-6-astra --thinking low "Continue conductor-dispatched Bureaucracy issue #180. Read work/005-loot-history-filters/brief.md, plan.md and log.md first. Finish browser verification using the real officer UI, then the required design check, review and ship to an open PR. Do not merge or ask Robert directly."
-```
+## 2026-10-07 — Ready to open PR
+- Main baseline raid recapture completed in `/tmp/loot-180-evidence/main2`; Doctor/Cleanup PASS. Main, main2 and build local sites all stopped. Final image manifest names every capture and fixture difference; reviewer opened all affected approved/build/baseline images and phone detail crops.
+- Cross-company design gate: Claude Sonnet 5.5, medium, PASS. Coverage supplement initially lacked the requested detail crops; created lossless sharp crops and fixes-only recheck PASS. Files: `design-verdict.txt`, `design-verdict-supplement.txt`, `design-verdict-recheck.txt`.
+- Cross-company code review: same model, found stale paging response and rapid-filter navigation risks plus missing route-filter tests. Fixed as `6ad76b0`: abort/invalidate obsolete requests, guard state append, disable selects/paging during navigation, add stale-page regression and filtered GET/cursor/duplicate-parameter tests. Fixes-only recheck PASS; reviewer also independently inspected all images. `code-verdict.txt`, `code-verdict-recheck.txt`.
+- Final Checks after sync to `79abb57`: lint/typecheck/test/build PASS, 919 passed / 94 skipped; explicit Postgres older route 10 passed. Paging >50 is proven by tests, not hand-recorded browser data. Local stub proof is not real Discord OAuth. No seed alts, so no browser alt fixture fabricated (out of issue scope).
+- Final idle captures are source `130b79d`; reviewer verified later `6ad76b0` only adds request/pending handling and tests, no idle visual changes. No-results final capture uses one filter rather than approval's two; initial combined-filter real-UI proof is recorded and both reviewers accept the fixture difference.
+- PR #199 appeared touching backlog.md. Removed this branch's redundant #180 reference to the existing contrast backlog entry, leaving no backlog diff or overlap. Follow-ups (calendar contrast and stale design sidecar) were already recorded there.
+- Next: open PR with uploaded images/preview link, confirm issue closure and CI, record PR and keep worker open for sync. No merge permission.
