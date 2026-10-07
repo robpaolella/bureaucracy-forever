@@ -4,7 +4,7 @@ import { ROSTER_NO_MAIN } from './roster';
 export const ROSTER_EDITOR_HEAD = {
   eyebrow: 'Officers',
   title: 'Edit the roster',
-  lede: 'Each member’s main, spec, raid role and rank. Discord decides who is in the guild and who is an officer. Rank goes both ways: set it here and the Discord Raider, Trial or Social role follows; change the role in Discord and it shows here.',
+  lede: 'Each member’s main and alts, specs, raid roles and rank. Discord decides who is in the guild and who is an officer. Rank goes both ways: set it here and the Discord Raider, Trial or Social role follows; change the role in Discord and it shows here.',
 };
 
 export const EDITOR = {
@@ -13,7 +13,10 @@ export const EDITOR = {
   edit: 'Edit',
   add: 'Add main',
   addTitle: 'Add a main',
+  addAlt: 'Add alt',
+  addAltTitle: 'Add an alt',
   editTitle: 'Edit main',
+  editAltTitle: 'Edit alt',
   name: 'Character',
   firstName: 'First name',
   secondName: 'Second name',
@@ -26,11 +29,17 @@ export const EDITOR = {
   rank: 'Rank',
   save: 'Save',
   create: 'Add to roster',
+  createAlt: 'Add alt to roster',
   cancel: 'Cancel',
   remove: 'Remove from roster',
   removeTitle: 'Remove this character?',
   removeBody: 'The member stays; their sign-ups stop counting toward a role until a new main is added.',
+  removeAltBody: 'This alt will be removed. The member and their main stay on the roster.',
   removeConfirm: 'Remove',
+  makeMain: 'Make main',
+  makeMainTitle: (name: string) => `Make ${name} the main?`,
+  makeMainBody: 'The current main becomes an alt. Past raids keep the character they recorded.',
+  makeMainConfirm: 'Make main',
   keep: 'Keep it',
   rankFor: (name: string) => `Rank for ${name}`,
   officerRank: 'Set by the Discord Officer role',
@@ -42,6 +51,7 @@ export const EDITOR_TOASTS = {
   saved: (name: string) => `Saved ${name}`,
   added: (name: string) => `Added ${name} to the roster`,
   removed: (name: string) => `Removed ${name}`,
+  madeMain: (name: string) => `${name} is now the main`,
   ranked: (name: string, rank: string) => `${name} is now ${rank}`,
 };
 
