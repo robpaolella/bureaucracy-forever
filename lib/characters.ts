@@ -93,7 +93,10 @@ export async function changeMain(characterId: string): Promise<CharacterResult> 
     await tx.signup.updateMany({ where: { userId: chosen.userId, characterId: null }, data: { characterId: oldMain.id } });
     // The partial unique index is checked per statement: demote before promoting.
     await tx.character.update({ where: { id: oldMain.id }, data: { isMain: false } });
-    const character = await tx.character.update({ where: { id: characterId }, data: { isMain: true, rank: user.rank } });
+    // These roster values describe the member, not the character they choose to bring.
+    const character = await tx.character.update({ where: { id: characterId }, data: {
+      isMain: true, rank: user.rank, joinedAt: oldMain.joinedAt, attendance: oldMain.attendance,
+    } });
     // Stored choices and their roles are unchanged, so no posted raid needs refreshing.
     return { status: 200, character };
   });

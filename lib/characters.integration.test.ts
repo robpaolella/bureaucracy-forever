@@ -27,21 +27,21 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
   } });
   const jobs = async () => (await db.outboxJob.findMany({ where: { type: 'raid.update' } })).map((j) => (j.payload as { raidId: string }).raidId).sort();
 
-  // Both real transactions finish reading before either can insert; retries do not wait.
-  async function race(adds: (() => ReturnType<typeof addAlt>)[]) {
+  // Both real transactions finish the selected read before either can write; retries do not wait.
+  async function race(changes: (() => ReturnType<typeof addAlt>)[], model: 'User' | 'Character' = 'User') {
     let arrived = 0, release!: () => void;
     const ready = new Promise<void>((resolve) => { release = resolve; });
     const timer = setTimeout(release, 5000);
-    state.db = db.$extends({ query: { user: { async findUnique({ args, query }) {
-      const user = await query(args);
-      if (++arrived <= 2) {
+    state.db = db.$extends({ query: { $allModels: { async $allOperations({ model: queriedModel, operation, args, query }) {
+      const result = await query(args);
+      if (queriedModel === model && operation === 'findUnique' && ++arrived <= 2) {
         if (arrived === 2) release();
         await ready;
         if (arrived < 2) throw new Error('Concurrent transactions did not overlap');
       }
-      return user;
+      return result;
     } } } }) as unknown as PrismaClient;
-    try { return await Promise.all(adds.map((add) => add())); }
+    try { return await Promise.all(changes.map((run) => run())); }
     finally { clearTimeout(timer); state.db = db; }
   }
 
@@ -130,6 +130,9 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
     if (!('character' in added)) throw new Error('Expected alt');
     const alt = added.character;
     await db.user.update({ where: { id: user.id }, data: { rank: 'OFFICER' } });
+    const memberStats = { joinedAt: new Date('2020-01-01'), attendance: 87.5 };
+    await db.character.update({ where: { id: oldMain.id }, data: memberStats });
+    await db.character.update({ where: { id: alt.id }, data: { joinedAt: new Date('2025-01-01'), attendance: 10 } });
     for (const [id, choice, status] of [
       ['swap-past-null', null, 'DONE'], ['swap-future-null', null, 'SCHEDULED'],
       ['swap-past-main', oldMain.id, 'DONE'], ['swap-future-main', oldMain.id, 'SCHEDULED'],
@@ -140,7 +143,8 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
     }
     const jobsBefore = await jobs();
     expect(await changeMain(alt.id)).toMatchObject({ status: 200, character: { id: alt.id, isMain: true, rank: 'OFFICER', raidRole: 'HEALER' } });
-    expect(await db.character.findUnique({ where: { id: oldMain.id } })).toMatchObject({ isMain: false, raidRole: 'TANK' });
+    expect(await db.character.findUnique({ where: { id: alt.id } })).toMatchObject(memberStats);
+    expect(await db.character.findUnique({ where: { id: oldMain.id } })).toMatchObject({ isMain: false, raidRole: 'TANK', ...memberStats });
     expect(await db.character.count({ where: { userId: user.id, isMain: true } })).toBe(1);
     const signups = await db.signup.findMany({ where: { userId: user.id }, orderBy: { raidId: 'asc' } });
     expect(signups.map((s) => [s.raidId, s.characterId])).toEqual([
@@ -181,10 +185,10 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
   });
   it('concurrent swaps leave exactly one main and keep the original legacy choice', async () => {
     const user = await member('Swapracer');
-    const alts = await Promise.all(['Swapone', 'Swaptwo'].map((name) => addAlt(user.id, input(name))));
+    const alts = [await addAlt(user.id, input('Swapone')), await addAlt(user.id, input('Swaptwo'))];
     const ids = alts.map((r) => { if (!('character' in r)) throw new Error('Expected alt'); return r.character.id; });
     await raid('race-null', user.id, null);
-    const results = await Promise.all(ids.map(changeMain));
+    const results = await race(ids.map((id) => () => changeMain(id)), 'Character');
     expect(results.map((r) => r.status)).toEqual([200, 200]);
     expect(await db.character.count({ where: { userId: user.id, isMain: true } })).toBe(1);
     expect(await db.signup.findUnique({ where: { raidId_userId: { raidId: 'race-null', userId: user.id } } })).toMatchObject({ characterId: user.characters[0].id });
