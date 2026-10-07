@@ -51,6 +51,7 @@ export function RosterEditor({ members }: Props) {
   const [editing, setEditing] = useState<Editing | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [ranking, setRanking] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
 
@@ -94,19 +95,25 @@ export function RosterEditor({ members }: Props) {
   async function confirm() {
     if (!confirmation || busy) return;
     setBusy(true);
-    const res = confirmation.kind === 'remove' ? await send(`/api/roster/${confirmation.character.id}`, 'DELETE') : await send(`/api/roster/${confirmation.character.id}/main`, 'POST');
-    setBusy(false);
-    if (!res.ok) {
-      // Stay put so the officer can retry or back out; only the toast changes.
-      setToast({ tone: 'stop', title: await failureMessage(res) });
-      return;
+    setConfirmError(null);
+    try {
+      const res = confirmation.kind === 'remove' ? await send(`/api/roster/${confirmation.character.id}`, 'DELETE') : await send(`/api/roster/${confirmation.character.id}/main`, 'POST');
+      if (!res.ok) {
+        // A native dialog makes the page behind it inert, including its toast.
+        setConfirmError(await failureMessage(res));
+        return;
+      }
+      setToast({ tone: 'ok', title: confirmation.kind === 'remove' ? EDITOR_TOASTS.removed(confirmation.character.name) : EDITOR_TOASTS.madeMain(confirmation.character.name) });
+      // Close the confirm first so its focus return lands on the still-mounted form, then the form.
+      setConfirmation(null);
+      await new Promise((r) => setTimeout(r, 0));
+      setEditing(null);
+      router.refresh();
+    } catch {
+      setConfirmError(SAVE_FAILED);
+    } finally {
+      setBusy(false);
     }
-    setToast({ tone: 'ok', title: confirmation.kind === 'remove' ? EDITOR_TOASTS.removed(confirmation.character.name) : EDITOR_TOASTS.madeMain(confirmation.character.name) });
-    // Close the confirm first so its focus return lands on the still-mounted form, then the form.
-    setConfirmation(null);
-    await new Promise((r) => setTimeout(r, 0));
-    setEditing(null);
-    router.refresh();
   }
 
   return (
@@ -189,19 +196,19 @@ export function RosterEditor({ members }: Props) {
             onSubmit={save}
             onCancel={() => setEditing(null)}
             showRank={editing.kind !== 'add-alt' && editing.kind !== 'edit-alt'}
-            onRemove={'character' in editing ? () => setConfirmation({ kind: 'remove', character: editing.character }) : undefined}
-            onMakeMain={editing.kind === 'edit-alt' ? () => setConfirmation({ kind: 'make-main', character: editing.character }) : undefined}
+            onRemove={'character' in editing ? () => { setConfirmError(null); setConfirmation({ kind: 'remove', character: editing.character }); } : undefined}
+            onMakeMain={editing.kind === 'edit-alt' ? () => { setConfirmError(null); setConfirmation({ kind: 'make-main', character: editing.character }); } : undefined}
           />
         )}
       </Modal>
 
       <Modal
         open={confirmation !== null}
-        onClose={() => setConfirmation(null)}
+        onClose={() => { if (!busy) setConfirmation(null); }}
         title={confirmation?.kind === 'make-main' ? EDITOR.makeMainTitle : EDITOR.removeTitle}
         actions={
           <>
-            <Button variant="ghost" onClick={() => setConfirmation(null)}>
+            <Button variant="ghost" disabled={busy} onClick={() => setConfirmation(null)}>
               {EDITOR.keep}
             </Button>
             <Button variant={confirmation?.kind === 'make-main' ? 'primary' : 'danger'} loading={busy} onClick={confirm}>
@@ -210,7 +217,8 @@ export function RosterEditor({ members }: Props) {
           </>
         }
       >
-        {confirmation?.kind === 'make-main' ? EDITOR.makeMainBody : EDITOR.removeBody}
+        {confirmation?.kind === 'make-main' ? EDITOR.makeMainBody : editing?.kind === 'edit-alt' ? EDITOR.removeAltBody : EDITOR.removeBody}
+        {confirmError && <p role="alert" className="mt-3 text-sm text-stop">{confirmError}</p>}
       </Modal>
 
       <Toast toast={toast} onDismiss={() => setToast(null)} />

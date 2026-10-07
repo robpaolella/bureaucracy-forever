@@ -34,6 +34,7 @@ export const EDITOR = {
   remove: 'Remove from roster',
   removeTitle: 'Remove this character?',
   removeBody: 'The member stays; their sign-ups stop counting toward a role until a new main is added.',
+  removeAltBody: 'This alt will be removed. The member and their main stay on the roster.',
   removeConfirm: 'Remove',
   makeMain: 'Make main',
   makeMainTitle: 'Make this character the main?',
