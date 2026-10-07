@@ -14,6 +14,9 @@ export async function viewer() {
 }
 
 export function resultResponse(result: CharacterResult) {
-  if ('error' in result) return error(result.reason === 'no_main' ? 'Set your main first.' : result.error, result.status);
+  if ('error' in result) {
+    if (result.reason === 'main') return error('You can only change your alts here.', 403);
+    return error(result.reason === 'no_main' ? 'Set your main first.' : result.error, result.status);
+  }
   return NextResponse.json({ id: result.character.id, name: result.character.name }, { status: result.status, headers: NO_STORE });
 }

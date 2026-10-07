@@ -79,6 +79,19 @@ it.each(['PATCH', 'DELETE'])('%s refuses another owner and the main; unknown ids
   }
   expect(m.transaction).not.toHaveBeenCalled();
 });
+it.each(['PATCH', 'DELETE'])('%s refuses an alt promoted to main after the route check', async (method) => {
+  m.existing.mockResolvedValue(alt);
+  m.find.mockResolvedValueOnce({ ...alt, isMain: true });
+  const response = await call(method);
+  expect(response.status).toBe(403);
+  expect(await response.json()).toEqual({ error: 'You can only change your alts here.' });
+  expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+  expect(m.transaction).toHaveBeenCalledOnce();
+  expect(m.find).toHaveBeenCalledWith({ where: { id: 'alt', userId: 'owner' } });
+  expect(m.update).not.toHaveBeenCalled();
+  expect(m.remove).not.toHaveBeenCalled();
+  expect(m.refresh).not.toHaveBeenCalled();
+});
 it('refuses the ninth character without creating one', async () => {
   m.txUser.mockResolvedValue({ rank: 'RAIDER', characters: Array(8).fill({ isMain: true }) });
   const response = await call('POST');

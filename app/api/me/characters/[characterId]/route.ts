@@ -19,12 +19,12 @@ export async function PATCH(request: Request, { params }: Params) {
   const v = await ownedAlt(characterId);
   if (v.denied) return v.denied;
   const body: unknown = await request.json().catch(() => null);
-  return resultResponse(await editCharacter(v.userId, characterId, body));
+  return resultResponse(await editCharacter(v.userId, characterId, body, { altOnly: true }));
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
   const { characterId } = await params;
   const v = await ownedAlt(characterId);
   if (v.denied) return v.denied;
-  return resultResponse(await removeCharacter(v.userId, characterId));
+  return resultResponse(await removeCharacter(v.userId, characterId, { altOnly: true }));
 }
