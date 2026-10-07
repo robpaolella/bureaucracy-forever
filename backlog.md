@@ -56,3 +56,5 @@
 - Shared member loot row (#99/#100 critique): give screen readers the desktop column associations and an explicit bank-row winner description; current headers are aria-hidden and the labelled dash is not reliably announced.
 - Members switch their own main (Robert, 2026-10-06: "We might want a method for someone to switch their main at some point.")
 - Show socials on the roster so they can manage their alts (Robert, 2026-10-06: leave for now).
+- verify-guild: a documented local-only recipe for populated loot history (started raids with recorded awards, enough for 'Show older raids'); #99 and #100 had to record awards by hand through the officer UI.
+- Member character routes (#170): former guild members who keep a site login and a main can still edit their own characters; closing it needs a real Discord server-membership signal (bot contract + migration).
