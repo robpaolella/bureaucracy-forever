@@ -5,6 +5,7 @@ const row = (name: string, extra: Partial<RosterRow> = {}): RosterRow => ({
   id: name,
   name,
   character: `${name}main`,
+  alts: [],
   wowClass: 'warrior',
   spec: 'Fury',
   role: 'melee',
@@ -35,6 +36,37 @@ describe('filterRoster', () => {
   it('counts active filters, ignoring whitespace-only search', () => {
     expect(countActiveFilters(EMPTY_FILTERS)).toBe(0);
     expect(countActiveFilters({ search: '  ', classes: ['mage'], roles: [], rank: 'trial' })).toBe(2);
+  });
+});
+
+describe('alts', () => {
+  const alts: RosterRow['alts'] = [{ id: 'alt', name: 'Inkwell', wowClass: 'rogue', spec: 'Combat', role: 'melee' }, { id: 'alt2', name: 'Inktray', wowClass: 'shaman', spec: 'Restoration', role: 'healer' }];
+  const expanded = ROWS.map((r) => ({ ...r, alts }));
+  const ids = (rows: RosterRow[]) => rows.map((r) => r.id);
+
+  it('searches every alt, case-insensitively, returning each whole member only once', () => {
+    const member = { ...ROWS[0], alts };
+    expect(filterRoster([member, ROWS[1]], { ...EMPTY_FILTERS, search: ' INK ' })).toEqual([member]);
+    expect(filterRoster([member], { ...EMPTY_FILTERS, search: 'inktray' })).toEqual([member]);
+    expect(filterRoster([member], { ...EMPTY_FILTERS, search: 'ink', classes: ['rogue'] })).toEqual([]);
+  });
+
+  it('keeps class, role and rank filters on members and their mains', () => {
+    for (const filters of [{ ...EMPTY_FILTERS, classes: ['mage'] as const }, { ...EMPTY_FILTERS, roles: ['healer'] as const }, { ...EMPTY_FILTERS, rank: 'trial' as const }]) {
+      const f = { ...filters, classes: [...filters.classes], roles: [...filters.roles] };
+      expect(ids(filterRoster(expanded, f))).toEqual(ids(filterRoster(ROWS, f)));
+    }
+  });
+
+  it('does not change any sort, grouping or member count', () => {
+    for (const key of ['name', 'rank', 'attendance', 'joinedAt'] as const) for (const dir of ['asc', 'desc'] as const) {
+      expect(ids(sortRoster(expanded, key, dir))).toEqual(ids(sortRoster(ROWS, key, dir)));
+    }
+    const label = (s: string) => s;
+    for (const by of ['flat', 'class', 'role'] as const) {
+      const summary = (rows: RosterRow[]) => groupRoster(rows, by, label, label).map((g) => [g.key, g.label, ids(g.rows)]);
+      expect(summary(expanded)).toEqual(summary(ROWS));
+    }
   });
 });
 
