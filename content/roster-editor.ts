@@ -47,6 +47,22 @@ export const EDITOR = {
   empty: 'Nobody matches that search.',
 };
 
+export const MEMBER_EDITOR = {
+  manageCharacters: 'Manage characters',
+  title: 'Manage characters',
+  main: 'Main',
+  addAlt: 'Add alt',
+  addAltTitle: 'Add an alt',
+  edit: 'Edit',
+  editAltTitle: 'Edit alt',
+  save: 'Save',
+  noMain: 'Set my main in Discord, or ask an officer.',
+  removeTitle: 'Remove this alt?',
+  removeBody: 'This alt’s reserves for upcoming raids will be removed. Past loot stays under the alt’s name.',
+  removeConfirm: 'Remove',
+  keep: 'Keep it',
+};
+
 export const EDITOR_TOASTS = {
   saved: (name: string) => `Saved ${name}`,
   added: (name: string) => `Added ${name} to the roster`,

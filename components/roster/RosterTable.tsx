@@ -20,9 +20,14 @@ import {
 } from '@/lib/roster';
 import { relativeDate } from '@/lib/time';
 import { ROSTER_EMPTY, ROSTER_NO_MAIN, ROSTER_NO_MATCH } from '@/content/roster';
+import { MemberCharacterDialog, type MemberCharacter } from './MemberCharacterDialog';
 import { setDensity, useDensity } from './useDensity';
 
-type Props = { rows: RosterRow[] };
+type Props = {
+  rows: RosterRow[];
+  /** Present only when the signed-in viewer has a User row. */
+  viewer?: { id: string; rank: RosterRow['rank']; characters: MemberCharacter[] };
+};
 
 const RANK_LABEL: Record<(typeof RANK_ORDER)[number], string> = { officer: 'Officer', raider: 'Raider', trial: 'Trial', social: 'Social' };
 const GROUPS: { value: GroupBy; label: string }[] = [
@@ -36,7 +41,7 @@ const GROUPS: { value: GroupBy; label: string }[] = [
  * default), density persisted per browser, and a two-line card list on phones. Nothing
  * here opens anything; it is a reference table.
  */
-export function RosterTable({ rows }: Props) {
+export function RosterTable({ rows, viewer }: Props) {
   const [filters, setFilters] = useState<RosterFilters>(EMPTY_FILTERS);
   const [groupBy, setGroupBy] = useState<GroupBy>('flat');
   const [sortKey, setSortKey] = useState<RosterSortKey>('rank');
@@ -75,6 +80,11 @@ export function RosterTable({ rows }: Props) {
     { key: 'rank', header: 'Rank', sortable: true, render: (r) => <RankBadge rank={r.rank} /> },
     { key: 'attendance', header: 'Attendance', sortable: true, numeric: true, render: (r) => formatAttendance(r.attendance) },
     { key: 'joinedAt', header: 'Joined', sortable: true, align: 'right', render: (r) => <span className="text-fg-2">{relativeDate(new Date(r.joinedAt), now)}</span> },
+    {
+      key: 'manage',
+      header: '',
+      render: (r) => r.id === viewer?.id ? <MemberCharacterDialog characters={viewer.characters} rank={viewer.rank} /> : null,
+    },
   ];
 
   if (rows.length === 0) {
@@ -171,6 +181,7 @@ export function RosterTable({ rows }: Props) {
                         <span className="truncate text-[13px] text-fg-3">{r.wowClass && r.role ? `${r.character} · ${CLASS_COLORS[r.wowClass].label} · ${r.spec} · ${ROLE_LABELS[r.role]}` : ROSTER_NO_MAIN}</span>
                       </div>
                       <span className="tabular shrink-0 text-sm text-fg-2">{formatAttendance(r.attendance)}</span>
+                      {r.id === viewer?.id && <MemberCharacterDialog characters={viewer.characters} rank={viewer.rank} />}
                     </li>
                   ))}
                 </ul>
