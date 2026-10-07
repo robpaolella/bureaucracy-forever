@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import { CharacterForm } from './CharacterForm';
 import { MemberCharacterDialog, type MemberCharacter } from './MemberCharacterDialog';
-import { Modal } from '@/components/ui';
+import { Modal, Toast } from '@/components/ui';
+import { SAVE_FAILED } from '@/content/calendar';
 import { MEMBER_EDITOR } from '@/content/roster-editor';
 import { RosterTable } from './RosterTable';
 import type { RosterRow } from '@/lib/roster';
@@ -73,6 +74,34 @@ describe('MemberCharacterDialog', () => {
     button(MEMBER_EDITOR.addAlt)();
     const form = view().find((node) => node.type === CharacterForm)!;
     expect(await (form.props.onSubmit as (value: unknown) => Promise<unknown>)({ ...alt, rank: 'raider' })).toBe(error);
+  });
+
+  it.each([401, 403, 500, 'network'] as const)('shows a plain save failure for %s', async (failure) => {
+    hooks.values = [];
+    const request = vi.fn();
+    if (failure === 'network') request.mockRejectedValue(new Error('Network unavailable'));
+    else request.mockResolvedValue(new Response(JSON.stringify({ error: 'Internal route wording' }), { status: failure }));
+    vi.stubGlobal('fetch', request);
+    button(MEMBER_EDITOR.manageCharacters)();
+    button('Edit Blue Ink')();
+    const form = view().find((node) => node.type === CharacterForm)!;
+    expect(await (form.props.onSubmit as (value: unknown) => Promise<unknown>)({ ...alt, rank: 'raider' })).toBe(SAVE_FAILED);
+  });
+
+  it('refreshes the list and shows a plain failure when an alt was already removed', async () => {
+    hooks.values = [];
+    const request = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Character not found' }), { status: 404 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ ...main, class: 'WARRIOR', raidRole: 'TANK' }])));
+    vi.stubGlobal('fetch', request);
+    button(MEMBER_EDITOR.manageCharacters)();
+    button('Edit Blue Ink')();
+    const form = view().find((node) => node.type === CharacterForm)!;
+    expect(await (form.props.onSubmit as (value: unknown) => Promise<unknown>)({ ...alt, rank: 'raider' })).toBeNull();
+    expect(request).toHaveBeenNthCalledWith(2, '/api/me/characters', expect.objectContaining({ method: 'GET' }));
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(view().some((node) => node.props['aria-label'] === 'Edit Blue Ink')).toBe(false);
+    expect(view().find((node) => node.type === Toast)?.props.toast).toEqual({ tone: 'stop', title: SAVE_FAILED });
   });
 
   it('adds and edits alts without a rank picker, then confirms before removal', () => {
