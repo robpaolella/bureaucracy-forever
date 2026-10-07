@@ -63,7 +63,7 @@ describe('MemberCharacterDialog', () => {
       { id: 'other', name: 'Ledgerline', character: 'Blue Ink', wowClass: 'mage', spec: 'Frost', role: 'ranged', rank: 'officer', attendance: null, joinedAt: '2026-01-01T00:00:00.000Z' },
     ];
     const html = renderToStaticMarkup(<RosterTable rows={rows} viewer={{ id: 'viewer', rank: 'raider', characters: [main] }} />);
-    expect(html.match(/Manage characters/g)).toHaveLength(6); // Desktop and phone markup each contain one button and its dialog title.
+    expect(html.match(/aria-label="Manage characters"/g)).toHaveLength(2); // One action in each responsive rendering, never on the other row.
   });
 
   it.each(['You can have up to 8 characters.', 'You already have a character with that name.'])('returns validation errors for the form: %s', async (error) => {

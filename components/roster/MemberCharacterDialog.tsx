@@ -67,7 +67,12 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
         ? await send('/api/me/characters', 'POST', input)
         : await send(`/api/me/characters/${editing.character.id}`, 'PATCH', input);
       if (!res.ok) {
-        if (res.status === 404) await refreshCharacters();
+        if (res.status === 404) {
+          setEditing(null);
+          await refreshCharacters();
+          setToast({ tone: 'stop', title: SAVE_FAILED });
+          return null;
+        }
         return failureMessage(res);
       }
       await refreshCharacters();
@@ -86,7 +91,13 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
     try {
       const res = await send(`/api/me/characters/${removing.id}`, 'DELETE');
       if (!res.ok) {
-        if (res.status === 404) await refreshCharacters();
+        if (res.status === 404) {
+          setRemoving(null);
+          setEditing(null);
+          await refreshCharacters();
+          setToast({ tone: 'stop', title: SAVE_FAILED });
+          return;
+        }
         setConfirmError(await failureMessage(res));
         return;
       }
