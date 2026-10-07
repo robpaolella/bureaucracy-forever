@@ -27,6 +27,8 @@ export type RaidCard = {
   counts: RoleCounts;
   /** The viewer's own response, if any. */
   mine: RaidResponse | null;
+  /** This raid's character role; undefined when there is no sign-up yet. */
+  signupRole?: Role | null;
   /** SYNC-SPEC additions; optional so older callers and tests still build cards. */
   status?: 'SCHEDULED' | 'LOCKED' | 'DONE' | 'CANCELLED';
   locksAt?: string;
@@ -47,11 +49,16 @@ export function parseRequirements(value: unknown): RoleCounts {
   return { tank: n('tank'), healer: n('healer'), melee: n('melee'), ranged: n('ranged') };
 }
 
-/** Accepted sign-ups per role. Members without a main have no role and are not counted; an unanswered row (null) counts nothing. */
+/** Accepted sign-ups per role. Members without a character brought have no role and are not counted; an unanswered row (null) counts nothing. */
 export function countAccepted(signups: { response: RaidResponse | null; role: Role | null }[]): RoleCounts {
   const counts = { ...ZERO_COUNTS };
   for (const s of signups) if (s.response === 'accept' && s.role) counts[s.role] += 1;
   return counts;
+}
+
+/** An existing sign-up's role (including no role) wins over the viewer's current main. */
+export function signupRoleFor(raid: Pick<RaidCard, 'signupRole'>, mainRole: Role | null): Role | null {
+  return raid.signupRole === undefined ? mainRole : raid.signupRole;
 }
 
 /** The counts after the viewer changes their own answer, for the optimistic row. */

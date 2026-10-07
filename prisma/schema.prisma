@@ -172,6 +172,7 @@ model Character {
   joinedAt   DateTime    @default(now())
   reserves   Reserve[]
   lootAwards LootAward[]
+  signups    Signup[]
 
   @@index([userId])
 }
@@ -279,6 +280,8 @@ model Signup {
   raid        Raid      @relation(fields: [raidId], references: [id], onDelete: Cascade)
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  characterId String?
+  character   Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
   /// Null while a roster member has not answered yet (SYNC-SPEC §3).
   response    Response?
   standing    Standing  @default(ROSTER)
@@ -293,6 +296,7 @@ model Signup {
   updatedAt   DateTime  @updatedAt
 
   @@unique([raidId, userId])
+  @@index([characterId])
 }
 
 model Application {

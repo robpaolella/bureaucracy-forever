@@ -35,6 +35,13 @@ export async function rosterUserIds(): Promise<string[]> {
   return users.filter((u) => isRosterRank(u.rank)).map((u) => u.id);
 }
 
+/** Capture the main when an unanswered roster sign-up is first created. */
+export async function rosterSignups(userIds: string[]) {
+  const mains = await db.character.findMany({ where: { userId: { in: userIds }, isMain: true }, select: { id: true, userId: true } });
+  const byUser = new Map(mains.map((c) => [c.userId, c.id]));
+  return userIds.map((userId) => ({ userId, characterId: byUser.get(userId) ?? null, standing: 'ROSTER' as const, source: 'WEB' as const }));
+}
+
 /**
  * §6 step 1: create the missing instances of every active series (or of one series) with
  * the roster on each. Dates that already have a raid for the series are skipped, so a moved
@@ -58,7 +65,7 @@ export async function generateInstances(now: Date, roster: string[], seriesId?: 
             requirements: parseRequirements(s.template.requirements) as unknown as Prisma.InputJsonValue,
             templateId: s.templateId,
             seriesId: s.id,
-            signups: { create: roster.map((userId) => ({ userId, standing: 'ROSTER' as const, source: 'WEB' as const })) },
+            signups: { create: await rosterSignups(roster) },
           },
         });
         generated += 1;
@@ -93,7 +100,7 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
     const have = new Set(raid.signups.map((s) => s.userId));
     const missing = roster.filter((u) => !have.has(u));
     if (missing.length > 0) {
-      await db.signup.createMany({ data: missing.map((userId) => ({ raidId: raid.id, userId, standing: 'ROSTER' as const, source: 'WEB' as const })), skipDuplicates: true });
+      await db.signup.createMany({ data: (await rosterSignups(missing)).map((signup) => ({ raidId: raid.id, ...signup })), skipDuplicates: true });
       counts.rosterAdded += missing.length;
     }
     const gone = raid.signups.filter((s) => s.standing === 'ROSTER' && s.response === null && !rosterSet.has(s.userId)).map((s) => s.userId);
