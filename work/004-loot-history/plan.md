@@ -1,0 +1,21 @@
+# Plan
+
+- [x] Read #100 and comments, confirm clean dispatched branch and overlap check.
+- [x] Verify design approval/coverage; inspect every approved image and brief/decisions/manifest.
+- [x] Implement shared safe projection, history loader, whole-raid paging endpoint.
+- [x] Build Everyone/empty history and flag/role-gated shared menu link.
+- [x] Add access, navigation, route and isolated-Postgres paging tests.
+- [x] First checks: lint → typecheck → test → build pass; 820 tests pass, 33 opt-in skipped.
+- [x] Opt-in history Postgres run: 9/9 tests pass (includes 3 integration cases).
+- [x] Build browser: empty, populated, phone/desktop menus; real officer award/void proof; member raid regression captures.
+- [x] Main browser: predecessor roster and menu captures at both widths.
+- [ ] Complete main shared raid-list captures, then inspect all remaining main/build images and write evidence manifest.
+- [ ] Finish browser behavior proof (raid link, item keyboard tooltip, officer history and logged-out denial); record first-page-only paging limitation.
+- [ ] Dual isolated Impeccable assessments and synthesis; no detector run yet.
+- [ ] Independent cross-company design verdict; fix once if needed.
+- [ ] Commit logical changes and sync with origin/main (currently #185 landed since branch creation).
+- [ ] Final repo checks and integration run after any fixes/sync.
+- [ ] Independent cross-company high-risk code review; fix once if needed.
+- [ ] Cleanup both owned verification runs, retain evidence; close helper tabs if any.
+- [ ] Recheck open PR overlap, push and open PR closing #100 with attached evidence and Preview URL; verify CI/issue link/attachments.
+- [ ] Report PR link to conductor and stop; do not merge.
