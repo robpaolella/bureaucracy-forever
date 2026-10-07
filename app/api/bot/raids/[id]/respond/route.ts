@@ -14,6 +14,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!isSnowflake(discordId)) return reply(400, { error: 'discordId must be a Discord id.' });
     const response = parseResponse(read.body.response);
     if (!response) return reply(400, { error: 'response must be ACCEPT, TENTATIVE or ABSENT.' });
-    return applyDiscordAnswer(id, discordId, { kind: 'respond', response, reason: str(read.body.reason, 200) });
+    const characterId = read.body.characterId;
+    if (characterId !== undefined && (typeof characterId !== 'string' || !characterId.trim() || response === 'absent')) {
+      return reply(400, { error: 'characterId must be a non-empty character id and cannot accompany ABSENT.' });
+    }
+    return applyDiscordAnswer(id, discordId, { kind: 'respond', response, reason: str(read.body.reason, 200), characterId });
   });
 }
