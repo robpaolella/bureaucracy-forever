@@ -4,7 +4,7 @@ import { ROSTER_NO_MAIN } from './roster';
 export const ROSTER_EDITOR_HEAD = {
   eyebrow: 'Officers',
   title: 'Edit the roster',
-  lede: 'Each member’s main, spec, raid role and rank. Discord decides who is in the guild and who is an officer. Rank goes both ways: set it here and the Discord Raider, Trial or Social role follows; change the role in Discord and it shows here.',
+  lede: 'Each member’s main and alts, specs, raid roles and rank. Discord decides who is in the guild and who is an officer. Rank goes both ways: set it here and the Discord Raider, Trial or Social role follows; change the role in Discord and it shows here.',
 };
 
 export const EDITOR = {
@@ -37,7 +37,7 @@ export const EDITOR = {
   removeAltBody: 'This alt will be removed. The member and their main stay on the roster.',
   removeConfirm: 'Remove',
   makeMain: 'Make main',
-  makeMainTitle: 'Make this character the main?',
+  makeMainTitle: (name: string) => `Make ${name} the main?`,
   makeMainBody: 'The current main becomes an alt. Past raids keep the character they recorded.',
   makeMainConfirm: 'Make main',
   keep: 'Keep it',

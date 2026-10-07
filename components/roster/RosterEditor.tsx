@@ -133,14 +133,14 @@ export function RosterEditor({ members }: Props) {
             <li key={m.userId}>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
                 <ClassAvatar name={m.discordName} wowClass={m.main?.wowClass} size={28} />
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <div className="flex min-w-0 flex-1 basis-[calc(100%-44px)] flex-col gap-0.5 sm:basis-0">
                   <div className="flex flex-wrap items-center gap-2.5">
                     <span className="truncate text-[15px] font-semibold" style={{ color: m.main ? CLASS_COLORS[m.main.wowClass].onInk : undefined }}>
                       {m.discordName}
                     </span>
                     <RankBadge rank={m.rank} />
                   </div>
-                  <span className="truncate text-[13px] text-fg-3">
+                  <span className="text-[13px] text-fg-3 sm:truncate">
                     {m.main ? `${m.main.name} · ${CLASS_COLORS[m.main.wowClass].label} · ${m.main.spec} · ${ROLE_LABELS[m.main.role]}` : EDITOR.noMain}
                   </span>
                 </div>
@@ -157,7 +157,7 @@ export function RosterEditor({ members }: Props) {
                     </select>
                   ))}
                 {m.main ? (
-                  <div className="flex flex-wrap gap-2.5">
+                  <div className="ml-11 flex flex-wrap gap-2.5 sm:ml-0">
                     <Button variant="secondary" size="sm" onClick={() => setEditing({ kind: 'edit-main', member: m, character: m.main! })} aria-label={`${EDITOR.edit} ${m.main.name}`}>
                       {EDITOR.edit}
                     </Button>
@@ -175,7 +175,7 @@ export function RosterEditor({ members }: Props) {
                 <ul className="border-t border-line-faint bg-ink-850/40">
                   {m.alts.map((alt) => (
                     <li key={alt.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line-faint px-4 py-3 first:border-t-0 sm:pl-[60px]">
-                      <span className="min-w-0 flex-1 truncate text-[13px] text-fg-3">{alt.name} · {CLASS_COLORS[alt.wowClass].label} · {alt.spec} · {ROLE_LABELS[alt.role]}</span>
+                      <span className="min-w-0 flex-1 text-[13px] text-fg-3 sm:truncate">{alt.name} · {CLASS_COLORS[alt.wowClass].label} · {alt.spec} · {ROLE_LABELS[alt.role]}</span>
                       <Button variant="secondary" size="sm" onClick={() => setEditing({ kind: 'edit-alt', member: m, character: alt })} aria-label={`${EDITOR.edit} ${alt.name}`}>
                         {EDITOR.edit}
                       </Button>
@@ -205,11 +205,11 @@ export function RosterEditor({ members }: Props) {
       <Modal
         open={confirmation !== null}
         onClose={() => { if (!busy) setConfirmation(null); }}
-        title={confirmation?.kind === 'make-main' ? EDITOR.makeMainTitle : EDITOR.removeTitle}
+        title={confirmation?.kind === 'make-main' ? EDITOR.makeMainTitle(confirmation.character.name) : EDITOR.removeTitle}
         actions={
           <>
             <Button variant="ghost" disabled={busy} onClick={() => setConfirmation(null)}>
-              {EDITOR.keep}
+              {confirmation?.kind === 'make-main' ? EDITOR.cancel : EDITOR.keep}
             </Button>
             <Button variant={confirmation?.kind === 'make-main' ? 'primary' : 'danger'} loading={busy} onClick={confirm}>
               {confirmation?.kind === 'make-main' ? EDITOR.makeMainConfirm : EDITOR.removeConfirm}

@@ -55,7 +55,7 @@ function button(label: string) {
 function form() { return view().find((n) => n.type === CharacterForm)!.props; }
 function start() { hooks.values = []; return vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}'))); }
 
- describe('RosterEditor actions', () => {
+describe('RosterEditor actions', () => {
   it('adds an alt for the selected member with no rank picker', async () => {
     start(); await button(`Add alt for ${member.discordName}`)();
     expect(form().showRank).toBe(false);
@@ -77,6 +77,7 @@ function start() { hooks.values = []; return vi.stubGlobal('fetch', vi.fn().mock
     expect(fetch).not.toHaveBeenCalled();
     const dialog = view().filter((n) => n.type === Modal).at(-1)!;
     expect(dialog.props.open).toBe(true);
+    expect(dialog.props.title).toBe(kind === 'make-main' ? EDITOR.makeMainTitle('Blue Ink') : EDITOR.removeTitle);
     expect(dialog.props.children).toContain(kind === 'make-main' ? EDITOR.makeMainBody : EDITOR.removeAltBody);
     await button(kind === 'make-main' ? EDITOR.makeMainConfirm : EDITOR.removeConfirm)();
     expect(fetch).toHaveBeenCalledWith(`/api/roster/alt-1${kind === 'make-main' ? '/main' : ''}`, expect.objectContaining({ method: kind === 'make-main' ? 'POST' : 'DELETE' }));
