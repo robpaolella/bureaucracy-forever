@@ -5,6 +5,7 @@
 import 'server-only';
 
 import { db } from '@/lib/db';
+import type { Prisma } from '@/lib/generated/prisma/client';
 import type { WowClass } from '@/lib/design/class-colors';
 import { blockedItemIds, winLimits } from '@/lib/loot-blocks';
 import { toItemView, type ItemView } from '@/lib/loot-items';
@@ -64,10 +65,10 @@ export async function loadActiveReserves(raidId: string): Promise<ReserveView[]>
 }
 
 /** Non-voided HR/SR wins across all raids, including the current raid. Keeps the legacy HR name. */
-export async function hrAwardsFor(characterIds: readonly string[]): Promise<LoggedHr[]> {
+export async function hrAwardsFor(characterIds: readonly string[], client: Pick<Prisma.TransactionClient, 'lootAward'> = db): Promise<LoggedHr[]> {
   if (characterIds.length === 0) return [];
   // Open roll, disenchant/bank and legacy main/off spec awards do not block reserves.
-  const rows = await db.lootAward.findMany({ where: { characterId: { in: [...characterIds] }, method: { in: ['HR', 'SR'] }, voidedAt: null }, select: { id: true, characterId: true, itemId: true } });
+  const rows = await client.lootAward.findMany({ where: { characterId: { in: [...characterIds] }, method: { in: ['HR', 'SR'] }, voidedAt: null }, select: { id: true, characterId: true, itemId: true } });
   return rows.flatMap((r) => (r.characterId ? [{ id: r.id, characterId: r.characterId, itemId: r.itemId }] : []));
 }
 
