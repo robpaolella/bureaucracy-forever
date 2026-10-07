@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Role } from '@/lib/design/class-colors';
-import { applyResponse, mergeLocal, type LocalAnswer, type RaidCard, type RaidResponse, type RoleCounts } from '@/lib/raids';
+import { applyResponse, mergeLocal, signupRoleFor, type LocalAnswer, type RaidCard, type RaidResponse, type RoleCounts } from '@/lib/raids';
 
 type Result = { raidId: string; userId: string; response: RaidResponse | null; counts: RoleCounts };
 
@@ -41,7 +41,7 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
       if (!before || before.mine === response) return;
       if (remember) previous.current.set(id, before.mine);
 
-      setRaid(id, { mine: response, counts: applyResponse(before.counts, before.signupRole === undefined ? viewerRole : before.signupRole, before.mine, response) });
+      setRaid(id, { mine: response, counts: applyResponse(before.counts, signupRoleFor(before, viewerRole), before.mine, response) });
 
       const seq = (inflight.current.get(id) ?? 0) + 1;
       inflight.current.set(id, seq);

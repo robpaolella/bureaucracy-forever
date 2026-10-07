@@ -6,6 +6,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@/lib/generated/prisma/client';
 import { characterBrought } from './signup-character';
 import { buildRoster } from '@/prisma/seed-data';
+import { applyResponse, signupRoleFor, ZERO_COUNTS } from './raids';
 
 const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient, discordId: '', role: 'member' }));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
@@ -23,6 +24,12 @@ it('prefers the chosen character, otherwise the main, otherwise none', () => {
   expect(characterBrought({ character: alt, user: { characters: [main] } })).toBe(alt);
   expect(characterBrought({ character: null, user: { characters: [main] } })).toBe(main);
   expect(characterBrought({ user: { characters: [] } })).toBeNull();
+});
+it('optimistically counts the stored role, preserves no role, and falls back only without a sign-up', () => {
+  expect(applyResponse(ZERO_COUNTS, signupRoleFor({ signupRole: 'healer' }, 'tank'), null, 'accept')).toEqual({ tank: 0, healer: 1, melee: 0, ranged: 0 });
+  expect(signupRoleFor({ signupRole: null }, 'tank')).toBeNull();
+  expect(signupRoleFor({}, 'tank')).toBe('tank');
+  expect(signupRoleFor({}, null)).toBeNull();
 });
 it('has no case-insensitive duplicates in the local roster seed', () => {
   const names = buildRoster().map((c) => c.name.toLowerCase());

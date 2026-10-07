@@ -56,6 +56,11 @@ export function countAccepted(signups: { response: RaidResponse | null; role: Ro
   return counts;
 }
 
+/** An existing sign-up's role (including no role) wins over the viewer's current main. */
+export function signupRoleFor(raid: Pick<RaidCard, 'signupRole'>, mainRole: Role | null): Role | null {
+  return raid.signupRole === undefined ? mainRole : raid.signupRole;
+}
+
 /** The counts after the viewer changes their own answer, for the optimistic row. */
 export function applyResponse(counts: RoleCounts, role: Role | null, from: RaidResponse | null, to: RaidResponse | null): RoleCounts {
   if (!role || from === to) return counts;
