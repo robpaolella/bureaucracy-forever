@@ -7,12 +7,16 @@ import type { Rank } from '@/components/ui/Badges';
 import type { Role, WowClass } from '@/lib/design/class-colors';
 import { ROSTER_NO_MAIN } from '@/content/roster';
 
+export type RosterAlt = { id: string; name: string; wowClass: WowClass; spec: string; role: Role };
+
 export type RosterRow = {
   id: string;
   /** The member's Discord name: people are named by it, not by their main. */
   name: string;
   /** The main character's name. Null until the member has a main on the site. */
   character: string | null;
+  /** Read-only characters beside a main; empty for members without one. */
+  alts: RosterAlt[];
   /** Null until the member has a main on the site. */
   wowClass: WowClass | null;
   spec: string | null;
@@ -49,7 +53,7 @@ export function filterRoster(rows: RosterRow[], f: RosterFilters): RosterRow[] {
   const q = f.search.trim().toLowerCase();
   return rows.filter(
     (r) =>
-      (!q || r.name.toLowerCase().includes(q) || (r.character?.toLowerCase().includes(q) ?? false)) &&
+      (!q || r.name.toLowerCase().includes(q) || (r.character?.toLowerCase().includes(q) ?? false) || r.alts.some((alt) => alt.name.toLowerCase().includes(q))) &&
       (f.classes.length === 0 || (r.wowClass !== null && f.classes.includes(r.wowClass))) &&
       (f.roles.length === 0 || (r.role !== null && f.roles.includes(r.role))) &&
       (!f.rank || r.rank === f.rank),

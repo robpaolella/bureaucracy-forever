@@ -25,8 +25,8 @@ export default async function RosterPage() {
 
   const [users, viewer] = await Promise.all([
     db.user.findMany({
-    where: { inGuild: true, role: { in: ['MEMBER', 'OFFICER'] } },
-    select: { id: true, discordName: true, rank: true, createdAt: true, characters: { where: { isMain: true }, take: 1, select: { name: true, class: true, spec: true, raidRole: true, attendance: true, joinedAt: true } } },
+      where: { inGuild: true, role: { in: ['MEMBER', 'OFFICER'] } },
+      select: { id: true, discordName: true, rank: true, createdAt: true, characters: { orderBy: [{ isMain: 'desc' }, { name: 'asc' }], select: { id: true, isMain: true, name: true, class: true, spec: true, raidRole: true, attendance: true, joinedAt: true } } },
       orderBy: { discordName: 'asc' },
     }),
     db.user.findUnique({
@@ -35,11 +35,18 @@ export default async function RosterPage() {
     }),
   ]);
   const rows: RosterRow[] = users.map((u) => {
-    const c = u.characters[0];
+    const c = u.characters[0]?.isMain ? u.characters[0] : undefined;
     return {
       id: u.id,
       name: u.discordName,
       character: c?.name ?? null,
+      alts: c ? u.characters.slice(1).map((alt) => ({
+        id: alt.id,
+        name: alt.name,
+        wowClass: alt.class.toLowerCase() as WowClass,
+        spec: alt.spec,
+        role: alt.raidRole.toLowerCase() as Role,
+      })) : [],
       wowClass: (c?.class.toLowerCase() as WowClass | undefined) ?? null,
       spec: c?.spec ?? null,
       role: (c?.raidRole.toLowerCase() as Role | undefined) ?? null,

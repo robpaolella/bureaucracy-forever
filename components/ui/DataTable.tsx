@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
 export type SortDir = 'asc' | 'desc';
@@ -27,6 +27,8 @@ type DataTableProps<T> = {
    */
   groups?: RowGroup<T>[];
   rowKey: (row: T) => string;
+  /** Optional detail beneath a row. Null omits the extra row; default markup is unchanged. */
+  renderSubRow?: (row: T) => ReactNode;
   sortKey?: string;
   sortDir?: SortDir;
   /** Sorting is controlled: the table reports the clicked key, the owner re-orders rows. */
@@ -46,6 +48,7 @@ export function DataTable<T>({
   rows,
   groups,
   rowKey,
+  renderSubRow,
   sortKey,
   sortDir = 'asc',
   onSort,
@@ -106,8 +109,11 @@ export function DataTable<T>({
                 </th>
               </tr>
             )}
-            {g.rows.map((row) => (
-              <tr key={rowKey(row)} className="transition-colors duration-[120ms] even:bg-ink-850 hover:bg-ink-850">
+            {g.rows.map((row, index) => {
+              const detail = renderSubRow?.(row);
+              return (
+              <Fragment key={rowKey(row)}>
+              <tr className={cn('transition-colors duration-[120ms]', renderSubRow ? ((index + (g.label ? 1 : 0)) % 2 === 1 && 'bg-ink-850') : 'even:bg-ink-850', 'hover:bg-ink-850')}>
                 {columns.map((c) => (
                   <td
                     key={c.key}
@@ -123,7 +129,14 @@ export function DataTable<T>({
                   </td>
                 ))}
               </tr>
-            ))}
+              {detail != null && (
+                <tr>
+                  <td colSpan={columns.length} className="border-b border-line-faint">{detail}</td>
+                </tr>
+              )}
+              </Fragment>
+              );
+            })}
           </tbody>
         ))}
       </table>

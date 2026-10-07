@@ -28,6 +28,13 @@ describe('roster', () => {
     }
   });
 
+  it('adds two and seven sample alts without changing the member composition', () => {
+    expect(roster.filter((m) => m.alts.length).map((m) => [m.name, m.alts.length])).toEqual([['Ledgerline', 2], ['Redtape', 7]]);
+    const names = roster.flatMap((m) => [m.name, ...m.alts.map((alt) => alt.name)]);
+    expect(new Set(names.map((name) => name.toLowerCase())).size).toBe(names.length);
+    expect(roster.every((m) => m.alts.length <= 7)).toBe(true);
+  });
+
   it('is deterministic', () => {
     expect(buildRoster()).toEqual(roster);
   });

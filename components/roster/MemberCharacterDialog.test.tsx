@@ -60,8 +60,8 @@ describe('MemberCharacterDialog', () => {
 
   it('shows the entry point only on the viewer’s own row', () => {
     const rows: RosterRow[] = [
-      { id: 'viewer', name: 'Redtape', character: 'Red Tape', wowClass: 'warrior', spec: 'Protection', role: 'tank', rank: 'raider', attendance: null, joinedAt: '2026-01-01T00:00:00.000Z' },
-      { id: 'other', name: 'Ledgerline', character: 'Blue Ink', wowClass: 'mage', spec: 'Frost', role: 'ranged', rank: 'officer', attendance: null, joinedAt: '2026-01-01T00:00:00.000Z' },
+      { id: 'viewer', name: 'Redtape', character: 'Red Tape', alts: [], wowClass: 'warrior', spec: 'Protection', role: 'tank', rank: 'raider', attendance: null, joinedAt: '2026-01-01T00:00:00.000Z' },
+      { id: 'other', name: 'Ledgerline', character: 'Blue Ink', alts: [], wowClass: 'mage', spec: 'Frost', role: 'ranged', rank: 'officer', attendance: null, joinedAt: '2026-01-01T00:00:00.000Z' },
     ];
     const html = renderToStaticMarkup(<RosterTable rows={rows} viewer={{ id: 'viewer', rank: 'raider', characters: [main] }} />);
     expect(html.match(/aria-label="Manage characters"/g)).toHaveLength(2); // One action in each responsive rendering, never on the other row.

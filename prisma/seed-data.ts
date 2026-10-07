@@ -28,6 +28,8 @@ export function rng(seed: number): () => number {
 export type SeedRank = 'OFFICER' | 'RAIDER' | 'TRIAL' | 'SOCIAL';
 export type SeedRole = 'SOCIAL' | 'MEMBER' | 'OFFICER';
 
+export type SeedAlt = { name: string; wowClass: WowClassKey; spec: string; raidRole: RaidRoleKey };
+
 export type SeedMember = {
   name: string;
   discordId: string;
@@ -40,6 +42,7 @@ export type SeedMember = {
   /** 0–1 */
   attendance: number;
   joinedDaysAgo: number;
+  alts: SeedAlt[];
 };
 
 /** Bureaucratic character names. The first ten are the handover's own placeholders. */
@@ -122,6 +125,19 @@ export function buildRoster(): SeedMember[] {
       timezone: zone,
       attendance: isSocial ? 0 : isTrial ? 0.7 + random() * 0.2 : 0.82 + random() * 0.18,
       joinedDaysAgo: isTrial ? Math.floor(random() * 14) : 30 + Math.floor(random() * 700),
+      // Invented stationery-themed characters; Redtape is the member-session fixture.
+      alts: i === 0 ? [
+        { name: 'Inkwell', wowClass: 'mage', spec: 'Frost', raidRole: 'ranged' },
+        { name: 'Sealwax', wowClass: 'priest', spec: 'Holy', raidRole: 'healer' },
+      ] : i === 1 ? [
+        { name: 'Blotter', wowClass: 'warlock', spec: 'Affliction', raidRole: 'ranged' },
+        { name: 'Carbonleaf', wowClass: 'rogue', spec: 'Combat', raidRole: 'melee' },
+        { name: 'Deskstamp', wowClass: 'paladin', spec: 'Holy', raidRole: 'healer' },
+        { name: 'Filetab', wowClass: 'hunter', spec: 'Beast Mastery', raidRole: 'ranged' },
+        { name: 'Inktray', wowClass: 'shaman', spec: 'Restoration', raidRole: 'healer' },
+        { name: 'Quillcase', wowClass: 'druid', spec: 'Feral', raidRole: 'tank' },
+        { name: 'Waxseal', wowClass: 'warrior', spec: 'Fury', raidRole: 'melee' },
+      ] : [],
     };
   });
 }
