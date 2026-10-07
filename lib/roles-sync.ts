@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { db } from '@/lib/db';
+import type { Prisma } from '@/lib/generated/prisma/client';
 import type { Rank } from '@/lib/generated/prisma/enums';
 import { enqueue } from '@/lib/outbox';
 import { rankRoleIdsFromEnv, roleChangesForRank } from '@/lib/rank-rules';
@@ -38,10 +39,22 @@ function rankRoleChanges(rank: Rank): { add: string[]; remove: string[] } | null
   }
 }
 
-/**
- * A main's raid role feeds the composition bars, so the posted raids the member is signed
- * up on are re-rendered (SYNC-SPEC §4: every write Discord shows queues its update).
- */
+/** Only raids bringing this character; legacy null choices bring the current main. */
+export async function refreshPostedRaidsForCharacter(
+  character: { id: string; userId: string; isMain: boolean },
+  tx: Prisma.TransactionClient,
+): Promise<number> {
+  const choices: Prisma.SignupWhereInput[] = [{ characterId: character.id }];
+  if (character.isMain) choices.push({ characterId: null });
+  const raids = await tx.raid.findMany({ where: {
+    status: { in: ['SCHEDULED', 'LOCKED'] }, discordThreadId: { not: null },
+    signups: { some: { userId: character.userId, OR: choices } },
+  }, select: { id: true } });
+  for (const raid of raids) await enqueue('raid.update', { raidId: raid.id }, tx);
+  return raids.length;
+}
+
+/** Refresh every posted active raid the member is signed up on. */
 export async function refreshPostedRaidsFor(userId: string): Promise<number> {
   const raids = await db.raid.findMany({ where: { status: { in: ['SCHEDULED', 'LOCKED'] }, discordThreadId: { not: null }, signups: { some: { userId } } }, select: { id: true } });
   for (const r of raids) await enqueue('raid.update', { raidId: r.id });
