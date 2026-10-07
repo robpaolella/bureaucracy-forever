@@ -1,11 +1,12 @@
 import 'server-only';
 import { db } from '@/lib/db';
+import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import type { Role } from '@/lib/design/class-colors';
 import { countAccepted, parseRequirements, type RaidCard, type RaidResponse } from '@/lib/raids';
 
 /**
  * Raids from `since` onward as calendar cards, with accepted counts per role from each
- * member's main and the viewer's own answer. Shared by the calendar page and GET /api/raids.
+ * member's character brought and the viewer's own answer. Shared by the calendar page and GET /api/raids.
  */
 export async function loadRaidCards(since: Date, viewerDiscordId: string | null): Promise<RaidCard[]> {
   const raids = await db.raid.findMany({
@@ -22,7 +23,7 @@ export async function loadRaidCards(since: Date, viewerDiscordId: string | null)
       status: true,
       locksAt: true,
       template: { select: { short: true } },
-      signups: { select: { response: true, standing: true, user: { select: { discordId: true, characters: { where: { isMain: true }, take: 1, select: { raidRole: true } } } } } },
+      signups: { select: { response: true, standing: true, character: { select: MAIN_CHARACTER.select }, user: { select: { discordId: true, characters: MAIN_CHARACTER } } } },
     },
   });
   return raids.map((r) => {
@@ -31,7 +32,7 @@ export async function loadRaidCards(since: Date, viewerDiscordId: string | null)
       response: s.standing === 'ROSTER' ? ((s.response?.toLowerCase() as RaidResponse | undefined) ?? null) : null,
       ownResponse: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null,
       standing: s.standing,
-      role: (s.user.characters[0]?.raidRole.toLowerCase() as Role | undefined) ?? null,
+      role: (characterBrought(s)?.raidRole.toLowerCase() as Role | undefined) ?? null,
       mine: viewerDiscordId !== null && s.user.discordId === viewerDiscordId,
     }));
     const me = signups.find((s) => s.mine);
@@ -45,6 +46,7 @@ export async function loadRaidCards(since: Date, viewerDiscordId: string | null)
       requirements: parseRequirements(r.requirements),
       counts: countAccepted(signups),
       mine: me?.ownResponse ?? null,
+      signupRole: me?.role,
       status: r.status,
       locksAt: r.locksAt.toISOString(),
       short: r.template?.short ?? null,

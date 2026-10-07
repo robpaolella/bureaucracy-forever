@@ -41,7 +41,7 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
       if (!before || before.mine === response) return;
       if (remember) previous.current.set(id, before.mine);
 
-      setRaid(id, { mine: response, counts: applyResponse(before.counts, viewerRole, before.mine, response) });
+      setRaid(id, { mine: response, counts: applyResponse(before.counts, before.signupRole === undefined ? viewerRole : before.signupRole, before.mine, response) });
 
       const seq = (inflight.current.get(id) ?? 0) + 1;
       inflight.current.set(id, seq);

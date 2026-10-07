@@ -13,6 +13,7 @@ import { UnansweredCard } from '@/components/raid/UnansweredCard';
 import { LocalTime } from '@/components/time/LocalTime';
 import { ToastHost } from '@/components/ui';
 import { db } from '@/lib/db';
+import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import type { Role, WowClass } from '@/lib/design/class-colors';
 import { discordThreadUrl } from '@/lib/discord-links';
 import { lootEnabled } from '@/lib/flags';
@@ -32,8 +33,6 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const raid = await db.raid.findUnique({ where: { id: raidId }, select: { name: true } });
   return { title: raid?.name ?? 'Raid', robots: { index: false, follow: false } };
 }
-
-const MAIN = { where: { isMain: true }, take: 1, select: { name: true, class: true, spec: true, raidRole: true } } as const;
 
 /**
  * Raid detail (docs/04 § Raid detail, SYNC-SPEC §9.5): the viewer's own response in the
@@ -74,13 +73,14 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
             source: true,
             reason: true,
             updatedAt: true,
-            user: { select: { discordId: true, discordName: true, characters: MAIN } },
+            character: { select: MAIN_CHARACTER.select },
+            user: { select: { discordId: true, discordName: true, characters: MAIN_CHARACTER } },
             setBy: { select: { discordName: true } },
           },
         },
       },
     }),
-    db.user.findUnique({ where: { discordId: session.discordId }, select: { characters: { where: { isMain: true }, take: 1, select: { raidRole: true } } } }),
+    db.user.findUnique({ where: { discordId: session.discordId }, select: { characters: MAIN_CHARACTER } }),
     officer
       ? db.user.findMany({ where: { role: { in: ['MEMBER', 'OFFICER'] } }, select: { id: true, discordName: true }, orderBy: { discordName: 'asc' } })
       : Promise.resolve([]),
@@ -89,7 +89,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
 
   const now = new Date();
   const rows: DetailRow[] = raid.signups.map((s) => {
-    const main = s.user.characters[0];
+    const main = characterBrought(s);
     return {
       userId: s.userId,
       name: s.user.discordName,
@@ -119,6 +119,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
     // Composition counts roster acceptances only (SYNC-SPEC §7).
     counts: countAccepted(roster),
     mine: (mine?.response?.toLowerCase() as RaidResponse | undefined) ?? null,
+    signupRole: mine ? ((characterBrought(mine)?.raidRole.toLowerCase() as Role | undefined) ?? null) : undefined,
     status: raid.status,
     locksAt: raid.locksAt.toISOString(),
     short: raid.template?.short ?? null,
@@ -173,7 +174,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
               </p>
             )}
           </div>
-          <RaidResponseControl raid={card} viewer={{ role: session.role, raidRole: (me?.characters[0]?.raidRole.toLowerCase() as Role | undefined) ?? null }} past={past} now={now.toISOString()} />
+          <RaidResponseControl raid={card} viewer={{ role: session.role, raidRole: (characterBrought({ user: me ?? { characters: [] } })?.raidRole.toLowerCase() as Role | undefined) ?? null }} past={past} now={now.toISOString()} />
         </section>
 
         <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_380px] md:items-start">
