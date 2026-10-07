@@ -62,3 +62,4 @@
 - Character switch (#173 review → #189): decide how to align legacy reserves already on a different character; #173 deliberately preserves the specified same-character no-op (no writes).
 - Reserves window (#178 critique): clarify that members may leave either reserve empty; the existing “Please select one hard and one soft” intro sounds mandatory.
 - Reserve picker (#178 critique): raise the Search items placeholder contrast (detector measured 3.8:1 on the input background); existing shared muted-text findings remain above.
+- Reserves window (#178 review): restore keyboard focus after a refused save; disabling the form while saving can move focus off the search input.
