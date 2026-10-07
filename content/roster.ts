@@ -3,7 +3,7 @@
 export const ROSTER_HEAD = {
   eyebrow: 'Members',
   title: 'Roster',
-  lede: 'Everyone in the guild on Discord, with their main, role, rank and attendance. Ranks follow the Discord Raider and Trial roles. A reference table: nothing here opens anything.',
+  lede: 'Everyone in the guild on Discord, with their main, role, rank and attendance. Ranks follow the Discord Raider and Trial roles. Choose Manage characters on your own row to add or change your alts.',
 };
 
 export const ROSTER_EMPTY = {

@@ -38,8 +38,8 @@ const GROUPS: { value: GroupBy; label: string }[] = [
 
 /**
  * docs/04 § Roster: filter bar, group-by control, sortable DataTable (rank then name by
- * default), density persisted per browser, and a two-line card list on phones. Nothing
- * here opens anything; it is a reference table.
+ * default), density persisted per browser, and a card list on phones. The viewer's
+ * own row opens character management; other rows remain read-only.
  */
 export function RosterTable({ rows, viewer }: Props) {
   const [filters, setFilters] = useState<RosterFilters>(EMPTY_FILTERS);
