@@ -58,3 +58,5 @@
 - Show socials on the roster so they can manage their alts (Robert, 2026-10-06: leave for now).
 - verify-guild: a documented local-only recipe for populated loot history (started raids with recorded awards, enough for 'Show older raids'); #99 and #100 had to record awards by hand through the officer UI.
 - Member character routes (#170): former guild members who keep a site login and a main can still edit their own characters; closing it needs a real Discord server-membership signal (bot contract + migration).
+- Character switch (#173 review → #178/#175): consider switch-specific eligibility wording instead of the reused “Sign up as Accept or Tentative to reserve.”
+- Character switch (#173 review → #189): decide how to align legacy reserves already on a different character; #173 deliberately preserves the specified same-character no-op (no writes).
