@@ -103,6 +103,17 @@ Need evidence manifest outside git with exact IDs/routes/roles/state recipes/fix
 
 Before reviews/PR commit implementation in logical commits (all current work ours), sync origin/main (unpublished rebase), rerun checks in order. Read git workflow as needed. No branches switched in primary repo. Keep schema/auth scope limited. Current code risk high (member data exposure + gate). Open PR only after complete design/code verdicts. PR attach actual PNGs using gh --attach; no /tmp-only evidence. Need per-PR Vercel Preview URL (and note signed-in OAuth needs staging; do not stage/merge without conductor explicit direction). User requested PR link and stop.
 
+## Recovery checkpoint — after VM restart, 2026-10-07
+
+HEAD is `9154ee7`; implementation and previous handoff are committed, worktree clean at arrival. The earlier “No PR, push or commit yet” and running-resource descriptions above are historical, not current.
+
+`/tmp/guild-100-evidence/` and `/tmp/guild-100-main` are gone. No screenshots, assessment outputs or ownership `run.json` records survived there. All evidence-dependent plan items must be revalidated; earlier checked captures record historical completion only.
+
+Two old verification databases survive **stopped**: `2e43bf28730e` (`bureau-feat-100-loot-history-326a12f3e3941e30`) and `b0c75b672326` (`bureau-guild-100-main-ff0c89f38c37a04c`). No database was started, reset or removed. The verification helper refuses launch in this checkout while its database exists, and Cleanup requires the missing original ownership record. Do not fabricate that record or reset the surviving sample awards. The old main worktree is no longer registered.
+
+Reported recovery decision to conductor: recommend fresh detached verification worktrees for build and current main, sequentially, leaving the stopped containers intact; alternative is an explicitly approved recovery procedure for the old sample databases. Fresh runs require recreating imported loot/sample awards via the approved real-UI recipe. No images read in this continuation, no servers started, no review verdict claimed, no PR opened.
+
 ## Still open
 
-No unanswered decisions. Remaining execution is the unchecked plan, particularly evidence/review/ship. Both local runs remain deliberately live for the successor; do not leave them running at final PR report.
+- Recovery approach for the surviving stopped verification databases and lost ownership records (recommend fresh verification worktrees, preserve old containers).
+- Remaining execution: recreate evidence, independent assessments/design verdict, high-risk code review, sync, final checks and PR.
