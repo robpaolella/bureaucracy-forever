@@ -114,7 +114,8 @@ tooltips embedded; winners are seed sample characters.
   `/members/calendar/<generated id>`. Through the real UI: answered Accept, then in the reserves
   window picked Deathbringer (HR) and Sapphiron Drape (SR) and saved; reload confirmed.
   Live captures `live-1440.png`, `live-390.png`.
-- Exported with single-file-cli 2.16.4 per the skill; no scripts in the export. Generated id
+- Exported with single-file-cli 2.16.4 per the skill (kept as `host.html` while designing, removed at
+  approval once `index.html` passed its offline check); no scripts in the export. Generated id
   replaced with `sample-raid`, localhost links made inert (`#`). Cleanup PASS (`cleanup.txt`).
 - Offline: fresh browser session, network Offline; `offline-390.png` and `offline-1440.png` match
   the live captures (fonts, brand images, item icons); network log shows only `file:`/`data:`.

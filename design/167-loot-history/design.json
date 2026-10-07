@@ -6,8 +6,7 @@
   ],
   "revision": 1,
   "versions": {
-    "b1": "versions/b1.html",
-    "b2": "versions/b2.html"
+    "approved": "index.html"
   },
   "states": [
     "raid-recorded",

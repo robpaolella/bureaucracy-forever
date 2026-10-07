@@ -5,12 +5,24 @@
 - Maker: claude-bridge/claude-opus-5-5, medium thinking
 
 ## Choice and approval
-Pending. Set 1 (raid page "Loot" list, #99) first; set 2 (history page, #100) after Robert
-chooses set 1. Only Robert merging the design PR approves the design for building.
+Chosen: **b2** with set 1's **a** raid list (decisions 13 and 15). The raid page shows members one complete
+"Loot" list in recorded order (Item, Winner, Method · roll, Boss); the Loot history page groups everyone's
+loot by raid and shows one character's loot as a flat table with the raid as a column.
+Why: a complete list is what Robert wanted on the raid page; one character's history reads fastest as a table.
+Robert's confirmation, herdr design-loot-history tab, 2026-10-06: "Approved." This authorizes the design PR.
+Design PR: linked on design issue #167 once opened. Only Robert merging that PR approves the design for
+building; chat approval, a critique PASS and a closed/unmerged PR do not.
 
 ## Alternatives
 Set 1 evidence (all versions, captured before a and b were removed): [manifest](screenshots/all/set-1/manifest.json),
 16 images (2 versions × 4 states × default × 390/1440).
+
+Set 2 evidence (all versions, captured at approval before b1 was removed, with decision 15 applied):
+[manifest](screenshots/all/set-2/manifest.json), 40 images (2 versions × 10 states × default × 390/1440).
+Approved evidence: [manifest](screenshots/approved/manifest.json), 20 images (10 states × default ×
+390/1440), inspected. `index.html` rechecked offline: a character link on the raid page opened that
+character's flat history; network log file:/data: only. The editable host snapshot (`host.html`) was
+removed after this final offline proof; `index.html` is self-contained.
 
 Set 2 (2026-10-06): one decision varied, one character's layout (Robert, decision 9). Both carry set 1's b.
 
@@ -61,8 +73,14 @@ Set 1 (2026-10-06): one decision varied, list layout (Robert, decision 3).
 None.
 
 ## Open items
-- Set 2 decisions (history page).
-- Outside this design, for the backlog: on phones the raid page roster already squeezes member
+None affecting the approved scope. For the builds (re-prep):
+- #99's paused branch `feat/99-member-raid-loot` (0eb6a93) differs from this design: per-award label/value
+  grid instead of the table row, "Character no longer available" instead of the recorded name with
+  "deleted", a different lede and refresh-failed wording, shown before the raid starts and to officers.
+- #99 body: the section and link appear only once the raid has started, and not for officers (decisions 2, 5).
+- #100 body: Raid filter means raid instance (decision 10); paging by whole raids with "Show older raids" (14).
+- Prototype detail, not a decision: the prototype bar still names the version "B2".
+Outside this design, in backlog.md: on phones the raid page roster already squeezes member
   names to one letter (live local page, `/tmp/verify-guild-AEZRbI/live-390.png`).
 
 ## Build handoff
