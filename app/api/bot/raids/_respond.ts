@@ -34,7 +34,7 @@ export async function applyDiscordAnswer(raidId: string, discordId: string, acti
 
   const fields = { standing: outcome.standing, response: RESPONSE_ENUM[outcome.response], source: 'DISCORD' as const, reason: action.kind === 'respond' && outcome.response === 'absent' ? action.reason : null, setByUserId: null };
   await db.$transaction(async (tx) => {
-    await tx.signup.upsert({ where: { raidId_userId: { raidId, userId: user.id } }, create: { raidId, userId: user.id, ...fields }, update: fields });
+    await tx.signup.upsert({ where: { raidId_userId: { raidId, userId: user.id } }, create: { raidId, userId: user.id, characterId: user.characters[0]?.id ?? null, ...fields }, update: fields });
     if (raid.discordThreadId) await enqueue('raid.update', { raidId }, tx);
   });
   const view = await loadRaidView(raidId, discordId);

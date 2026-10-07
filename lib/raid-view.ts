@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { db } from '@/lib/db';
+import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import type { Role } from '@/lib/design/class-colors';
 import { lootEnabled } from '@/lib/flags';
 import { parseRequirements, viewerReserves, type RaidResponse, type RoleCounts } from '@/lib/raids';
@@ -38,11 +39,11 @@ export async function loadRaidView(id: string, viewerDiscordId: string | null): 
       id: true, templateId: true, name: true, status: true, startsAt: true, locksAt: true, durationMin: true, notes: true, cancelReason: true, requirements: true, postedAt: true, discordThreadId: true, discordMessageId: true,
       template: { select: { name: true, short: true, size: true } },
       series: { select: { postAheadDays: true } },
-      signups: { select: { standing: true, response: true, attended: true, user: { select: { discordId: true, reserves: { where: { raidId: id }, select: { kind: true } }, characters: { where: { isMain: true }, take: 1, select: { raidRole: true } } } } } },
+      signups: { select: { standing: true, response: true, attended: true, character: { select: MAIN_CHARACTER.select }, user: { select: { discordId: true, reserves: { where: { raidId: id }, select: { kind: true } }, characters: MAIN_CHARACTER } } } },
     },
   });
   if (!r) return null;
-  const rows = r.signups.map((s) => ({ standing: s.standing, response: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null, role: (s.user.characters[0]?.raidRole.toLowerCase() as Role | undefined) ?? null, attended: s.attended, discordId: s.user.discordId, kinds: s.user.reserves.map((x) => x.kind) }));
+  const rows = r.signups.map((s) => ({ standing: s.standing, response: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null, role: (characterBrought(s)?.raidRole.toLowerCase() as Role | undefined) ?? null, attended: s.attended, discordId: s.user.discordId, kinds: s.user.reserves.map((x) => x.kind) }));
   const roster = rows.filter((s) => s.standing === 'ROSTER');
   const mine = viewerDiscordId ? rows.find((s) => s.discordId === viewerDiscordId) : undefined;
   // A table counts once it has an item, as for the reserve reminder.

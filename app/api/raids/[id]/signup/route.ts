@@ -2,6 +2,7 @@ import { after, NextResponse } from 'next/server';
 import { enqueue } from '@/lib/outbox';
 import { decideRespond, raidClosed, type Existing } from '@/lib/signup-rules';
 import { db } from '@/lib/db';
+import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import type { Role } from '@/lib/design/class-colors';
 import { countAccepted, isRaidResponse, type RaidResponse } from '@/lib/raids';
 import { getSession } from '@/lib/session';
@@ -78,20 +79,21 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const outcome = decideRespond({ role: setByUserId ? 'officer' : session.role }, raid, existing, response, new Date(), setByUserId !== null);
     if (!outcome.ok) return NextResponse.json({ error: outcome.reason }, { status: outcome.status, headers: NO_STORE });
     const fields = { standing: outcome.standing, response: RESPONSE_ENUM[outcome.response], source: 'WEB' as const, reason: outcome.response === 'absent' ? reason : null, setByUserId };
+    const main = await db.character.findFirst({ where: { userId: targetId, isMain: true }, select: { id: true } });
     await db.signup.upsert({
       where: { raidId_userId: { raidId: raid.id, userId: targetId } },
-      create: { raidId: raid.id, userId: targetId, ...fields },
+      create: { raidId: raid.id, userId: targetId, characterId: main?.id ?? null, ...fields },
       update: fields,
     });
   }
 
   const signups = await db.signup.findMany({
     where: { raidId: raid.id },
-    select: { response: true, standing: true, user: { select: { characters: { where: { isMain: true }, take: 1, select: { raidRole: true } } } } },
+    select: { response: true, standing: true, character: { select: MAIN_CHARACTER.select }, user: { select: { characters: MAIN_CHARACTER } } },
   });
   // Composition counts roster acceptances only (SYNC-SPEC §7), the same as the cards.
   const counts = countAccepted(
-    signups.filter((s) => s.standing === 'ROSTER').map((s) => ({ response: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null, role: (s.user.characters[0]?.raidRole.toLowerCase() as Role | undefined) ?? null })),
+    signups.filter((s) => s.standing === 'ROSTER').map((s) => ({ response: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null, role: (characterBrought(s)?.raidRole.toLowerCase() as Role | undefined) ?? null })),
   );
   if (raid.discordThreadId) after(() => enqueue('raid.update', { raidId: raid.id }));
   return NextResponse.json({ raidId: raid.id, userId: targetId, response, counts }, { headers: NO_STORE });

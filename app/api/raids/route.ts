@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { loadRaidCards } from '@/lib/raid-cards';
 import { isUpcoming, locksAtFor, parseRaidInput } from '@/lib/raids';
 import { getSession } from '@/lib/session';
-import { rosterUserIds } from '@/lib/tick';
+import { rosterSignups, rosterUserIds } from '@/lib/tick';
 
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
 
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       durationMin: value.durationMin,
       requirements: value.requirements,
       notes: value.notes || null,
-      signups: { create: roster.map((userId) => ({ userId, standing: 'ROSTER' as const, source: 'WEB' as const })) },
+      signups: { create: await rosterSignups(roster) },
     },
     select: { id: true, name: true, startsAt: true, durationMin: true, notes: true, cancelledAt: true, discordEventId: true },
   });

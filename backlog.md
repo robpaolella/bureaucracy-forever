@@ -48,3 +48,7 @@
 - Availability page intro says "Click and drag to paint", which reads wrong on phones next to the tap/hold hint.
 - Availability phone column opens at 12:00 AM instead of 5:00 PM when the page loads at desktop width and is then narrowed (the scroll runs while the column is hidden; pre-existing).
 - Availability desktop grid (#162): resizing measures from the edge rather than where the handle was grabbed, so a grab well off the edge can jump a half-hour (fixed on phone in #163; less likely on desktop's 20px handles).
+- Raid page roster on phones squeezes member names to one letter (pre-existing; seen during design #167, local 390 capture).
+- Loot history (#100): a date filter, if history grows long enough that Character + Raid + "Show more" isn't enough (Robert's idea, design #167).
+- Members switch their own main (Robert, 2026-10-06: "We might want a method for someone to switch their main at some point.")
+- Show socials on the roster so they can manage their alts (Robert, 2026-10-06: leave for now).

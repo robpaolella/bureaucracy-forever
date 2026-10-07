@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { CalendarList } from '@/components/calendar/CalendarList';
 import { db } from '@/lib/db';
+import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import type { Role } from '@/lib/design/class-colors';
 import { loadRaidCards } from '@/lib/raid-cards';
 import { emptyRaidInput, pastWindowStart } from '@/lib/raids';
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
 
 /**
  * The raid calendar (docs/04 § Raid calendar). Socials may read it; members answer.
- * Sign-ups are loaded with each user's main so the role stacks count accepted answers
+ * Sign-ups are loaded with each user's character brought so the role stacks count accepted answers
  * per role; the viewer's own answer rides on the card.
  */
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -47,7 +48,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
 
   const [cards, me] = await Promise.all([
     loadRaidCards(pastWindowStart(), session.discordId),
-    db.user.findUnique({ where: { discordId: session.discordId }, select: { characters: { where: { isMain: true }, take: 1, select: { raidRole: true } } } }),
+    db.user.findUnique({ where: { discordId: session.discordId }, select: { characters: MAIN_CHARACTER } }),
   ]);
 
   return (
@@ -59,7 +60,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
       </section>
       <CalendarList
         raids={cards}
-        viewer={{ role: session.role, raidRole: (me?.characters[0]?.raidRole.toLowerCase() as Role | undefined) ?? null, availabilitySubmitted: session.availabilitySubmitted }}
+        viewer={{ role: session.role, raidRole: (characterBrought({ user: me ?? { characters: [] } })?.raidRole.toLowerCase() as Role | undefined) ?? null, availabilitySubmitted: session.availabilitySubmitted }}
         schedule={session.role === 'officer' ? scheduleFrom(params) : undefined}
       />
     </div>

@@ -50,7 +50,7 @@ async function main() {
   await db.user.deleteMany();
 
   // Roster: one user, one main character, one painted week each.
-  const users: Array<{ id: string; role: string; raidRole: string; timezone: string; name: string }> = [];
+  const users: Array<{ id: string; characterId: string; role: string; raidRole: string; timezone: string; name: string }> = [];
   for (const m of roster) {
     const user = await db.user.create({
       data: {
@@ -73,8 +73,9 @@ async function main() {
           },
         },
       },
+      include: { characters: { select: { id: true } } },
     });
-    users.push({ id: user.id, role: m.role, raidRole: m.raidRole, timezone: m.timezone, name: m.name });
+    users.push({ id: user.id, characterId: user.characters[0].id, role: m.role, raidRole: m.raidRole, timezone: m.timezone, name: m.name });
     // Most members have painted; a few have not (drives the "Not submitted" states).
     if (m.role !== 'SOCIAL' && random() < 0.88) {
       await db.availability.create({ data: { userId: user.id, timezone: m.timezone, slots: paintWeek(m.timezone, random, now) } });
@@ -100,6 +101,7 @@ async function main() {
         data: {
           raidId: raid.id,
           userId: u.id,
+          characterId: u.characterId,
           response,
           source: random() < 0.6 ? 'WEB' : 'DISCORD',
           reason: response === 'ABSENT' ? ['Work trip.', 'Family dinner.', 'Exam week.'][Math.floor(random() * 3)] : null,
@@ -145,13 +147,9 @@ async function main() {
   if (testers.length) {
     const seededRaids = await db.raid.findMany({ select: { id: true } });
     for (const tester of testers) {
-      await db.user.create({
-        data: {
-          ...tester,
-          signups: {
-            create: seededRaids.map((raid) => ({ raidId: raid.id, response: 'ACCEPT', source: 'WEB' })),
-          },
-        },
+      await db.$transaction(async (tx) => {
+        const user = await tx.user.create({ data: tester, include: { characters: { select: { id: true } } } });
+        await tx.signup.createMany({ data: seededRaids.map((raid) => ({ raidId: raid.id, userId: user.id, characterId: user.characters[0]?.id ?? null, response: 'ACCEPT', source: 'WEB' })) });
       });
     }
   }

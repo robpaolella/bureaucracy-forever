@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyBearer } from '@/lib/bot-auth';
 import { db } from '@/lib/db';
+import { MAIN_CHARACTER } from '@/lib/signup-character';
 
 export const NO_STORE = { 'Cache-Control': 'private, no-store' };
 export const MAX_BODY_BYTES = 64 * 1024;
@@ -33,6 +34,6 @@ export const str = (v: unknown, max = 2000): string | null => (typeof v === 'str
 export async function userByDiscordId(discordId: string) {
   return db.user.findUnique({
     where: { discordId },
-    select: { id: true, discordName: true, role: true, rank: true, inGuild: true, characters: { where: { isMain: true }, take: 1, select: { name: true, class: true, spec: true, raidRole: true } } },
+    select: { id: true, discordName: true, role: true, rank: true, inGuild: true, characters: MAIN_CHARACTER },
   });
 }
