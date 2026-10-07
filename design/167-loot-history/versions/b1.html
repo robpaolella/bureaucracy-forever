@@ -68,7 +68,7 @@ dialog#pl-sheet::backdrop { background: rgb(6 8 11 / 0.72); }
   var VERSION = window.__VERSION__; // b1: grouped by raid everywhere; b2: one character's view is a flat table
   var ITEMS = window.__ITEMS__;
   var MARK = window.__MARK__;
-  var STATES = ['raid-recorded', 'raid-empty', 'raid-live', 'raid-live-failed', 'history-everyone', 'history-character', 'history-no-results', 'history-empty'];
+  var STATES = ['raid-recorded', 'raid-empty', 'raid-live', 'raid-live-failed', 'history-everyone', 'history-character', 'history-no-results', 'history-empty', 'history-menu', 'history-filters'];
   var STATE_LABEL = {
     'raid-recorded': 'Raid page: after the raid (17 awards)',
     'raid-empty': 'Raid page: started, nothing recorded',
@@ -78,6 +78,8 @@ dialog#pl-sheet::backdrop { background: rgb(6 8 11 / 0.72); }
     'history-character': 'Loot history: one character (Treaty)',
     'history-no-results': 'Loot history: filters match nothing',
     'history-empty': 'Loot history: nothing recorded yet',
+    'history-menu': 'Loot history: Members menu open',
+    'history-filters': 'Loot history: filters open (sheet on phones)',
   };
   var QUALITY = { 0: ['Poor', '#9D9D9D'], 1: ['Common', '#F2F2F2'], 2: ['Uncommon', '#1EFF00'], 3: ['Rare', '#3A9BE8'], 4: ['Epic', '#B866F5'], 5: ['Legendary', '#FF8000'] };
   var CLASS = { warrior: '#C79C6E', paladin: '#F58CBA', hunter: '#ABD473', rogue: '#FFF569', priest: '#F2F2F2', shaman: '#3A9BE8', mage: '#69CCF0', warlock: '#9C8BD8', druid: '#FF7D0A' };
@@ -219,7 +221,7 @@ dialog#pl-sheet::backdrop { background: rgb(6 8 11 / 0.72); }
     var active = (filters.character ? 1 : 0) + (filters.tier ? 1 : 0);
     var head = '<section class="flex flex-col gap-3"><span class="font-eyebrow text-label font-semibold uppercase tracking-[0.28em] text-sand">Members</span>' +
       '<h1 class="font-display text-[34px] font-medium leading-[1.05] tracking-[-0.02em] md:text-[44px]">Loot history</h1>' +
-      '<p class="max-w-[640px] text-[15px] leading-[1.65] text-fg-2">Every item handed out in our raids, newest raid first. Pick a character to see everything they’ve won.</p></section>';
+      '<p class="max-w-[640px] text-[15px] leading-[1.65] text-fg-2">Every item handed out in our raids, newest raid first. Pick a character to see everything they’ve won. Raid dates are in guild time.</p></section>';
     if (emptyHistory) {
       return head + '<div class="flex flex-col items-center gap-3 rounded-card border border-dashed border-line-strong bg-ink-850 px-6 py-9 text-center">' +
         '<img src="' + MARK + '" alt width="35" height="40" class="opacity-[0.28]"><span class="text-body font-semibold">No loot recorded yet</span>' +
@@ -431,7 +433,7 @@ dialog#pl-sheet::backdrop { background: rgb(6 8 11 / 0.72); }
     closeMenus();
     var history = state.indexOf('history-') === 0;
     if (!opts.keepFilters) {
-      filters = state === 'history-character' ? { character: 'Treaty', tier: '' } : state === 'history-no-results' ? { character: 'Codicil', tier: 'Molten Core' } : { character: '', tier: '' };
+      filters = state === 'history-character' ? { character: 'Treaty', tier: '' } : state === 'history-no-results' ? { character: 'Codicil', tier: 'Molten Core' } : state === 'history-filters' ? { character: 'Treaty', tier: 'Molten Core' } : { character: '', tier: '' };
       showOlder = false;
     }
     emptyHistory = state === 'history-empty';
@@ -449,6 +451,11 @@ dialog#pl-sheet::backdrop { background: rgb(6 8 11 / 0.72); }
     window.history.replaceState(null, '', u);
     document.documentElement.setAttribute('data-state', state);
     document.documentElement.setAttribute('data-theme', 'default');
+    if (state === 'history-menu') {
+      if (window.innerWidth < 768) document.querySelector('button[aria-label="Open menu"]').click();
+      else document.querySelector('header button[aria-controls]').click();
+    }
+    if (state === 'history-filters' && window.innerWidth < 768) document.getElementById('pl-sheet').showModal();
     if (opts.focus) { var h = histRoot.querySelector('h1'); if (h) { h.tabIndex = -1; h.focus(); } }
     if (opts.keepFilters && !opts.keepSheet && !opts.refocus && history) window.scrollTo(0, 0);
   }

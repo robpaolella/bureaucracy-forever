@@ -66,7 +66,8 @@ Fixed in both:
 - "Loot history" in the Members menu after "Raid calendar" (desktop dropdown and phone menu);
   members and officers see it, socials and logged-out visitors don't; only while `LOOT_ENABLED`.
 - Page head as the roster's: eyebrow "Members", title "Loot history", lede "Every item handed out
-  in our raids, newest raid first. Pick a character to see everything they’ve won."
+  in our raids, newest raid first. Pick a character to see everything they’ve won. Raid dates are in
+  guild time." (critique fix 1: dates are guild dates, #100)
 - The roster's filter bar: Character select ("Everyone", current characters A–Z, then a "No longer on
   the roster" group for deleted characters) and Raid select ("All raids", then each raid instance, e.g.
   Molten Core, Onyxia's Lair) (decision 10); summary "47 awards" or "6 of 47 awards"; "Clear filters" while
@@ -82,6 +83,8 @@ Fixed in both:
 | history-everyone | default view | 4 raids (Molten Core and Onyxia's Lair, Sep 30 to Oct 7), 39 awards shown of 47; "Show older raids" | filters, raid links, character links, show older |
 | history-character | after clicking "Treaty" | 6 of 47 awards over 4 raids (one in an older raid); b1 grouped, b2 flat table | change or clear filters |
 | history-no-results | Codicil + Molten Core | dashed box "No loot matches those filters." with "Clear filters" (the roster's pattern) | clear filters |
+| history-menu | Members menu open | desktop dropdown (1440) or phone menu (390) with "Loot history" after "Raid calendar", current | pick a page |
+| history-filters | Treaty + Molten Core | phone: the Filters sheet open with both selects, "Clear filters" and "Done"; desktop: the bar with both filters on, "5 of 47 awards", "Clear filters" | change, clear, done |
 | history-empty | nothing recorded anywhere | the site's EmptyState: "No loot recorded yet" / "Officers record each drop during the raid, and it shows up here."; no filter bar | — |
 
 Not applicable: loading (server-rendered with the page); no permission (socials and logged-out visitors are

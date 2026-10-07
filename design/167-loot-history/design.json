@@ -17,7 +17,9 @@
     "history-everyone",
     "history-character",
     "history-no-results",
-    "history-empty"
+    "history-empty",
+    "history-menu",
+    "history-filters"
   ],
   "themes": [
     "default"
