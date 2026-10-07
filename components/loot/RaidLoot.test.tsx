@@ -44,6 +44,23 @@ describe('RaidLoot', () => {
     expect(render(loot, failed)).toContain('Redtape'); expect(render(loot, failed)).not.toContain('Trying again');
     stop(); await vi.advanceTimersByTimeAsync(60_000); expect(fetcher).toHaveBeenCalledTimes(2);
   });
+  it('times out and retries without newer AbortSignal static helpers', async () => {
+    vi.stubGlobal('AbortSignal', {}); // Safari 16.4 / Firefox 111 still support AbortController.
+    const signals: AbortSignal[] = [];
+    const fetcher = vi.fn((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+      const signal = init.signal!; signals.push(signal);
+      signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+    }));
+    vi.stubGlobal('fetch', fetcher);
+    const failure = vi.fn();
+    const stop = pollRaidLoot('r1', initial, vi.fn(), failure, vi.fn());
+    await vi.advanceTimersByTimeAsync(30_000); expect(fetcher).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(14_999); expect(signals[0].aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1); expect(signals[0].aborted).toBe(true); expect(failure).toHaveBeenCalledWith(true);
+    await vi.advanceTimersByTimeAsync(30_000); expect(fetcher).toHaveBeenCalledTimes(2);
+    stop(); expect(signals[1].aborted).toBe(true);
+    await vi.advanceTimersByTimeAsync(60_000); expect(fetcher).toHaveBeenCalledTimes(2); expect(vi.getTimerCount()).toBe(0);
+  });
   it.each(['2030-01-01T19:59:00Z', initial.endsAt])('never polls outside the live window: %s', async (now) => {
     vi.setSystemTime(new Date(now)); const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);
     const stop = pollRaidLoot('r1', initial, vi.fn(), vi.fn(), vi.fn());

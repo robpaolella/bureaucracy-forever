@@ -16,9 +16,13 @@ export function pollRaidLoot(raidId: string, initial: RaidLootView, receive: (lo
   const endTimer = setTimeout(() => { controller.abort(); clearTimeout(timer); ended(); }, end - Date.now());
   async function refresh() {
     if (controller.signal.aborted || Date.now() < start || Date.now() >= end) return;
+    const request = new AbortController();
+    const abort = () => request.abort();
+    controller.signal.addEventListener('abort', abort, { once: true });
+    const timeout = setTimeout(abort, 15_000);
     try {
       const response = await fetch(`/members/calendar/${encodeURIComponent(raidId)}/loot`, {
-        cache: 'no-store', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]),
+        cache: 'no-store', signal: request.signal,
       });
       if (controller.signal.aborted) return;
       if (response.redirected || [401, 403, 404].includes(response.status)) { receive(null); return; }
@@ -27,6 +31,9 @@ export function pollRaidLoot(raidId: string, initial: RaidLootView, receive: (lo
       if (!controller.signal.aborted) { receive(next); failure(false); }
     } catch {
       if (!controller.signal.aborted) failure(true);
+    } finally {
+      clearTimeout(timeout);
+      controller.signal.removeEventListener('abort', abort);
     }
     if (!controller.signal.aborted) timer = setTimeout(refresh, 30_000);
   }
