@@ -70,6 +70,24 @@ describe('useSignup character switches', () => {
     expect(hook.pending.size).toBe(0);
   });
 
+  it('retains an HTTP error status even when the reply is not JSON', async () => {
+    fetcher.mockResolvedValue({ ok: false, status: 502, json: async () => { throw new Error('HTML'); } });
+    await render();
+    await act(async () => { expect(await hook.switchCharacter('raid', 'alt', 'ranged')).toMatchObject({ ok: false, status: 502 }); });
+    expect(hook.raids[0]).toEqual(card());
+    expect(hook.pending.size).toBe(0);
+  });
+
+  it('does not pin a guessed role on a first answer with no signup role', async () => {
+    fetcher.mockResolvedValue(response(200, { response: 'accept', counts: { ...ZERO_COUNTS, healer: 3 } }));
+    await render([card({ mine: null, signupRole: undefined })]);
+    await act(async () => { hook.respond('raid', 'accept'); });
+    expect(hook.raids[0].counts.healer).toBe(3);
+    const fresh = card({ signupRole: 'ranged', counts: { ...ZERO_COUNTS, ranged: 4 } });
+    await render([fresh]);
+    expect(hook.raids[0]).toBe(fresh);
+  });
+
   it('reverts a network failure and allows a retry', async () => {
     fetcher.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(response());
     await render();

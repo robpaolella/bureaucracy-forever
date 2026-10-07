@@ -52,7 +52,7 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
   const respondRef = useRef<(id: string, response: RaidResponse | null, remember?: boolean) => void>(() => {});
 
   const undo = useCallback((id: string) => {
-    if (!previous.current.has(id)) return;
+    if (!previous.current.has(id) || switching.current.has(id)) return;
     const back = previous.current.get(id) ?? null;
     previous.current.delete(id);
     respondRef.current(id, back, false);
@@ -64,8 +64,8 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
       if (!before || before.mine === response || switching.current.has(id)) return;
       if (remember) previous.current.set(id, before.mine);
 
-      const signupRole = signupRoleFor(before, viewerRole);
-      setRaid(id, { mine: response, signupRole, counts: applyResponse(before.counts, signupRole, before.mine, response) });
+      const signupRole = before.signupRole;
+      setRaid(id, { mine: response, signupRole, counts: applyResponse(before.counts, signupRoleFor(before, viewerRole), before.mine, response) });
       markPending(id, true);
 
       const seq = (inflight.current.get(id) ?? 0) + 1;
@@ -118,11 +118,12 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ characterId }), credentials: 'same-origin',
       });
-      const result = await res.json() as { character: SwitchCharacter; removed: RemovedReserve[]; error?: string };
+      const result = await res.json().catch(() => null) as { character: SwitchCharacter; removed: RemovedReserve[]; error?: string } | null;
       if (!res.ok) {
         setRaid(id, rollback);
-        return { ok: false, status: res.status, error: result.error ?? SAVE_FAILED };
+        return { ok: false, status: res.status, error: result?.error ?? SAVE_FAILED };
       }
+      if (!result) throw new Error('Missing character switch result');
       setRaid(id, withRole(before, result.character.raidRole.toLowerCase() as Role, viewerRole));
       return { ok: true, character: result.character, removed: result.removed };
     } catch {
