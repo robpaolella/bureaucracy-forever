@@ -17,11 +17,17 @@ export type EditorMember = {
   /** The member's rank; the main, when there is one, mirrors it. */
   rank: Rank;
   main: (CharacterInput & { id: string }) | null;
+  alts: (CharacterInput & { id: string })[];
 };
 
 type Props = { members: EditorMember[] };
-
-type Editing = { kind: 'add'; member: EditorMember } | { kind: 'edit'; member: EditorMember; main: CharacterInput & { id: string } };
+type Character = CharacterInput & { id: string };
+type Editing =
+  | { kind: 'add-main'; member: EditorMember }
+  | { kind: 'add-alt'; member: EditorMember }
+  | { kind: 'edit-main'; member: EditorMember; character: Character }
+  | { kind: 'edit-alt'; member: EditorMember; character: Character };
+type Confirmation = { kind: 'remove' | 'make-main'; character: Character };
 
 async function send(url: string, method: string, body?: unknown): Promise<Response> {
   return fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin' });
@@ -43,7 +49,7 @@ export function RosterEditor({ members }: Props) {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<Editing | null>(null);
-  const [removing, setRemoving] = useState<(CharacterInput & { id: string }) | null>(null);
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [busy, setBusy] = useState(false);
   const [ranking, setRanking] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
@@ -67,32 +73,37 @@ export function RosterEditor({ members }: Props) {
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return members;
-    return members.filter((m) => m.discordName.toLowerCase().includes(q) || m.main?.name.toLowerCase().includes(q));
+    return members.filter((m) => m.discordName.toLowerCase().includes(q) || m.main?.name.toLowerCase().includes(q) || m.alts.some((alt) => alt.name.toLowerCase().includes(q)));
   }, [members, search]);
 
   async function save(input: CharacterInput): Promise<string | null> {
     if (!editing) return null;
-    const res = editing.kind === 'add' ? await send('/api/roster', 'POST', { userId: editing.member.userId, ...input }) : await send(`/api/roster/${editing.main.id}`, 'PATCH', input);
+    let res: Response;
+    if (editing.kind === 'add-main' || editing.kind === 'add-alt') {
+      res = await send('/api/roster', 'POST', { userId: editing.member.userId, ...(editing.kind === 'add-alt' ? { alt: true } : {}), ...input });
+    } else {
+      res = await send(`/api/roster/${editing.character.id}`, 'PATCH', input);
+    }
     if (!res.ok) return failureMessage(res);
-    setToast({ tone: 'ok', title: editing.kind === 'add' ? EDITOR_TOASTS.added(input.name) : EDITOR_TOASTS.saved(input.name) });
+    setToast({ tone: 'ok', title: editing.kind === 'add-main' || editing.kind === 'add-alt' ? EDITOR_TOASTS.added(input.name) : EDITOR_TOASTS.saved(input.name) });
     setEditing(null);
     router.refresh();
     return null;
   }
 
-  async function remove() {
-    if (!removing || busy) return;
+  async function confirm() {
+    if (!confirmation || busy) return;
     setBusy(true);
-    const res = await send(`/api/roster/${removing.id}`, 'DELETE');
+    const res = confirmation.kind === 'remove' ? await send(`/api/roster/${confirmation.character.id}`, 'DELETE') : await send(`/api/roster/${confirmation.character.id}/main`, 'POST');
     setBusy(false);
     if (!res.ok) {
       // Stay put so the officer can retry or back out; only the toast changes.
       setToast({ tone: 'stop', title: await failureMessage(res) });
       return;
     }
-    setToast({ tone: 'ok', title: EDITOR_TOASTS.removed(removing.name) });
+    setToast({ tone: 'ok', title: confirmation.kind === 'remove' ? EDITOR_TOASTS.removed(confirmation.character.name) : EDITOR_TOASTS.madeMain(confirmation.character.name) });
     // Close the confirm first so its focus return lands on the still-mounted form, then the form.
-    setRemoving(null);
+    setConfirmation(null);
     await new Promise((r) => setTimeout(r, 0));
     setEditing(null);
     router.refresh();
@@ -112,73 +123,94 @@ export function RosterEditor({ members }: Props) {
       ) : (
         <ul className="divide-y divide-line-faint rounded-card border border-line bg-ink-900">
           {shown.map((m) => (
-            <li key={m.userId} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-              <ClassAvatar name={m.discordName} wowClass={m.main?.wowClass} size={28} />
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <span className="truncate text-[15px] font-semibold" style={{ color: m.main ? CLASS_COLORS[m.main.wowClass].onInk : undefined }}>
-                    {m.discordName}
+            <li key={m.userId}>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+                <ClassAvatar name={m.discordName} wowClass={m.main?.wowClass} size={28} />
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="truncate text-[15px] font-semibold" style={{ color: m.main ? CLASS_COLORS[m.main.wowClass].onInk : undefined }}>
+                      {m.discordName}
+                    </span>
+                    <RankBadge rank={m.rank} />
+                  </div>
+                  <span className="truncate text-[13px] text-fg-3">
+                    {m.main ? `${m.main.name} · ${CLASS_COLORS[m.main.wowClass].label} · ${m.main.spec} · ${ROLE_LABELS[m.main.role]}` : EDITOR.noMain}
                   </span>
-                  <RankBadge rank={m.rank} />
                 </div>
-                <span className="truncate text-[13px] text-fg-3">
-                  {m.main ? `${m.main.name} · ${CLASS_COLORS[m.main.wowClass].label} · ${m.main.spec} · ${ROLE_LABELS[m.main.role]}` : EDITOR.noMain}
-                </span>
-              </div>
-              {!m.main &&
-                (m.rank === 'officer' ? (
-                  <span className="text-small text-fg-3">{EDITOR.officerRank}</span>
+                {!m.main &&
+                  (m.rank === 'officer' ? (
+                    <span className="text-small text-fg-3">{EDITOR.officerRank}</span>
+                  ) : (
+                    <select aria-label={EDITOR.rankFor(m.discordName)} value={m.rank} disabled={ranking === m.userId} onChange={(e) => setRank(m, e.target.value as Rank)} className={cn(CONTROL, 'h-11 w-32 px-2 text-sm')}>
+                      {RANKS.filter((r) => r !== 'officer').map((r) => (
+                        <option key={r} value={r}>
+                          {RANK_LABEL[r]}
+                        </option>
+                      ))}
+                    </select>
+                  ))}
+                {m.main ? (
+                  <div className="flex flex-wrap gap-2.5">
+                    <Button variant="secondary" size="sm" onClick={() => setEditing({ kind: 'edit-main', member: m, character: m.main! })} aria-label={`${EDITOR.edit} ${m.main.name}`}>
+                      {EDITOR.edit}
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => setEditing({ kind: 'add-alt', member: m })} aria-label={`${EDITOR.addAlt} for ${m.discordName}`}>
+                      {EDITOR.addAlt}
+                    </Button>
+                  </div>
                 ) : (
-                  <select aria-label={EDITOR.rankFor(m.discordName)} value={m.rank} disabled={ranking === m.userId} onChange={(e) => setRank(m, e.target.value as Rank)} className={cn(CONTROL, 'h-11 w-32 px-2 text-sm')}>
-                    {RANKS.filter((r) => r !== 'officer').map((r) => (
-                      <option key={r} value={r}>
-                        {RANK_LABEL[r]}
-                      </option>
-                    ))}
-                  </select>
-                ))}
-              {m.main ? (
-                <Button variant="secondary" size="sm" onClick={() => setEditing({ kind: 'edit', member: m, main: m.main! })} aria-label={`${EDITOR.edit} ${m.main.name}`}>
-                  {EDITOR.edit}
-                </Button>
-              ) : (
-                <Button variant="secondary" size="sm" onClick={() => setEditing({ kind: 'add', member: m })} aria-label={`${EDITOR.add} for ${m.discordName}`}>
-                  {EDITOR.add}
-                </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setEditing({ kind: 'add-main', member: m })} aria-label={`${EDITOR.add} for ${m.discordName}`}>
+                    {EDITOR.add}
+                  </Button>
+                )}
+              </div>
+              {m.alts.length > 0 && (
+                <ul className="border-t border-line-faint bg-ink-850/40">
+                  {m.alts.map((alt) => (
+                    <li key={alt.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line-faint px-4 py-3 first:border-t-0 sm:pl-[60px]">
+                      <span className="min-w-0 flex-1 truncate text-[13px] text-fg-3">{alt.name} · {CLASS_COLORS[alt.wowClass].label} · {alt.spec} · {ROLE_LABELS[alt.role]}</span>
+                      <Button variant="secondary" size="sm" onClick={() => setEditing({ kind: 'edit-alt', member: m, character: alt })} aria-label={`${EDITOR.edit} ${alt.name}`}>
+                        {EDITOR.edit}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
               )}
             </li>
           ))}
         </ul>
       )}
 
-      <Modal open={editing !== null} onClose={() => setEditing(null)} title={editing?.kind === 'add' ? `${EDITOR.addTitle} · ${editing.member.discordName}` : EDITOR.editTitle}>
+      <Modal open={editing !== null} onClose={() => setEditing(null)} title={editing?.kind === 'add-main' ? `${EDITOR.addTitle} · ${editing.member.discordName}` : editing?.kind === 'add-alt' ? `${EDITOR.addAltTitle} · ${editing.member.discordName}` : editing?.kind === 'edit-alt' ? EDITOR.editAltTitle : EDITOR.editTitle}>
         {editing && (
           <CharacterForm
-            initial={editing.kind === 'edit' ? editing.main : { ...emptyCharacter(), rank: editing.member.rank }}
-            submitLabel={editing.kind === 'add' ? EDITOR.create : EDITOR.save}
+            initial={'character' in editing ? editing.character : { ...emptyCharacter(), rank: editing.member.rank }}
+            submitLabel={editing.kind === 'add-main' ? EDITOR.create : editing.kind === 'add-alt' ? EDITOR.createAlt : EDITOR.save}
             onSubmit={save}
             onCancel={() => setEditing(null)}
-            onRemove={editing.kind === 'edit' ? () => setRemoving(editing.main) : undefined}
+            showRank={editing.kind !== 'add-alt' && editing.kind !== 'edit-alt'}
+            onRemove={'character' in editing ? () => setConfirmation({ kind: 'remove', character: editing.character }) : undefined}
+            onMakeMain={editing.kind === 'edit-alt' ? () => setConfirmation({ kind: 'make-main', character: editing.character }) : undefined}
           />
         )}
       </Modal>
 
       <Modal
-        open={removing !== null}
-        onClose={() => setRemoving(null)}
-        title={EDITOR.removeTitle}
+        open={confirmation !== null}
+        onClose={() => setConfirmation(null)}
+        title={confirmation?.kind === 'make-main' ? EDITOR.makeMainTitle : EDITOR.removeTitle}
         actions={
           <>
-            <Button variant="ghost" onClick={() => setRemoving(null)}>
+            <Button variant="ghost" onClick={() => setConfirmation(null)}>
               {EDITOR.keep}
             </Button>
-            <Button variant="danger" loading={busy} onClick={remove}>
-              {EDITOR.removeConfirm}
+            <Button variant={confirmation?.kind === 'make-main' ? 'primary' : 'danger'} loading={busy} onClick={confirm}>
+              {confirmation?.kind === 'make-main' ? EDITOR.makeMainConfirm : EDITOR.removeConfirm}
             </Button>
           </>
         }
       >
-        {EDITOR.removeBody}
+        {confirmation?.kind === 'make-main' ? EDITOR.makeMainBody : EDITOR.removeBody}
       </Modal>
 
       <Toast toast={toast} onDismiss={() => setToast(null)} />

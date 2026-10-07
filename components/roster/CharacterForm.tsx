@@ -12,8 +12,12 @@ type Props = {
   /** Resolve with an error message to show, or null when saved. */
   onSubmit: (input: CharacterInput) => Promise<string | null>;
   onCancel: () => void;
-  /** Editing an existing main offers removal; adding one does not. */
+  /** Alts take their member's rank, so their form does not show a rank picker. */
+  showRank?: boolean;
+  /** Editing an existing character offers removal; adding one does not. */
   onRemove?: () => void;
+  /** Editing an alt offers promotion to the member's main character. */
+  onMakeMain?: () => void;
 };
 
 /**
@@ -21,7 +25,7 @@ type Props = {
  * (narrowed by class), raid role (narrowed by spec) and rank. Changing the class or spec keeps the other fields valid rather than letting
  * the form submit a combination the route would refuse.
  */
-export function CharacterForm({ initial, submitLabel, onSubmit, onCancel, onRemove }: Props) {
+export function CharacterForm({ initial, submitLabel, onSubmit, onCancel, showRank = true, onRemove, onMakeMain }: Props) {
   const [input, setInput] = useState(initial);
   const [names, setNames] = useState(() => splitName(initial.name));
   const [error, setError] = useState<string | null>(null);
@@ -79,11 +83,12 @@ export function CharacterForm({ initial, submitLabel, onSubmit, onCancel, onRemo
         <Select label={EDITOR.wowClass} options={CLASSES.map((c) => ({ value: c, label: CLASS_COLORS[c].label }))} value={input.wowClass} onChange={(e) => update({ wowClass: e.target.value as WowClass })} />
         <Select label={EDITOR.spec} options={specsFor(input.wowClass).map((s) => ({ value: s, label: s }))} value={input.spec} onChange={(e) => update({ spec: e.target.value })} />
         <Select label={EDITOR.role} options={roles.map((r) => ({ value: r, label: ROLE_LABELS[r] }))} value={input.role} disabled={roles.length < 2} onChange={(e) => update({ role: e.target.value as CharacterInput['role'] })} />
-        {initial.rank === 'officer' ? (
-          <Select label={EDITOR.rank} options={[{ value: 'officer', label: RANK_LABEL.officer }]} value="officer" disabled hint={EDITOR.officerRank} onChange={() => undefined} />
-        ) : (
-          <Select label={EDITOR.rank} options={RANKS.filter((r) => r !== 'officer').map((r) => ({ value: r, label: RANK_LABEL[r] }))} value={input.rank} onChange={(e) => update({ rank: e.target.value as CharacterInput['rank'] })} />
-        )}
+        {showRank &&
+          (initial.rank === 'officer' ? (
+            <Select label={EDITOR.rank} options={[{ value: 'officer', label: RANK_LABEL.officer }]} value="officer" disabled hint={EDITOR.officerRank} onChange={() => undefined} />
+          ) : (
+            <Select label={EDITOR.rank} options={RANKS.filter((r) => r !== 'officer').map((r) => ({ value: r, label: RANK_LABEL[r] }))} value={input.rank} onChange={(e) => update({ rank: e.target.value as CharacterInput['rank'] })} />
+          ))}
       </div>
       {error && (
         <p role="alert" className="text-sm text-stop">
@@ -91,10 +96,19 @@ export function CharacterForm({ initial, submitLabel, onSubmit, onCancel, onRemo
         </p>
       )}
       <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
-        {onRemove ? (
-          <Button variant="ghost" className="text-stop" onClick={onRemove}>
-            {EDITOR.remove}
-          </Button>
+        {onRemove || onMakeMain ? (
+          <div className="flex flex-wrap gap-2.5">
+            {onMakeMain && (
+              <Button variant="ghost" onClick={onMakeMain}>
+                {EDITOR.makeMain}
+              </Button>
+            )}
+            {onRemove && (
+              <Button variant="ghost" className="text-stop" onClick={onRemove}>
+                {EDITOR.remove}
+              </Button>
+            )}
+          </div>
         ) : (
           <span />
         )}
