@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { switchCharacterInTransaction, type RemovedReserve } from '@/lib/character-switch';
+import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import { lootEnabled } from '@/lib/flags';
 import { hrAwardsFor, loadActiveReserves, loadLootTable, loadReserveTargets, signupAnswer, tableItemIds, type ReserveWindowData } from '@/lib/loot-data';
 import { decideReserve, reservesLockAt, reservesLocked } from '@/lib/loot-rules';
@@ -8,6 +10,10 @@ import { getSession } from '@/lib/session';
 import { ensureUser } from '@/lib/users';
 import { isUniqueViolation } from '../../../_loot';
 import { jsonBody, NO_STORE } from '../../../_officer';
+
+class ReserveRefusal extends Error {
+  constructor(readonly status: number, reason: string) { super(reason); }
+}
 
 const itemOrNull = (v: unknown): number | null | undefined => (v === null || v === '' || v === undefined ? null : typeof v === 'number' && Number.isSafeInteger(v) ? v : undefined);
 
@@ -60,11 +66,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     : await db.user.findUnique({ where: { discordId: session.discordId }, select: { id: true, characters: { select: { id: true } } } });
   if (!target) return NextResponse.json({ error: forUserId ? 'No such member.' : 'Sign up as Accept or Tentative to reserve.' }, { status: forUserId ? 404 : 409, headers: NO_STORE });
 
-  const [signup, items, hrAwards] = await Promise.all([
-    db.signup.findUnique({ where: { raidId_userId: { raidId, userId: target.id } }, select: { response: true } }),
-    raid.templateId ? tableItemIds(raid.templateId) : Promise.resolve(new Set<number>()),
-    hrAwardsFor([characterId]),
-  ]);
+  const items = raid.templateId ? await tableItemIds(raid.templateId) : new Set<number>();
   const rows = [
     ...(hr !== null ? [{ kind: 'HR' as const, itemId: hr }] : []),
     ...(sr !== null ? [{ kind: 'SR' as const, itemId: sr }] : []),
@@ -72,8 +74,19 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const setById = forUserId ? (await ensureUser(session)).id : null;
   const data = rows.map((r) => ({ ...r, raidId, userId: target.id, characterId, setById }));
   try {
-    const decision = await db.$transaction(async (tx) => {
+    const removed = await db.$transaction(async (tx) => {
       if (raid.templateId) await lockReserveTier(tx, raid.templateId);
+      const where = { raidId_userId: { raidId, userId: target.id } };
+      const brought = await tx.signup.findUnique({ where, include: { character: { select: MAIN_CHARACTER.select }, user: { select: { characters: MAIN_CHARACTER } } } });
+      let removed: RemovedReserve[] = [];
+      // Clearing picks changes no character; legacy mismatched reserves must remain clearable.
+      if (rows.length > 0 && (!brought || characterBrought(brought)?.id !== characterId)) {
+        const switched = await switchCharacterInTransaction(tx, { raidId, userId: target.id, characterId, actor: { role: session.role }, officerOverride: officer && !!forUserId && target.id !== setById });
+        if (!switched.ok) throw new ReserveRefusal(switched.status, switched.reason);
+        removed = switched.removed;
+      }
+      const signup = await tx.signup.findUnique({ where, select: { response: true } });
+      const hrAwards = await hrAwardsFor([characterId], tx);
       const blocked = raid.templateId ? await blockedItemIds(raid.templateId, tx) : new Set<number>();
       const limits = raid.templateId ? await winLimits(raid.templateId, tx) : {};
       const existing = await tx.reserve.findMany({ where: { raidId, userId: target.id } });
@@ -85,18 +98,18 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         new Date(),
         officer,
       );
-      if (!result.ok) return result;
+      if (!result.ok) throw new ReserveRefusal(result.status, result.reason);
       // Do not recreate kept rows: preserve their identity, setter and timestamp.
       const kept = existing.filter((r) => blocked.has(r.itemId) && r.characterId === characterId && rows.some((row) => row.kind === r.kind && row.itemId === r.itemId));
       await tx.reserve.deleteMany({ where: { raidId, userId: target.id, ...(kept.length ? { id: { notIn: kept.map((r) => r.id) } } : {}) } });
       await tx.reserve.createMany({ data: data.filter((r) => !kept.some((k) => k.kind === r.kind)) });
-      return result;
+      return removed;
     }, { isolationLevel: 'ReadCommitted' });
-    if (!decision.ok) return NextResponse.json({ error: decision.reason }, { status: decision.status, headers: NO_STORE });
+    return NextResponse.json({ hr, sr, characterId, removed }, { headers: NO_STORE });
   } catch (e) {
+    if (e instanceof ReserveRefusal) return NextResponse.json({ error: e.message }, { status: e.status, headers: NO_STORE });
     // decideReserve already refused the same item twice, so this is two saves racing.
     if (isUniqueViolation(e)) return NextResponse.json({ error: 'Your reserves changed at the same moment. Reload and try again.' }, { status: 409, headers: NO_STORE });
     throw e;
   }
-  return NextResponse.json({ hr, sr, characterId }, { headers: NO_STORE });
 }
