@@ -8,6 +8,11 @@ import { parseRequirements, viewerReserves, type RaidResponse, type RoleCounts }
 import { countsForBars } from '@/lib/signup-rules';
 import { SITE_URL } from '@/lib/config';
 
+type ViewerCharacter = { id: string; name: string; wowClass: string; spec: string; raidRole: string };
+const viewerCharacter = (c: { id: string; name: string; class: string; spec: string; raidRole: string }): ViewerCharacter => ({
+  id: c.id, name: c.name, wowClass: c.class.toLowerCase(), spec: c.spec, raidRole: c.raidRole.toLowerCase(),
+});
+
 export type RaidView = {
   id: string;
   name: string;
@@ -28,7 +33,7 @@ export type RaidView = {
   discord: { threadId: string | null; messageId: string | null };
   url: string;
   /** Null when the viewer has no sign-up, which also means they cannot reserve. */
-  viewer: ({ standing: 'ROSTER' | 'BENCH'; response: RaidResponse | null } & ReturnType<typeof viewerReserves>) | null;
+  viewer: ({ standing: 'ROSTER' | 'BENCH'; response: RaidResponse | null; character: ViewerCharacter | null; characters?: (ViewerCharacter & { isMain: boolean })[] } & ReturnType<typeof viewerReserves>) | null;
 };
 
 /** GET /api/bot/raids/:id (SYNC-SPEC §4): everything the embed needs, and the viewer's own standing and reserves when asked. */
@@ -43,9 +48,11 @@ export async function loadRaidView(id: string, viewerDiscordId: string | null): 
     },
   });
   if (!r) return null;
-  const rows = r.signups.map((s) => ({ standing: s.standing, response: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null, role: (characterBrought(s)?.raidRole.toLowerCase() as Role | undefined) ?? null, attended: s.attended, discordId: s.user.discordId, kinds: s.user.reserves.map((x) => x.kind) }));
+  const rows = r.signups.map((s) => ({ standing: s.standing, response: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null, role: (characterBrought(s)?.raidRole.toLowerCase() as Role | undefined) ?? null, attended: s.attended, character: characterBrought(s), discordId: s.user.discordId, kinds: s.user.reserves.map((x) => x.kind) }));
   const roster = rows.filter((s) => s.standing === 'ROSTER');
   const mine = viewerDiscordId ? rows.find((s) => s.discordId === viewerDiscordId) : undefined;
+  const characters = mine ? await db.character.findMany({ where: { user: { discordId: viewerDiscordId! } },
+    orderBy: [{ isMain: 'desc' }, { name: 'asc' }], select: { ...MAIN_CHARACTER.select, isMain: true } }) : [];
   // A table counts once it has an item, as for the reserve reminder.
   const hasLootTable = !!mine && lootEnabled() && r.templateId !== null && (await db.lootTableEntry.count({ where: { boss: { templateId: r.templateId } } })) > 0;
   const postAhead = (r.series?.postAheadDays ?? 14) * 24 * 3_600_000;
@@ -74,6 +81,7 @@ export async function loadRaidView(id: string, viewerDiscordId: string | null): 
     },
     discord: { threadId: r.discordThreadId, messageId: r.discordMessageId },
     url: `${SITE_URL}/members/calendar/${r.id}`,
-    viewer: mine ? { standing: mine.standing, response: mine.response, ...viewerReserves({ id: r.id, startsAt: r.startsAt, hasLootTable }, mine.kinds, new Date(), lootEnabled()) } : null,
+    viewer: mine ? { standing: mine.standing, response: mine.response, character: mine.character ? viewerCharacter(mine.character) : null,
+      ...(characters.length > 1 ? { characters: characters.map((c) => ({ ...viewerCharacter(c), isMain: c.isMain })) } : {}), ...viewerReserves({ id: r.id, startsAt: r.startsAt, hasLootTable }, mine.kinds, new Date(), lootEnabled()) } : null,
   };
 }
