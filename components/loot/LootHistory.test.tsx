@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
-import { LootHistory } from './LootHistory';
+import { appendLootHistory, LootHistory } from './LootHistory';
 import type { LootHistoryView } from '@/lib/member-loot';
 
 const award = { id: 'a', item: { id: 1, name: 'Blade', icon: 'inv', quality: 4, tooltipHtml: '' }, characterId: 'c1', characterName: 'Treaty', wowClass: 'priest' as const, method: 'SR' as const, roll: 74, bossName: 'Onyxia' };
@@ -14,6 +14,15 @@ const base: LootHistoryView = {
 const render = (history = base) => renderToStaticMarkup(<LootHistory initial={history} />);
 
 describe('LootHistory', () => {
+  it('ignores stale older pages after a filter navigation or access reset', () => {
+    const changed = { ...base, filters: { characterId: 'c2' }, raids: [] };
+    expect(appendLootHistory(changed, base, base)).toBe(changed);
+    expect(appendLootHistory(null, base, base)).toBeNull();
+  });
+  it('appends current older pages without duplicating raids', () => {
+    const older = { ...base, raids: [...base.raids, { ...base.raids[0], id: 'r2' }] };
+    expect(appendLootHistory(base, base, older)?.raids.map((raid) => raid.id)).toEqual(['r1', 'r2']);
+  });
   it('shows selected filters and the approved flat character table without a winner column', () => {
     const html = render();
     for (const text of ['Treaty', 'No loot', 'No longer on the roster', 'Stipulate', '1 of 4 awards', 'Item', 'Raid', 'Method · roll', 'Boss', 'Molten Core']) expect(html).toContain(text);

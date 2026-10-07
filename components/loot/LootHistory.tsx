@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { Button, EmptyState, FilterBar } from '@/components/ui';
 import { ItemName } from '@/components/loot/ItemName';
 import { MemberAwardList } from '@/components/loot/RaidLoot';
@@ -47,38 +47,52 @@ function CharacterAward({ award, raid }: { award: MemberAwardView; raid: LootHis
   </li>;
 }
 
+export function appendLootHistory(current: LootHistoryView | null, expected: LootHistoryView, next: LootHistoryView) {
+  // A navigation or refresh may have replaced the page while this request was pending.
+  return current !== expected ? current : { ...next, raids: [...current.raids, ...next.raids.filter((raid) => !current.raids.some((old) => old.id === raid.id))] };
+}
+
 export function LootHistory({ initial }: { initial: LootHistoryView }) {
   const router = useRouter();
   const [history, setHistory] = useState<LootHistoryView | null>(initial);
   const [previous, setPrevious] = useState(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [pending, startTransition] = useTransition();
+  const request = useRef<AbortController | null>(null);
+  useEffect(() => () => { request.current?.abort(); request.current = null; setLoading(false); }, [initial]);
   if (previous !== initial) { setPrevious(initial); setHistory(initial); }
   if (error) throw error; // The site's existing error boundary supplies Retry.
   if (!history) return null;
   const activeCount = Number(Boolean(history.filters.characterId || history.filters.characterName)) + Number(Boolean(history.filters.templateId));
   const characterSelected = Boolean(history.filters.characterId || history.filters.characterName);
   const selectedCharacter = history.filters.characterId ?? (history.filters.characterName ? `former:${history.filters.characterName}` : '');
-  const update = (next: LootHistoryFilters) => router.push(`/members/loot${query(next) ? `?${query(next)}` : ''}`);
+  const update = (next: LootHistoryFilters) => {
+    if (pending) return;
+    request.current?.abort(); request.current = null; setLoading(false);
+    startTransition(() => router.push(`/members/loot${query(next) ? `?${query(next)}` : ''}`));
+  };
   async function older() {
     const current = history;
-    if (!current?.next || loading) return;
+    if (!current?.next || loading || pending) return;
     setLoading(true);
     const controller = new AbortController();
+    request.current = controller;
     const timeout = setTimeout(() => controller.abort(), 15_000);
     try {
       const response = await fetch(`/members/loot/older?${query(current.filters, current.next)}`, { cache: 'no-store', signal: controller.signal });
+      if (request.current !== controller) return;
       if (response.redirected || [401, 403, 404].includes(response.status)) { setHistory(null); router.refresh(); return; }
       if (!response.ok) throw new Error('Loot history request failed');
       const next: LootHistoryView = await response.json();
-      setHistory({ ...next, raids: [...current.raids, ...next.raids.filter((raid) => !current.raids.some((old) => old.id === raid.id))] });
-    } catch (e) { setError(e instanceof Error ? e : new Error('Loot history request failed')); }
-    finally { clearTimeout(timeout); setLoading(false); }
+      if (request.current === controller) setHistory((latest) => appendLootHistory(latest, current, next));
+    } catch (e) { if (request.current === controller) setError(e instanceof Error ? e : new Error('Loot history request failed')); }
+    finally { clearTimeout(timeout); if (request.current === controller) { request.current = null; setLoading(false); } }
   }
   if (history.total === 0) return <EmptyState title={LOOT_HISTORY.emptyTitle}>{LOOT_HISTORY.empty}</EmptyState>;
-  return <div className="flex flex-col gap-6">
+  return <div className="flex flex-col gap-6" aria-busy={pending}>
     <FilterBar summary={activeCount ? LOOT_HISTORY.filteredTotal(history.filteredTotal, history.total) : LOOT_HISTORY.total(history.total)} activeCount={activeCount} onClear={() => update({})}>
-      <select aria-label="Character" value={selectedCharacter} onChange={(event) => {
+      <select aria-label="Character" disabled={pending} value={selectedCharacter} onChange={(event) => {
         const value = event.target.value;
         update({ ...(history.filters.templateId && { templateId: history.filters.templateId }), ...(value && (value.startsWith('former:') ? { characterName: value.slice(7) } : { characterId: value })) });
       }} className="h-11 rounded-control border border-line-strong bg-ink-700 px-3 text-[15px] text-fg md:w-[220px]">
@@ -86,7 +100,7 @@ export function LootHistory({ initial }: { initial: LootHistoryView }) {
         {history.options.characters.map((character) => <option key={character.id} value={character.id}>{character.name}</option>)}
         {history.options.formerCharacters.length > 0 && <optgroup label="No longer on the roster">{history.options.formerCharacters.map((name) => <option key={name} value={`former:${name}`}>{name}</option>)}</optgroup>}
       </select>
-      <select aria-label="Raid" value={history.filters.templateId ?? ''} onChange={(event) => update({ ...(history.filters.characterId && { characterId: history.filters.characterId }), ...(history.filters.characterName && { characterName: history.filters.characterName }), ...(event.target.value && { templateId: event.target.value }) })} className="h-11 rounded-control border border-line-strong bg-ink-700 px-3 text-[15px] text-fg md:w-[180px]">
+      <select aria-label="Raid" disabled={pending} value={history.filters.templateId ?? ''} onChange={(event) => update({ ...(history.filters.characterId && { characterId: history.filters.characterId }), ...(history.filters.characterName && { characterName: history.filters.characterName }), ...(event.target.value && { templateId: event.target.value }) })} className="h-11 rounded-control border border-line-strong bg-ink-700 px-3 text-[15px] text-fg md:w-[180px]">
         <option value="">All raids</option>
         {history.options.raids.map((raid) => <option key={raid.id} value={raid.id}>{raid.name}</option>)}
       </select>
@@ -100,7 +114,7 @@ export function LootHistory({ initial }: { initial: LootHistoryView }) {
           <MemberAwardList awards={raid.awards} linkCharacters />
         </section>)}
       </div>}
-      {history.next && <div className="flex justify-center"><Button variant="secondary" size="sm" loading={loading} onClick={() => void older()}>{LOOT_HISTORY.older}</Button></div>}
+      {history.next && <div className="flex justify-center"><Button variant="secondary" size="sm" loading={loading} disabled={pending} onClick={() => void older()}>{LOOT_HISTORY.older}</Button></div>}
     </>}
   </div>;
 }
