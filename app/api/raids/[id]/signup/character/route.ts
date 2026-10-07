@@ -15,10 +15,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const forUserId = typeof body.forUserId === 'string' ? body.forUserId : null;
   const officer = session.role === 'officer';
   if (forUserId && !officer) return NextResponse.json({ error: 'Officers only.' }, { status: 403, headers: NO_STORE });
-  const target = await db.user.findUnique({ where: forUserId ? { id: forUserId } : { discordId: session.discordId }, select: { id: true } });
+  const target = await db.user.findUnique({ where: forUserId ? { id: forUserId } : { discordId: session.discordId }, select: { id: true, discordId: true } });
   if (!target) return NextResponse.json({ error: forUserId ? 'No such member.' : 'Sign up as Accept or Tentative to reserve.' }, { status: forUserId ? 404 : 409, headers: NO_STORE });
   const { id: raidId } = await params;
-  const result = await switchCharacter({ raidId, userId: target.id, characterId: body.characterId, actor: { role: session.role }, officerOverride: officer });
+  const result = await switchCharacter({ raidId, userId: target.id, characterId: body.characterId, actor: { role: session.role }, officerOverride: officer && target.discordId !== session.discordId });
   if (!result.ok) return NextResponse.json({ error: result.reason }, { status: result.status, headers: NO_STORE });
   return NextResponse.json({ character: result.character, removed: result.removed }, { headers: NO_STORE });
 }

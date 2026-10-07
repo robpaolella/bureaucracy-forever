@@ -118,6 +118,11 @@ describe.skipIf(process.env.CHARACTER_SWITCH_INTEGRATION !== '1')('character swi
     const response = await request();
     expect(response.status).toBe(409); expect(await response.json()).toEqual({ error: REASONS.locked });
     expect((await signup()).characterId).toBe('main');
+    state.session = { discordId: 'member', role: 'officer' };
+    for (const body of [{ characterId: 'alt' }, { characterId: 'alt', forUserId: 'member' }]) {
+      const own = await request(body);
+      expect(own.status).toBe(409); expect(await own.json()).toEqual({ error: REASONS.locked });
+    }
     state.session = { discordId: 'stranger', role: 'officer' };
     expect((await request({ characterId: 'alt', forUserId: 'member' })).status).toBe(200);
   });
