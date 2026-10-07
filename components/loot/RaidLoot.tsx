@@ -5,7 +5,7 @@ import { ItemName } from '@/components/loot/ItemName';
 import { RAID_LOOT } from '@/content/loot';
 import { METHOD_LABEL } from '@/content/loot-log';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
-import type { RaidLootView } from '@/lib/member-loot';
+import type { MemberAwardView, RaidLootView } from '@/lib/member-loot';
 
 /** One bounded request at a time, only inside the live window. Failures retain the last list. */
 export function pollRaidLoot(raidId: string, initial: RaidLootView, receive: (loot: RaidLootView | null) => void, failure: (failed: boolean) => void, ended: () => void) {
@@ -64,13 +64,19 @@ export function RaidLootList({ loot, failed = false }: { loot: RaidLootView; fai
         <p className="max-w-[720px] text-sm text-fg-2">{RAID_LOOT.lede}{loot.live && ` ${RAID_LOOT.live}`}</p>
       </div>
       <p role="status" className={failed ? 'text-sm text-warn' : 'sr-only'}>{failed ? RAID_LOOT.refreshFailed : ''}</p>
-      {loot.awards.length === 0 ? <p className="text-sm text-fg-muted">{RAID_LOOT.empty}</p> : (
+      {loot.awards.length === 0 ? <p className="text-sm text-fg-muted">{RAID_LOOT.empty}</p> : <MemberAwardList awards={loot.awards} />}
+    </section>
+  );
+}
+
+export function MemberAwardList({ awards }: { awards: MemberAwardView[] }) {
+  return (
         <div className="rounded-card border border-line bg-ink-900">
           <div aria-hidden="true" className={`hidden py-1.5 text-label font-semibold uppercase tracking-[0.08em] text-fg-3 ${columns}`}>
             {RAID_LOOT.columns.map((label) => <span key={label}>{label}</span>)}
           </div>
           <ol className="divide-y divide-line-faint md:border-t md:border-line-faint">
-            {loot.awards.map((award) => (
+            {awards.map((award) => (
               <li key={award.id} className={`min-w-0 px-3 pb-2 pt-1 text-sm md:min-h-11 md:py-0 ${columns}`}>
                 <ItemName item={award.item} className="text-sm [&_button>span>span]:whitespace-normal [&_button>span>span]:[overflow-wrap:anywhere]" />
                 <span className="flex flex-wrap items-baseline gap-y-0.5 text-fg-2 md:contents">
@@ -87,7 +93,5 @@ export function RaidLootList({ loot, failed = false }: { loot: RaidLootView; fai
             ))}
           </ol>
         </div>
-      )}
-    </section>
   );
 }

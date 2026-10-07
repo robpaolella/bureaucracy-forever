@@ -14,6 +14,14 @@ export const RAID_LOOT = {
   deleted: 'deleted',
 };
 
+export const LOOT_HISTORY = {
+  eyebrow: 'Members', title: 'Loot history',
+  lede: 'Every item handed out in our raids, newest raid first. Pick a character to see everything they’ve won. Raid dates are in guild time.',
+  emptyTitle: 'No loot recorded yet',
+  empty: 'Officers record each drop during the raid, and it shows up here.',
+  older: 'Show older raids',
+};
+
 export const LOOT_HEAD = {
   eyebrow: 'Policy',
   title: 'Loot rules',

@@ -28,6 +28,11 @@ describe('isActive', () => {
     expect(PUBLIC_LINKS.map((l) => l.label)).toEqual(['About', 'Raiding', 'Recruitment', 'Loot rules']);
   });
 
+  it('places Loot history after Raid calendar in the shared member links', () => {
+    expect(Object.values(MEMBER_LINKS).map((l) => l.label)).toEqual(['My availability', 'Roster', 'Raid calendar', 'Loot history']);
+    expect(MEMBER_LINKS.loot.href).toBe('/members/loot');
+  });
+
   it('labels the officer links in menu order', () => {
     expect(Object.values(OFFICER_LINKS).map((l) => l.label)).toEqual([
       'Applications',
