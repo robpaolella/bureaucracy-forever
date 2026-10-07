@@ -47,6 +47,7 @@
     "dotenv": "^18.0.4",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
+    "happy-dom": "^20.14.5",
     "postcss": "^8",
     "prisma": "^7.10.0",
     "tailwindcss": "^3",

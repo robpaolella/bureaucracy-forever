@@ -60,3 +60,6 @@
 - Member character routes (#170): former guild members who keep a site login and a main can still edit their own characters; closing it needs a real Discord server-membership signal (bot contract + migration).
 - Character switch (#173 review → #178/#175): consider switch-specific eligibility wording instead of the reused “Sign up as Accept or Tentative to reserve.”
 - Character switch (#173 review → #189): decide how to align legacy reserves already on a different character; #173 deliberately preserves the specified same-character no-op (no writes).
+- Reserves window (#178 critique): clarify that members may leave either reserve empty; the existing “Please select one hard and one soft” intro sounds mandatory.
+- Reserve picker (#178 critique): raise the Search items placeholder contrast (detector measured 3.8:1 on the input background); existing shared muted-text findings remain above.
+- Reserves window (#178 review): restore keyboard focus after a refused save; disabling the form while saving can move focus off the search input.
