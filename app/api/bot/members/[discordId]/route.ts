@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { authorizeBot, isSnowflake, NO_STORE, userByDiscordId } from '../../_lib';
+import { db } from '@/lib/db';
+import { authorizeBot, botCharacter, isSnowflake, NO_STORE } from '../../_lib';
 
 /** GET /api/bot/members/:discordId — role, rank, guild membership and main character (SYNC-SPEC §4). 404 if unknown. */
 export async function GET(request: Request, { params }: { params: Promise<{ discordId: string }> }) {
@@ -7,9 +8,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ disc
   if (denied) return denied;
   const { discordId } = await params;
   if (!isSnowflake(discordId)) return NextResponse.json({ error: 'Not a Discord id.' }, { status: 400, headers: NO_STORE });
-  const user = await userByDiscordId(discordId);
+  const user = await db.user.findUnique({
+    where: { discordId },
+    select: { discordName: true, role: true, rank: true, inGuild: true,
+      characters: { orderBy: [{ isMain: 'desc' }, { name: 'asc' }],
+        select: { id: true, name: true, class: true, spec: true, raidRole: true, isMain: true } },
+    },
+  });
   if (!user) return NextResponse.json({ error: 'Unknown member.' }, { status: 404, headers: NO_STORE });
-  const main = user.characters[0] ?? null;
+  const main = user.characters.find((character) => character.isMain) ?? null;
   return NextResponse.json(
     {
       discordId,
@@ -17,6 +24,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ disc
       role: user.role.toLowerCase(),
       rank: user.rank.toLowerCase(),
       inGuild: user.inGuild,
+      characters: user.characters.map(botCharacter),
       main: main ? { name: main.name, class: main.class.toLowerCase(), spec: main.spec, raidRole: main.raidRole.toLowerCase() } : null,
     },
     { headers: NO_STORE },
