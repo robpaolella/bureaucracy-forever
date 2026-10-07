@@ -23,6 +23,13 @@ it.each(['P2002', 'P2034', 'P2025'])('retries %s without guessing which constrai
   expect(mocks.transaction).toHaveBeenCalledTimes(2);
   expect(mocks.transaction).toHaveBeenLastCalledWith(expect.any(Function), { isolationLevel: 'Serializable' });
 });
+it('retries a pg adapter serialization failure at commit', async () => {
+  const error = new Error('TransactionWriteConflict', { cause: { kind: 'TransactionWriteConflict' } });
+  error.name = 'DriverAdapterError';
+  mocks.transaction.mockRejectedValueOnce(error).mockResolvedValueOnce({ status: 201 });
+  expect(await addAlt('member', valid)).toEqual({ status: 201 });
+  expect(mocks.transaction).toHaveBeenCalledTimes(2);
+});
 it('bounds retries and gives an honest conflict rather than a name-index guess', async () => {
   mocks.transaction.mockRejectedValue(conflict('P2002'));
   expect(await addAlt('member', valid)).toEqual({ status: 409, error: 'Characters changed while you were editing. Try again.' });

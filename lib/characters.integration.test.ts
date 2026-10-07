@@ -27,6 +27,24 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
   } });
   const jobs = async () => (await db.outboxJob.findMany({ where: { type: 'raid.update' } })).map((j) => (j.payload as { raidId: string }).raidId).sort();
 
+  // Both real transactions finish reading before either can insert; retries do not wait.
+  async function race(adds: (() => ReturnType<typeof addAlt>)[]) {
+    let arrived = 0, release!: () => void;
+    const ready = new Promise<void>((resolve) => { release = resolve; });
+    const timer = setTimeout(release, 5000);
+    state.db = db.$extends({ query: { user: { async findUnique({ args, query }) {
+      const user = await query(args);
+      if (++arrived <= 2) {
+        if (arrived === 2) release();
+        await ready;
+        if (arrived < 2) throw new Error('Concurrent transactions did not overlap');
+      }
+      return user;
+    } } } }) as unknown as PrismaClient;
+    try { return await Promise.all(adds.map((add) => add())); }
+    finally { clearTimeout(timer); state.db = db; }
+  }
+
   beforeAll(async () => {
     container = docker('run', '-d', '--rm', '-p', '127.0.0.1::5432', '-e', 'POSTGRES_PASSWORD=worker', '-e', 'POSTGRES_USER=worker', '-e', 'POSTGRES_DB=characters_test', 'postgres:17');
     const binding = docker('port', container, '5432/tcp');
@@ -71,7 +89,7 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
   it('two simultaneous adds at seven leave eight; a ninth is refused, a retry still works', async () => {
     await member('Capped');
     for (const name of ['Onealt', 'Twoalt', 'Threealt', 'Fouralt', 'Fivealt', 'Sixalt']) await addAlt('Capped', input(name));
-    const results = await Promise.all(['Raceone', 'Racetwo'].map((name) => addAlt('Capped', input(name))));
+    const results = await race(['Raceone', 'Racetwo'].map((name) => () => addAlt('Capped', input(name))));
     expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
     expect(results.find((r) => r.status === 409)).toEqual({ status: 409, error: 'You can have up to 8 characters.' });
     expect(await db.character.count({ where: { userId: 'Capped' } })).toBe(8);
@@ -80,9 +98,9 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
   });
   it('resolves concurrent same-name adds as a retry or other-member collision', async () => {
     await member('Racer'); await member('Rival');
-    const same = await Promise.all([addAlt('Racer', input('Shared')), addAlt('Racer', input('SHARED'))]);
+    const same = await race([() => addAlt('Racer', input('Shared')), () => addAlt('Racer', input('SHARED'))]);
     expect(same.map((r) => r.status).sort()).toEqual([200, 201]);
-    const different = await Promise.all([addAlt('Racer', input('Contested')), addAlt('Rival', input('CONTESTED'))]);
+    const different = await race([() => addAlt('Racer', input('Contested')), () => addAlt('Rival', input('CONTESTED'))]);
     expect(different.map((r) => r.status).sort()).toEqual([201, 409]);
     expect(different.find((r) => r.status === 409)).toEqual({ status: 409, error: 'That name is taken by another member.' });
   });

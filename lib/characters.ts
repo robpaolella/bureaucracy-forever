@@ -20,8 +20,13 @@ async function change(run: (tx: Prisma.TransactionClient) => Promise<CharacterRe
     try {
       return await db.$transaction(run, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } catch (error) {
-      if (!(error instanceof Prisma.PrismaClientKnownRequestError)
-        || !['P2002', 'P2034', 'P2025'].includes(error.code)) throw error;
+      const knownRace = error instanceof Prisma.PrismaClientKnownRequestError
+        && ['P2002', 'P2034', 'P2025'].includes(error.code);
+      // Prisma's pg adapter can expose a COMMIT-time serialization failure directly.
+      const commitRace = error instanceof Error && error.name === 'DriverAdapterError'
+        && error.cause !== null && typeof error.cause === 'object'
+        && 'kind' in error.cause && error.cause.kind === 'TransactionWriteConflict';
+      if (!knownRace && !commitRace) throw error;
       if (attempt === 3) return failure(409, 'Characters changed while you were editing. Try again.');
     }
   }
