@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { RosterTable } from '@/components/roster/RosterTable';
+import type { MemberCharacter } from '@/components/roster/MemberCharacterDialog';
 import type { Rank } from '@/components/ui/Badges';
 import { db } from '@/lib/db';
 import type { Role, WowClass } from '@/lib/design/class-colors';
@@ -22,11 +23,17 @@ export default async function RosterPage() {
   const session = await getSession();
   if (!session) notFound();
 
-  const users = await db.user.findMany({
+  const [users, viewer] = await Promise.all([
+    db.user.findMany({
     where: { inGuild: true, role: { in: ['MEMBER', 'OFFICER'] } },
     select: { id: true, discordName: true, rank: true, createdAt: true, characters: { where: { isMain: true }, take: 1, select: { name: true, class: true, spec: true, raidRole: true, attendance: true, joinedAt: true } } },
-    orderBy: { discordName: 'asc' },
-  });
+      orderBy: { discordName: 'asc' },
+    }),
+    db.user.findUnique({
+      where: { discordId: session.discordId },
+      select: { id: true, characters: { select: { id: true, name: true, class: true, spec: true, raidRole: true, isMain: true }, orderBy: [{ isMain: 'desc' }, { name: 'asc' }] } },
+    }),
+  ]);
   const rows: RosterRow[] = users.map((u) => {
     const c = u.characters[0];
     return {
@@ -49,7 +56,21 @@ export default async function RosterPage() {
         <h1 className="font-display text-[34px] font-medium leading-[1.05] tracking-[-0.02em] md:text-[44px]">{ROSTER_HEAD.title}</h1>
         <p className="max-w-[640px] text-[15px] leading-[1.65] text-fg-2">{ROSTER_HEAD.lede}</p>
       </section>
-      <RosterTable rows={rows} />
+      <RosterTable
+        rows={rows}
+        viewer={viewer ? {
+          id: viewer.id,
+          rank: session.rank,
+          characters: viewer.characters.map((character): MemberCharacter => ({
+            id: character.id,
+            name: character.name,
+            wowClass: character.class.toLowerCase() as WowClass,
+            spec: character.spec,
+            role: character.raidRole.toLowerCase() as Role,
+            isMain: character.isMain,
+          })),
+        } : undefined}
+      />
     </div>
   );
 }
