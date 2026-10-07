@@ -62,42 +62,85 @@ export async function loadMemberRaidLoot(raidId: string): Promise<RaidLootView |
 }
 
 export type HistoryCursor = { startsAt: string; id: string };
+export type LootHistoryFilters = { characterId?: string; characterName?: string; templateId?: string };
+export type LootHistoryOptions = {
+  characters: { id: string; name: string }[];
+  formerCharacters: string[];
+  raids: { id: string; name: string }[];
+};
 export type LootHistoryView = {
   raids: { id: string; name: string; startsAt: string; awards: MemberAwardView[] }[];
   next: HistoryCursor | null;
+  total: number;
+  filteredTotal: number;
+  filters: LootHistoryFilters;
+  options: LootHistoryOptions;
 };
 
-/** Whole raids up to 50 awards, always at least one; no older award payloads are prefetched. */
-export async function loadMemberLootHistory(before: HistoryCursor | null = null): Promise<LootHistoryView | null> {
+const visibleRaids = (): Prisma.RaidWhereInput => ({
+  cancelledAt: null,
+  startsAt: { lte: new Date() },
+  template: { lootBosses: { some: { entries: { some: {} } } } },
+});
+
+/** Whole raids up to 50 matching awards, always at least one; invalid filters quietly become empty filters. */
+export async function loadMemberLootHistory(before: HistoryCursor | null = null, requested: LootHistoryFilters = {}): Promise<LootHistoryView | null> {
   if (!lootEnabled()) return null;
   const session = await getSession();
   if (!session || !['member', 'officer'].includes(session.role)) return null;
   return db.$transaction(async (tx) => {
-    const candidates = await tx.raid.findMany({
-      where: {
-        cancelledAt: null, startsAt: { lte: new Date() },
-        template: { lootBosses: { some: { entries: { some: {} } } } },
-        lootAwards: { some: { voidedAt: null } },
-        ...(before && { OR: [
-          { startsAt: { lt: new Date(before.startsAt) } },
-          { startsAt: new Date(before.startsAt), id: { lt: before.id } },
-        ] }),
-      },
-      orderBy: [{ startsAt: 'desc' }, { id: 'desc' }], take: 51,
-      select: { id: true, name: true, startsAt: true, _count: { select: { lootAwards: { where: { voidedAt: null } } } } },
-    });
+    const visible = visibleRaids();
+    const [characters, raidTemplates, formerRows, total] = await Promise.all([
+      tx.character.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+      tx.raidTemplate.findMany({ where: { lootBosses: { some: { entries: { some: {} } } } }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+      tx.lootAward.findMany({
+        where: { voidedAt: null, characterId: null, characterName: { not: null }, raid: visible },
+        distinct: ['characterName'], select: { characterName: true }, orderBy: { characterName: 'asc' },
+      }),
+      tx.lootAward.count({ where: { voidedAt: null, raid: visible } }),
+    ]);
+    const options = {
+      characters,
+      formerCharacters: formerRows.flatMap((row) => row.characterName ? [row.characterName] : []),
+      raids: raidTemplates,
+    };
+    const characterId = requested.characterId && characters.some((character) => character.id === requested.characterId) ? requested.characterId : undefined;
+    const characterName = !characterId && requested.characterName && options.formerCharacters.includes(requested.characterName) ? requested.characterName : undefined;
+    const templateId = requested.templateId && raidTemplates.some((raid) => raid.id === requested.templateId) ? requested.templateId : undefined;
+    const filters = { ...(characterId && { characterId }), ...(characterName && { characterName }), ...(templateId && { templateId }) };
+    const awardWhere: Prisma.LootAwardWhereInput = {
+      voidedAt: null,
+      ...(characterId && { characterId }),
+      ...(characterName && { characterId: null, characterName }),
+    };
+    const raidWhere: Prisma.RaidWhereInput = {
+      ...visible,
+      ...(templateId && { templateId }),
+      lootAwards: { some: awardWhere },
+      ...(before && { OR: [
+        { startsAt: { lt: new Date(before.startsAt) } },
+        { startsAt: new Date(before.startsAt), id: { lt: before.id } },
+      ] }),
+    };
+    const [filteredTotal, candidates] = await Promise.all([
+      tx.lootAward.count({ where: { ...awardWhere, raid: { ...visible, ...(templateId && { templateId }) } } }),
+      tx.raid.findMany({
+        where: raidWhere, orderBy: [{ startsAt: 'desc' }, { id: 'desc' }], take: 51,
+        select: { id: true, name: true, startsAt: true, _count: { select: { lootAwards: { where: awardWhere } } } },
+      }),
+    ]);
     const selected = []; let count = 0;
     for (const raid of candidates) {
       if (selected.length && count + raid._count.lootAwards > 50) break;
       selected.push(raid); count += raid._count.lootAwards;
     }
     const rows = selected.length ? await tx.lootAward.findMany({
-      where: { raidId: { in: selected.map((r) => r.id) }, voidedAt: null },
+      where: { ...awardWhere, raidId: { in: selected.map((raid) => raid.id) } },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { ...awardSelect, raidId: true },
     }) : [];
-    const raids = selected.map((r) => ({ id: r.id, name: r.name, startsAt: r.startsAt.toISOString(),
-      awards: rows.filter((a) => a.raidId === r.id).map(memberAward) }));
+    const raids = selected.map((raid) => ({ id: raid.id, name: raid.name, startsAt: raid.startsAt.toISOString(),
+      awards: rows.filter((award) => award.raidId === raid.id).map(memberAward) }));
     const last = raids.at(-1);
-    return { raids, next: last && selected.length < candidates.length ? { id: last.id, startsAt: last.startsAt } : null };
+    return { raids, next: last && selected.length < candidates.length ? { id: last.id, startsAt: last.startsAt } : null, total, filteredTotal, filters, options };
   }, { isolationLevel: 'RepeatableRead' });
 }

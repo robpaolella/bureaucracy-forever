@@ -15,7 +15,7 @@ describe('RaidLoot', () => {
   it('renders the approved columns, character alone, method/roll and live wording', () => {
     const html = render();
     for (const text of [...RAID_LOOT.columns, RAID_LOOT.lede, RAID_LOOT.live, 'Treaty', 'Soft reserve', '74', 'Onyxia']) expect(html).toContain(text);
-    expect(html).not.toContain('href='); expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('href="/members/loot?characterId=c1"'); expect(html).toContain('aria-expanded="false"');
     expect(render({ ...initial, live: false })).not.toContain(RAID_LOOT.live);
     expect(render({ ...initial, awards: [] })).toContain(RAID_LOOT.empty);
   });

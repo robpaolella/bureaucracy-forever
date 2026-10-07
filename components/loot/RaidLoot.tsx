@@ -64,12 +64,12 @@ export function RaidLootList({ loot, failed = false }: { loot: RaidLootView; fai
         <p className="max-w-[720px] text-sm text-fg-2">{RAID_LOOT.lede}{loot.live && ` ${RAID_LOOT.live}`}</p>
       </div>
       <p role="status" className={failed ? 'text-sm text-warn' : 'sr-only'}>{failed ? RAID_LOOT.refreshFailed : ''}</p>
-      {loot.awards.length === 0 ? <p className="text-sm text-fg-muted">{RAID_LOOT.empty}</p> : <MemberAwardList awards={loot.awards} />}
+      {loot.awards.length === 0 ? <p className="text-sm text-fg-muted">{RAID_LOOT.empty}</p> : <MemberAwardList awards={loot.awards} linkCharacters />}
     </section>
   );
 }
 
-export function MemberAwardList({ awards }: { awards: MemberAwardView[] }) {
+export function MemberAwardList({ awards, linkCharacters = false }: { awards: MemberAwardView[]; linkCharacters?: boolean }) {
   return (
         <div className="rounded-card border border-line bg-ink-900">
           <div aria-hidden="true" className={`hidden py-1.5 text-label font-semibold uppercase tracking-[0.08em] text-fg-3 ${columns}`}>
@@ -81,7 +81,7 @@ export function MemberAwardList({ awards }: { awards: MemberAwardView[] }) {
                 <ItemName item={award.item} className="text-sm [&_button>span>span]:whitespace-normal [&_button>span>span]:[overflow-wrap:anywhere]" />
                 <span className="flex flex-wrap items-baseline gap-y-0.5 text-fg-2 md:contents">
                   <span className="min-w-0 [overflow-wrap:anywhere]">
-                    {award.characterName ? <><span className="font-semibold text-fg" style={award.wowClass ? { color: CLASS_COLORS[award.wowClass].onInk } : undefined}>{award.characterName}</span>{!award.characterId && <> <span className="text-xs text-fg-3">{RAID_LOOT.deleted}</span></>}</> : <span className="text-fg-3" aria-label={METHOD_LABEL.DISENCHANT_BANK}>—</span>}
+                    {award.characterName ? <>{award.characterId && linkCharacters ? <a href={`/members/loot?characterId=${encodeURIComponent(award.characterId)}`} className="font-semibold underline decoration-line-strong underline-offset-4 hover:decoration-current" style={award.wowClass ? { color: CLASS_COLORS[award.wowClass].onInk } : undefined}>{award.characterName}</a> : <span className="font-semibold text-fg" style={award.wowClass ? { color: CLASS_COLORS[award.wowClass].onInk } : undefined}>{award.characterName}</span>}{!award.characterId && <> <span className="text-xs text-fg-3">{RAID_LOOT.deleted}</span></>}</> : <span className="text-fg-3" aria-label={METHOD_LABEL.DISENCHANT_BANK}>—</span>}
                   </span>
                   <span className={separator}>
                     <span className={award.method === 'HR' ? 'font-semibold text-sand' : award.method === 'SR' ? 'font-semibold text-teal' : award.method === 'DISENCHANT_BANK' ? 'text-fg-2' : 'font-semibold text-fg'}>{METHOD_LABEL[award.method]}</span>

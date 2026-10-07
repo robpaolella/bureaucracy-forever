@@ -20,6 +20,11 @@ export const LOOT_HISTORY = {
   emptyTitle: 'No loot recorded yet',
   empty: 'Officers record each drop during the raid, and it shows up here.',
   older: 'Show older raids',
+  clear: 'Clear filters',
+  noResults: 'No loot matches those filters.',
+  total: (total: number) => `${total} ${total === 1 ? 'award' : 'awards'}`,
+  filteredTotal: (shown: number, total: number) => `${shown} of ${total} awards`,
+  characterColumns: ['Item', 'Raid', 'Method · roll', 'Boss'],
 };
 
 export const LOOT_HEAD = {
