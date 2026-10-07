@@ -11,7 +11,11 @@ export const FILL: Record<Block['state'], string> = {
   'if-needed': 'bg-slot-ifNeeded',
 };
 
-const RING = 'ring-2 ring-teal ring-offset-2 ring-offset-ink-900';
+export const RING = 'ring-2 ring-teal ring-offset-2 ring-offset-ink-900';
+
+/** The live range shown beside the dragged edge while resizing. */
+export const TAG =
+  'tabular pointer-events-none absolute left-1/2 z-[7] -translate-x-1/2 whitespace-nowrap rounded-control border border-teal-line bg-ink-950 px-[9px] py-1 text-xs font-semibold leading-4 text-fg shadow-pop';
 
 type Props = {
   block: Block;
@@ -23,11 +27,12 @@ type Props = {
   onRemove: () => void;
 };
 
-function Dots() {
+/** A handle's grip; the phone's is larger. */
+export function Dots({ large = false }: { large?: boolean }) {
   return (
-    <i className="flex h-[9px] w-6 items-center justify-center gap-[3px] rounded-full border border-line-strong bg-ink-950">
+    <i className={cn('flex items-center justify-center gap-[3px] rounded-full border border-line-strong bg-ink-950', large ? 'h-3 w-8' : 'h-[9px] w-6')}>
       {[0, 1, 2].map((n) => (
-        <b key={n} className="h-[3px] w-[3px] rounded-full bg-fg" />
+        <b key={n} className={cn('rounded-full bg-fg', large ? 'h-1 w-1' : 'h-[3px] w-[3px]')} />
       ))}
     </i>
   );
@@ -125,11 +130,7 @@ export function WeekBlock({ block, selected, resizing, idle, onRemove }: Props) 
       )}
 
       {resizing && (
-        <div
-          aria-hidden
-          className="tabular pointer-events-none absolute left-1/2 z-[7] -translate-x-1/2 whitespace-nowrap rounded-control border border-teal-line bg-ink-950 px-[9px] py-1 text-xs font-semibold leading-4 text-fg shadow-pop"
-          style={{ top: tagTop }}
-        >
+        <div aria-hidden className={TAG} style={{ top: tagTop }}>
           {blockRange(block)}
         </div>
       )}

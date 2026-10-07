@@ -17,7 +17,6 @@ import {
   weekDays,
   weekStart,
   type Block,
-  type PaintMode,
   type SlotState,
   type Week,
   type WeekDay,
@@ -33,11 +32,10 @@ export type StoredAvailability = { timezone: string; slots: Week; updatedAt: str
 
 type Props = { initial: StoredAvailability | null };
 
-// Erase is phone-only now: on desktop a block's × removes it (design/158-availability-blocks).
-const MODES: Array<{ mode: PaintMode; label: string; chip: string; className?: string }> = [
+// No Erase: a block's × removes it and its handles shrink it (design/158-availability-blocks).
+const MODES: Array<{ mode: SlotState; label: string; chip: string }> = [
   { mode: 'available', label: 'Available', chip: 'bg-slot-available' },
   { mode: 'if-needed', label: 'If needed', chip: 'bg-slot-ifNeeded' },
-  { mode: 'erase', label: 'Erase', chip: 'bg-slot-empty border border-line-strong', className: 'md:hidden' },
 ];
 
 const AUTOSAVE_MS = 2000;
@@ -71,7 +69,7 @@ export function AvailabilityEditor({ initial }: Props) {
   const zone = storedZone ?? viewer?.zone ?? null;
   const effectiveZone = zone ?? GUILD_TIMEZONE;
   const [week, setWeek] = useState<Week>(initial?.slots ?? {});
-  const [mode, setMode] = useState<PaintMode>('available');
+  const [mode, setMode] = useState<SlotState>('available');
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(initial ? new Date(initial.updatedAt) : null);
@@ -98,25 +96,22 @@ export function AvailabilityEditor({ initial }: Props) {
   // A selection the week no longer holds (cleared, or changed in the day list) is dropped.
   const selected = selection && dayBlocks(week, selection.day).some((b) => sameBlock(b, selection)) ? selection : null;
 
-  // Erase is hidden on the desktop layout, so a window widened past it falls back to Available.
-  useEffect(() => {
-    if (mode !== 'erase') return;
-    const desktop = window.matchMedia('(min-width: 768px)');
-    const onChange = () => {
-      if (desktop.matches) setMode('available');
-    };
-    onChange();
-    desktop.addEventListener('change', onChange);
-    return () => desktop.removeEventListener('change', onChange);
-  }, [mode]);
-
+  // Escape, or a press outside the grid or day column holding the blocks, deselects. Both
+  // layouts stay mounted, so this lives here rather than in either one.
   useEffect(() => {
     if (!selected) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setSelection(null);
     };
+    const onDown = (e: PointerEvent) => {
+      if (!(e.target as Element).closest?.('[data-blocks]')) setSelection(null);
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onDown);
+    };
   }, [selected]);
 
   const change = useCallback((next: Week) => {
@@ -259,7 +254,7 @@ export function AvailabilityEditor({ initial }: Props) {
       <section className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-6">
         <div className="flex flex-wrap items-center gap-2.5">
           <span className="mr-1.5 hidden text-label font-semibold uppercase text-fg-3 md:inline">Paint</span>
-          <div className="grid w-full grid-cols-3 gap-2 md:flex md:w-auto md:gap-2.5" role="radiogroup" aria-label="Paint mode">
+          <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:gap-2.5" role="radiogroup" aria-label="Paint mode">
             {MODES.map((m) => (
               <button
                 key={m.mode}
@@ -270,7 +265,6 @@ export function AvailabilityEditor({ initial }: Props) {
                 className={cn(
                   'flex h-11 items-center justify-center gap-2.5 rounded-control border px-3 text-sm font-semibold transition-colors duration-[120ms] md:justify-start md:px-4',
                   mode === m.mode ? 'border-teal bg-teal-wash' : 'border-line-strong bg-ink-800 hover:bg-ink-700',
-                  m.className,
                 )}
               >
                 <span aria-hidden className={cn('h-3.5 w-3.5 rounded-tag', m.chip)} />
@@ -324,7 +318,18 @@ export function AvailabilityEditor({ initial }: Props) {
         />
       </div>
       <div className="md:hidden">
-        <DayColumn week={week} days={days} offsetSlots={offsetSlots} zone={effectiveZone} slotAt={slotAt} mode={mode} onWeek={change} onOpenDay={setOpenDay} />
+        <DayColumn
+          week={week}
+          days={days}
+          offsetSlots={offsetSlots}
+          zone={effectiveZone}
+          slotAt={slotAt}
+          mode={mode}
+          onWeek={change}
+          selected={selected}
+          onSelect={setSelection}
+          onOpenDay={setOpenDay}
+        />
       </div>
 
       <section className="flex flex-col gap-3 text-[13px] text-fg-2 md:flex-row md:items-center md:justify-between">

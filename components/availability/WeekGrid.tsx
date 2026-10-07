@@ -10,7 +10,7 @@ import {
   sameBlock,
   SLOTS,
   type Block,
-  type PaintMode,
+  type SlotState,
   type Week,
   type WeekDay,
 } from '@/lib/availability';
@@ -28,7 +28,7 @@ type Props = {
   zone: string;
   /** ISO start of a (day, slot) this week in `zone`. */
   slotAt: (day: number, slot: number) => string;
-  mode: PaintMode;
+  mode: SlotState;
   onWeek: (next: Week) => void;
   selected: Block | null;
   onSelect: (block: Block | null) => void;
@@ -56,7 +56,6 @@ const CELLS = Array.from({ length: SLOTS }, (_, slot) => (
  */
 export function WeekGrid({ week, days, offsetSlots, zone, slotAt, mode, onWeek, selected, onSelect, onOpenDay }: Props) {
   const hours = useHourLabels(zone, slotAt, 'text-[10px] font-normal text-fg-muted', ROW);
-  const bodyRef = useRef<HTMLDivElement>(null);
   const cols = useRef<Array<HTMLDivElement | null>>([]);
   const gesture = useRef<Gesture | null>(null);
   // The week as this grid last changed it, so moves arriving faster than renders chain
@@ -68,16 +67,6 @@ export function WeekGrid({ week, days, offsetSlots, zone, slotAt, mode, onWeek, 
   useEffect(() => {
     if (!gesture.current) weekRef.current = week;
   }, [week]);
-
-  // A press anywhere outside the grid's body deselects.
-  useEffect(() => {
-    if (!selected) return;
-    const onDown = (e: PointerEvent) => {
-      if (!bodyRef.current?.contains(e.target as Node)) onSelect(null);
-    };
-    document.addEventListener('pointerdown', onDown);
-    return () => document.removeEventListener('pointerdown', onDown);
-  }, [selected, onSelect]);
 
   const commit = (next: Week) => {
     if (next === weekRef.current) return;
@@ -200,7 +189,7 @@ export function WeekGrid({ week, days, offsetSlots, zone, slotAt, mode, onWeek, 
       </div>
 
       <div
-        ref={bodyRef}
+        data-blocks
         className="flex select-none [touch-action:none]"
         role="group"
         aria-label="Weekly availability"

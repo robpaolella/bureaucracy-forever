@@ -19,8 +19,11 @@ available if needed, and have the saved week shown again after a reload.
   run; painted time shows as labelled blocks. Hover a block for its edge handles, click it
   to select (teal outline, × to remove), drag a handle to resize. Select a day heading for
   the keyboard-friendly day list.
-- On a phone, select a day and set hours from the list; use the fixed bottom `Save`
-  control when reassurance is needed.
+- On a phone, one day shows at a time as blocks: tap a half-hour to paint it, hold then
+  drag to paint a run, tap a block to select it (teal outline, handles, × to remove) and
+  drag a handle to resize; swipe or use the chevrons for another day. The day switcher's
+  centre opens the keyboard-friendly list. Use the fixed bottom `Save` control when
+  reassurance is needed.
 
 ## Driving it with chrome-devtools-axi
 
@@ -48,6 +51,12 @@ record the block label it produces.
 - **Phone path.** `resize 390 844`, snapshot, and use a visible day button such as
   `Saturday …: set hours from a list` to open its dialog. Record the list controls; do
   not needlessly overwrite the desktop proof slot. Close the dialog before the screenshot.
+- **Phone touch.** chrome-devtools-axi cannot send touch, so use Puppeteer's
+  `page.touchscreen` (viewport 390×844 with `hasTouch`) against this run's localhost page
+  for tap-to-paint, hold (over 300ms) then drag, tap-to-select, handle drags and swipes.
+  Load the page at 390 wide: a page loaded at desktop width and then narrowed opens the
+  day column at 12:00 AM rather than 5:00 PM. Keep taps clear of the fixed save bar, and
+  re-centre the column after a full-page screenshot, which can move the page.
 - **Proof.** Save before/after/reload snapshots. Capture the saved page at `1440 × 900`
   and `390 × 844`, then record the painted label, chosen mode and saved/reload result in
   the evidence notes.
