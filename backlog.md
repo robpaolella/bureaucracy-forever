@@ -39,6 +39,12 @@
 - Reserves (#119): HR/SR rules are no longer explained in the section (approved wording); link the lede or the slot cards to Loot rules.
 - Reserves window (#119): an officer's own empty picks show "Change reserves" next to the chooser; "Pick reserves" may read better (state not in the approved design).
 - Availability desktop grid (#162): the pointer gestures (paint, select, resize, Escape-cancel) have no automated test; the repo has no DOM test library, so add one or a Playwright smoke test.
-- Availability desktop grid (#162): × removes a block with no undo; offer Undo on the existing toast (new behaviour, Robert to approve).
+- Availability desktop grid (#162) and phone column (#163): × removes a block with no undo; offer Undo on the existing toast (new behaviour, Robert to approve).
 - Availability desktop grid (#162): on tablets the desktop layout is touch, but its handles are 20px tall (Robert accepted them as a pointer-only exception); revisit with #163's touch handling.
 - Site header at 768 wide: "Members" overlaps "Join Discord" and "Loot rules" wraps (pre-existing, seen during #162).
+- Availability phone column (#163): the touch gestures (tap-select, hold-paint, handle resize, swipe) have no automated test; same gap as the desktop grid's.
+- Availability phone column (#163): tapping empty space while a block is selected deselects and also paints a half-hour (as in the approved prototype); a deselect-only first tap may suit phones better (Robert to decide).
+- Availability phone column (#163): no feedback when a 300ms hold turns into painting; check on a real phone and consider a brief highlight.
+- Availability page intro says "Click and drag to paint", which reads wrong on phones next to the tap/hold hint.
+- Availability phone column opens at 12:00 AM instead of 5:00 PM when the page loads at desktop width and is then narrowed (the scroll runs while the column is hidden; pre-existing).
+- Availability desktop grid (#162): resizing measures from the edge rather than where the handle was grabbed, so a grab well off the edge can jump a half-hour (fixed on phone in #163; less likely on desktop's 20px handles).
