@@ -28,7 +28,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
         // Renumber the whole tier: positions stay dense however they drifted.
         for (const [position, id] of next.entries()) await tx.lootBoss.update({ where: { id }, data: { position } });
       }
-    });
+    }, { isolationLevel: 'ReadCommitted' });
   } catch (e) {
     if (isUniqueViolation(e)) return NextResponse.json({ error: 'This raid already has a boss with that name.' }, { status: 409, headers: NO_STORE });
     if (isMissing(e)) return NextResponse.json({ error: 'No such boss.' }, { status: 404, headers: NO_STORE });
@@ -51,7 +51,7 @@ export async function DELETE(_request: Request, { params }: Ctx) {
     await db.$transaction(async (tx) => {
       await lockReserveTier(tx, boss.templateId);
       await tx.lootBoss.delete({ where: { id: bossId } });
-    });
+    }, { isolationLevel: 'ReadCommitted' });
   } catch (e) {
     if (isMissing(e)) return NextResponse.json({ error: 'No such boss.' }, { status: 404, headers: NO_STORE });
     throw e;

@@ -19,7 +19,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const gone = await db.$transaction(async (tx) => {
     await lockReserveTier(tx, boss.templateId);
     return tx.lootTableEntry.deleteMany({ where: { bossId, itemId: id } });
-  });
+  }, { isolationLevel: 'ReadCommitted' });
   if (gone.count === 0) return NextResponse.json({ error: 'That item is not on this boss.' }, { status: 404, headers: NO_STORE });
   return NextResponse.json({ bossId, itemId: id, deleted: true }, { headers: NO_STORE });
 }

@@ -99,6 +99,17 @@ describe('POST /api/loot/bosses/[bossId]/items', () => {
     expect(mocks.lock.mock.invocationCallOrder[0]).toBeLessThan(mocks.lastEntry.mock.invocationCallOrder[0]);
   });
 
+  it('404s without inserting if the boss disappeared before the lock was acquired', async () => {
+    mocks.boss.mockResolvedValueOnce({ id: 'b1', templateId: 't1' }).mockResolvedValueOnce(null);
+    mocks.item.mockResolvedValue({ source: 'FOREVER', id: 5, name: 'X' });
+    const res = await itemCall({ ref: '5', source: 'FOREVER' });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'No such boss.' });
+    expect(mocks.lock).toHaveBeenCalledOnce();
+    expect(mocks.boss.mock.invocationCallOrder[1]).toBeGreaterThan(mocks.lock.mock.invocationCallOrder[0]);
+    expect(mocks.createEntry).not.toHaveBeenCalled();
+  });
+
   it('reuses a cached item only from the requested game', async () => {
     mocks.item.mockResolvedValue({ source: 'FOREVER', id: 5, name: 'X' });
     expect((await itemCall({ ref: '5', source: 'FOREVER' })).status).toBe(201);

@@ -23,7 +23,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tem
         data: { templateId, name: parsed.value.name!, isTrash: parsed.value.isTrash ?? false, position: (last?.position ?? -1) + 1 },
         select: { id: true, name: true },
       });
-    });
+    }, { isolationLevel: 'ReadCommitted' });
     return NextResponse.json(boss, { status: 201, headers: NO_STORE });
   } catch (e) {
     if (isUniqueViolation(e)) return NextResponse.json({ error: 'This raid already has a boss with that name.' }, { status: 409, headers: NO_STORE });

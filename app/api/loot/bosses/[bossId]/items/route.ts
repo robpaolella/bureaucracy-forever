@@ -31,11 +31,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ bos
   }
 
   try {
-    await db.$transaction(async (tx) => {
+    const saved = await db.$transaction(async (tx) => {
       await lockReserveTier(tx, boss.templateId);
+      if (!await tx.lootBoss.findUnique({ where: { id: bossId }, select: { id: true } })) return false;
       const last = await tx.lootTableEntry.findFirst({ where: { bossId }, orderBy: { position: 'desc' }, select: { position: true } });
       await tx.lootTableEntry.create({ data: { bossId, itemId: id, position: (last?.position ?? -1) + 1 } });
-    });
+      return true;
+    }, { isolationLevel: 'ReadCommitted' });
+    if (!saved) return NextResponse.json({ error: 'No such boss.' }, { status: 404, headers: NO_STORE });
   } catch (e) {
     if (isUniqueViolation(e)) return NextResponse.json({ error: 'That item is already on this boss.' }, { status: 409, headers: NO_STORE });
     throw e;
