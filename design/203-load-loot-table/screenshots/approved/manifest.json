@@ -1,0 +1,344 @@
+{
+  "images": [
+    {
+      "image": "approved-table-default-390.png",
+      "version": "approved",
+      "state": "table",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 3171
+    },
+    {
+      "image": "approved-table-default-1440.png",
+      "version": "approved",
+      "state": "table",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1656
+    },
+    {
+      "image": "approved-table-empty-default-390.png",
+      "version": "approved",
+      "state": "table-empty",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 1034
+    },
+    {
+      "image": "approved-table-empty-default-1440.png",
+      "version": "approved",
+      "state": "table-empty",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 954
+    },
+    {
+      "image": "approved-history-default-390.png",
+      "version": "approved",
+      "state": "history",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 3971
+    },
+    {
+      "image": "approved-history-default-1440.png",
+      "version": "approved",
+      "state": "history",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 2070
+    },
+    {
+      "image": "approved-source-empty-default-390.png",
+      "version": "approved",
+      "state": "source-empty",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 844
+    },
+    {
+      "image": "approved-source-empty-default-1440.png",
+      "version": "approved",
+      "state": "source-empty",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 900
+    },
+    {
+      "image": "approved-source-default-390.png",
+      "version": "approved",
+      "state": "source",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 844
+    },
+    {
+      "image": "approved-source-default-1440.png",
+      "version": "approved",
+      "state": "source",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 900
+    },
+    {
+      "image": "approved-source-atlas-default-390.png",
+      "version": "approved",
+      "state": "source-atlas",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 844
+    },
+    {
+      "image": "approved-source-atlas-default-1440.png",
+      "version": "approved",
+      "state": "source-atlas",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 900
+    },
+    {
+      "image": "approved-source-atlas-off-default-390.png",
+      "version": "approved",
+      "state": "source-atlas-off",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 844
+    },
+    {
+      "image": "approved-source-atlas-off-default-1440.png",
+      "version": "approved",
+      "state": "source-atlas-off",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 900
+    },
+    {
+      "image": "approved-file-invalid-default-390.png",
+      "version": "approved",
+      "state": "file-invalid",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 844
+    },
+    {
+      "image": "approved-file-invalid-default-1440.png",
+      "version": "approved",
+      "state": "file-invalid",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 900
+    },
+    {
+      "image": "approved-atlas-missing-default-390.png",
+      "version": "approved",
+      "state": "atlas-missing",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 844
+    },
+    {
+      "image": "approved-atlas-missing-default-1440.png",
+      "version": "approved",
+      "state": "atlas-missing",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 900
+    },
+    {
+      "image": "approved-fetching-default-390.png",
+      "version": "approved",
+      "state": "fetching",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 844
+    },
+    {
+      "image": "approved-fetching-default-1440.png",
+      "version": "approved",
+      "state": "fetching",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 900
+    },
+    {
+      "image": "approved-stopped-default-390.png",
+      "version": "approved",
+      "state": "stopped",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 844
+    },
+    {
+      "image": "approved-stopped-default-1440.png",
+      "version": "approved",
+      "state": "stopped",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 900
+    },
+    {
+      "image": "approved-preview-default-390.png",
+      "version": "approved",
+      "state": "preview",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 844
+    },
+    {
+      "image": "approved-preview-default-1440.png",
+      "version": "approved",
+      "state": "preview",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 900
+    },
+    {
+      "image": "approved-preview-replace-default-390.png",
+      "version": "approved",
+      "state": "preview-replace",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 844
+    },
+    {
+      "image": "approved-preview-replace-default-1440.png",
+      "version": "approved",
+      "state": "preview-replace",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 900
+    },
+    {
+      "image": "approved-preview-nothing-default-390.png",
+      "version": "approved",
+      "state": "preview-nothing",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 844
+    },
+    {
+      "image": "approved-preview-nothing-default-1440.png",
+      "version": "approved",
+      "state": "preview-nothing",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 900
+    },
+    {
+      "image": "approved-preview-stale-default-390.png",
+      "version": "approved",
+      "state": "preview-stale",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 844
+    },
+    {
+      "image": "approved-preview-stale-default-1440.png",
+      "version": "approved",
+      "state": "preview-stale",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 900
+    },
+    {
+      "image": "approved-apply-failed-default-390.png",
+      "version": "approved",
+      "state": "apply-failed",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 844
+    },
+    {
+      "image": "approved-apply-failed-default-1440.png",
+      "version": "approved",
+      "state": "apply-failed",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 900
+    },
+    {
+      "image": "approved-loaded-default-390.png",
+      "version": "approved",
+      "state": "loaded",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 14606
+    },
+    {
+      "image": "approved-loaded-default-1440.png",
+      "version": "approved",
+      "state": "loaded",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 5471
+    }
+  ]
+}
