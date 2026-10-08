@@ -1,0 +1,34 @@
+{
+  "design_issue": 203,
+  "covers": [
+    101,
+    125,
+    126
+  ],
+  "revision": 1,
+  "versions": {
+    "approved": "index.html"
+  },
+  "states": [
+    "table",
+    "table-empty",
+    "history",
+    "source-empty",
+    "source",
+    "source-atlas",
+    "source-atlas-off",
+    "file-invalid",
+    "atlas-missing",
+    "fetching",
+    "stopped",
+    "preview",
+    "preview-replace",
+    "preview-nothing",
+    "preview-stale",
+    "apply-failed",
+    "loaded"
+  ],
+  "themes": [
+    "default"
+  ]
+}

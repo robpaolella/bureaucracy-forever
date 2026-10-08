@@ -63,3 +63,4 @@
 - Reserves window (#178 critique): clarify that members may leave either reserve empty; the existing “Please select one hard and one soft” intro sounds mandatory.
 - Reserve picker and roster search (#178/#172 critiques): raise search placeholder contrast (detector measured 3.8:1 on the input background); existing shared muted-text findings remain above.
 - Reserves window (#178 review): restore keyboard focus after a refused save; disabling the form while saving can move focus off the search input.
+- Item names (#203 design): a very long item name on a phone likely makes the loot table scroll sideways; ItemName's screen-reader quality word is positioned outside the truncating name. Check with a long name at 390 wide.
