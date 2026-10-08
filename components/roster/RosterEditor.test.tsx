@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import { CharacterForm } from './CharacterForm';
+import { AltsToggle } from './AltsToggle';
 import { Modal } from '@/components/ui';
 import { SAVE_FAILED } from '@/content/calendar';
 
@@ -15,7 +16,7 @@ vi.mock('react', async (original) => {
       if (!hooks.values) return react.useState(initial);
       const index = hooks.index++;
       if (!(index in hooks.values)) hooks.values[index] = initial;
-      return [hooks.values[index], (value: unknown) => { hooks.values![index] = value; }];
+      return [hooks.values[index], (value: unknown) => { hooks.values![index] = typeof value === 'function' ? (value as (current: unknown) => unknown)(hooks.values![index]) : value; }];
     },
     useMemo: (factory: () => unknown, deps: unknown[]) => hooks.values ? factory() : react.useMemo(factory, deps),
   };
@@ -46,13 +47,14 @@ function nodes(value: ReactNode): Node[] {
   if (!isValidElement<Record<string, unknown>>(value)) return [];
   return [value, ...nodes(value.props.children as ReactNode), ...nodes(value.props.actions as ReactNode)];
 }
-function view() { hooks.index = 0; return nodes(RosterEditor({ members: [member] })); }
+function view(members: EditorMember[] = [member]) { hooks.index = 0; return nodes(RosterEditor({ members })); }
 function button(label: string) {
   const node = view().find((n) => n.props['aria-label'] === label || n.props.children === label);
   expect(node).toBeDefined();
   return node!.props.onClick as () => Promise<void>;
 }
 function form() { return view().find((n) => n.type === CharacterForm)!.props; }
+function openAlts() { (view().find((n) => n.type === AltsToggle)!.props.onToggle as () => void)(); }
 function start() { hooks.values = []; return vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}'))); }
 
 describe('RosterEditor actions', () => {
@@ -65,14 +67,14 @@ describe('RosterEditor actions', () => {
   });
 
   it('edits the selected alt, not the main', async () => {
-    start(); await button('Edit Blue Ink')();
+    start(); openAlts(); await button('Edit Blue Ink')();
     expect(form().showRank).toBe(false);
     await (form().onSubmit as (v: unknown) => Promise<unknown>)(member.alts[0]);
     expect(fetch).toHaveBeenCalledWith('/api/roster/alt-1', expect.objectContaining({ method: 'PATCH' }));
   });
 
   it.each(['make-main', 'remove'])('asks before %s and sends only after confirmation', async (kind) => {
-    start(); await button('Edit Blue Ink')();
+    start(); openAlts(); await button('Edit Blue Ink')();
     (form()[kind === 'make-main' ? 'onMakeMain' : 'onRemove'] as () => void)();
     expect(fetch).not.toHaveBeenCalled();
     const dialog = view().filter((n) => n.type === Modal).at(-1)!;
@@ -102,7 +104,7 @@ describe('RosterEditor actions', () => {
   it('recovers from network failure and does not submit again while busy', async () => {
     start(); let reject!: (reason: Error) => void;
     vi.mocked(fetch).mockReturnValue(new Promise((_, fail) => { reject = fail; }));
-    await button('Edit Blue Ink')(); (form().onMakeMain as () => void)();
+    openAlts(); await button('Edit Blue Ink')(); (form().onMakeMain as () => void)();
     const first = button(EDITOR.makeMainConfirm)();
     await button(EDITOR.makeMainConfirm)(); expect(fetch).toHaveBeenCalledOnce();
     reject(new Error('offline')); await first;
@@ -112,10 +114,48 @@ describe('RosterEditor actions', () => {
 });
 
 describe('RosterEditor', () => {
-  it('shows an alt under its member and offers the existing edit control', () => {
-    const html = render();
-    expect(html).toContain('Blue Ink · Mage · Frost · Ranged');
-    expect(html).toContain(`aria-label="${EDITOR.edit} Blue Ink"`);
+  it('keeps alts collapsed by default, then exposes the existing edit control when toggled', () => {
+    start();
+    expect(render()).not.toContain('Blue Ink · Mage · Frost · Ranged');
+    const toggle = view().find((n) => n.type === AltsToggle)!;
+    expect(toggle.props.count).toBe(1);
+    expect((toggle.props.label as (count: number) => string)(1)).toBe('Alts 1');
+    expect(toggle.props.expanded).toBe(false);
+    expect(toggle.props.controlsId).toBe('officer-alts-member-1');
+    expect(toggle.props.memberName).toBe(member.discordName);
+
+    (toggle.props.onToggle as () => void)();
+    expect(view().find((n) => n.props.id === 'officer-alts-member-1')).toBeDefined();
+    expect(view().find((n) => n.props['aria-label'] === `${EDITOR.edit} Blue Ink`)).toBeDefined();
+    expect(view().find((n) => n.type === AltsToggle)!.props.expanded).toBe(true);
+  });
+
+  it('uses a unique disclosure for every member with alts, and none for members without them', () => {
+    const second: EditorMember = { ...member, userId: 'member-2', discordName: 'Addendum', alts: [{ ...member.alts[0], id: 'alt-2', name: 'Ink Blot' }] };
+    const noAlts: EditorMember = { ...member, userId: 'member-3', discordName: 'Quorum', alts: [] };
+    const html = render([member, second, noAlts]);
+
+    expect(html).toContain('aria-controls="officer-alts-member-1"');
+    expect(html).toContain('aria-controls="officer-alts-member-2"');
+    expect(html).not.toContain('officer-alts-member-3');
+  });
+
+  it('opens only alt-name search matches, and a manual collapse wins until the search clears', () => {
+    start();
+    const input = view().find((n) => n.type === 'input')!;
+    (input.props.onChange as (event: { target: { value: string } }) => void)({ target: { value: 'Blue' } });
+    let toggle = view().find((n) => n.type === AltsToggle)!;
+    expect(toggle.props.expanded).toBe(true);
+
+    (toggle.props.onToggle as () => void)();
+    toggle = view().find((n) => n.type === AltsToggle)!;
+    expect(toggle.props.expanded).toBe(false);
+
+    (input.props.onChange as (event: { target: { value: string } }) => void)({ target: { value: '' } });
+    expect(view().find((n) => n.type === AltsToggle)!.props.expanded).toBe(false);
+
+    (input.props.onChange as (event: { target: { value: string } }) => void)({ target: { value: 'Paper' } });
+    expect(view().find((n) => n.type === AltsToggle)!.props.expanded).toBe(false);
   });
 
   it('adds an alt control only for members with a main', () => {
