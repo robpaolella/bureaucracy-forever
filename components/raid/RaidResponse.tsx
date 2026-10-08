@@ -119,7 +119,7 @@ export function RaidResponseControl({ raid: initial, viewer, characters, brought
         </div>
       ) : (
         <>
-          <SegmentedControl label={`Your response to ${raid.name}`} value={raid.mine} onChange={(r) => respond(raid.id, r)} options={options} fill disabled={pending.has(raid.id)} className="md:w-auto md:[&>button]:flex-none" />
+          <SegmentedControl label={`Your response to ${raid.name}`} value={raid.mine} onChange={(r) => respond(raid.id, r)} options={options} fill className="md:w-auto md:[&>button]:flex-none" />
           {canChooseCharacter && brought && (
             <div className="flex w-full flex-col gap-2 md:w-[220px]">
               <label htmlFor={`bringing-${raid.id}`} className={FIELD_LABEL}>{RESPONSE_NOTES.bringing}</label>

@@ -82,12 +82,11 @@ describe('RaidResponseControl character choice', () => {
     expect(select().value).toBe('alt');
   });
 
-  it('disables both controls while a switch is pending', async () => {
+  it('disables the character selector while a switch is pending', async () => {
     let resolve!: (value: ReturnType<typeof response>) => void;
     fetcher.mockReturnValue(new Promise<ReturnType<typeof response>>((done) => { resolve = done; }));
     await render(); await choose('alt');
     expect(select().disabled).toBe(true);
-    expect([...host.querySelectorAll('[role="radio"]')].every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
     await act(async () => { resolve(response()); });
   });
 
