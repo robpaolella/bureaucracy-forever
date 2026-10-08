@@ -119,6 +119,8 @@ export const ATTENDANCE = {
 };
 
 export const RESPONSE_NOTES = {
+  bringing: 'Bringing',
+  characterChanged: 'Character changed',
   locked: 'Sign-ups are locked. Ask an officer if something changed.',
   offRoster: "You're not on this roster. Accepting puts you on the bench.",
   youAnswered: 'You answered',
