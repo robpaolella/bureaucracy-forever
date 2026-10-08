@@ -37,6 +37,12 @@ export type RosterFilters = {
 
 export const EMPTY_FILTERS: RosterFilters = { search: '', classes: [], roles: [], rank: '' };
 
+/** Alt names matching a search query. Mains and Discord member names are deliberately excluded. */
+export function matchingAltNames(alts: Pick<RosterAlt, 'name'>[], search: string): string[] {
+  const query = search.trim().toLocaleLowerCase();
+  return query ? alts.filter((alt) => alt.name.toLocaleLowerCase().includes(query)).map((alt) => alt.name) : [];
+}
+
 export type RosterSortKey = 'name' | 'rank' | 'attendance' | 'joinedAt';
 export type SortDir = 'asc' | 'desc';
 export type GroupBy = 'flat' | 'role' | 'class';
@@ -53,7 +59,7 @@ export function filterRoster(rows: RosterRow[], f: RosterFilters): RosterRow[] {
   const q = f.search.trim().toLowerCase();
   return rows.filter(
     (r) =>
-      (!q || r.name.toLowerCase().includes(q) || (r.character?.toLowerCase().includes(q) ?? false) || r.alts.some((alt) => alt.name.toLowerCase().includes(q))) &&
+      (!q || r.name.toLowerCase().includes(q) || (r.character?.toLowerCase().includes(q) ?? false) || matchingAltNames(r.alts, q).length > 0) &&
       (f.classes.length === 0 || (r.wowClass !== null && f.classes.includes(r.wowClass))) &&
       (f.roles.length === 0 || (r.role !== null && f.roles.includes(r.role))) &&
       (!f.rank || r.rank === f.rank),

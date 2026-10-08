@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countActiveFilters, EMPTY_FILTERS, filterRoster, formatAttendance, groupRoster, NO_MAIN_GROUP, sortRoster, type RosterRow } from './roster';
+import { countActiveFilters, EMPTY_FILTERS, filterRoster, formatAttendance, groupRoster, matchingAltNames, NO_MAIN_GROUP, sortRoster, type RosterRow } from './roster';
 
 const row = (name: string, extra: Partial<RosterRow> = {}): RosterRow => ({
   id: name,
@@ -41,6 +41,13 @@ describe('filterRoster', () => {
 
 describe('alts', () => {
   const alts: RosterRow['alts'] = [{ id: 'alt', name: 'Inkwell', wowClass: 'rogue', spec: 'Combat', role: 'melee' }, { id: 'alt2', name: 'Inktray', wowClass: 'shaman', spec: 'Restoration', role: 'healer' }];
+
+  it('finds alt-name matches only, case-insensitively, and ignores empty search', () => {
+    expect(matchingAltNames(alts, ' INK ')).toEqual(['Inkwell', 'Inktray']);
+    expect(matchingAltNames(alts, 'well')).toEqual(['Inkwell']);
+    expect(matchingAltNames(alts, '')).toEqual([]);
+    expect(matchingAltNames([], 'Ledgerline')).toEqual([]);
+  });
   const expanded = ROWS.map((r) => ({ ...r, alts }));
   const ids = (rows: RosterRow[]) => rows.map((r) => r.id);
 

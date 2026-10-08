@@ -24,4 +24,10 @@ describe('DataTable optional sub-rows', () => {
     expect(html).toContain('· 2</span>');
     expect(html).toContain('duration-[120ms] bg-ink-850 hover:bg-ink-850');
   });
+
+  it('does not render an empty detail row when the detail callback returns null', () => {
+    const html = renderToStaticMarkup(<DataTable {...props} renderSubRow={() => null} />);
+    expect(html.match(/<tr\b/g)).toHaveLength(3);
+    expect(html.match(/<td\b/g)).toHaveLength(4);
+  });
 });
