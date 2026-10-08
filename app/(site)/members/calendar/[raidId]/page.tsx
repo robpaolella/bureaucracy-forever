@@ -83,7 +83,10 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
         },
       },
     }),
-    db.user.findUnique({ where: { discordId: session.discordId }, select: { characters: MAIN_CHARACTER } }),
+    db.user.findUnique({
+      where: { discordId: session.discordId },
+      select: { characters: { select: { id: true, name: true, class: true, raidRole: true }, orderBy: { isMain: 'desc' } } },
+    }),
     officer
       ? db.user.findMany({ where: { role: { in: ['MEMBER', 'OFFICER'] } }, select: { id: true, discordName: true }, orderBy: { discordName: 'asc' } })
       : Promise.resolve([]),
@@ -181,7 +184,19 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
               </p>
             )}
           </div>
-          <RaidResponseControl raid={card} viewer={{ role: session.role, raidRole: (characterBrought({ user: me ?? { characters: [] } })?.raidRole.toLowerCase() as Role | undefined) ?? null }} past={past} now={now.toISOString()} />
+          <RaidResponseControl
+            raid={card}
+            viewer={{ role: session.role, raidRole: (characterBrought({ user: me ?? { characters: [] } })?.raidRole.toLowerCase() as Role | undefined) ?? null }}
+            characters={(me?.characters ?? []).map((character) => ({
+              id: character.id,
+              name: character.name,
+              wowClass: character.class.toLowerCase() as WowClass,
+              role: character.raidRole.toLowerCase() as Role,
+            }))}
+            broughtId={mine ? characterBrought(mine)?.id ?? null : null}
+            past={past}
+            now={now.toISOString()}
+          />
         </section>
 
         <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_380px] md:items-start">
