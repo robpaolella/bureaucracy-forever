@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { lockReserveTier } from '@/lib/loot-blocks';
 import { refreshItems } from '@/lib/loot-items';
 import { itemSourceError, SOURCE_CONFLICT } from '@/lib/item-sources';
 import { parseItemInput } from '@/lib/loot-table-rules';
@@ -16,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ bos
   const parsed = parseItemInput(await jsonBody(request));
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400, headers: NO_STORE });
   const { bossId } = await params;
-  const boss = await db.lootBoss.findUnique({ where: { id: bossId }, select: { id: true } });
+  const boss = await db.lootBoss.findUnique({ where: { id: bossId }, select: { id: true, templateId: true } });
   if (!boss) return NextResponse.json({ error: 'No such boss.' }, { status: 404, headers: NO_STORE });
   const { id, source } = parsed.value;
   const policyError = itemSourceError(source);
@@ -29,9 +30,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ bos
     if (res.failed.length > 0) return NextResponse.json({ error: `Wowhead: ${res.failed[0].error}` }, { status: 502, headers: NO_STORE });
   }
 
-  const last = await db.lootTableEntry.findFirst({ where: { bossId }, orderBy: { position: 'desc' }, select: { position: true } });
   try {
-    await db.lootTableEntry.create({ data: { bossId, itemId: id, position: (last?.position ?? -1) + 1 } });
+    const saved = await db.$transaction(async (tx) => {
+      await lockReserveTier(tx, boss.templateId);
+      if (!await tx.lootBoss.findUnique({ where: { id: bossId }, select: { id: true } })) return false;
+      const last = await tx.lootTableEntry.findFirst({ where: { bossId }, orderBy: { position: 'desc' }, select: { position: true } });
+      await tx.lootTableEntry.create({ data: { bossId, itemId: id, position: (last?.position ?? -1) + 1 } });
+      return true;
+    }, { isolationLevel: 'ReadCommitted' });
+    if (!saved) return NextResponse.json({ error: 'No such boss.' }, { status: 404, headers: NO_STORE });
   } catch (e) {
     if (isUniqueViolation(e)) return NextResponse.json({ error: 'That item is already on this boss.' }, { status: 409, headers: NO_STORE });
     throw e;

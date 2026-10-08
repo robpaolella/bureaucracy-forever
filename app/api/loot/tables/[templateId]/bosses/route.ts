@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { lockReserveTier } from '@/lib/loot-blocks';
 import { parseBossInput } from '@/lib/loot-table-rules';
 import { isUniqueViolation, requireLootOfficer } from '../../../../_loot';
 import { jsonBody, NO_STORE } from '../../../../_officer';
@@ -14,12 +15,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ tem
   const template = await db.raidTemplate.findUnique({ where: { id: templateId }, select: { id: true } });
   if (!template) return NextResponse.json({ error: 'No such raid tier.' }, { status: 404, headers: NO_STORE });
 
-  const last = await db.lootBoss.findFirst({ where: { templateId }, orderBy: { position: 'desc' }, select: { position: true } });
   try {
-    const boss = await db.lootBoss.create({
-      data: { templateId, name: parsed.value.name!, isTrash: parsed.value.isTrash ?? false, position: (last?.position ?? -1) + 1 },
-      select: { id: true, name: true },
-    });
+    const boss = await db.$transaction(async (tx) => {
+      await lockReserveTier(tx, templateId);
+      const last = await tx.lootBoss.findFirst({ where: { templateId }, orderBy: { position: 'desc' }, select: { position: true } });
+      return tx.lootBoss.create({
+        data: { templateId, name: parsed.value.name!, isTrash: parsed.value.isTrash ?? false, position: (last?.position ?? -1) + 1 },
+        select: { id: true, name: true },
+      });
+    }, { isolationLevel: 'ReadCommitted' });
     return NextResponse.json(boss, { status: 201, headers: NO_STORE });
   } catch (e) {
     if (isUniqueViolation(e)) return NextResponse.json({ error: 'This raid already has a boss with that name.' }, { status: 409, headers: NO_STORE });
