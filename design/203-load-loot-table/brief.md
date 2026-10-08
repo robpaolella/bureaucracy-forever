@@ -53,7 +53,7 @@ so they don't match the names. Sample officer names Ledgerline and Redtape.
 | State slug | Situation | Content and wording | Actions / feedback |
 | --- | --- | --- | --- |
 | table-empty | first load, table empty | "No bosses yet." as today; "Load table" button; no "Last loaded" line until the first load | opens the flow |
-| table | page as today | "Load table" button in the toolbar; under it "Last loaded from molten-core.json by Ledgerline · Oct 6, 8:14 PM PDT · merge" and a "Load history" toggle | opens the flow |
+| table | page as today | "Load table" button in the toolbar; under it "Last loaded from [source] by [officer] · [date and time with zone] · [merge or replace]" (sample: "Last loaded from mc-first-two.json by Redtape · Sep 28, 9:02 PM PDT · merge"; guild time on hover and focus) and a "Load history" toggle | opens the flow |
 | history | history open | "Load history" toggle becomes "Hide load history"; up to 10 loads, newest first, columns Source, Officer, When, Mode, Changes ("+96 −12") | toggle closes |
 | source-empty | step 1, File, nothing chosen | heading "Load table" under the tier name; radio File / AtlasLoot; "Loot list file (.json)" with "Choose file" and "No file chosen"; hint "A list of bosses, each with its item ids, in kill order."; checkbox "Replace: remove bosses and items the source doesn't have" with "Items with reserves or awards are always kept, with their boss." off; foot "Nothing is written until you confirm." Cancel / Preview | Preview disabled until a file is chosen |
 | source | file chosen | as above with "molten-core.json" | Preview fetches |
