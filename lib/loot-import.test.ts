@@ -108,7 +108,7 @@ describe('parseIdsFile', () => {
 
   it.each([
     [{}, 'non-empty "bosses"'],
-    [{ bosses: [{ items: [1] }] }, 'Boss 1 has no name.'],
+    [{ bosses: [{ items: [1] }] }, 'boss 1 needs a name.'],
     [{ bosses: [{ name: 'A', items: ['1'] }] }, '"A" needs "items"'],
     [{ bosses: [{ name: 'A', items: [1] }, { name: 'A', items: [2] }] }, '"A" is listed twice.'],
   ])('refuses %j', (json, message) => {
