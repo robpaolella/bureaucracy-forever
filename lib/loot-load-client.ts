@@ -71,6 +71,11 @@ function routeError(json: Record<string, unknown> | null) {
   return typeof json?.error === 'string' ? json.error : UNREACHABLE;
 }
 
+/** The routes parse the importer's format again, so send that, not the parsed table. */
+export function toIdsFile(file: ParsedTable) {
+  return { bosses: file.bosses.map((boss) => ({ name: boss.name, trash: boss.isTrash, items: boss.itemIds })) };
+}
+
 function request(fetcher: Fetcher, url: string, body: unknown) {
   return fetcher(url, {
     method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -89,7 +94,7 @@ export async function previewLoadTable(options: {
     if (stopped()) return { kind: 'stopped' };
     let response: Response;
     try {
-      response = await request(fetcher, `/api/loot/tables/${templateId}/preview`, { file: loadFile.file, source, skip });
+      response = await request(fetcher, `/api/loot/tables/${templateId}/preview`, { file: toIdsFile(loadFile.file), source, skip });
     } catch {
       return { kind: 'error', error: UNREACHABLE };
     }
@@ -130,7 +135,7 @@ export async function applyLoadTable(options: {
   const { templateId, loadFile, token, source = 'FOREVER', fetcher = fetch } = options;
   let response: Response;
   try {
-    response = await request(fetcher, `/api/loot/tables/${templateId}/apply`, { file: loadFile.file, source, token, sourceName: loadFile.name });
+    response = await request(fetcher, `/api/loot/tables/${templateId}/apply`, { file: toIdsFile(loadFile.file), source, token, sourceName: loadFile.name });
   } catch {
     return { kind: 'save-failed' };
   }

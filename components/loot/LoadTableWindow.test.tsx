@@ -95,7 +95,9 @@ describe('LoadTableWindow fetching', () => {
     expect(bar.getAttribute('aria-valuetext')).toBe('3 of 6');
     await click('Stop');
     expect(stopped()).toBe(true);
-    await act(async () => finish({ kind: 'stopped' }));
+    // Step 1 shows at once; the batch in flight answers later and is ignored.
+    expect(host.textContent).toContain('Stopped. Nothing was loaded.');
+    await act(async () => finish(ready()));
     expect(host.textContent).toContain('Stopped. Nothing was loaded.Items fetched so far are saved, so the next try is quicker.');
     expect(button('Preview')!.disabled).toBe(false);
     expect(client.applyLoadTable).not.toHaveBeenCalled();

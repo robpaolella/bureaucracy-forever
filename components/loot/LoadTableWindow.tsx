@@ -92,13 +92,8 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
       stopped: () => stopRequested.current || id !== run.current,
       onProgress: (next) => id === run.current && setProgress(next),
     });
-    if (id !== run.current) return;
+    if (id !== run.current || result.kind === 'stopped') return;
     setBusy(null);
-    if (result.kind === 'stopped') {
-      setPhase('source');
-      setStopped(true);
-      return;
-    }
     if (result.kind === 'error') {
       if (retry) setToast({ tone: 'stop', title: result.error });
       else {
@@ -112,6 +107,14 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
     }
     setReady(result);
     setPhase('preview');
+  }
+
+  /** Back to step 1 at once; the batch in flight finishes on the server and its items stay cached. */
+  function stop() {
+    run.current++;
+    stopRequested.current = true;
+    setPhase('source');
+    setStopped(true);
   }
 
   async function apply() {
@@ -136,12 +139,12 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
   const nothing = phase === 'preview' && ready?.nothingToChange;
   const actions = phase === 'fetching' ? (
     <Foot note={LOOT_LOAD.reading(loadFile?.name ?? '')}>
-      <Button variant="secondary" onClick={() => { stopRequested.current = true; }}>{LOOT_LOAD.stop}</Button>
+      <Button variant="secondary" onClick={stop}>{LOOT_LOAD.stop}</Button>
     </Foot>
   ) : nothing ? (
     <Foot><Button onClick={close}>{LOOT_LOAD.close}</Button></Foot>
   ) : phase === 'stale' ? (
-    <Foot>
+    <Foot note={LOOT_LOAD.from(loadFile?.name ?? '')}>
       <Button variant="ghost" onClick={close}>{LOOT_LOAD.cancel}</Button>
       <Button onClick={() => void startPreview()}>{LOOT_LOAD.previewAgain}</Button>
     </Foot>

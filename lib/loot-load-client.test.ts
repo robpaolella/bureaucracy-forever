@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { applyLoadTable, LOAD_TABLE_MESSAGES, previewLoadTable, readLoadFile, type LoadFile } from './loot-load-client';
+import { parseIdsFile } from './loot-import';
+import { applyLoadTable, LOAD_TABLE_MESSAGES, previewLoadTable, readLoadFile, toIdsFile, type LoadFile } from './loot-load-client';
 
 const loadFile: LoadFile = { name: 'molten-core.json', file: { bosses: [{ name: 'Lucifron', isTrash: false, itemIds: [1, 2, 3] }], skipped: [] }, total: 3 };
 const preview = { token: 'a'.repeat(64), bosses: [], added: 2, newBosses: 0 };
+const sent = { bosses: [{ name: 'Lucifron', trash: false, items: [1, 2, 3] }] };
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 
 describe('readLoadFile', () => {
@@ -16,6 +18,13 @@ describe('readLoadFile', () => {
   });
 });
 
+describe('toIdsFile', () => {
+  it('sends the importer format, which the routes parse back to the same table', () => {
+    const table = { skipped: [], bosses: [{ name: 'Lucifron', isTrash: false, itemIds: [1, 2] }, { name: 'Trash', isTrash: true, itemIds: [3] }] };
+    expect(parseIdsFile(toIdsFile(table))).toEqual(table);
+  });
+});
+
 describe('previewLoadTable', () => {
   it('continues with returned skip, reports each batch, and retains all failures', async () => {
     const fetcher = vi.fn()
@@ -25,7 +34,7 @@ describe('previewLoadTable', () => {
 
     await expect(previewLoadTable({ templateId: 'mc', loadFile, fetcher, onProgress: progress })).resolves.toEqual({ kind: 'preview', preview, items: [], failed: [{ id: 2, error: 'Not found' }, { id: 3, error: 'Gone' }], nothingToChange: false });
     expect(fetcher.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string))).toEqual([
-      { file: loadFile.file, source: 'FOREVER', skip: [] }, { file: loadFile.file, source: 'FOREVER', skip: [2] },
+      { file: sent, source: 'FOREVER', skip: [] }, { file: sent, source: 'FOREVER', skip: [2] },
     ]);
     expect(progress).toHaveBeenCalledWith({ completed: 2, total: 3 });
     expect(progress).toHaveBeenLastCalledWith({ completed: 3, total: 3 });
@@ -71,7 +80,7 @@ describe('applyLoadTable', () => {
   it('sends the source filename and returns success', async () => {
     const fetcher = vi.fn().mockResolvedValue(response({ added: 2, newBosses: 1 }));
     await expect(applyLoadTable({ templateId: 'mc', loadFile, token: preview.token, fetcher })).resolves.toEqual({ kind: 'success', added: 2, newBosses: 1 });
-    expect(JSON.parse((fetcher.mock.calls[0][1] as RequestInit).body as string)).toMatchObject({ sourceName: 'molten-core.json', token: preview.token, file: loadFile.file });
+    expect(JSON.parse((fetcher.mock.calls[0][1] as RequestInit).body as string)).toMatchObject({ sourceName: 'molten-core.json', token: preview.token, file: sent });
   });
 
   it('maps stale, plain route, and save failures', async () => {
