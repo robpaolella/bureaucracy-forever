@@ -72,7 +72,7 @@ export function RosterTable({ rows, viewer }: Props) {
   const isExpanded = (row: RosterRow) => expandedByMember[row.id] ?? matchingAltNames(row.alts, filters.search).length > 0;
   const toggleAlts = (row: RosterRow) => setExpandedByMember((current) => ({ ...current, [row.id]: !isExpanded(row) }));
   const altsToggle = (row: RosterRow, controlsId: string) => row.alts.length > 0 && (
-    <AltsToggle count={row.alts.length} expanded={isExpanded(row)} controlsId={controlsId} onToggle={() => toggleAlts(row)} label={ROSTER_ALTS} />
+    <AltsToggle count={row.alts.length} memberName={row.name} expanded={isExpanded(row)} controlsId={controlsId} onToggle={() => toggleAlts(row)} label={ROSTER_ALTS} />
   );
 
   const onSort = (key: string) => {
@@ -108,6 +108,8 @@ export function RosterTable({ rows, viewer }: Props) {
     {
       key: 'manage',
       header: '',
+      // The action belongs against the table edge rather than floating inside a padded blank column.
+      className: 'pr-0',
       render: (r) => r.id === viewer?.id ? <MemberCharacterDialog characters={viewer.characters} rank={viewer.rank} /> : null,
     },
   ];
