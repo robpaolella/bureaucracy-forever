@@ -125,7 +125,7 @@ export async function applyLoadTable(options: {
     return { kind: 'save-failed' };
   }
   const json = await responseJson(response);
-  if (response.status === 409) return { kind: 'stale', error: STALE, hint: STALE_HINT };
+  if (response.status === 409 && json?.error === STALE) return { kind: 'stale', error: STALE, hint: STALE_HINT };
   if (response.status >= 500 || !json) return { kind: 'save-failed' };
   if (!response.ok) return { kind: 'error', error: routeError(json) };
   if (typeof json.added !== 'number' || typeof json.newBosses !== 'number') return { kind: 'save-failed' };

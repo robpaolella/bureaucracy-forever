@@ -39,15 +39,20 @@ describe('previewLoadTable', () => {
   });
 
   it('starts with an empty skip list again to retry missing ids', async () => {
-    const fetcher = vi.fn().mockResolvedValue(response({ remaining: 0, skip: [], failed: [], preview }));
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(response({ remaining: 0, skip: [2], failed: [{ id: 2, error: 'Not found' }], preview }))
+      .mockResolvedValueOnce(response({ remaining: 0, skip: [], failed: [], preview }));
     await previewLoadTable({ templateId: 'mc', loadFile, fetcher });
     await previewLoadTable({ templateId: 'mc', loadFile, fetcher });
     expect(fetcher.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string).skip)).toEqual([[], []]);
   });
 
-  it('marks a completed preview with no additions or new bosses as unchanged', async () => {
-    const fetcher = vi.fn().mockResolvedValue(response({ remaining: 0, skip: [], failed: [], preview: { ...preview, added: 0, newBosses: 0 } }));
+  it('marks a completed preview as unchanged only when it has no additions or new bosses', async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(response({ remaining: 0, skip: [], failed: [], preview: { ...preview, added: 0, newBosses: 0 } }))
+      .mockResolvedValueOnce(response({ remaining: 0, skip: [], failed: [], preview: { ...preview, added: 0, newBosses: 1 } }));
     await expect(previewLoadTable({ templateId: 'mc', loadFile, fetcher })).resolves.toMatchObject({ kind: 'preview', nothingToChange: true });
+    await expect(previewLoadTable({ templateId: 'mc', loadFile, fetcher })).resolves.toMatchObject({ kind: 'preview', nothingToChange: false });
   });
 
   it('uses route sentences and the network message for preview failures', async () => {
@@ -66,6 +71,7 @@ describe('applyLoadTable', () => {
   it('maps stale, plain route, and save failures', async () => {
     await expect(applyLoadTable({ templateId: 'mc', loadFile, token: preview.token, fetcher: vi.fn().mockResolvedValue(response({ error: 'The table changed since this preview.' }, 409)) })).resolves.toEqual({ kind: 'stale', error: 'The table changed since this preview.', hint: 'Preview again to see the current changes.' });
     await expect(applyLoadTable({ templateId: 'mc', loadFile, token: preview.token, fetcher: vi.fn().mockResolvedValue(response({ error: 'Preview this file before loading it.' }, 400)) })).resolves.toEqual({ kind: 'error', error: 'Preview this file before loading it.' });
+    await expect(applyLoadTable({ templateId: 'mc', loadFile, token: preview.token, fetcher: vi.fn().mockResolvedValue(response({ error: 'Item ids 2: already cached for Classic.' }, 409)) })).resolves.toEqual({ kind: 'error', error: 'Item ids 2: already cached for Classic.' });
     await expect(applyLoadTable({ templateId: 'mc', loadFile, token: preview.token, fetcher: vi.fn().mockResolvedValue(response({ error: "Couldn't save that." }, 500)) })).resolves.toEqual({ kind: 'save-failed' });
     await expect(applyLoadTable({ templateId: 'mc', loadFile, token: preview.token, fetcher: vi.fn().mockResolvedValue(new Response('not json')) })).resolves.toEqual({ kind: 'save-failed' });
   });
