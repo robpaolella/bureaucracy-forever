@@ -56,7 +56,7 @@ export const LOOT_EDIT = {
   remove: (item: string, boss: string) => `Remove ${item} from ${boss}`,
   removed: (item: string) => `Removed ${item}`,
   removeTitle: (item: string) => `Remove ${item}?`,
-  removeBody: (boss: string) => `It comes off ${boss}'s list. Loot already recorded keeps its name, and any reserves on it stay but can't be picked until it's back.`,
+  removeBody: (boss: string) => `It comes off ${boss}'s list. Loot already recorded keeps its name, and reserves on it stay; if no other boss drops it, they can't be picked until it's back.`,
   removeKeep: 'Keep it',
   removeConfirm: 'Remove the item',
   refreshItem: (item: string) => `Refresh ${item} from Wowhead`,
