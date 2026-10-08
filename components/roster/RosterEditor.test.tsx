@@ -147,14 +147,16 @@ describe('RosterEditor', () => {
     let toggle = view().find((n) => n.type === AltsToggle)!;
     expect(toggle.props.expanded).toBe(true);
 
-    (toggle.props.onToggle as () => void)();
-    toggle = view().find((n) => n.type === AltsToggle)!;
-    expect(toggle.props.expanded).toBe(false);
-
     (input.props.onChange as (event: { target: { value: string } }) => void)({ target: { value: '' } });
     expect(view().find((n) => n.type === AltsToggle)!.props.expanded).toBe(false);
 
-    (input.props.onChange as (event: { target: { value: string } }) => void)({ target: { value: 'Paper' } });
+    (input.props.onChange as (event: { target: { value: string } }) => void)({ target: { value: 'Blue' } });
+    toggle = view().find((n) => n.type === AltsToggle)!;
+    expect(toggle.props.expanded).toBe(true);
+    (toggle.props.onToggle as () => void)();
+    expect(view().find((n) => n.type === AltsToggle)!.props.expanded).toBe(false);
+
+    (input.props.onChange as (event: { target: { value: string } }) => void)({ target: { value: 'Paperclip' } });
     expect(view().find((n) => n.type === AltsToggle)!.props.expanded).toBe(false);
   });
 
