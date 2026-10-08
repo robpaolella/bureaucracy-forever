@@ -203,6 +203,7 @@ model RaidTemplate {
   raids        Raid[]
   lootBosses   LootBoss[]
   reserveSettings LootReserveSetting[]
+  lootLoads    LootTableLoad[]
 }
 
 /// A weekly slot in guild time. tick (SYNC-SPEC §6) turns it into Raid rows horizonWeeks ahead.
@@ -451,6 +452,24 @@ model LootReserveSetting {
 
   @@id([templateId, itemId])
   @@index([itemId])
+}
+
+/// One officer's loot-table load. Officer details are copied so account edits/removal
+/// never change the record. Mode already permits replace for the later replace flow.
+model LootTableLoad {
+  id          String       @id @default(cuid())
+  templateId  String
+  template    RaidTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  sourceName  String
+  officerId   String
+  officerName String
+  /// "merge" or "replace", enforced by the migration's CHECK constraint.
+  mode        String       @default("merge")
+  added       Int
+  removed     Int          @default(0)
+  createdAt   DateTime     @default(now())
+
+  @@index([templateId, createdAt])
 }
 
 /// A member's hard or soft reserve for one raid (lib/loot-rules.ts). One of each per member
