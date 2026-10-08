@@ -143,6 +143,25 @@ describe('LoadTableWindow preview', () => {
     expect(document.activeElement?.textContent).toBe('Choose file');
   });
 
+  it('lists only bosses with something to add or not found', async () => {
+    const result = ready([]) as Extract<PreviewResult, { kind: 'preview' }>;
+    result.preview.bosses[0] = { ...result.preview.bosses[0], add: [], already: [1, 2, 3] };
+    await toPreview(result);
+    expect(host.textContent).toContain('1 boss already on the table');
+    expect(host.querySelectorAll('h4')).toHaveLength(1);
+    expect(host.querySelector('h4')!.textContent).toBe('Trash');
+  });
+
+  it('keeps the not-found box and Try again above nothing to change', async () => {
+    await toPreview(ready([6], 0));
+    expect(host.textContent).toContain('Wowhead couldn’t find 1 itemThey won’t be loaded.');
+    expect(host.textContent).toContain('Trash: #6');
+    expect(host.textContent).toContain('Nothing to change');
+    client.previewLoadTable.mockResolvedValueOnce(ready([6], 0));
+    await click('Try again');
+    expect(toasts()).toContain('Wowhead still couldn’t find 1 item.');
+  });
+
   it('says nothing to change with no confirm', async () => {
     await toPreview(ready([], 0));
     expect(host.textContent).toContain('Nothing to changeThe table already matches this file.');

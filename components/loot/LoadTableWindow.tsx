@@ -191,10 +191,14 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
       <div ref={body}>
       {phase === 'fetching' ? (
         <Fetching {...progress} />
-      ) : nothing ? (
-        <div role="status" tabIndex={-1} data-step-focus className="flex flex-col gap-1.5 rounded-card border border-dashed border-line-strong p-5 text-center outline-none">
-          <strong className="font-display text-xl font-medium text-fg">{LOOT_LOAD.nothingTitle}</strong>
-          <span>{LOOT_LOAD.nothingBody}</span>
+      ) : nothing && ready && loadFile ? (
+        <div className="flex flex-col gap-4">
+          {/* Robert, 2026-10-08: ids still missing keep their box and Try again above "Nothing to change". */}
+          <NotFound ready={ready} loadFile={loadFile} busy={busy} onRetry={() => void startPreview(true)} />
+          <div role="status" tabIndex={-1} data-step-focus className="flex flex-col gap-1.5 rounded-card border border-dashed border-line-strong p-5 text-center outline-none">
+            <strong className="font-display text-xl font-medium text-fg">{LOOT_LOAD.nothingTitle}</strong>
+            <span>{LOOT_LOAD.nothingBody}</span>
+          </div>
         </div>
       ) : (phase === 'preview' || phase === 'stale') && ready && loadFile ? (
         <PreviewView ready={ready} loadFile={loadFile} stale={phase === 'stale'} busy={busy} onRetry={() => void startPreview(true)} />
@@ -280,12 +284,11 @@ function Fetching({ completed, total }: { completed: number; total: number }) {
 }
 
 function PreviewView({ ready, loadFile, stale, busy, onRetry }: { ready: Ready; loadFile: LoadFile; stale: boolean; busy: 'apply' | 'retry' | null; onRetry: () => void }) {
-  const { preview, items, failed } = ready;
-  // Kill order is the file's order; bosses already on the table but not in the file aren't part of this load.
-  const byName = new Map(preview.bosses.map((boss) => [boss.name, boss]));
-  const bosses = loadFile.file.bosses.flatMap((boss) => byName.get(boss.name) ?? []);
+  const { preview, items } = ready;
+  const bosses = fileBosses(ready, loadFile);
+  // Robert, 2026-10-08: a boss with nothing to add or report stays out of the list; the summary still counts it.
+  const listed = bosses.filter((boss) => boss.isNew || boss.add.length > 0 || boss.notFound.length > 0);
   const views = new Map<number, PreviewItem>(items.map((item) => [item.id, item]));
-  const missing = bosses.filter((boss) => boss.notFound.length > 0);
   return (
     <div className="flex flex-col gap-4">
       {stale && (
@@ -298,19 +301,10 @@ function PreviewView({ ready, loadFile, stale, busy, onRetry }: { ready: Ready; 
         {LOOT_LOAD.summaryAdds} <b className="font-semibold">{LOOT_LOAD.summaryItems(preview.added)}</b>
         {LOOT_LOAD.summaryRest(preview.newBosses, bosses.filter((boss) => !boss.isNew).length)}
       </p>
-      {failed.length > 0 && (
-        <div className="flex flex-col gap-1.5 rounded-card border border-warn-line bg-warn-wash px-3.5 py-3 text-fg">
-          <strong className="font-semibold text-warn">{LOOT_LOAD.notFound(failed.length)}</strong>
-          <span>{LOOT_LOAD.notFoundHint}</span>
-          {missing.map((boss) => (
-            <span key={boss.name} className="tabular text-fg-2">{boss.name}: {boss.notFound.map((id) => `#${id}`).join(', ')}</span>
-          ))}
-          <span><Button variant="secondary" size="sm" loading={busy === 'retry'} disabled={busy === 'apply'} onClick={onRetry}>{LOOT_LOAD.tryAgain}</Button></span>
-        </div>
-      )}
+      <NotFound ready={ready} loadFile={loadFile} busy={busy} onRetry={onRetry} />
       <section>
         <h3 className={cn(FIELD_LABEL, 'border-b border-line pb-1.5')}>{LOOT_LOAD.adds}</h3>
-        {bosses.map((boss) => (
+        {listed.map((boss) => (
           <div key={boss.name} className="flex flex-col gap-1.5 border-t border-line py-3.5 first-of-type:border-t-0">
             <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
               <h4 className="font-display text-xl font-medium text-fg">{boss.name}</h4>
@@ -334,6 +328,27 @@ function PreviewView({ ready, loadFile, stale, busy, onRetry }: { ready: Ready; 
           </div>
         ))}
       </section>
+    </div>
+  );
+}
+
+/** The preview's bosses that are in the file, in the file's (kill) order; others on the table aren't part of this load. */
+function fileBosses(ready: Ready, loadFile: LoadFile) {
+  const byName = new Map(ready.preview.bosses.map((boss) => [boss.name, boss]));
+  return loadFile.file.bosses.flatMap((boss) => byName.get(boss.name) ?? []);
+}
+
+function NotFound({ ready, loadFile, busy, onRetry }: { ready: Ready; loadFile: LoadFile; busy: 'apply' | 'retry' | null; onRetry: () => void }) {
+  if (ready.failed.length === 0) return null;
+  const missing = fileBosses(ready, loadFile).filter((boss) => boss.notFound.length > 0);
+  return (
+    <div className="flex flex-col gap-1.5 rounded-card border border-warn-line bg-warn-wash px-3.5 py-3 text-fg">
+      <strong className="font-semibold text-warn">{LOOT_LOAD.notFound(ready.failed.length)}</strong>
+      <span>{LOOT_LOAD.notFoundHint}</span>
+      {missing.map((boss) => (
+        <span key={boss.name} className="tabular text-fg-2">{boss.name}: {boss.notFound.map((id) => `#${id}`).join(', ')}</span>
+      ))}
+      <span><Button variant="secondary" size="sm" loading={busy === 'retry'} disabled={busy === 'apply'} onClick={onRetry}>{LOOT_LOAD.tryAgain}</Button></span>
     </div>
   );
 }
