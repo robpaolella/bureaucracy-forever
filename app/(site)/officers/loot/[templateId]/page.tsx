@@ -46,7 +46,7 @@ export default async function LootTablePage({ params }: { params: Promise<{ temp
         <span className="font-eyebrow text-label font-semibold uppercase tracking-[0.28em] text-sand">{LOOT_ADMIN_HEAD.title}</span>
         <h1 className="font-display text-[34px] font-medium leading-[1.05] tracking-[-0.02em] md:text-[44px]">{template.name}</h1>
       </section>
-      <LootTableEditor templateId={templateId} bosses={bosses} defaultSource={defaultSource} blockedIds={[...blocked]} winLimits={limits} />
+      <LootTableEditor templateId={templateId} templateName={template.name} bosses={bosses} defaultSource={defaultSource} blockedIds={[...blocked]} winLimits={limits} />
     </div>
   );
 }

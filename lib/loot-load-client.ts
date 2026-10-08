@@ -10,11 +10,14 @@ type Preview = {
   newBosses: number;
 };
 
+/** What the preview lists for an item to add; ids missing here show as their number. */
+export type PreviewItem = { id: number; name: string; quality: number; icon: string };
+
 type Upload = Pick<File, 'name' | 'text'>;
 export type LoadFile = { name: string; file: ParsedTable; total: number };
 export type ReadFileResult = { ok: true; value: LoadFile } | { ok: false; error: string };
 export type PreviewResult =
-  | { kind: 'preview'; preview: Preview; failed: FailedItem[]; nothingToChange: boolean }
+  | { kind: 'preview'; preview: Preview; items: PreviewItem[]; failed: FailedItem[]; nothingToChange: boolean }
   | { kind: 'stopped' }
   | { kind: 'error'; error: string };
 export type ApplyResult =
@@ -104,8 +107,15 @@ export async function previewLoadTable(options: {
     if (stopped()) return { kind: 'stopped' };
     if (json.remaining > 0) continue;
     if (!isPreview(json.preview)) return { kind: 'error', error: UNREACHABLE };
-    return { kind: 'preview', preview: json.preview, failed: [...failed.values()], nothingToChange: json.preview.added === 0 && json.preview.newBosses === 0 };
+    const items = Array.isArray(json.items) ? json.items.filter(isPreviewItem) : [];
+    return { kind: 'preview', preview: json.preview, items, failed: [...failed.values()], nothingToChange: json.preview.added === 0 && json.preview.newBosses === 0 };
   }
+}
+
+function isPreviewItem(value: unknown): value is PreviewItem {
+  const item = value as PreviewItem;
+  return !!item && typeof item === 'object' && Number.isSafeInteger(item.id) && typeof item.name === 'string' &&
+    typeof item.quality === 'number' && typeof item.icon === 'string';
 }
 
 function isPreview(value: unknown): value is Preview {

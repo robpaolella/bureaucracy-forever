@@ -28,7 +28,7 @@ export const LOOT_TABLE = {
 export const LOOT_EDIT = {
   addBoss: 'Add boss',
   bossName: 'Boss name',
-  trashLabel: 'Trash (drops from trash, not a boss)',
+  trashLabel: 'Trash drops',
   addBossButton: 'Add',
   bossAdded: (name: string) => `Added ${name}`,
   moveUp: (name: string) => `Move ${name} up`,
@@ -62,6 +62,50 @@ export const LOOT_EDIT = {
   refreshMore: (n: number) => `Refresh the next ${Math.min(n, REFRESH_BATCH)} of ${n}`,
   refreshDone: (saved: number, failed: number) => `Refreshed ${saved} ${saved === 1 ? 'item' : 'items'}${failed ? `, ${failed} failed` : ''}`,
   failedIds: (ids: number[]) => `Wowhead had nothing for ${ids.map((id) => `#${id}`).join(', ')}.`,
+};
+
+/** The "Load table" window (design #203), file source only; AtlasLoot and replace arrive in #125 and #126. */
+const items = (n: number) => `${n} ${n === 1 ? 'item' : 'items'}`;
+const bosses = (n: number) => `${n} ${n === 1 ? 'boss' : 'bosses'}`;
+export const LOOT_LOAD = {
+  title: 'Load table',
+  fileLabel: 'Loot list file (.json)',
+  chooseFile: 'Choose file',
+  noFile: 'No file chosen',
+  fileHint: 'A list of bosses, each with its item ids, in kill order.',
+  confirmHint: 'Nothing is written until you confirm.',
+  preview: 'Preview',
+  cancel: 'Cancel',
+  close: 'Close',
+  back: 'Back',
+  stop: 'Stop',
+  retry: 'Retry',
+  tryAgain: 'Try again',
+  previewAgain: 'Preview again',
+  stoppedTitle: 'Stopped. Nothing was loaded.',
+  stoppedBody: 'Items fetched so far are saved, so the next try is quicker.',
+  fetching: 'Fetching items from Wowhead:',
+  fetchCount: (completed: number, total: number) => `${completed} of ${total}`,
+  /** Wowhead allows about one item a second. */
+  timeLeft: (left: number) => (left > 70 ? 'About two minutes left.' : left > 10 ? 'About a minute left.' : 'Almost done.'),
+  fetchingHint: 'Wowhead limits how fast we may ask. Keep this window open.',
+  reading: (name: string) => `Reading ${name}. Nothing is written until you confirm.`,
+  nothingTitle: 'Nothing to change',
+  nothingBody: 'The table already matches this file.',
+  summaryAdds: 'Adds',
+  summaryItems: items,
+  summaryRest: (newBosses: number, existing: number) => `: ${newBosses} new ${newBosses === 1 ? 'boss' : 'bosses'} and ${bosses(existing)} already on the table. Nothing is removed.`,
+  notFound: (n: number) => `Wowhead couldn’t find ${items(n)}`,
+  notFoundHint: 'They won’t be loaded. Check the ids in the file, or try again if Wowhead was busy.',
+  adds: 'Adds',
+  newBoss: 'New boss',
+  trash: 'Trash',
+  counts: (added: number, already: number, notFound: number) =>
+    [`${added} new`, already && `${already} already on the table`, notFound && `${notFound} not found`].filter(Boolean).join(' · '),
+  from: (name: string) => `From ${name} · merge`,
+  load: (n: number) => `Load ${items(n)}`,
+  loaded: (name: string, n: number) => `Loaded ${name}: added ${items(n)}.`,
+  stillMissing: (n: number) => `Wowhead still couldn’t find ${items(n)}.`,
 };
 
 /** The "Reserves" window for one item: settings shared by every boss in the tier (design #131). */

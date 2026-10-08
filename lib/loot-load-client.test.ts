@@ -23,7 +23,7 @@ describe('previewLoadTable', () => {
       .mockResolvedValueOnce(response({ remaining: 0, skip: [2, 3], failed: [{ id: 3, error: 'Gone' }], preview }));
     const progress = vi.fn();
 
-    await expect(previewLoadTable({ templateId: 'mc', loadFile, fetcher, onProgress: progress })).resolves.toEqual({ kind: 'preview', preview, failed: [{ id: 2, error: 'Not found' }, { id: 3, error: 'Gone' }], nothingToChange: false });
+    await expect(previewLoadTable({ templateId: 'mc', loadFile, fetcher, onProgress: progress })).resolves.toEqual({ kind: 'preview', preview, items: [], failed: [{ id: 2, error: 'Not found' }, { id: 3, error: 'Gone' }], nothingToChange: false });
     expect(fetcher.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string))).toEqual([
       { file: loadFile.file, source: 'FOREVER', skip: [] }, { file: loadFile.file, source: 'FOREVER', skip: [2] },
     ]);
@@ -45,6 +45,12 @@ describe('previewLoadTable', () => {
     await previewLoadTable({ templateId: 'mc', loadFile, fetcher });
     await previewLoadTable({ templateId: 'mc', loadFile, fetcher });
     expect(fetcher.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string).skip)).toEqual([[], []]);
+  });
+
+  it('keeps well-formed preview items and drops malformed ones', async () => {
+    const item = { id: 1, name: 'Ashen Signet', quality: 4, icon: 'inv_jewelry_ring_01' };
+    const fetcher = vi.fn().mockResolvedValue(response({ remaining: 0, skip: [], failed: [], preview, items: [item, { id: 2, name: 7 }, null] }));
+    await expect(previewLoadTable({ templateId: 'mc', loadFile, fetcher })).resolves.toMatchObject({ kind: 'preview', items: [item] });
   });
 
   it('marks a completed preview as unchanged only when it has no additions or new bosses', async () => {
