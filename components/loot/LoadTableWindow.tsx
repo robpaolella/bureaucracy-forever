@@ -46,11 +46,14 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
   // Each run gets a number; closing, Stop or a newer run makes an older answer stale.
   const run = useRef(0);
   const stopRequested = useRef(false);
+  // Saving can't be called back, so the window stays open until its answer arrives.
+  const applying = useRef(false);
   const body = useRef<HTMLDivElement>(null);
   // The step last shown, so a change of step (not opening the window) moves focus into the new step.
   const shownStep = useRef<string | null>(null);
 
   function close() {
+    if (applying.current) return;
     run.current++;
     stopRequested.current = true;
     setLoadFile(null);
@@ -122,11 +125,12 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
 
   async function apply() {
     if (!loadFile || !ready) return;
-    const id = run.current;
+    if (applying.current) return;
+    applying.current = true;
     setBusy('apply');
     setToast(null);
     const result = await applyLoadTable({ templateId, loadFile, token: ready.preview.token });
-    if (id !== run.current) return;
+    applying.current = false;
     setBusy(null);
     if (result.kind === 'success') {
       const name = loadFile.name;
@@ -193,7 +197,7 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
           <span>{LOOT_LOAD.nothingBody}</span>
         </div>
       ) : (phase === 'preview' || phase === 'stale') && ready && loadFile ? (
-        <PreviewView ready={ready} loadFile={loadFile} stale={phase === 'stale'} retrying={busy === 'retry'} onRetry={() => void startPreview(true)} />
+        <PreviewView ready={ready} loadFile={loadFile} stale={phase === 'stale'} busy={busy} onRetry={() => void startPreview(true)} />
       ) : (
         <SourceStep fileName={fileName} error={error} stopped={stopped} onChoose={chooseFile} />
       )}
@@ -275,7 +279,7 @@ function Fetching({ completed, total }: { completed: number; total: number }) {
   );
 }
 
-function PreviewView({ ready, loadFile, stale, retrying, onRetry }: { ready: Ready; loadFile: LoadFile; stale: boolean; retrying: boolean; onRetry: () => void }) {
+function PreviewView({ ready, loadFile, stale, busy, onRetry }: { ready: Ready; loadFile: LoadFile; stale: boolean; busy: 'apply' | 'retry' | null; onRetry: () => void }) {
   const { preview, items, failed } = ready;
   // Kill order is the file's order; bosses already on the table but not in the file aren't part of this load.
   const byName = new Map(preview.bosses.map((boss) => [boss.name, boss]));
@@ -301,7 +305,7 @@ function PreviewView({ ready, loadFile, stale, retrying, onRetry }: { ready: Rea
           {missing.map((boss) => (
             <span key={boss.name} className="tabular text-fg-2">{boss.name}: {boss.notFound.map((id) => `#${id}`).join(', ')}</span>
           ))}
-          <span><Button variant="secondary" size="sm" loading={retrying} onClick={onRetry}>{LOOT_LOAD.tryAgain}</Button></span>
+          <span><Button variant="secondary" size="sm" loading={busy === 'retry'} disabled={busy === 'apply'} onClick={onRetry}>{LOOT_LOAD.tryAgain}</Button></span>
         </div>
       )}
       <section>

@@ -26,14 +26,15 @@ export type ApplyResult =
   | { kind: 'error'; error: string }
   | { kind: 'save-failed' };
 
-const INVALID_FILE = "This file isn't a loot list: ";
-const UNREACHABLE = "Couldn't reach the site — try again.";
+// Typographic quotes, as the approved design (#203) shows them.
+const INVALID_FILE = 'This file isn’t a loot list: ';
+const UNREACHABLE = 'Couldn’t reach the site — try again.';
 const STALE = 'The table changed since this preview.';
 const STALE_HINT = 'Preview again to see the current changes.';
-const SAVE_FAILED = "Couldn't save that — try again.";
+const SAVE_FAILED = 'Couldn’t save that — try again.';
 
 function invalidFile(reason: string) {
-  return `${INVALID_FILE}${reason}`;
+  return `${INVALID_FILE}${reason.replace(/"([^"]*)"/g, '“$1”')}`;
 }
 
 /** Reads a browser file once, then validates the same parsed value that the routes receive. */
@@ -42,13 +43,13 @@ export async function readLoadFile(upload: Upload): Promise<ReadFileResult> {
   try {
     text = await upload.text();
   } catch {
-    return { ok: false, error: invalidFile("couldn't read this file.") };
+    return { ok: false, error: invalidFile('couldn’t read this file.') };
   }
   let json: unknown;
   try {
     json = JSON.parse(text);
   } catch {
-    return { ok: false, error: invalidFile("it isn't valid JSON.") };
+    return { ok: false, error: invalidFile('it isn’t valid JSON.') };
   }
   try {
     const file = parseIdsFile(json);

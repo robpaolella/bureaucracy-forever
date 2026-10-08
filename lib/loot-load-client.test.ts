@@ -9,12 +9,12 @@ const response = (body: unknown, status = 200) => new Response(JSON.stringify(bo
 
 describe('readLoadFile', () => {
   it('returns parser reasons with the design prefix, including invalid JSON', async () => {
-    await expect(readLoadFile({ name: 'bad.json', text: async () => '{' } as File)).resolves.toEqual({ ok: false, error: "This file isn't a loot list: it isn't valid JSON." });
-    await expect(readLoadFile({ name: 'bad.json', text: async () => JSON.stringify({ bosses: [{ name: 'Ragnaros' }] }) } as File)).resolves.toEqual({ ok: false, error: 'This file isn\'t a loot list: "Ragnaros" needs "items": a list of item ids.' });
+    await expect(readLoadFile({ name: 'bad.json', text: async () => '{' } as File)).resolves.toEqual({ ok: false, error: 'This file isn’t a loot list: it isn’t valid JSON.' });
+    await expect(readLoadFile({ name: 'bad.json', text: async () => JSON.stringify({ bosses: [{ name: 'Ragnaros' }] }) } as File)).resolves.toEqual({ ok: false, error: 'This file isn’t a loot list: “Ragnaros” needs “items”: a list of item ids.' });
   });
 
   it('returns a read failure with the same prefix', async () => {
-    await expect(readLoadFile({ name: 'bad.json', text: async () => { throw new Error('nope'); } } as unknown as File)).resolves.toEqual({ ok: false, error: "This file isn't a loot list: couldn't read this file." });
+    await expect(readLoadFile({ name: 'bad.json', text: async () => { throw new Error('nope'); } } as unknown as File)).resolves.toEqual({ ok: false, error: 'This file isn’t a loot list: couldn’t read this file.' });
   });
 });
 

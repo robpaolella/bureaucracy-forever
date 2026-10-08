@@ -62,7 +62,7 @@ describe('LoadTableWindow step 1', () => {
   });
 
   it('shows the file-invalid reason and keeps Preview disabled', async () => {
-    const reason = 'This file isn\'t a loot list: "Ragnaros" needs "items": a list of item ids.';
+    const reason = 'This file isn’t a loot list: “Ragnaros” needs “items”: a list of item ids.';
     client.readLoadFile.mockResolvedValue({ ok: false, error: reason });
     await render(); await choose();
     expect(host.querySelector('[role="alert"]')!.textContent).toBe(reason);
@@ -162,6 +162,19 @@ describe('LoadTableWindow confirm', () => {
     expect(toasts()).toContain('Loaded molten-core.json: added 4 items.');
   });
 
+  it('stays open while saving, so a late success still reports and refreshes', async () => {
+    await toPreview();
+    let finish!: (r: ApplyResult) => void;
+    client.applyLoadTable.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    await click('Load 4 items');
+    await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!.click());
+    expect(onClose).not.toHaveBeenCalled();
+    expect(button('Try again')!.disabled).toBe(true);
+    await act(async () => finish({ kind: 'success', added: 4, newBosses: 1 }));
+    expect(onClose).toHaveBeenCalledOnce(); expect(onLoaded).toHaveBeenCalledOnce();
+    expect(toasts()).toContain('Loaded molten-core.json: added 4 items.');
+  });
+
   it('refuses a stale preview: Cancel / Preview again above the old preview', async () => {
     await toPreview(); applying({ kind: 'stale', error: 'The table changed since this preview.', hint: 'Preview again to see the current changes.' });
     await click('Load 4 items');
@@ -176,7 +189,7 @@ describe('LoadTableWindow confirm', () => {
   it('keeps the preview when saving fails, and Retry re-applies with the same token', async () => {
     await toPreview(); applying({ kind: 'save-failed' }, { kind: 'success', added: 4, newBosses: 1 });
     await click('Load 4 items');
-    expect(toasts()).toContain("Couldn't save that — try again.Retry");
+    expect(toasts()).toContain('Couldn’t save that — try again.Retry');
     expect(button('Load 4 items')).toBeDefined();
     await click('Retry');
     expect(client.applyLoadTable).toHaveBeenCalledTimes(2);
