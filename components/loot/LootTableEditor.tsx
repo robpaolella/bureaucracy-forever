@@ -47,6 +47,7 @@ function Editor({ templateId, templateName, bosses, defaultSource, blockedIds, w
   const [loadOpen, setLoadOpen] = useState(false);
   const [editing, setEditing] = useState<EditorBoss | null>(null);
   const [deleting, setDeleting] = useState<EditorBoss | null>(null);
+  const [removing, setRemoving] = useState<{ boss: EditorBoss; item: ItemView } | null>(null);
   const [reserves, setReserves] = useState<ReservesTarget | null>(null);
   const blocked = new Set(blockedIds);
   const [busy, setBusy] = useState<string | null>(null);
@@ -141,7 +142,7 @@ function Editor({ templateId, templateName, bosses, defaultSource, blockedIds, w
                       <Button variant="ghost" iconOnly aria-label={LOOT_EDIT.refreshItem(item.name)} disabled={busy !== null} loading={busy === `refresh-${item.id}`} onClick={() => run(`refresh-${item.id}`, () => send('/api/loot/items/refresh', 'POST', { itemId: item.id }), () => LOOT_EDIT.refreshed(item.name))}>
                         {busy === `refresh-${item.id}` ? null : '↻'}
                       </Button>
-                      <Button variant="ghost" iconOnly className="text-stop" aria-label={LOOT_EDIT.remove(item.name, boss.name)} disabled={busy !== null} onClick={() => run(`remove-${boss.id}-${item.id}`, () => send(`/api/loot/bosses/${boss.id}/items/${item.id}`, 'DELETE'), () => LOOT_EDIT.removed(item.name))}>
+                      <Button variant="ghost" iconOnly className="text-stop" aria-label={LOOT_EDIT.remove(item.name, boss.name)} disabled={busy !== null} aria-haspopup="dialog" onClick={() => setRemoving({ boss, item })}>
                         ×
                       </Button>
                     </div>
@@ -170,6 +171,31 @@ function Editor({ templateId, templateName, bosses, defaultSource, blockedIds, w
         }}
         busy={busy === 'edit'}
       />
+      <Modal
+        open={removing !== null}
+        onClose={() => setRemoving(null)}
+        title={removing ? LOOT_EDIT.removeTitle(removing.item.name) : ''}
+        actions={
+          <>
+            <Button variant="ghost" onClick={() => setRemoving(null)}>
+              {LOOT_EDIT.removeKeep}
+            </Button>
+            <Button
+              variant="danger"
+              loading={busy === 'remove'}
+              onClick={async () => {
+                if (!removing) return;
+                const { boss, item } = removing;
+                if (await run('remove', () => send(`/api/loot/bosses/${boss.id}/items/${item.id}`, 'DELETE'), () => LOOT_EDIT.removed(item.name))) setRemoving(null);
+              }}
+            >
+              {LOOT_EDIT.removeConfirm}
+            </Button>
+          </>
+        }
+      >
+        {removing && LOOT_EDIT.removeBody(removing.boss.name)}
+      </Modal>
       <Modal
         open={deleting !== null}
         onClose={() => setDeleting(null)}
