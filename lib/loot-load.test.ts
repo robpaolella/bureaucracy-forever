@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+const tx = vi.hoisted(() => ({
+  $queryRaw: vi.fn(), raidTemplate: { findUnique: vi.fn() }, lootItem: { findMany: vi.fn() },
+  lootBoss: { create: vi.fn() }, lootTableEntry: { createMany: vi.fn() }, lootTableLoad: { create: vi.fn() },
+}));
+vi.mock('@/lib/db', () => ({ db: { $transaction: (fn: (client: typeof tx) => Promise<unknown>) => fn(tx) } }));
 import { parseIdsFile } from './loot-import';
-import { mergePreview, tableStateToken, type LoadTableState } from './loot-load';
+import { applyLootTable, mergePreview, tableStateToken, type LoadTableState } from './loot-load';
 
 const state = (): LoadTableState => ({
   id: 'mc',
@@ -9,6 +14,41 @@ const state = (): LoadTableState => ({
     { id: 'last', name: 'Ragnaros', position: 1, isTrash: false, entries: [] },
   ],
   reserveSettings: [{ itemId: 1, blocked: true, winLimit: 3 }],
+});
+
+describe('loot table apply writes', () => {
+  const file = parseIdsFile({ bosses: [{ name: 'Lucifron', items: [1, 2, 404] }, { name: 'New', items: [3] }] });
+  const input = () => ({ templateId: 'mc', file, source: 'FOREVER' as const, token: tableStateToken(state()), sourceName: 'sample.json', officerId: 'officer', officerName: 'Sample Officer' });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    tx.raidTemplate.findUnique.mockResolvedValue(state());
+    tx.lootItem.findMany.mockResolvedValue([1, 2, 3, 99].map((id) => ({ id, source: 'FOREVER' })));
+    tx.lootBoss.create.mockResolvedValue({ id: 'new' });
+  });
+  it('checks the token under the lock and refuses stale state without writes', async () => {
+    expect(await applyLootTable({ ...input(), token: 'stale' })).toEqual({ ok: false, status: 409, error: 'The table changed since this preview.' });
+    expect(tx.$queryRaw.mock.calls[0][1]).toBe('mc');
+    expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(tx.raidTemplate.findUnique.mock.invocationCallOrder[0]);
+    expect(tx.lootItem.findMany).not.toHaveBeenCalled();
+    expect(tx.lootBoss.create).not.toHaveBeenCalled();
+    expect(tx.lootTableEntry.createMany).not.toHaveBeenCalled();
+    expect(tx.lootTableLoad.create).not.toHaveBeenCalled();
+  });
+  it('writes matching preview additions and exactly one audit snapshot', async () => {
+    const preview = mergePreview(state(), file, new Set([1, 2, 3, 99]));
+    expect(await applyLootTable(input())).toEqual({ ok: true, added: preview.added, newBosses: preview.newBosses });
+    expect(tx.lootBoss.create).toHaveBeenCalledExactlyOnceWith({ data: { templateId: 'mc', name: 'New', isTrash: false, position: 2 }, select: { id: true } });
+    expect(tx.lootTableEntry.createMany.mock.calls).toEqual([
+      [{ data: [{ bossId: 'first', itemId: 2, position: 2 }] }], [{ data: [{ bossId: 'new', itemId: 3, position: 0 }] }],
+    ]);
+    expect(tx.lootTableLoad.create).toHaveBeenCalledExactlyOnceWith({ data: { templateId: 'mc', sourceName: 'sample.json', officerId: 'officer', officerName: 'Sample Officer', mode: 'merge', added: 2, removed: 0 } });
+  });
+  it('returns zero without writes or audit for a no-op', async () => {
+    expect(await applyLootTable({ ...input(), file: parseIdsFile({ bosses: [{ name: 'Lucifron', items: [1, 404] }] }) })).toEqual({ ok: true, added: 0, newBosses: 0 });
+    expect(tx.lootBoss.create).not.toHaveBeenCalled();
+    expect(tx.lootTableEntry.createMany).not.toHaveBeenCalled();
+    expect(tx.lootTableLoad.create).not.toHaveBeenCalled();
+  });
 });
 
 describe('loot load preview', () => {

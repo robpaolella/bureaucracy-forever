@@ -103,5 +103,8 @@ describe.skipIf(process.env.LOOT_LOAD_INTEGRATION !== '1')('loot-table loads on 
     expect(history[0]).toEqual({ sourceName: 'load-10', officerName: 'Original Name', mode: 'replace', added: 10, removed: 0, createdAt: new Date('2026-01-11T00:00:00Z') });
     expect(await lootLoadHistory('missing')).toEqual([]);
     expect(await lootLoadHistory('other')).toHaveLength(1);
+    await db.raidTemplate.delete({ where: { id: 'other' } });
+    expect(await lootLoadHistory('other')).toEqual([]);
+    expect(await lootLoadHistory('tier')).toHaveLength(10);
   });
 });

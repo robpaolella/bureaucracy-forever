@@ -16,4 +16,4 @@ CREATE TABLE "LootTableLoad" (
 
 CREATE INDEX "LootTableLoad_templateId_createdAt_idx" ON "LootTableLoad"("templateId", "createdAt");
 ALTER TABLE "LootTableLoad" ADD CONSTRAINT "LootTableLoad_templateId_fkey"
-    FOREIGN KEY ("templateId") REFERENCES "RaidTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    FOREIGN KEY ("templateId") REFERENCES "RaidTemplate"("id") ON DELETE CASCADE ON UPDATE CASCADE;

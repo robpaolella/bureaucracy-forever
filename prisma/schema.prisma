@@ -459,7 +459,7 @@ model LootReserveSetting {
 model LootTableLoad {
   id          String       @id @default(cuid())
   templateId  String
-  template    RaidTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  template    RaidTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   sourceName  String
   officerId   String
   officerName String
