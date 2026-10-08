@@ -10,11 +10,14 @@ type Preview = {
   newBosses: number;
 };
 
+/** What the preview lists for an item to add; ids missing here show as their number. */
+export type PreviewItem = { id: number; name: string; quality: number; icon: string };
+
 type Upload = Pick<File, 'name' | 'text'>;
 export type LoadFile = { name: string; file: ParsedTable; total: number };
 export type ReadFileResult = { ok: true; value: LoadFile } | { ok: false; error: string };
 export type PreviewResult =
-  | { kind: 'preview'; preview: Preview; failed: FailedItem[]; nothingToChange: boolean }
+  | { kind: 'preview'; preview: Preview; items: PreviewItem[]; failed: FailedItem[]; nothingToChange: boolean }
   | { kind: 'stopped' }
   | { kind: 'error'; error: string };
 export type ApplyResult =
@@ -23,14 +26,15 @@ export type ApplyResult =
   | { kind: 'error'; error: string }
   | { kind: 'save-failed' };
 
-const INVALID_FILE = "This file isn't a loot list: ";
-const UNREACHABLE = "Couldn't reach the site — try again.";
+// Typographic quotes, as the approved design (#203) shows them.
+const INVALID_FILE = 'This file isn’t a loot list: ';
+const UNREACHABLE = 'Couldn’t reach the site — try again.';
 const STALE = 'The table changed since this preview.';
 const STALE_HINT = 'Preview again to see the current changes.';
-const SAVE_FAILED = "Couldn't save that — try again.";
+const SAVE_FAILED = 'Couldn’t save that — try again.';
 
 function invalidFile(reason: string) {
-  return `${INVALID_FILE}${reason}`;
+  return `${INVALID_FILE}${reason.replace(/"([^"]*)"/g, '“$1”')}`;
 }
 
 /** Reads a browser file once, then validates the same parsed value that the routes receive. */
@@ -39,13 +43,13 @@ export async function readLoadFile(upload: Upload): Promise<ReadFileResult> {
   try {
     text = await upload.text();
   } catch {
-    return { ok: false, error: invalidFile("couldn't read this file.") };
+    return { ok: false, error: invalidFile('couldn’t read this file.') };
   }
   let json: unknown;
   try {
     json = JSON.parse(text);
   } catch {
-    return { ok: false, error: invalidFile("it isn't valid JSON.") };
+    return { ok: false, error: invalidFile('it isn’t valid JSON.') };
   }
   try {
     const file = parseIdsFile(json);
@@ -68,6 +72,11 @@ function routeError(json: Record<string, unknown> | null) {
   return typeof json?.error === 'string' ? json.error : UNREACHABLE;
 }
 
+/** The routes parse the importer's format again, so send that, not the parsed table. */
+export function toIdsFile(file: ParsedTable) {
+  return { bosses: file.bosses.map((boss) => ({ name: boss.name, trash: boss.isTrash, items: boss.itemIds })) };
+}
+
 function request(fetcher: Fetcher, url: string, body: unknown) {
   return fetcher(url, {
     method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -86,7 +95,7 @@ export async function previewLoadTable(options: {
     if (stopped()) return { kind: 'stopped' };
     let response: Response;
     try {
-      response = await request(fetcher, `/api/loot/tables/${templateId}/preview`, { file: loadFile.file, source, skip });
+      response = await request(fetcher, `/api/loot/tables/${templateId}/preview`, { file: toIdsFile(loadFile.file), source, skip });
     } catch {
       return { kind: 'error', error: UNREACHABLE };
     }
@@ -104,8 +113,15 @@ export async function previewLoadTable(options: {
     if (stopped()) return { kind: 'stopped' };
     if (json.remaining > 0) continue;
     if (!isPreview(json.preview)) return { kind: 'error', error: UNREACHABLE };
-    return { kind: 'preview', preview: json.preview, failed: [...failed.values()], nothingToChange: json.preview.added === 0 && json.preview.newBosses === 0 };
+    const items = Array.isArray(json.items) ? json.items.filter(isPreviewItem) : [];
+    return { kind: 'preview', preview: json.preview, items, failed: [...failed.values()], nothingToChange: json.preview.added === 0 && json.preview.newBosses === 0 };
   }
+}
+
+function isPreviewItem(value: unknown): value is PreviewItem {
+  const item = value as PreviewItem;
+  return !!item && typeof item === 'object' && Number.isSafeInteger(item.id) && typeof item.name === 'string' &&
+    typeof item.quality === 'number' && typeof item.icon === 'string';
 }
 
 function isPreview(value: unknown): value is Preview {
@@ -120,7 +136,7 @@ export async function applyLoadTable(options: {
   const { templateId, loadFile, token, source = 'FOREVER', fetcher = fetch } = options;
   let response: Response;
   try {
-    response = await request(fetcher, `/api/loot/tables/${templateId}/apply`, { file: loadFile.file, source, token, sourceName: loadFile.name });
+    response = await request(fetcher, `/api/loot/tables/${templateId}/apply`, { file: toIdsFile(loadFile.file), source, token, sourceName: loadFile.name });
   } catch {
     return { kind: 'save-failed' };
   }

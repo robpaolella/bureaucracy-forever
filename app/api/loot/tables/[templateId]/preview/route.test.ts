@@ -86,4 +86,15 @@ describe('loot table preview route', () => {
     expect(mocks.refresh.mock.calls[1][1]).toEqual([{ id: 3, source: 'FOREVER' }]);
     expect(last).toMatchObject({ remaining: 0, skip: [2], preview: { bosses: [{ add: [1, 3], notFound: [2] }] } });
   });
+  it('returns cached name, quality and icon for the items to add only on the final batch', async () => {
+    mocks.refresh.mockResolvedValueOnce({ saved: [1], failed: [], notReached: [2] });
+    expect(await (await call({ file: file([1, 2]) })).json()).not.toHaveProperty('items');
+    const row = (id: number) => ({ id, name: `Item ${id}`, quality: 4, icon: 'inv_sword' });
+    mocks.cached.mockReset()
+      .mockResolvedValueOnce([{ id: 1, source: 'FOREVER' }])
+      .mockResolvedValueOnce([row(1), row(2)]);
+    const last = await (await call({ file: file([1, 2]) })).json();
+    expect(mocks.cached).toHaveBeenLastCalledWith({ where: { id: { in: [1, 2] } }, select: { id: true, name: true, quality: true, icon: true } });
+    expect(last.items).toEqual([row(1), row(2)]);
+  });
 });

@@ -15,6 +15,7 @@ export const maxDuration = 60;
  * Repeat with the same file/source and returned skip until remaining is zero. Cached items
  * resume successful fetches; skip carries failures (all remain visible in notFound).
  * No table writes. The token fingerprints the table, not the file; apply must validate both.
+ * The final batch also returns `items`: name, quality and icon of each item to add, read from the cache.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ templateId: string }> }) {
   const auth = await requireLootOfficer();
@@ -45,5 +46,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ tem
   result.saved.forEach((id) => available.add(id));
   result.failed.forEach(({ id }) => skip.add(id));
   const remaining = pending.length - result.saved.length - result.failed.length;
-  return NextResponse.json({ remaining, skip: [...skip], failed: result.failed, preview: remaining ? null : mergePreview(state, file, available) }, { headers: NO_STORE });
+  if (remaining) return NextResponse.json({ remaining, skip: [...skip], failed: result.failed, preview: null }, { headers: NO_STORE });
+  const preview = mergePreview(state, file, available);
+  const items = await db.lootItem.findMany({
+    where: { id: { in: preview.bosses.flatMap((boss) => boss.add) } }, select: { id: true, name: true, quality: true, icon: true },
+  });
+  return NextResponse.json({ remaining, skip: [...skip], failed: result.failed, preview, items }, { headers: NO_STORE });
 }

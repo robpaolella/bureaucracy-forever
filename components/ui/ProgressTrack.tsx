@@ -7,6 +7,8 @@ type Props = {
   /** The meter's accessible name, e.g. "Healers". Required: the bar has no text of its own. */
   label: string;
   className?: string;
+  /** Fetching uses teal and the native progressbar role; requirement meters keep their status tones. */
+  variant?: 'requirement' | 'fetch';
 };
 
 /**
@@ -14,12 +16,12 @@ type Props = {
  * met, `warn` when short and `stop` at zero, and the numbers always sit beside it, so the
  * colour is never the only signal.
  */
-export function ProgressTrack({ value, max, label, className }: Props) {
+export function ProgressTrack({ value, max, label, className, variant = 'requirement' }: Props) {
   const ratio = max <= 0 ? 1 : Math.min(1, value / max);
-  const tone = value <= 0 ? 'bg-stop' : value >= max ? 'bg-ok' : 'bg-warn';
+  const tone = variant === 'fetch' ? 'bg-teal' : value <= 0 ? 'bg-stop' : value >= max ? 'bg-ok' : 'bg-warn';
   return (
     <div
-      role="meter"
+      role={variant === 'fetch' ? 'progressbar' : 'meter'}
       aria-label={label}
       aria-valuemin={0}
       aria-valuemax={max}
