@@ -5,9 +5,9 @@ import type { Prisma } from '@/lib/generated/prisma/client';
 import { RESERVE_LOCK_MINUTES, type WinLimits } from '@/lib/loot-rules';
 
 /**
- * Shared lock for reserve saves and block changes. Acquire before reading settings/holders,
- * and hold through all writes. READ COMMITTED ensures a waiter sees the previous owner's
- * committed setting. A save ordered before a block becomes a holder the officer hasn't seen,
+ * Shared tier lock for loot-table edits, loads, reserve saves and setting changes.
+ * Acquire before reading merge-sensitive state/settings/holders, and hold through all writes.
+ * READ COMMITTED ensures a waiter sees the previous owner's committed state. A save ordered before a block becomes a holder the officer hasn't seen,
  * which refuses the block; a block only removes the holders the officer confirmed.
  */
 export async function lockReserveTier(tx: Prisma.TransactionClient, templateId: string): Promise<void> {

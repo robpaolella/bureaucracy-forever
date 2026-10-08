@@ -13,19 +13,22 @@ const mocks = vi.hoisted(() => ({
   lastEntry: vi.fn(),
   createEntry: vi.fn(),
   refresh: vi.fn(),
+  lock: vi.fn(),
 }));
 
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.session }));
 vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.loot }));
 vi.mock('@/lib/loot-items', () => ({ refreshItems: mocks.refresh }));
-vi.mock('@/lib/db', () => ({
-  db: {
+vi.mock('@/lib/db', () => {
+  const tx = {
     raidTemplate: { findUnique: mocks.template },
     lootBoss: { findFirst: mocks.lastBoss, create: mocks.createBoss, findUnique: mocks.boss },
     lootItem: { findUnique: mocks.item },
     lootTableEntry: { findFirst: mocks.lastEntry, create: mocks.createEntry },
-  },
-}));
+    $queryRaw: mocks.lock,
+  };
+  return { db: { ...tx, $transaction: (fn: (client: typeof tx) => Promise<unknown>) => fn(tx) } };
+});
 
 import { POST as addBoss } from './tables/[templateId]/bosses/route';
 import { POST as addItem } from './bosses/[bossId]/items/route';
@@ -40,9 +43,9 @@ beforeEach(() => {
   vi.stubEnv('VERCEL_ENV', 'development');
   mocks.session = { role: 'officer' };
   mocks.loot = true;
-  for (const m of [mocks.template, mocks.lastBoss, mocks.createBoss, mocks.boss, mocks.item, mocks.lastEntry, mocks.createEntry, mocks.refresh]) m.mockReset();
+  for (const m of [mocks.template, mocks.lastBoss, mocks.createBoss, mocks.boss, mocks.item, mocks.lastEntry, mocks.createEntry, mocks.refresh, mocks.lock]) m.mockReset();
   mocks.template.mockResolvedValue({ id: 't1' });
-  mocks.boss.mockResolvedValue({ id: 'b1' });
+  mocks.boss.mockResolvedValue({ id: 'b1', templateId: 't1' });
 });
 
 describe('POST /api/loot/tables/[templateId]/bosses', () => {
@@ -51,6 +54,8 @@ describe('POST /api/loot/tables/[templateId]/bosses', () => {
     mocks.createBoss.mockResolvedValue({ id: 'b9', name: 'Ragnaros' });
     const res = await bossCall({ name: ' Ragnaros ' });
     expect(res.status).toBe(201);
+    expect(mocks.lock.mock.calls[0][1]).toBe('t1');
+    expect(mocks.lock.mock.invocationCallOrder[0]).toBeLessThan(mocks.lastBoss.mock.invocationCallOrder[0]);
     expect(mocks.createBoss).toHaveBeenCalledWith({ data: { templateId: 't1', name: 'Ragnaros', isTrash: false, position: 5 }, select: { id: true, name: true } });
   });
 
@@ -89,6 +94,9 @@ describe('POST /api/loot/bosses/[bossId]/items', () => {
     expect(res.status).toBe(201);
     expect(mocks.refresh).toHaveBeenCalledWith(expect.anything(), [{ id: 17076, source: 'CLASSIC' }], { gapMs: 0 });
     expect(mocks.createEntry).toHaveBeenCalledWith({ data: { bossId: 'b1', itemId: 17076, position: 3 } });
+    expect(mocks.lock.mock.calls[0][1]).toBe('t1');
+    expect(mocks.refresh.mock.invocationCallOrder[0]).toBeLessThan(mocks.lock.mock.invocationCallOrder[0]);
+    expect(mocks.lock.mock.invocationCallOrder[0]).toBeLessThan(mocks.lastEntry.mock.invocationCallOrder[0]);
   });
 
   it('reuses a cached item only from the requested game', async () => {
