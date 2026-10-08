@@ -47,9 +47,10 @@ describe('roster alt disclosure', () => {
     await render([{ ...main, alts }, { ...main, id: 'other', name: 'Subclause' }]);
 
     expect(host.querySelectorAll('tbody > tr')).toHaveLength(2);
-    expect(host.querySelectorAll('button[aria-label="Alts (2)"]')).toHaveLength(0);
-    const buttons = [...host.querySelectorAll('button')].filter((button) => button.textContent === 'Alts (2)');
+    expect(host.querySelectorAll('button[aria-label="Alts 2"]')).toHaveLength(0);
+    const buttons = [...host.querySelectorAll('button')].filter((button) => button.textContent === 'Alts 2');
     expect(buttons).toHaveLength(2);
+    expect(buttons.every((button) => button.getAttribute('aria-label') === 'Show 2 alts for Ledgerline')).toBe(true);
     expect(buttons.every((button) => button.getAttribute('aria-expanded') === 'false')).toBe(true);
     expect(host.querySelectorAll('[aria-label="Alts for Ledgerline"]')).toHaveLength(0);
     expect(host.textContent).toContain('2 of 2 shown');
@@ -57,7 +58,7 @@ describe('roster alt disclosure', () => {
     await act(async () => buttons[0].click());
     expect(host.querySelectorAll('[aria-label="Alts for Ledgerline"]')).toHaveLength(2);
     expect(host.querySelectorAll('tbody > tr')).toHaveLength(3);
-    expect([...host.querySelectorAll('button')].filter((button) => button.textContent === 'Alts (2)').every((button) => button.getAttribute('aria-expanded') === 'true')).toBe(true);
+    expect([...host.querySelectorAll('button')].filter((button) => button.textContent === 'Alts 2').every((button) => button.getAttribute('aria-expanded') === 'true')).toBe(true);
     expect(host.textContent).toContain('Inkwell · Mage · Frost · Ranged DPS');
     expect(host.textContent).toContain('Sealwax · Priest · Holy · Healer');
     expect(host.innerHTML).toContain(`color: ${CLASS_COLORS.mage.onInk}`);
@@ -71,7 +72,7 @@ describe('roster alt disclosure', () => {
     await search('ledgerline');
     expect(host.querySelectorAll('[aria-label="Alts for Ledgerline"]')).toHaveLength(0);
 
-    const desktopButton = [...host.querySelectorAll('button')].find((button) => button.textContent === 'Alts (2)')!;
+    const desktopButton = [...host.querySelectorAll('button')].find((button) => button.textContent === 'Alts 2')!;
     await act(async () => desktopButton.click());
     await search('');
     expect(host.querySelectorAll('[aria-label="Alts for Ledgerline"]')).toHaveLength(2);
@@ -81,7 +82,7 @@ describe('roster alt disclosure', () => {
     const bare = { ...main, id: 'bare', character: null, wowClass: null, spec: null, role: null, alts: [] };
     await render([main, bare]);
     expect(host.textContent).not.toContain('Alts for');
-    expect([...host.querySelectorAll('button')].some((button) => button.textContent?.startsWith('Alts ('))).toBe(false);
+    expect([...host.querySelectorAll('button')].some((button) => button.textContent?.startsWith('Alts '))).toBe(false);
     expect(host.textContent).toContain('No main yet');
   });
 });
