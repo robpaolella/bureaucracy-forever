@@ -5,10 +5,13 @@ import { useMemo, useState } from 'react';
 import { Button, ClassAvatar, CONTROL, Modal, RankBadge, Toast, type ToastData } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS, ROLE_LABELS } from '@/lib/design/class-colors';
+import { matchingAltNames } from '@/lib/roster';
 import { emptyCharacter, RANK_LABEL, RANKS, type CharacterInput } from '@/lib/roster-edit';
 import type { Rank } from '@/components/ui/Badges';
 import { SAVE_FAILED } from '@/content/calendar';
 import { EDITOR, EDITOR_TOASTS } from '@/content/roster-editor';
+import { ROSTER_ALTS } from '@/content/roster';
+import { AltsToggle } from './AltsToggle';
 import { CharacterForm } from './CharacterForm';
 
 export type EditorMember = {
@@ -54,6 +57,7 @@ export function RosterEditor({ members }: Props) {
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [ranking, setRanking] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
+  const [expandedByMember, setExpandedByMember] = useState<Record<string, boolean>>({});
 
   async function setRank(m: EditorMember, rank: Rank) {
     if (ranking || rank === m.rank) return;
@@ -74,8 +78,10 @@ export function RosterEditor({ members }: Props) {
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return members;
-    return members.filter((m) => m.discordName.toLowerCase().includes(q) || m.main?.name.toLowerCase().includes(q) || m.alts.some((alt) => alt.name.toLowerCase().includes(q)));
+    return members.filter((m) => m.discordName.toLowerCase().includes(q) || m.main?.name.toLowerCase().includes(q) || matchingAltNames(m.alts, q).length > 0);
   }, [members, search]);
+  const isExpanded = (member: EditorMember) => expandedByMember[member.userId] ?? matchingAltNames(member.alts, search).length > 0;
+  const toggleAlts = (member: EditorMember) => setExpandedByMember((current) => ({ ...current, [member.userId]: !isExpanded(member) }));
 
   async function save(input: CharacterInput): Promise<string | null> {
     if (!editing) return null;
@@ -139,6 +145,16 @@ export function RosterEditor({ members }: Props) {
                       {m.discordName}
                     </span>
                     <RankBadge rank={m.rank} />
+                    {m.alts.length > 0 && (
+                      <AltsToggle
+                        count={m.alts.length}
+                        memberName={m.discordName}
+                        expanded={isExpanded(m)}
+                        controlsId={`officer-alts-${m.userId}`}
+                        onToggle={() => toggleAlts(m)}
+                        label={ROSTER_ALTS}
+                      />
+                    )}
                   </div>
                   <span className="text-[13px] text-fg-3 sm:truncate">
                     {m.main ? `${m.main.name} · ${CLASS_COLORS[m.main.wowClass].label} · ${m.main.spec} · ${ROLE_LABELS[m.main.role]}` : EDITOR.noMain}
@@ -171,8 +187,8 @@ export function RosterEditor({ members }: Props) {
                   </Button>
                 )}
               </div>
-              {m.alts.length > 0 && (
-                <ul className="border-t border-line-faint bg-ink-850/40">
+              {m.alts.length > 0 && isExpanded(m) && (
+                <ul id={`officer-alts-${m.userId}`} aria-label={`Alts for ${m.discordName}`} className="border-t border-line-faint bg-ink-850/40">
                   {m.alts.map((alt) => (
                     <li key={alt.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line-faint px-4 py-3 first:border-t-0 sm:pl-[60px]">
                       <span className="min-w-0 flex-1 text-[13px] text-fg-3 sm:truncate">{alt.name} · {CLASS_COLORS[alt.wowClass].label} · {alt.spec} · {ROLE_LABELS[alt.role]}</span>
