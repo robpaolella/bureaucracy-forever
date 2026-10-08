@@ -136,6 +136,13 @@ describe('LoadTableWindow preview', () => {
     expect(host.textContent).toContain('Trash: #6');
   });
 
+  it('moves focus into each new step so it never drops to the page', async () => {
+    await toPreview();
+    expect(document.activeElement?.textContent).toContain('Adds 4 items');
+    await click('Back');
+    expect(document.activeElement?.textContent).toBe('Choose file');
+  });
+
   it('says nothing to change with no confirm', async () => {
     await toPreview(ready([], 0));
     expect(host.textContent).toContain('Nothing to changeThe table already matches this file.');

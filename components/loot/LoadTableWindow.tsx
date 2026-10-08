@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useId, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Button, FIELD_LABEL, Modal, ProgressTrack, Tag, Toast, useToast, type ToastData } from '@/components/ui';
 import { LOOT_LOAD } from '@/content/loot-admin';
 import { cn } from '@/lib/cn';
@@ -46,6 +46,9 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
   // Each run gets a number; closing, Stop or a newer run makes an older answer stale.
   const run = useRef(0);
   const stopRequested = useRef(false);
+  const body = useRef<HTMLDivElement>(null);
+  // The step last shown, so a change of step (not opening the window) moves focus into the new step.
+  const shownStep = useRef<string | null>(null);
 
   function close() {
     run.current++;
@@ -137,9 +140,21 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
   }
 
   const nothing = phase === 'preview' && ready?.nothingToChange;
+  const step = `${phase}${nothing ? '-nothing' : ''}${stopped ? '-stopped' : ''}`;
+  useEffect(() => {
+    if (!open) {
+      shownStep.current = null;
+      return;
+    }
+    // The button that had focus may have left with the old step; the dialog would drop focus to the page.
+    if (shownStep.current !== null && shownStep.current !== step) {
+      body.current?.closest('dialog')?.querySelector<HTMLElement>('[data-step-focus]')?.focus();
+    }
+    shownStep.current = step;
+  }, [open, step]);
   const actions = phase === 'fetching' ? (
     <Foot note={LOOT_LOAD.reading(loadFile?.name ?? '')}>
-      <Button variant="secondary" onClick={stop}>{LOOT_LOAD.stop}</Button>
+      <Button variant="secondary" data-step-focus onClick={stop}>{LOOT_LOAD.stop}</Button>
     </Foot>
   ) : nothing ? (
     <Foot><Button onClick={close}>{LOOT_LOAD.close}</Button></Foot>
@@ -169,10 +184,11 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
       eyebrow={<span className="font-eyebrow text-[11px] font-semibold uppercase tracking-[0.28em] text-sand">{templateName}</span>}
       actions={actions}
     >
+      <div ref={body}>
       {phase === 'fetching' ? (
         <Fetching {...progress} />
       ) : nothing ? (
-        <div role="status" className="flex flex-col gap-1.5 rounded-card border border-dashed border-line-strong p-5 text-center">
+        <div role="status" tabIndex={-1} data-step-focus className="flex flex-col gap-1.5 rounded-card border border-dashed border-line-strong p-5 text-center outline-none">
           <strong className="font-display text-xl font-medium text-fg">{LOOT_LOAD.nothingTitle}</strong>
           <span>{LOOT_LOAD.nothingBody}</span>
         </div>
@@ -181,6 +197,7 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
       ) : (
         <SourceStep fileName={fileName} error={error} stopped={stopped} onChoose={chooseFile} />
       )}
+      </div>
       <Toast toast={toast} onDismiss={dismiss} />
     </Modal>
   );
@@ -209,12 +226,14 @@ function SourceStep({ fileName, error, stopped, onChoose }: { fileName: string |
       )}
       <div>
         <span id={`${id}-label`} className={cn(FIELD_LABEL, 'mb-2 block')}>{LOOT_LOAD.fileLabel}</span>
-        <div className={cn('flex min-h-[46px] items-center gap-3 rounded-control border px-1.5 text-[15px] text-fg', error ? 'border-stop bg-stop-wash' : 'border-line-strong bg-ink-700')}>
+        {/* The whole field is the button's target: the drawn button alone is under 44px. */}
+        <div className={cn('relative flex min-h-[46px] items-center gap-3 rounded-control border px-1.5 text-[15px] text-fg', error ? 'border-stop bg-stop-wash' : 'border-line-strong bg-ink-700')}>
           <button
             type="button"
+            data-step-focus
             onClick={() => input.current?.click()}
             aria-describedby={`${id}-label ${id}-name ${id}-note`}
-            className="min-h-[34px] shrink-0 rounded-control border border-line-strong bg-ink-800 px-3 text-[13px] font-semibold text-fg"
+            className="min-h-[34px] shrink-0 rounded-control border border-line-strong bg-ink-800 px-3 text-[13px] font-semibold text-fg after:absolute after:inset-0"
           >
             {LOOT_LOAD.chooseFile}
           </button>
@@ -232,7 +251,12 @@ function SourceStep({ fileName, error, stopped, onChoose }: { fileName: string |
             if (file) onChoose(file);
           }}
         />
-        <span id={`${id}-note`} role={error ? 'alert' : undefined} className={cn('mt-2 block text-xs', error ? 'text-stop' : 'text-fg-3')}>{error ?? LOOT_LOAD.fileHint}</span>
+        {/* A fresh element for the error, so screen readers announce it. */}
+        {error ? (
+          <span key="error" id={`${id}-note`} role="alert" className="mt-2 block text-xs text-stop">{error}</span>
+        ) : (
+          <span key="hint" id={`${id}-note`} className="mt-2 block text-xs text-fg-3">{LOOT_LOAD.fileHint}</span>
+        )}
       </div>
     </div>
   );
@@ -261,12 +285,12 @@ function PreviewView({ ready, loadFile, stale, retrying, onRetry }: { ready: Rea
   return (
     <div className="flex flex-col gap-4">
       {stale && (
-        <div role="alert" className="flex flex-col gap-1.5 rounded-card border border-warn-line bg-warn-wash px-3.5 py-3 text-fg">
+        <div role="alert" tabIndex={-1} data-step-focus className="flex flex-col gap-1.5 rounded-card border border-warn-line bg-warn-wash px-3.5 py-3 text-fg outline-none">
           <strong className="font-semibold text-warn">{LOAD_TABLE_MESSAGES.STALE}</strong>
           <span>{LOAD_TABLE_MESSAGES.STALE_HINT}</span>
         </div>
       )}
-      <p className="text-[15px] text-fg">
+      <p tabIndex={-1} data-step-focus={stale ? undefined : true} className="text-[15px] text-fg outline-none">
         {LOOT_LOAD.summaryAdds} <b className="font-semibold">{LOOT_LOAD.summaryItems(preview.added)}</b>
         {LOOT_LOAD.summaryRest(preview.newBosses, bosses.filter((boss) => !boss.isNew).length)}
       </p>
