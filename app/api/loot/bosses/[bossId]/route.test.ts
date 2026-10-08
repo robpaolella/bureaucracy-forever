@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@/lib/generated/prisma/client';
 
-const mocks = vi.hoisted(() => ({ boss: vi.fn(), update: vi.fn(), findMany: vi.fn(), del: vi.fn() }));
+const mocks = vi.hoisted(() => ({ boss: vi.fn(), update: vi.fn(), findMany: vi.fn(), del: vi.fn(), lock: vi.fn() }));
 
 vi.mock('@/lib/session', () => ({ getSession: async () => ({ role: 'officer' }) }));
 vi.mock('@/lib/flags', () => ({ lootEnabled: () => true }));
 vi.mock('@/lib/db', () => {
   const lootBoss = { findUnique: mocks.boss, update: mocks.update, findMany: mocks.findMany, delete: mocks.del };
-  return { db: { lootBoss, $transaction: (fn: (tx: { lootBoss: typeof lootBoss }) => Promise<unknown>) => fn({ lootBoss }) } };
+  const tx = { lootBoss, $queryRaw: mocks.lock };
+  return { db: { ...tx, $transaction: (fn: (client: typeof tx) => Promise<unknown>) => fn(tx) } };
 });
 
 import { DELETE, PATCH } from './route';
@@ -25,6 +26,8 @@ beforeEach(() => {
 describe('PATCH /api/loot/bosses/[bossId]', () => {
   it('moves a boss up and renumbers the tier', async () => {
     expect((await patch({ move: 'up' })).status).toBe(200);
+    expect(mocks.lock.mock.calls[0][1]).toBe('t1');
+    expect(mocks.lock.mock.invocationCallOrder[0]).toBeLessThan(mocks.findMany.mock.invocationCallOrder[0]);
     expect(mocks.update.mock.calls.map((c) => [c[0].where.id, c[0].data.position])).toEqual([
       ['b2', 0],
       ['b1', 1],
@@ -35,6 +38,7 @@ describe('PATCH /api/loot/bosses/[bossId]', () => {
   it('renames, and answers 409 for a taken name and 404 for a gone boss', async () => {
     expect((await patch({ name: 'Ragnaros', isTrash: false })).status).toBe(200);
     expect(mocks.update).toHaveBeenCalledWith({ where: { id: 'b2' }, data: { name: 'Ragnaros', isTrash: false } });
+    expect(mocks.lock.mock.invocationCallOrder[0]).toBeLessThan(mocks.update.mock.invocationCallOrder[0]);
     mocks.update.mockRejectedValueOnce(prismaError('P2002'));
     expect((await patch({ name: 'Garr' })).status).toBe(409);
     mocks.update.mockRejectedValueOnce(prismaError('P2025'));
@@ -48,6 +52,8 @@ describe('PATCH /api/loot/bosses/[bossId]', () => {
 describe('DELETE /api/loot/bosses/[bossId]', () => {
   it('deletes, and 404s when already gone', async () => {
     expect((await DELETE(new Request('https://example.test'), ctx)).status).toBe(200);
+    expect(mocks.lock.mock.calls[0][1]).toBe('t1');
+    expect(mocks.lock.mock.invocationCallOrder[0]).toBeLessThan(mocks.del.mock.invocationCallOrder[0]);
     mocks.del.mockRejectedValueOnce(prismaError('P2025'));
     expect((await DELETE(new Request('https://example.test'), ctx)).status).toBe(404);
   });

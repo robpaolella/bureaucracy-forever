@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { lockReserveTier } from '@/lib/loot-blocks';
 import { moveId, parseBossInput } from '@/lib/loot-table-rules';
 import { isMissing, isUniqueViolation, requireLootOfficer } from '../../../_loot';
 import { jsonBody, NO_STORE } from '../../../_officer';
@@ -19,6 +20,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
   try {
     await db.$transaction(async (tx) => {
+      await lockReserveTier(tx, boss.templateId);
       if (name !== undefined || isTrash !== undefined) await tx.lootBoss.update({ where: { id: bossId }, data: { name, isTrash } });
       if (move) {
         const order = (await tx.lootBoss.findMany({ where: { templateId: boss.templateId }, orderBy: [{ position: 'asc' }, { id: 'asc' }], select: { id: true } })).map((b) => b.id);
@@ -26,7 +28,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
         // Renumber the whole tier: positions stay dense however they drifted.
         for (const [position, id] of next.entries()) await tx.lootBoss.update({ where: { id }, data: { position } });
       }
-    });
+    }, { isolationLevel: 'ReadCommitted' });
   } catch (e) {
     if (isUniqueViolation(e)) return NextResponse.json({ error: 'This raid already has a boss with that name.' }, { status: 409, headers: NO_STORE });
     if (isMissing(e)) return NextResponse.json({ error: 'No such boss.' }, { status: 404, headers: NO_STORE });
@@ -43,8 +45,13 @@ export async function DELETE(_request: Request, { params }: Ctx) {
   const auth = await requireLootOfficer();
   if ('deny' in auth) return auth.deny;
   const { bossId } = await params;
+  const boss = await db.lootBoss.findUnique({ where: { id: bossId }, select: { templateId: true } });
+  if (!boss) return NextResponse.json({ error: 'No such boss.' }, { status: 404, headers: NO_STORE });
   try {
-    await db.lootBoss.delete({ where: { id: bossId } });
+    await db.$transaction(async (tx) => {
+      await lockReserveTier(tx, boss.templateId);
+      await tx.lootBoss.delete({ where: { id: bossId } });
+    }, { isolationLevel: 'ReadCommitted' });
   } catch (e) {
     if (isMissing(e)) return NextResponse.json({ error: 'No such boss.' }, { status: 404, headers: NO_STORE });
     throw e;
