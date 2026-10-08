@@ -38,12 +38,20 @@ describe('loot table preview route', () => {
     expect(await res.json()).toEqual({ error: 'This file isn\'t a loot list: "Ragnaros" needs "items": a list of item ids.' });
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
+  it.each([
+    [{}, 'it needs a non-empty "bosses" list.'],
+    [{ bosses: [{ items: [1] }] }, 'boss 1 needs a name.'],
+  ])('gives a readable reason for %j', async (file, reason) => {
+    expect(await (await call({ file })).json()).toEqual({ error: `This file isn't a loot list: ${reason}` });
+  });
   it('rejects Classic in production and conflicting cached sources', async () => {
     vi.stubEnv('VERCEL_ENV', 'production');
     expect((await call({ file: file([1]), source: 'CLASSIC' })).status).toBe(400);
     expect(mocks.template).not.toHaveBeenCalled();
     mocks.cached.mockResolvedValue([{ id: 1, source: 'CLASSIC' }]);
-    expect((await call({ file: file([1]) })).status).toBe(400);
+    const conflict = await call({ file: file([1, 2]) });
+    expect(conflict.status).toBe(409);
+    expect(await conflict.json()).toMatchObject({ error: expect.stringContaining('Item ids 1:'), conflicts: [1] });
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
   it('allows Classic outside production and refuses an unknown source', async () => {

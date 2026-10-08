@@ -35,9 +35,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ tem
   if (!state) return NextResponse.json({ error: 'No such raid tier.' }, { status: 404, headers: NO_STORE });
   const ids = allItemIds(file);
   const cached = await db.lootItem.findMany({ where: { id: { in: ids } }, select: { id: true, source: true } });
-  if (cached.some((item) => item.source !== source)) return NextResponse.json({ error: SOURCE_CONFLICT }, { status: 400, headers: NO_STORE });
+  const conflicts = cached.filter((item) => item.source !== source).map((item) => item.id);
+  if (conflicts.length) return NextResponse.json({ error: `Item ids ${conflicts.join(', ')}: ${SOURCE_CONFLICT}`, conflicts }, { status: 409, headers: NO_STORE });
   const available = new Set(cached.map((item) => item.id));
-  const skip = new Set<number>(Array.isArray(body.skip) ? body.skip.filter((id): id is number => Number.isSafeInteger(id) && ids.includes(id)) : []);
+  const requested = new Set(ids);
+  const skip = new Set<number>(Array.isArray(body.skip) ? body.skip.filter((id): id is number => Number.isSafeInteger(id) && requested.has(id)) : []);
   const pending = ids.filter((id) => !available.has(id) && !skip.has(id));
   const result = await refreshItems(db, pending.slice(0, REFRESH_BATCH).map((id) => ({ id, source })), { deadline: started + 40_000 });
   result.saved.forEach((id) => available.add(id));

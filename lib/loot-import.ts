@@ -138,13 +138,13 @@ export function parseAtlasLoot(lua: string, key: string): ParsedTable {
  */
 export function parseIdsFile(json: unknown): ParsedTable {
   const bosses = (json && typeof json === 'object' ? (json as { bosses?: unknown }).bosses : undefined);
-  if (!Array.isArray(bosses) || bosses.length === 0) throw new Error('The ids file needs a non-empty "bosses" list.');
+  if (!Array.isArray(bosses) || bosses.length === 0) throw new Error('it needs a non-empty "bosses" list.');
   const seen = new Set<string>();
   return {
     skipped: [],
     bosses: bosses.map((b, i) => {
       const { name, trash, items } = (b ?? {}) as { name?: unknown; trash?: unknown; items?: unknown };
-      if (typeof name !== 'string' || !name.trim()) throw new Error(`Boss ${i + 1} has no name.`);
+      if (typeof name !== 'string' || !name.trim()) throw new Error(`boss ${i + 1} needs a name.`);
       if (seen.has(name.trim())) throw new Error(`"${name.trim()}" is listed twice.`);
       seen.add(name.trim());
       if (!Array.isArray(items) || !items.every((id) => Number.isSafeInteger(id) && id > 0)) throw new Error(`"${name}" needs "items": a list of item ids.`);
