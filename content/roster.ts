@@ -13,4 +13,6 @@ export const ROSTER_EMPTY = {
 
 export const ROSTER_NO_MATCH = 'Nobody matches those filters.';
 
+export const ROSTER_ALTS = (count: number) => `Alts (${count})`;
+
 export const ROSTER_NO_MAIN = 'No main yet';

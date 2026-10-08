@@ -11,6 +11,7 @@ import {
   formatAttendance,
   groupRoster,
   RANK_ORDER,
+  matchingAltNames,
   sortRoster,
   type GroupBy,
   type RosterFilters,
@@ -19,7 +20,8 @@ import {
   type SortDir,
 } from '@/lib/roster';
 import { relativeDate } from '@/lib/time';
-import { ROSTER_EMPTY, ROSTER_NO_MAIN, ROSTER_NO_MATCH } from '@/content/roster';
+import { ROSTER_ALTS, ROSTER_EMPTY, ROSTER_NO_MAIN, ROSTER_NO_MATCH } from '@/content/roster';
+import { AltsToggle } from './AltsToggle';
 import { MemberCharacterDialog, type MemberCharacter } from './MemberCharacterDialog';
 import { setDensity, useDensity } from './useDensity';
 
@@ -29,10 +31,10 @@ type Props = {
   viewer?: { id: string; rank: RosterRow['rank']; characters: MemberCharacter[] };
 };
 
-function altLines(row: RosterRow) {
+function altLines(row: RosterRow, id: string) {
   if (!row.character || row.alts.length === 0) return null;
   return (
-    <ul aria-label={`Alts for ${row.name}`} className="bg-ink-850/40">
+    <ul id={id} aria-label={`Alts for ${row.name}`} className="bg-ink-850/40">
       {row.alts.map((alt) => (
         <li key={alt.id} className="break-words border-t border-line-faint py-3 pl-14 pr-4 text-[13px] text-fg-3 first:border-t-0 md:pl-[60px]">
           <span style={{ color: CLASS_COLORS[alt.wowClass].onInk }}>{alt.name}</span>
@@ -60,12 +62,18 @@ export function RosterTable({ rows, viewer }: Props) {
   const [groupBy, setGroupBy] = useState<GroupBy>('flat');
   const [sortKey, setSortKey] = useState<RosterSortKey>('rank');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [expandedByMember, setExpandedByMember] = useState<Record<string, boolean>>({});
   const density = useDensity();
   const now = useMemo(() => new Date(), []);
 
   const shown = useMemo(() => sortRoster(filterRoster(rows, filters), sortKey, sortDir), [rows, filters, sortKey, sortDir]);
   const groups = useMemo(() => groupRoster(shown, groupBy, (c) => CLASS_COLORS[c].label, (r) => ROLE_LABELS[r]), [shown, groupBy]);
   const active = countActiveFilters(filters);
+  const isExpanded = (row: RosterRow) => expandedByMember[row.id] ?? matchingAltNames(row.alts, filters.search).length > 0;
+  const toggleAlts = (row: RosterRow) => setExpandedByMember((current) => ({ ...current, [row.id]: !isExpanded(row) }));
+  const altsToggle = (row: RosterRow, controlsId: string) => row.alts.length > 0 && (
+    <AltsToggle count={row.alts.length} expanded={isExpanded(row)} controlsId={controlsId} onToggle={() => toggleAlts(row)} label={ROSTER_ALTS} />
+  );
 
   const onSort = (key: string) => {
     const k = key as RosterSortKey;
@@ -82,9 +90,12 @@ export function RosterTable({ rows, viewer }: Props) {
       header: 'Member',
       sortable: true,
       render: (r) => (
-        <span className="font-semibold" style={{ color: r.wowClass ? CLASS_COLORS[r.wowClass].onInk : undefined }}>
-          {r.name}
-        </span>
+        <div className="flex flex-wrap items-center gap-x-2">
+          <span className="font-semibold" style={{ color: r.wowClass ? CLASS_COLORS[r.wowClass].onInk : undefined }}>
+            {r.name}
+          </span>
+          {altsToggle(r, `member-alts-desktop-${r.id}`)}
+        </div>
       ),
     },
     { key: 'character', header: 'Main', render: (r) => <span className="text-fg-2">{r.character ?? '—'}</span> },
@@ -167,7 +178,7 @@ export function RosterTable({ rows, viewer }: Props) {
             rows={shown}
             groups={groups}
             rowKey={(r) => r.id}
-            renderSubRow={altLines}
+            renderSubRow={(row) => isExpanded(row) ? altLines(row, `member-alts-desktop-${row.id}`) : null}
             sortKey={sortKey}
             sortDir={sortDir}
             onSort={onSort}
@@ -188,18 +199,19 @@ export function RosterTable({ rows, viewer }: Props) {
                       <div className="flex items-center gap-3 px-4 py-3">
                       <ClassAvatar name={r.name} wowClass={r.wowClass} size={28} />
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex flex-wrap items-center gap-2.5">
                           <span className="truncate text-[15px] font-semibold" style={{ color: r.wowClass ? CLASS_COLORS[r.wowClass].onInk : undefined }}>
                             {r.name}
                           </span>
                           <RankBadge rank={r.rank} />
+                          {altsToggle(r, `member-alts-mobile-${r.id}`)}
                         </div>
                         <span className="truncate text-[13px] text-fg-3">{r.wowClass && r.role ? `${r.character} · ${CLASS_COLORS[r.wowClass].label} · ${r.spec} · ${ROLE_LABELS[r.role]}` : ROSTER_NO_MAIN}</span>
                         {r.id === viewer?.id && <div className="pt-2"><MemberCharacterDialog characters={viewer.characters} rank={viewer.rank} /></div>}
                       </div>
                       <span className="tabular shrink-0 text-sm text-fg-2">{formatAttendance(r.attendance)}</span>
                       </div>
-                      {r.character && r.alts.length > 0 && <div className="border-t border-line-faint">{altLines(r)}</div>}
+                      {isExpanded(r) && <div className="border-t border-line-faint">{altLines(r, `member-alts-mobile-${r.id}`)}</div>}
                     </li>
                   ))}
                 </ul>
