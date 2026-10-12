@@ -10,14 +10,20 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   findAward: vi.fn(),
   updateMany: vi.fn(),
+  entry: vi.fn(),
+  lock: vi.fn(),
+  tx: null as unknown,
 }));
+mocks.tx = { lootTableEntry: { findFirst: mocks.entry }, lootAward: { create: mocks.create } };
 
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.session }));
 vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.loot }));
 vi.mock('@/lib/users', () => ({ ensureUser: async () => ({ id: 'officer-user' }) }));
+vi.mock('@/lib/loot-blocks', () => ({ lockReserveTier: mocks.lock }));
 vi.mock('@/lib/loot-data', () => ({ tableItemIds: mocks.items }));
 vi.mock('@/lib/db', () => ({
   db: {
+    $transaction: async (fn: (tx: unknown) => unknown) => fn(mocks.tx),
     raid: { findUnique: mocks.raid },
     lootBoss: { findFirst: mocks.boss },
     character: { findUnique: mocks.character },
@@ -36,7 +42,8 @@ const WIN = { bossId: 'b1', itemId: 100, characterId: 'c1', method: 'HR', roll: 
 beforeEach(() => {
   mocks.session = { role: 'officer', discordId: 'd9' };
   mocks.loot = true;
-  for (const m of [mocks.raid, mocks.items, mocks.boss, mocks.character, mocks.create, mocks.findAward, mocks.updateMany]) m.mockReset();
+  for (const m of [mocks.raid, mocks.items, mocks.boss, mocks.character, mocks.create, mocks.findAward, mocks.updateMany, mocks.entry, mocks.lock]) m.mockReset();
+  mocks.entry.mockResolvedValue({ itemId: 100 });
   mocks.raid.mockResolvedValue({ cancelledAt: null, templateId: 't1' });
   mocks.items.mockResolvedValue(new Set([100]));
   mocks.boss.mockResolvedValue({ name: 'Ragnaros' });
@@ -51,6 +58,20 @@ describe('POST /api/raids/[id]/loot', () => {
     const res = await record(WIN);
     expect(res.status).toBe(201);
     expect(mocks.create.mock.calls[0][0].data).toEqual({ raidId: 'r1', bossId: 'b1', bossName: 'Ragnaros', itemId: 100, characterId: 'c1', characterName: 'Addendum', userId: 'u2', method: 'HR', roll: 87, note: null, recordedById: 'officer-user' });
+  });
+
+  it('refuses, under the tier lock, an item removed after the first check', async () => {
+    mocks.entry.mockResolvedValue(null);
+    const res = await record(WIN);
+    expect(res.status).toBe(409);
+    expect(mocks.lock).toHaveBeenCalledWith(mocks.tx, 't1');
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it('takes no lock for a raid with no loot table', async () => {
+    mocks.raid.mockResolvedValue({ cancelledAt: null, templateId: null });
+    expect((await record(WIN)).status).toBe(409);
+    expect(mocks.lock).not.toHaveBeenCalled();
   });
 
   it('records disenchant/bank with no character', async () => {
