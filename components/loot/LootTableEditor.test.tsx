@@ -22,7 +22,7 @@ beforeEach(async () => {
   vi.stubGlobal('fetch', fetchMock);
   host = document.createElement('div'); document.body.append(host); root = createRoot(host);
   await act(async () => root.render(
-    <LootTableEditor templateId="mc" templateName="Molten Core" bosses={bosses} defaultSource="FOREVER" blockedIds={[]} winLimits={{}} />,
+    <LootTableEditor templateId="mc" templateName="Molten Core" bosses={bosses} defaultSource="FOREVER" blockedIds={[]} winLimits={{}} loads={[]} />,
   ));
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals(); });
@@ -80,5 +80,21 @@ describe('removing an item', () => {
     await act(async () => button('Remove the item').click());
     expect(dialogs()).toHaveLength(1);
     expect([...host.querySelectorAll('[role="status"],[role="alert"]')].map((t) => t.textContent).join()).toContain('Nope');
+  });
+});
+
+describe('load history', () => {
+  const render = (loads: { sourceName: string; officerName: string; createdAt: string; mode: string; added: number; removed: number }[]) =>
+    act(async () => root.render(<LootTableEditor templateId="mc" templateName="Molten Core" bosses={bosses} defaultSource="FOREVER" blockedIds={[]} winLimits={{}} loads={loads} />));
+
+  it('shows no last-loaded line or history toggle on a never-loaded table', () => {
+    expect(host.textContent).not.toContain('Last loaded');
+    expect(host.textContent).not.toContain('Load history');
+  });
+
+  it('shows the last load under the toolbar once the table has been loaded', async () => {
+    await render([{ sourceName: 'mc.json', officerName: 'Redtape', createdAt: '2026-09-28T04:02:00.000Z', mode: 'merge', added: 8, removed: 0 }]);
+    expect(host.textContent).toContain('Last loaded from mc.json by Redtape');
+    expect(button('Load history')).toBeDefined();
   });
 });

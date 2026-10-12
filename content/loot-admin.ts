@@ -25,6 +25,17 @@ export const LOOT_TABLE = {
   itemId: (id: number) => `#${id}`,
 };
 
+export const LOOT_HISTORY_LOADS = {
+  lastLoaded: 'Last loaded from',
+  by: 'by',
+  show: 'Load history',
+  hide: 'Hide load history',
+  listLabel: 'Last 10 loads',
+  columns: ['Source', 'Officer', 'When', 'Mode', 'Changes'],
+  mode: (mode: string) => (mode === 'replace' ? 'Replace' : 'Merge'),
+  changes: (added: number, removed: number) => `+${added}${removed ? ` −${removed}` : ''}`,
+};
+
 export const LOOT_EDIT = {
   addBoss: 'Add boss',
   bossName: 'Boss name',

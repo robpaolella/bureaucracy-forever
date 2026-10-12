@@ -8,12 +8,13 @@ import { LOOT_EDIT, LOOT_LOAD, LOOT_RESERVES, LOOT_TABLE } from '@/content/loot-
 import { winLimitOf, type ItemSource, type WinLimits } from '@/lib/loot-rules';
 import type { ItemView } from '@/lib/loot-items';
 import { ItemName } from './ItemName';
+import { LoadHistory, type LoadView } from './LoadHistory';
 import { ItemReservesDialog, type ReservesTarget } from './ItemReservesDialog';
 import { LoadTableWindow } from './LoadTableWindow';
 
 export type EditorBoss = { id: string; name: string; isTrash: boolean; items: ItemView[] };
 /** blockedIds: items switched off for reserves across this tier (LootReserveSetting); winLimits: those above 1. */
-type Props = { templateId: string; templateName: string; bosses: EditorBoss[]; defaultSource: ItemSource; blockedIds: number[]; winLimits: WinLimits };
+type Props = { templateId: string; templateName: string; bosses: EditorBoss[]; defaultSource: ItemSource; blockedIds: number[]; winLimits: WinLimits; loads: LoadView[] };
 
 /** The one tag after an item's name when its setting isn't the default; a blocked item's limit doesn't apply, so it shows only the block. */
 export function itemTag(itemId: number, blocked: ReadonlySet<number>, limits: WinLimits): string | null {
@@ -41,7 +42,7 @@ export function LootTableEditor(props: Props) {
   );
 }
 
-function Editor({ templateId, templateName, bosses, defaultSource, blockedIds, winLimits }: Props) {
+function Editor({ templateId, templateName, bosses, defaultSource, blockedIds, winLimits, loads }: Props) {
   const router = useRouter();
   const toast = useToast();
   const [loadOpen, setLoadOpen] = useState(false);
@@ -75,7 +76,7 @@ function Editor({ templateId, templateName, bosses, defaultSource, blockedIds, w
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="flex flex-col gap-4 rounded-card border border-line bg-ink-900 p-4 md:flex-row md:items-end md:justify-between md:p-5">
+      <section className="flex flex-col gap-4 rounded-card border border-line bg-ink-900 p-4 md:flex-row md:flex-wrap md:items-end md:justify-between md:p-5">
         <AddBossForm busy={busy !== null} onAdd={(name, isTrash) => run('add-boss', () => send(`/api/loot/tables/${templateId}/bosses`, 'POST', { name, isTrash }), () => LOOT_EDIT.bossAdded(name))} />
         <div className="flex flex-col gap-1.5 md:items-end">
           <div className="flex flex-wrap gap-2">
@@ -86,6 +87,7 @@ function Editor({ templateId, templateName, bosses, defaultSource, blockedIds, w
           </div>
           <span className="max-w-[320px] text-xs text-fg-3 md:text-right">{LOOT_EDIT.refreshAllHint}</span>
         </div>
+        <LoadHistory loads={loads} />
       </section>
 
       {bosses.length === 0 && <p className="rounded-card border border-dashed border-line-strong px-6 py-8 text-center text-sm text-fg-2">{LOOT_TABLE.empty}</p>}
