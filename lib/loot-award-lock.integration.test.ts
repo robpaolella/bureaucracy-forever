@@ -11,6 +11,7 @@ vi.mock('@/lib/session', () => ({ getSession: async () => ({ role: 'officer' }) 
 vi.mock('@/lib/flags', () => ({ lootEnabled: () => true }));
 vi.mock('@/lib/users', () => ({ ensureUser: async () => ({ id: 'officer-user' }) }));
 import { lockReserveTier } from './loot-blocks';
+import { DELETE as deleteItem } from '@/app/api/loot/bosses/[bossId]/items/[itemId]/route';
 import { POST as recordAward } from '@/app/api/raids/[id]/loot/route';
 
 const award = () => recordAward(
@@ -92,6 +93,18 @@ describe.skipIf(process.env.LOOT_TIER_LOCK_INTEGRATION !== '1')('recording a loo
     const res = await recording;
     expect(res.status).toBe(409);
     expect(await db.lootAward.count()).toBe(0);
+  }, 15_000);
+
+  it('keeps an award recorded before the removal: the removal waits, then succeeds, and the award stays', async () => {
+    // Removing an item leaves its awards in place by design (see the delete-item route).
+    const recording = award();
+    const other = await holdTierLock();
+    expect(await waitForLockWait()).toBe(true);
+    await other.release();
+    expect((await recording).status).toBe(201);
+    const removed = await deleteItem(new Request('https://example.test', { method: 'DELETE' }), { params: Promise.resolve({ bossId: 'boss', itemId: '1' }) });
+    expect(removed.status).toBe(200);
+    expect(await db.lootAward.count({ where: { itemId: 1 } })).toBe(1);
   }, 15_000);
 
   it('waits for the tier lock and then records an award for an item still on the table', async () => {
