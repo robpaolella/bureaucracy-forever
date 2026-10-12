@@ -116,6 +116,18 @@ describe('parseIdsFile', () => {
   });
 });
 
+describe('parseAtlasLoot keys', () => {
+  it('finds a raid whose key has an apostrophe, as listAtlasRaids offers it', () => {
+    const lua = 'data["Zul\'Gurub"] = { ContentType = RAID20_CONTENT, items = { { name = AL["Venoxis"], [NORMAL_DIFF] = { { 1, 19900 } } } } }';
+    expect(listAtlasRaids(lua).map((r) => r.key)).toEqual(["Zul'Gurub"]);
+    expect(parseAtlasLoot(lua, "Zul'Gurub").bosses).toEqual([{ name: 'Venoxis', isTrash: false, itemIds: [19900] }]);
+  });
+
+  it('treats the key as exact text, not a pattern', () => {
+    expect(() => parseAtlasLoot('data["Onyxia"] = { items = {} }', '.*')).toThrow();
+  });
+});
+
 describe('listAtlasRaids', () => {
   const lua = `
 local RAID40_CONTENT = data:AddContentType(AL["40 Raids"], X)

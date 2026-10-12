@@ -109,7 +109,8 @@ describe('AtlasLoot', () => {
   });
 
   it('returns the server’s sentence for a refused raid, and a plain one for a bad answer', async () => {
-    await expect(fetchAtlasTable('Nope', vi.fn().mockResolvedValue(response({ error: 'No such raid.' }, 404)))).resolves.toEqual({ kind: 'error', error: 'No such raid.' });
+    await expect(fetchAtlasTable('Nope', vi.fn().mockResolvedValue(response({ error: 'No such raid.' }, 404)))).resolves.toEqual({ kind: 'error', error: 'No such raid.', missing: true });
+    await expect(fetchAtlasTable('Nope', vi.fn().mockResolvedValue(response({ error: 'Couldn’t download.' }, 502)))).resolves.toEqual({ kind: 'error', error: 'Couldn’t download.' });
     await expect(fetchAtlasTable('X', vi.fn().mockResolvedValue(response({ source: 'CLASSIC', name: 'x', file: {} })))).resolves.toEqual({ kind: 'error', error: LOAD_TABLE_MESSAGES.UNREACHABLE });
   });
 });

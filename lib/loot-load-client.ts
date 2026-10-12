@@ -63,7 +63,8 @@ export type AtlasRaidsResult =
   | { kind: 'ready'; raids: AtlasRaid[]; source: ItemSource }
   | { kind: 'off' }
   | { kind: 'error'; error: string };
-export type AtlasTableResult = { kind: 'ok'; value: LoadFile; source: ItemSource } | { kind: 'error'; error: string };
+/** `missing`: the server has no such raid, so asking again for the same one cannot work. */
+export type AtlasTableResult = { kind: 'ok'; value: LoadFile; source: ItemSource } | { kind: 'error'; error: string; missing?: boolean };
 
 const isSource = (value: unknown): value is ItemSource => value === 'FOREVER' || value === 'CLASSIC';
 const isRaid = (value: unknown): value is AtlasRaid =>
@@ -94,7 +95,7 @@ export async function fetchAtlasTable(raidKey: string, fetcher: Fetcher = fetch)
     return { kind: 'error', error: UNREACHABLE };
   }
   const json = await responseJson(response);
-  if (!response.ok) return { kind: 'error', error: routeError(json) };
+  if (!response.ok) return { kind: 'error', error: routeError(json), ...(response.status === 404 && { missing: true }) };
   if (!json || !isSource(json.source) || typeof json.name !== 'string') return { kind: 'error', error: UNREACHABLE };
   try {
     const file = parseIdsFile(json.file);

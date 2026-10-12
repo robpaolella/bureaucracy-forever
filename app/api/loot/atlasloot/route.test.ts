@@ -10,6 +10,7 @@ import { GET, POST } from './route';
 const LUA = `
 data["MoltenCore"] = { ContentType = RAID40_CONTENT, items = { { name = AL["Lucifron"], [NORMAL_DIFF] = { { 1, 16800 } } } } }
 data["Onyxia"] = { ContentType = RAID40_CONTENT, items = { { name = AL["Onyxia"], [NORMAL_DIFF] = { { 1, 18705 } } } } }
+data["Zul'Gurub"] = { ContentType = RAID20_CONTENT, items = { { name = AL["Venoxis"], [NORMAL_DIFF] = { { 1, 19900 } } } } }
 data["Ragefire"] = { ContentType = DUNGEON_CONTENT, items = {} }
 `;
 const post = (body: unknown) => POST(new Request('https://example.test/api/loot/atlasloot', { method: 'POST', body: JSON.stringify(body) }));
@@ -28,7 +29,7 @@ afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 describe('AtlasLoot route', () => {
   it('lists the raids with the configured item database', async () => {
     const res = await GET();
-    expect(await res.json()).toEqual({ source: 'CLASSIC', off: false, raids: [{ key: 'MoltenCore', name: 'Molten Core' }, { key: 'Onyxia', name: 'Onyxia’s Lair' }] });
+    expect(await res.json()).toEqual({ source: 'CLASSIC', off: false, raids: [{ key: 'MoltenCore', name: 'Molten Core' }, { key: 'Onyxia', name: 'Onyxia’s Lair' }, { key: 'Zul\'Gurub', name: 'Zul\'Gurub' }] });
     expect(fetcher.mock.calls[0][0]).toContain('raw.githubusercontent.com');
   });
 
@@ -41,6 +42,19 @@ describe('AtlasLoot route', () => {
   it('returns a raid key’s table in the file format, with the source to preview it as', async () => {
     const res = await post({ raidKey: 'Onyxia' });
     expect(await res.json()).toEqual({ source: 'CLASSIC', name: 'AtlasLoot: Onyxia’s Lair', file: { bosses: [{ name: 'Onyxia', trash: false, items: [18705] }] } });
+  });
+
+  it('loads every raid it offers', async () => {
+    const { raids } = await (await GET()).json();
+    for (const { key } of raids) expect((await post({ raidKey: key })).status).toBe(200);
+  });
+
+  it('says so plainly when the data is not AtlasLoot’s format', async () => {
+    fetcher.mockImplementation(async () => new Response('data["Onyxia"] = {'));
+    for (const res of [await GET(), await post({ raidKey: 'Onyxia' })]) {
+      expect(res.status).toBe(502);
+      expect(await res.json()).toEqual({ error: 'Couldn’t read AtlasLoot’s data. Try again later, or load a file.' });
+    }
   });
 
   it('ignores a URL or version in the form: only the raid key counts', async () => {

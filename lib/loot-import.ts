@@ -129,7 +129,7 @@ function namedTable(src: string, pattern: RegExp): string | null {
 /** Parses one raid (`key`, e.g. "MoltenCore") out of AtlasLootClassic's data.lua. */
 export function parseAtlasLoot(lua: string, key: string): ParsedTable {
   const src = stripComments(lua);
-  const raid = namedTable(src, new RegExp(`data\\["${key.replace(/[^\w]/g, '')}"\\]\\s*=\\s*\\{`));
+  const raid = namedTable(src, new RegExp(`data\\["${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"\\]\\s*=\\s*\\{`));
   if (raid === null) throw new Error(`No data["${key}"] in the AtlasLoot file.`);
   const items = namedTable(raid, /\bitems\s*=\s*\{/);
   if (items === null) throw new Error(`data["${key}"] has no items table.`);

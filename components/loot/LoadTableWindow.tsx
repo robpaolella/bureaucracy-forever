@@ -46,6 +46,8 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
   // null until the server has answered; it also says whether production refuses AtlasLoot's items.
   const [atlas, setAtlas] = useState<AtlasRaidsResult | null>(null);
   const [raidKey, setRaidKey] = useState('');
+  // A raid the server refused as missing; Preview waits until the raid or source changes.
+  const [refusedKey, setRefusedKey] = useState<string | null>(null);
   const [source, setSource] = useState<ItemSource>('FOREVER');
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +76,7 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
     setAtlas(null);
     setMode('file');
     setRaidKey('');
+    setRefusedKey(null);
     setFileName(null);
     setError(null);
     setStopped(false);
@@ -96,7 +99,15 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
     return () => { current = false; };
   }, [open, templateName]);
 
+  /** A changed source or raid makes any table still downloading for the old choice stale. */
+  function invalidateTable() {
+    run.current++;
+    setBusy((current) => (current === 'table' ? null : current));
+    setRefusedKey(null);
+  }
+
   function chooseMode(next: Mode) {
+    invalidateTable();
     setMode(next);
     setError(null);
     setStopped(false);
@@ -133,6 +144,7 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
         setBusy(null);
         if (table.kind === 'error') {
           setError(table.error);
+          if (table.missing) setRefusedKey(raidKey);
           return;
         }
         current = table.value;
@@ -235,7 +247,7 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
   ) : (
     <Foot note={LOOT_LOAD.confirmHint}>
       <Button variant="ghost" onClick={close}>{LOOT_LOAD.cancel}</Button>
-      <Button loading={busy === 'table'} disabled={mode === 'atlas' ? !raidKey || atlas?.kind !== 'ready' : !picked} onClick={() => void startPreview()}>{LOOT_LOAD.preview}</Button>
+      <Button loading={busy === 'table'} disabled={mode === 'atlas' ? !raidKey || raidKey === refusedKey || atlas?.kind !== 'ready' : !picked} onClick={() => void startPreview()}>{LOOT_LOAD.preview}</Button>
     </Foot>
   );
 
@@ -272,7 +284,7 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
           onMode={chooseMode}
           atlas={atlas}
           raidKey={raidKey}
-          onRaid={(key) => { setRaidKey(key); setError(null); }}
+          onRaid={(key) => { invalidateTable(); setRaidKey(key); setError(null); }}
           templateName={templateName}
         />
       )}

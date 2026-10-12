@@ -293,6 +293,32 @@ describe('LoadTableWindow AtlasLoot', () => {
     expect(client.previewLoadTable).not.toHaveBeenCalled();
   });
 
+  it('keeps Preview disabled after the server says the raid is missing, until the raid changes', async () => {
+    client.fetchAtlasTable.mockResolvedValue({ kind: 'error', missing: true, error: 'AtlasLoot’s data on this site has no such raid. Choose another raid or load a file.' });
+    await render(); await useAtlas(); await click('Preview');
+    expect(button('Preview')!.disabled).toBe(true);
+    await pick('Onyxia');
+    expect(button('Preview')!.disabled).toBe(false);
+  });
+
+  it('keeps Preview available after a download failure, so it can be tried again', async () => {
+    client.fetchAtlasTable.mockResolvedValue({ kind: 'error', error: 'Couldn’t download AtlasLoot’s data. Try again, or load a file.' });
+    await render(); await useAtlas(); await click('Preview');
+    expect(host.querySelector('[role="alert"]')).not.toBeNull();
+    expect(button('Preview')!.disabled).toBe(false);
+  });
+
+  it('drops a table still downloading when the raid or source changes', async () => {
+    let finish!: (value: unknown) => void;
+    client.fetchAtlasTable.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    await render(); await useAtlas(); await click('Preview');
+    await pick('Onyxia');
+    await act(async () => finish({ kind: 'ok', source: 'CLASSIC', value: loadFile }));
+    expect(client.previewLoadTable).not.toHaveBeenCalled();
+    expect(host.textContent).not.toContain('Fetching items');
+    expect(button('Preview')!.disabled).toBe(false);
+  });
+
   it('never previews an AtlasLoot table when switched back to File', async () => {
     client.previewLoadTable.mockResolvedValue({ kind: 'error', error: 'x' });
     await render(); await choose(); await useAtlas();

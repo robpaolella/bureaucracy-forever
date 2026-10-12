@@ -9,12 +9,22 @@ import { jsonBody, NO_STORE } from '../../_officer';
 export const maxDuration = 60;
 
 const DOWNLOAD_FAILED = 'Couldn’t download AtlasLoot’s data. Try again, or load a file.';
+const UNREADABLE = 'Couldn’t read AtlasLoot’s data. Try again later, or load a file.';
 
 /** AtlasLoot's data.lua at the configured address; the same file serves the list and a raid. */
 async function atlasLua(url: string): Promise<string | null> {
   try {
     const res = await fetch(url, { next: { revalidate: 3600 } });
     return res.ok ? await res.text() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The raids in the data, or null when it isn't AtlasLoot's format. */
+function raidsIn(lua: string) {
+  try {
+    return listAtlasRaids(lua);
   } catch {
     return null;
   }
@@ -33,7 +43,9 @@ export async function GET() {
   if (itemSourceError(itemSource)) return NextResponse.json({ source: itemSource, off: true, raids: [] }, { headers: NO_STORE });
   const lua = await atlasLua(dataUrl);
   if (lua === null) return NextResponse.json({ error: DOWNLOAD_FAILED }, { status: 502, headers: NO_STORE });
-  return NextResponse.json({ source: itemSource, off: false, raids: listAtlasRaids(lua) }, { headers: NO_STORE });
+  const raids = raidsIn(lua);
+  if (!raids) return NextResponse.json({ error: UNREADABLE }, { status: 502, headers: NO_STORE });
+  return NextResponse.json({ source: itemSource, off: false, raids }, { headers: NO_STORE });
 }
 
 export async function POST(request: Request) {
@@ -46,7 +58,9 @@ export async function POST(request: Request) {
   if (typeof body.raidKey !== 'string' || !body.raidKey) return NextResponse.json({ error: 'Choose a raid.' }, { status: 400, headers: NO_STORE });
   const lua = await atlasLua(dataUrl);
   if (lua === null) return NextResponse.json({ error: DOWNLOAD_FAILED }, { status: 502, headers: NO_STORE });
-  const raid = listAtlasRaids(lua).find((r) => r.key === body.raidKey);
+  const raids = raidsIn(lua);
+  if (!raids) return NextResponse.json({ error: UNREADABLE }, { status: 502, headers: NO_STORE });
+  const raid = raids.find((r) => r.key === body.raidKey);
   if (!raid) return NextResponse.json({ error: 'AtlasLoot’s data on this site has no such raid. Choose another raid or load a file.' }, { status: 404, headers: NO_STORE });
   try {
     const table = parseAtlasLoot(lua, raid.key);
