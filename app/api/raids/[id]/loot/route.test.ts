@@ -223,6 +223,26 @@ describe('POST /api/raids/[id]/loot with an unlisted drop', () => {
     for (const write of [mocks.upsertItem, mocks.createEntry, mocks.create]) expect(write).not.toHaveBeenCalled();
   });
 
+  it('answers why when the save fails, finding a retry that collided on its key', async () => {
+    const collision = Object.assign(new Error('unique'), { code: 'P2002' });
+    mocks.create.mockRejectedValueOnce(collision);
+    mocks.byKey.mockResolvedValueOnce(null).mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'a1', raidId: 'r1' });
+    const replayed = await record(UNLISTED);
+    expect(replayed.status).toBe(200);
+    expect(await replayed.json()).toEqual({ id: 'a1', replayed: true });
+
+    mocks.create.mockRejectedValueOnce(Object.assign(new Error('fk'), { code: 'P2003' }));
+    const changed = await record(UNLISTED);
+    expect(changed.status).toBe(409);
+    expect(await changed.json()).toEqual({ error: 'Something changed while it was saving, so nothing was saved. Try again.' });
+
+    vi.spyOn(console, 'error').mockImplementationOnce(() => {});
+    mocks.create.mockRejectedValueOnce(new Error('db down'));
+    const failed = await record(UNLISTED);
+    expect(failed.status).toBe(500);
+    expect(await failed.json()).toEqual({ error: 'Couldn’t save that, so nothing was saved. Try again.' });
+  });
+
   it('refuses a request key already used on another raid', async () => {
     mocks.byKey.mockResolvedValue({ id: 'a9', raidId: 'other-raid' });
     expect((await record(UNLISTED)).status).toBe(409);

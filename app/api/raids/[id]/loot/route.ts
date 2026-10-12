@@ -6,10 +6,11 @@ import { lookupForeverItem, type ForeverLookup } from '@/lib/loot-items';
 import { parseAwardInput, REASONS } from '@/lib/loot-rules';
 import { SOURCE_CONFLICT } from '@/lib/item-sources';
 import { ensureUser } from '@/lib/users';
-import { requireLootOfficer } from '../../../_loot';
+import { isUniqueViolation, requireLootOfficer } from '../../../_loot';
 import { jsonBody, NO_STORE } from '../../../_officer';
 
 const NOT_THIS_TIER = 'That boss is not in this raid’s loot table.';
+const CHANGED = 'Something changed while it was saving, so nothing was saved. Try again.';
 
 /** A retry of a saved submission: 200 with the first record, or 409 if the key was another raid's. */
 function replay(prior: { id: string; raidId: string }, raidId: string) {
@@ -69,48 +70,59 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const officer = await ensureUser(auth.session);
   // Same lock order as a table load: tier lock first, then the check and insert together, so an
   // item removed in between can't gain an award. Either everything below is saved or nothing.
-  const result = await db.$transaction(async (tx) => {
-    await lockReserveTier(tx, templateId);
-    // Two retries of one submission queue on the tier lock; the second finds the first here.
-    if (requestKey) {
-      const prior = await tx.lootAward.findUnique({ where: { requestKey }, select: { id: true, raidId: true } });
-      if (prior) return { kind: 'replay' as const, prior };
-    }
-    const onTable = await tx.lootTableEntry.findFirst({ where: { itemId, boss: { templateId } }, select: { itemId: true } });
-    let addedToTable = false;
-    if (!onTable) {
-      if (!found?.ok || !bossId) return { kind: 'refused' as const, reason: REASONS.notInTable };
-      if (!await tx.lootBoss.findFirst({ where: { id: bossId, templateId }, select: { id: true } })) return { kind: 'refused' as const, reason: NOT_THIS_TIER };
-      if (!found.cached) {
-        const { id, name, quality, icon, tooltipHtml } = found.item;
-        const data = { name, quality, icon, tooltipHtml, fetchedAt: new Date() };
-        // The source predicate keeps a Classic row saved meanwhile from being overwritten.
-        const saved = await tx.lootItem.upsert({ where: { id, source: 'FOREVER' }, create: { id, source: 'FOREVER', ...data }, update: data });
-        if (!saved) return { kind: 'refused' as const, reason: SOURCE_CONFLICT };
+  let result;
+  try {
+    result = await db.$transaction(async (tx) => {
+      await lockReserveTier(tx, templateId);
+      // Two retries of one submission queue on the tier lock; the second finds the first here.
+      if (requestKey) {
+        const prior = await tx.lootAward.findUnique({ where: { requestKey }, select: { id: true, raidId: true } });
+        if (prior) return { kind: 'replay' as const, prior };
       }
-      const last = await tx.lootTableEntry.findFirst({ where: { bossId }, orderBy: { position: 'desc' }, select: { position: true } });
-      await tx.lootTableEntry.create({ data: { bossId, itemId, position: (last?.position ?? -1) + 1 } });
-      addedToTable = true;
-    }
-    const award = await tx.lootAward.create({
-      data: {
-        raidId,
-        bossId,
-        bossName: boss?.name ?? null,
-        itemId,
-        characterId,
-        characterName: character?.name ?? null,
-        userId: character?.userId ?? null,
-        method,
-        roll,
-        note: note || null,
-        recordedById: officer.id,
-        requestKey,
-      },
-      select: { id: true },
-    });
-    return { kind: 'saved' as const, award: { id: award.id, addedToTable } };
-  }, { isolationLevel: 'ReadCommitted' });
+      const onTable = await tx.lootTableEntry.findFirst({ where: { itemId, boss: { templateId } }, select: { itemId: true } });
+      let addedToTable = false;
+      if (!onTable) {
+        if (!found?.ok || !bossId) return { kind: 'refused' as const, reason: REASONS.notInTable };
+        if (!await tx.lootBoss.findFirst({ where: { id: bossId, templateId }, select: { id: true } })) return { kind: 'refused' as const, reason: NOT_THIS_TIER };
+        if (!found.cached) {
+          const { id, name, quality, icon, tooltipHtml } = found.item;
+          const data = { name, quality, icon, tooltipHtml, fetchedAt: new Date() };
+          // The source predicate keeps a Classic row saved meanwhile from being overwritten.
+          const saved = await tx.lootItem.upsert({ where: { id, source: 'FOREVER' }, create: { id, source: 'FOREVER', ...data }, update: data });
+          if (!saved) return { kind: 'refused' as const, reason: SOURCE_CONFLICT };
+        }
+        const last = await tx.lootTableEntry.findFirst({ where: { bossId }, orderBy: { position: 'desc' }, select: { position: true } });
+        await tx.lootTableEntry.create({ data: { bossId, itemId, position: (last?.position ?? -1) + 1 } });
+        addedToTable = true;
+      }
+      const award = await tx.lootAward.create({
+        data: {
+          raidId,
+          bossId,
+          bossName: boss?.name ?? null,
+          itemId,
+          characterId,
+          characterName: character?.name ?? null,
+          userId: character?.userId ?? null,
+          method,
+          roll,
+          note: note || null,
+          recordedById: officer.id,
+          requestKey,
+        },
+        select: { id: true },
+      });
+      return { kind: 'saved' as const, award: { id: award.id, addedToTable } };
+    }, { isolationLevel: 'ReadCommitted' });
+  } catch (error) {
+    // The transaction rolled back. A retry that raced past the lock check still finds its record.
+    const prior = requestKey && isUniqueViolation(error) ? await db.lootAward.findUnique({ where: { requestKey }, select: { id: true, raidId: true } }) : null;
+    if (prior) return replay(prior, raidId);
+    // P2003: the winner, boss or item was deleted between the checks and the save.
+    if (isUniqueViolation(error) || (error as { code?: string }).code === 'P2003') return NextResponse.json({ error: CHANGED }, { status: 409, headers: NO_STORE });
+    console.error('loot award failed', error);
+    return NextResponse.json({ error: 'Couldn’t save that, so nothing was saved. Try again.' }, { status: 500, headers: NO_STORE });
+  }
   if (result.kind === 'replay') return replay(result.prior, raidId);
   if (result.kind === 'refused') return NextResponse.json({ error: result.reason }, { status: 409, headers: NO_STORE });
   return NextResponse.json(result.award, { status: 201, headers: NO_STORE });

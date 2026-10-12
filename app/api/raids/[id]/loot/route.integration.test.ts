@@ -81,7 +81,9 @@ describe.skipIf(process.env.UNLISTED_DROP_INTEGRATION !== '1')('recording an unl
   it('leaves no item or table entry behind when the award can’t be saved', async () => {
     // The winner's character disappears between the checks and the save: the award insert fails.
     state.beforeSave = () => db.character.delete({ where: { id: 'char' } });
-    await expect(record(UNLISTED)).rejects.toThrow();
+    const res = await record(UNLISTED);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'Something changed while it was saving, so nothing was saved. Try again.' });
     expect(await saved()).toEqual({ items: 0, entries: [], awards: 0 });
   });
 
