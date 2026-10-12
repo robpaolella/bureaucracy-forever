@@ -179,7 +179,7 @@ describe('LoadTableWindow confirm', () => {
   it('loads, closes and tells the page', async () => {
     await toPreview(); applying({ kind: 'success', added: 4, newBosses: 1, removed: 0 });
     await click('Load 4 items');
-    expect(client.applyLoadTable).toHaveBeenCalledWith({ templateId: 'mc', loadFile, token: 'tok', source: 'FOREVER' });
+    expect(client.applyLoadTable).toHaveBeenCalledWith({ templateId: 'mc', loadFile, token: 'tok', source: 'FOREVER', replace: false });
     expect(onClose).toHaveBeenCalledOnce(); expect(onLoaded).toHaveBeenCalledOnce();
     expect(toasts()).toContain('Loaded molten-core.json: added 4 items.');
   });
@@ -261,7 +261,7 @@ describe('LoadTableWindow AtlasLoot', () => {
     client.loadAtlasRaids.mockResolvedValue({ kind: 'ready', source: 'CLASSIC', raids: [atlasRaids[1]] });
     await render(); await useAtlas();
     expect(select().value).toBe('');
-    expect(host.querySelector('[role="alert"]')!.textContent).toBe('AtlasLoot’s data on this site has no Molten Core. Choose another raid or load a file.');
+    expect(host.querySelector('[role="alert"]')!.textContent).toBe('AtlasLoot’s data on this site has no Molten Core. Choose another raid or load a file manually.');
     expect(button('Preview')!.disabled).toBe(true);
     await pick('Onyxia');
     expect(host.querySelector('[role="alert"]')).toBeNull();
@@ -278,9 +278,9 @@ describe('LoadTableWindow AtlasLoot', () => {
   });
 
   it('says so inline when the data can’t be downloaded, and keeps File available', async () => {
-    client.loadAtlasRaids.mockResolvedValue({ kind: 'error', error: 'Couldn’t download AtlasLoot’s data. Try again, or load a file.' });
+    client.loadAtlasRaids.mockResolvedValue({ kind: 'error', error: 'Couldn’t download AtlasLoot’s data. Try again, or load a file manually.' });
     await render(); await useAtlas();
-    expect(host.querySelector('[role="alert"]')!.textContent).toBe('Couldn’t download AtlasLoot’s data. Try again, or load a file.');
+    expect(host.querySelector('[role="alert"]')!.textContent).toBe('Couldn’t download AtlasLoot’s data. Try again, or load a file manually.');
     expect(button('Preview')!.disabled).toBe(true);
     await act(async () => host.querySelector<HTMLInputElement>('input[value="file"]')!.click());
     await choose();
@@ -288,14 +288,14 @@ describe('LoadTableWindow AtlasLoot', () => {
   });
 
   it('shows the server’s sentence when the raid table is refused, and stays on step 1', async () => {
-    client.fetchAtlasTable.mockResolvedValue({ kind: 'error', error: 'AtlasLoot’s data on this site has no such raid. Choose another raid or load a file.' });
+    client.fetchAtlasTable.mockResolvedValue({ kind: 'error', error: 'AtlasLoot’s data on this site has no such raid. Choose another raid or load a file manually.' });
     await render(); await useAtlas(); await click('Preview');
     expect(host.querySelector('[role="alert"]')!.textContent).toContain('no such raid');
     expect(client.previewLoadTable).not.toHaveBeenCalled();
   });
 
   it('keeps Preview disabled after the server says the raid is missing, until the raid changes', async () => {
-    client.fetchAtlasTable.mockResolvedValue({ kind: 'error', missing: true, error: 'AtlasLoot’s data on this site has no such raid. Choose another raid or load a file.' });
+    client.fetchAtlasTable.mockResolvedValue({ kind: 'error', missing: true, error: 'AtlasLoot’s data on this site has no such raid. Choose another raid or load a file manually.' });
     await render(); await useAtlas(); await click('Preview');
     expect(button('Preview')!.disabled).toBe(true);
     await pick('Onyxia');
@@ -303,7 +303,7 @@ describe('LoadTableWindow AtlasLoot', () => {
   });
 
   it('keeps Preview available after a download failure, so it can be tried again', async () => {
-    client.fetchAtlasTable.mockResolvedValue({ kind: 'error', error: 'Couldn’t download AtlasLoot’s data. Try again, or load a file.' });
+    client.fetchAtlasTable.mockResolvedValue({ kind: 'error', error: 'Couldn’t download AtlasLoot’s data. Try again, or load a file manually.' });
     await render(); await useAtlas(); await click('Preview');
     expect(host.querySelector('[role="alert"]')).not.toBeNull();
     expect(button('Preview')!.disabled).toBe(false);
@@ -327,5 +327,98 @@ describe('LoadTableWindow AtlasLoot', () => {
     await click('Preview');
     expect(client.fetchAtlasTable).not.toHaveBeenCalled();
     expect(client.previewLoadTable).toHaveBeenCalledWith(expect.objectContaining({ source: 'FOREVER', loadFile }));
+  });
+});
+
+describe('LoadTableWindow replace', () => {
+  const checkbox = () => host.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+  const replaceReady = (): PreviewResult => {
+    const base = ready([]) as Extract<PreviewResult, { kind: 'preview' }>;
+    const item = (id: number, name: string) => ({ id, name, quality: 4, icon: 'inv_misc' });
+    return {
+      ...base,
+      items: [...base.items, item(10, 'Gone Blade'), item(11, 'Awarded Ring'), item(12, 'Reserved Cloak'), item(13, 'Both Helm')],
+      preview: { ...base.preview, removed: 1, removedBosses: 1, kept: 3, bosses: [
+        ...base.preview.bosses,
+        { bossId: 'b5', name: 'Old Boss', isTrash: false, isNew: false, add: [], already: [], notFound: [], remove: [10], kept: [], absent: 'remove' },
+        { bossId: 'b6', name: 'Kept Boss', isTrash: false, isNew: false, add: [], already: [], notFound: [], remove: [], kept: [{ id: 11, has: 'awards' }, { id: 12, has: 'reserves' }, { id: 13, has: 'awards' }], absent: 'keep' },
+      ] },
+    };
+  };
+  const replacePreview = async () => {
+    client.previewLoadTable.mockResolvedValueOnce(replaceReady());
+    await render(); await choose();
+    await act(async () => checkbox().click());
+    await click('Preview');
+  };
+
+  it('offers Replace off by default, with its hint, for File and AtlasLoot', async () => {
+    await render();
+    expect(checkbox().checked).toBe(false);
+    expect(host.textContent).toContain('Replace: remove bosses and items the source doesn’t have');
+    expect(host.textContent).toContain('Items with reserves or awards are always kept, with their boss.');
+    await act(async () => host.querySelector<HTMLInputElement>('input[value="atlas"]')!.click());
+    expect(checkbox()).toBeTruthy();
+    expect(checkbox().checked).toBe(false);
+  });
+
+  it('sends merge unless Replace is on', async () => {
+    await toPreview();
+    expect(client.previewLoadTable).toHaveBeenCalledWith(expect.objectContaining({ replace: false }));
+  });
+
+  it('shows the Removes list above Adds, with the summary, tags and the red confirm', async () => {
+    await replacePreview();
+    expect(client.previewLoadTable).toHaveBeenCalledWith(expect.objectContaining({ replace: true }));
+    const text = host.textContent!;
+    expect(text).toContain('Removes 1 item and 1 boss. Keeps 3 items with reserves or awards.');
+    expect([...host.querySelectorAll('h3')].map((h) => h.textContent)).toEqual(['Removes', 'Adds']);
+    expect(text).toContain('Old BossBoss removed1 removed');
+    expect(text).toContain('Kept BossBoss kept: has reserves or awards0 removed · 3 kept');
+    expect(text).toContain('From molten-core.json · replace');
+    const rows = [...host.querySelectorAll('li')];
+    const row = (name: string) => rows.find((r) => r.textContent!.includes(name))!;
+    expect(row('Gone Blade').querySelector('.line-through')).not.toBeNull();
+    expect(row('Awarded Ring').textContent).toContain('Kept: has awards');
+    expect(row('Reserved Cloak').textContent).toContain('Kept: has reserves');
+    // Reserves and awards on one item show one tag, the stronger reason.
+    expect(row('Both Helm').textContent).toContain('Kept: has awards');
+    expect(row('Both Helm').textContent).not.toContain('reserves');
+    expect(row('Awarded Ring').querySelector('.line-through')).toBeNull();
+    const confirm = button('Load and remove 1 item')!;
+    expect(confirm.className).toContain('text-stop');
+    expect(button('Load 4 items')).toBeUndefined();
+  });
+
+  it('applies with replace and reports removed items', async () => {
+    await replacePreview();
+    client.applyLoadTable.mockResolvedValueOnce({ kind: 'success', added: 101, newBosses: 1, removed: 5 });
+    await click('Load and remove 1 item');
+    expect(client.applyLoadTable).toHaveBeenCalledWith({ templateId: 'mc', loadFile, token: 'tok', source: 'FOREVER', replace: true });
+    expect(toasts()).toContain('Loaded molten-core.json: added 101 items, removed 5.');
+  });
+
+  it('treats a replace that removes nothing like a merge', async () => {
+    client.previewLoadTable.mockResolvedValueOnce(ready());
+    await render(); await choose();
+    await act(async () => checkbox().click());
+    await click('Preview');
+    expect(host.textContent).toContain('Nothing is removed.');
+    expect(host.textContent).not.toContain('Removes');
+    expect(button('Load 4 items')).toBeDefined();
+    expect(host.textContent).toContain('From molten-core.json · replace');
+  });
+
+  it('locks Replace while an AtlasLoot table downloads, so the preview matches what was asked', async () => {
+    let finish!: (r: unknown) => void;
+    client.fetchAtlasTable.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    await render();
+    await act(async () => host.querySelector<HTMLInputElement>('input[value="atlas"]')!.click());
+    await act(async () => checkbox().click());
+    await click('Preview');
+    expect(checkbox().disabled).toBe(true);
+    client.previewLoadTable.mockResolvedValueOnce(ready());
+    await act(async () => finish({ kind: 'ok', source: 'CLASSIC', value: loadFile }));
+    expect(client.previewLoadTable).toHaveBeenCalledWith(expect.objectContaining({ replace: true }));
   });
 });

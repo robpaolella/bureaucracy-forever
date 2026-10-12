@@ -53,7 +53,7 @@ describe('AtlasLoot route', () => {
     fetcher.mockImplementation(async () => new Response('data["Onyxia"] = {'));
     for (const res of [await GET(), await post({ raidKey: 'Onyxia' })]) {
       expect(res.status).toBe(502);
-      expect(await res.json()).toEqual({ error: 'Couldn’t read AtlasLoot’s data. Try again later, or load a file.' });
+      expect(await res.json()).toEqual({ error: 'Couldn’t read AtlasLoot’s data. Try again later, or load a file manually.' });
     }
   });
 
@@ -72,11 +72,17 @@ describe('AtlasLoot route', () => {
     }
   });
 
+  it('names the missing raid with the full sentence', async () => {
+    const res = await post({ raidKey: 'Naxxramas' });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'AtlasLoot’s data on this site has no such raid. Choose another raid or load a file manually.' });
+  });
+
   it('says so plainly when the data can’t be downloaded', async () => {
     fetcher.mockResolvedValue(new Response('nope', { status: 404 }));
     for (const res of [await GET(), await post({ raidKey: 'Onyxia' })]) {
       expect(res.status).toBe(502);
-      expect(await res.json()).toEqual({ error: 'Couldn’t download AtlasLoot’s data. Try again, or load a file.' });
+      expect(await res.json()).toEqual({ error: 'Couldn’t download AtlasLoot’s data. Try again, or load a file manually.' });
     }
     fetcher.mockRejectedValue(new Error('offline'));
     expect((await GET()).status).toBe(502);

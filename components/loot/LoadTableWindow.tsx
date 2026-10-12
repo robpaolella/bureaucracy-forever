@@ -48,6 +48,9 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
   const [raidKey, setRaidKey] = useState('');
   // A raid the server refused as missing; Preview waits until the raid or source changes.
   const [refusedKey, setRefusedKey] = useState<string | null>(null);
+  // Replace is chosen on step 1; `loadReplace` is what the current preview was made with.
+  const [replace, setReplace] = useState(false);
+  const [loadReplace, setLoadReplace] = useState(false);
   const [source, setSource] = useState<ItemSource>('FOREVER');
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +80,8 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
     setMode('file');
     setRaidKey('');
     setRefusedKey(null);
+    setReplace(false);
+    setLoadReplace(false);
     setFileName(null);
     setError(null);
     setStopped(false);
@@ -134,6 +139,7 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
     setToast(null);
     let current = loadFile;
     let itemSource = source;
+    let replacing = loadReplace;
     if (!retry) {
       if (mode === 'atlas') {
         // A fresh read each time, so Preview again after a stale table sees AtlasLoot as it is now.
@@ -154,8 +160,10 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
         itemSource = 'FOREVER';
       }
       if (!current) return;
+      replacing = replace;
       setLoadFile(current);
       setSource(itemSource);
+      setLoadReplace(replace);
     }
     if (!current) return;
     if (retry) setBusy('retry');
@@ -167,6 +175,7 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
       templateId,
       loadFile: current,
       source: itemSource,
+      replace: replacing,
       stopped: () => stopRequested.current || id !== run.current,
       onProgress: (next) => id === run.current && setProgress(next),
     });
@@ -201,13 +210,13 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
     applying.current = true;
     setBusy('apply');
     setToast(null);
-    const result = await applyLoadTable({ templateId, loadFile, token: ready.preview.token, source });
+    const result = await applyLoadTable({ templateId, loadFile, token: ready.preview.token, source, replace: loadReplace });
     applying.current = false;
     setBusy(null);
     if (result.kind === 'success') {
       const name = loadFile.name;
       close();
-      pageToast({ tone: 'ok', title: LOOT_LOAD.loaded(name, result.added) });
+      pageToast({ tone: 'ok', title: LOOT_LOAD.loaded(name, result.added, result.removed) });
       onLoaded();
     } else if (result.kind === 'stale') setPhase('stale');
     // A server sentence can't be fixed by sending the same thing again, so it has no Retry.
@@ -235,14 +244,16 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
   ) : nothing ? (
     <Foot><Button onClick={close}>{LOOT_LOAD.close}</Button></Foot>
   ) : phase === 'stale' ? (
-    <Foot note={LOOT_LOAD.from(loadFile?.name ?? '')}>
+    <Foot note={LOOT_LOAD.from(loadFile?.name ?? '', loadReplace)}>
       <Button variant="ghost" onClick={close}>{LOOT_LOAD.cancel}</Button>
       <Button onClick={() => void startPreview()}>{LOOT_LOAD.previewAgain}</Button>
     </Foot>
   ) : phase === 'preview' && ready ? (
-    <Foot note={LOOT_LOAD.from(loadFile?.name ?? '')}>
+    <Foot note={LOOT_LOAD.from(loadFile?.name ?? '', loadReplace)}>
       <Button variant="ghost" disabled={busy !== null} onClick={() => setPhase('source')}>{LOOT_LOAD.back}</Button>
-      <Button loading={busy === 'apply'} disabled={busy === 'retry'} onClick={() => void apply()}>{LOOT_LOAD.load(ready.preview.added)}</Button>
+      <Button variant={removing(ready) ? 'danger' : 'primary'} loading={busy === 'apply'} disabled={busy === 'retry'} onClick={() => void apply()}>
+        {removing(ready) ? LOOT_LOAD.loadAndRemove(ready.preview.removed, ready.preview.removedBosses) : LOOT_LOAD.load(ready.preview.added)}
+      </Button>
     </Foot>
   ) : (
     <Foot note={LOOT_LOAD.confirmHint}>
@@ -273,7 +284,7 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
           </div>
         </div>
       ) : (phase === 'preview' || phase === 'stale') && ready && loadFile ? (
-        <PreviewView ready={ready} loadFile={loadFile} stale={phase === 'stale'} busy={busy} onRetry={() => void startPreview(true)} />
+        <PreviewView ready={ready} loadFile={loadFile} replace={loadReplace} stale={phase === 'stale'} busy={busy} onRetry={() => void startPreview(true)} />
       ) : (
         <SourceStep
           fileName={fileName}
@@ -286,6 +297,9 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
           raidKey={raidKey}
           onRaid={(key) => { invalidateTable(); setRaidKey(key); setError(null); }}
           templateName={templateName}
+          replace={replace}
+          onReplace={setReplace}
+          locked={busy === 'table'}
         />
       )}
       </div>
@@ -307,9 +321,12 @@ function Foot({ note, children }: { note?: string; children: ReactNode }) {
 type SourceStepProps = {
   fileName: string | null; error: string | null; stopped: boolean; onChoose: (file: File) => void;
   mode: Mode; onMode: (mode: Mode) => void; atlas: AtlasRaidsResult | null; raidKey: string; onRaid: (key: string) => void; templateName: string;
+  replace: boolean; onReplace: (replace: boolean) => void;
+  /** An AtlasLoot table is downloading for the current choices; they stay as they were when Preview was pressed. */
+  locked: boolean;
 };
 
-function SourceStep({ fileName, error, stopped, onChoose, mode, onMode, atlas, raidKey, onRaid, templateName }: SourceStepProps) {
+function SourceStep({ fileName, error, stopped, onChoose, mode, onMode, atlas, raidKey, onRaid, templateName, replace, onReplace, locked }: SourceStepProps) {
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
   return (
@@ -372,6 +389,13 @@ function SourceStep({ fileName, error, stopped, onChoose, mode, onMode, atlas, r
         )}
       </div>
       )}
+      <Choice
+        type="checkbox"
+        checked={replace}
+        disabled={locked}
+        onChange={(event) => onReplace(event.target.checked)}
+        label={<>{LOOT_LOAD.replaceLabel}<small className="block text-xs text-fg-3">{LOOT_LOAD.replaceHint}</small></>}
+      />
     </div>
   );
 }
@@ -406,12 +430,14 @@ function Fetching({ completed, total }: { completed: number; total: number }) {
   );
 }
 
-function PreviewView({ ready, loadFile, stale, busy, onRetry }: { ready: Ready; loadFile: LoadFile; stale: boolean; busy: 'apply' | 'retry' | 'table' | null; onRetry: () => void }) {
+function PreviewView({ ready, loadFile, replace, stale, busy, onRetry }: { ready: Ready; loadFile: LoadFile; replace: boolean; stale: boolean; busy: 'apply' | 'retry' | 'table' | null; onRetry: () => void }) {
   const { preview, items } = ready;
   const bosses = fileBosses(ready, loadFile);
   // Robert, 2026-10-08: a boss with nothing to add or report stays out of the list; the summary still counts it.
   const listed = bosses.filter((boss) => boss.isNew || boss.add.length > 0 || boss.notFound.length > 0);
   const views = new Map<number, PreviewItem>(items.map((item) => [item.id, item]));
+  // A replace that removes nothing reads as a merge.
+  const removals = replace && removing(ready) ? preview.bosses.filter((boss) => boss.remove.length > 0 || boss.kept.length > 0 || boss.absent !== null) : [];
   return (
     <div className="flex flex-col gap-4">
       {stale && (
@@ -422,10 +448,32 @@ function PreviewView({ ready, loadFile, stale, busy, onRetry }: { ready: Ready; 
       )}
       <p tabIndex={-1} data-step-focus={stale ? undefined : true} className="text-[15px] text-fg outline-none">
         {LOOT_LOAD.summaryAdds} <b className="font-semibold">{LOOT_LOAD.summaryItems(preview.added)}</b>
-        {LOOT_LOAD.summaryRest(preview.newBosses, bosses.filter((boss) => !boss.isNew).length)}
+        {LOOT_LOAD.summaryRest(preview.newBosses, bosses.filter((boss) => !boss.isNew).length)}{' '}
+        {removals.length > 0 ? <RemovesSummary preview={preview} /> : LOOT_LOAD.nothingRemoved}
       </p>
       <NotFound ready={ready} loadFile={loadFile} busy={busy} onRetry={onRetry} />
-      <section>
+      {removals.length > 0 && (
+        <section>
+          <h3 className={cn(FIELD_LABEL, 'border-b border-line pb-1.5')}>{LOOT_LOAD.removes}</h3>
+          <div className="rounded-card border border-stop-line bg-ink-900 px-3.5">
+            {removals.map((boss) => (
+              <div key={boss.name} className="flex flex-col gap-1.5 border-t border-line py-3.5 first-of-type:border-t-0">
+                <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                  <h4 className="font-display text-xl font-medium text-fg">{boss.name}</h4>
+                  {boss.absent === 'remove' && <Tag className="self-center">{LOOT_LOAD.bossRemoved}</Tag>}
+                  {boss.absent === 'keep' && <Tag className="self-center border-warn-line bg-warn-wash text-warn">{LOOT_LOAD.bossKept}</Tag>}
+                  <span className="tabular text-[13px] text-fg-3">{LOOT_LOAD.removeCounts(boss.remove.length, boss.kept.length)}</span>
+                </div>
+                <ul className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+                  {boss.remove.map((id) => <RemoveRow key={id} id={id} item={views.get(id)} />)}
+                  {boss.kept.map(({ id, has }) => <RemoveRow key={id} id={id} item={views.get(id)} kept={has} />)}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      {(listed.length > 0 || removals.length === 0) && <section>
         <h3 className={cn(FIELD_LABEL, 'border-b border-line pb-1.5')}>{LOOT_LOAD.adds}</h3>
         {listed.map((boss) => (
           <div key={boss.name} className="flex flex-col gap-1.5 border-t border-line py-3.5 first-of-type:border-t-0">
@@ -450,8 +498,28 @@ function PreviewView({ ready, loadFile, stale, busy, onRetry }: { ready: Ready; 
             )}
           </div>
         ))}
-      </section>
+      </section>}
     </div>
+  );
+}
+
+function removing({ preview }: Ready) {
+  return preview.removed + preview.removedBosses > 0;
+}
+
+function RemovesSummary({ preview }: { preview: Ready['preview'] }) {
+  const { lead, rest } = LOOT_LOAD.removesSummary(preview.removed, preview.removedBosses, preview.kept);
+  return <>Removes <b className="font-semibold">{lead}</b>{rest}</>;
+}
+
+/** A removed item is struck through; a protected one stays plain with its reason. */
+function RemoveRow({ id, item, kept }: { id: number; item?: PreviewItem; kept?: 'awards' | 'reserves' }) {
+  return (
+    <li className="flex min-h-[30px] min-w-0 flex-wrap items-center gap-2 max-sm:py-1">
+      {item && <ItemLabel item={item} className={kept ? undefined : 'line-through decoration-fg-3'} />}
+      {kept && <Tag className="shrink-0 border-warn-line bg-warn-wash text-warn">{LOOT_LOAD.keptTag(kept)}</Tag>}
+      <span className="tabular ml-auto pl-2 text-xs text-fg-3">#{id}</span>
+    </li>
   );
 }
 
