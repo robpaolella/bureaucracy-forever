@@ -68,11 +68,20 @@ export const LOOT_EDIT = {
   failedIds: (ids: number[]) => `Wowhead had nothing for ${ids.map((id) => `#${id}`).join(', ')}.`,
 };
 
-/** The "Load table" window (design #203), file source only; AtlasLoot and replace arrive in #125 and #126. */
+/** The "Load table" window (design #203), replace arrives in #126. */
 const items = (n: number) => `${n} ${n === 1 ? 'item' : 'items'}`;
 const bosses = (n: number) => `${n} ${n === 1 ? 'boss' : 'bosses'}`;
 export const LOOT_LOAD = {
   title: 'Load table',
+  sourceLabel: 'Source',
+  sourceFile: 'File',
+  sourceAtlas: 'AtlasLoot',
+  atlasOff: 'AtlasLoot has Classic items only. The live site takes WoW Forever items.',
+  raidLabel: 'Raid',
+  raidPlaceholder: 'Choose a raid',
+  raidHint: 'From the AtlasLoot version this site uses.',
+  raidsLoading: 'Loading AtlasLoot’s raids…',
+  raidMissing: (name: string) => `AtlasLoot’s data on this site has no ${name}. Choose another raid or load a file.`,
   fileLabel: 'Loot list file (.json)',
   chooseFile: 'Choose file',
   noFile: 'No file chosen',

@@ -1,4 +1,4 @@
-import { allItemIds, parseIdsFile, type ParsedTable } from './loot-import';
+import { allItemIds, parseIdsFile, type AtlasRaid, type ParsedTable } from './loot-import';
 import type { ItemSource } from './loot-rules';
 
 type Fetcher = typeof fetch;
@@ -56,6 +56,52 @@ export async function readLoadFile(upload: Upload): Promise<ReadFileResult> {
     return { ok: true, value: { name: upload.name, file, total: allItemIds(file).length } };
   } catch (error) {
     return { ok: false, error: invalidFile((error as Error).message) };
+  }
+}
+
+export type AtlasRaidsResult =
+  | { kind: 'ready'; raids: AtlasRaid[]; source: ItemSource }
+  | { kind: 'off' }
+  | { kind: 'error'; error: string };
+/** `missing`: the server has no such raid, so asking again for the same one cannot work. */
+export type AtlasTableResult = { kind: 'ok'; value: LoadFile; source: ItemSource } | { kind: 'error'; error: string; missing?: boolean };
+
+const isSource = (value: unknown): value is ItemSource => value === 'FOREVER' || value === 'CLASSIC';
+const isRaid = (value: unknown): value is AtlasRaid =>
+  !!value && typeof value === 'object' && typeof (value as AtlasRaid).key === 'string' && typeof (value as AtlasRaid).name === 'string';
+
+/** AtlasLoot's raids, from the server. Where the data lives is the server's setting; the browser never knows it. */
+export async function loadAtlasRaids(fetcher: Fetcher = fetch): Promise<AtlasRaidsResult> {
+  let response: Response;
+  try {
+    response = await fetcher('/api/loot/atlasloot', { credentials: 'same-origin' });
+  } catch {
+    return { kind: 'error', error: UNREACHABLE };
+  }
+  const json = await responseJson(response);
+  if (!response.ok) return { kind: 'error', error: routeError(json) };
+  if (!json || !isSource(json.source)) return { kind: 'error', error: UNREACHABLE };
+  if (json.off === true) return { kind: 'off' };
+  if (!Array.isArray(json.raids)) return { kind: 'error', error: UNREACHABLE };
+  return { kind: 'ready', raids: json.raids.filter(isRaid), source: json.source };
+}
+
+/** One raid's table. Sends the raid key only; the result is the same LoadFile a chosen file makes. */
+export async function fetchAtlasTable(raidKey: string, fetcher: Fetcher = fetch): Promise<AtlasTableResult> {
+  let response: Response;
+  try {
+    response = await request(fetcher, '/api/loot/atlasloot', { raidKey });
+  } catch {
+    return { kind: 'error', error: UNREACHABLE };
+  }
+  const json = await responseJson(response);
+  if (!response.ok) return { kind: 'error', error: routeError(json), ...(response.status === 404 && { missing: true }) };
+  if (!json || !isSource(json.source) || typeof json.name !== 'string') return { kind: 'error', error: UNREACHABLE };
+  try {
+    const file = parseIdsFile(json.file);
+    return { kind: 'ok', source: json.source, value: { name: json.name, file, total: allItemIds(file).length } };
+  } catch {
+    return { kind: 'error', error: UNREACHABLE };
   }
 }
 

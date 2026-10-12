@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { parseIdsFile } from './loot-import';
-import { applyLoadTable, LOAD_TABLE_MESSAGES, previewLoadTable, readLoadFile, toIdsFile, type LoadFile } from './loot-load-client';
+import { applyLoadTable, fetchAtlasTable, LOAD_TABLE_MESSAGES, loadAtlasRaids, previewLoadTable, readLoadFile, toIdsFile, type LoadFile } from './loot-load-client';
 
 const loadFile: LoadFile = { name: 'molten-core.json', file: { bosses: [{ name: 'Lucifron', isTrash: false, itemIds: [1, 2, 3] }], skipped: [] }, total: 3 };
 const preview = { token: 'a'.repeat(64), bosses: [], added: 2, newBosses: 0 };
@@ -89,5 +89,28 @@ describe('applyLoadTable', () => {
     await expect(applyLoadTable({ templateId: 'mc', loadFile, token: preview.token, fetcher: vi.fn().mockResolvedValue(response({ error: 'Item ids 2: already cached for Classic.' }, 409)) })).resolves.toEqual({ kind: 'error', error: 'Item ids 2: already cached for Classic.' });
     await expect(applyLoadTable({ templateId: 'mc', loadFile, token: preview.token, fetcher: vi.fn().mockResolvedValue(response({ error: "Couldn't save that." }, 500)) })).resolves.toEqual({ kind: 'save-failed' });
     await expect(applyLoadTable({ templateId: 'mc', loadFile, token: preview.token, fetcher: vi.fn().mockResolvedValue(new Response('not json')) })).resolves.toEqual({ kind: 'save-failed' });
+  });
+});
+
+describe('AtlasLoot', () => {
+  it('lists raids, or says AtlasLoot is off, or surfaces the server’s sentence', async () => {
+    const raids = [{ key: 'Onyxia', name: 'Onyxia’s Lair' }];
+    await expect(loadAtlasRaids(vi.fn().mockResolvedValue(response({ source: 'CLASSIC', off: false, raids })))).resolves.toEqual({ kind: 'ready', raids, source: 'CLASSIC' });
+    await expect(loadAtlasRaids(vi.fn().mockResolvedValue(response({ source: 'CLASSIC', off: true, raids: [] })))).resolves.toEqual({ kind: 'off' });
+    await expect(loadAtlasRaids(vi.fn().mockResolvedValue(response({ error: 'Couldn’t download.' }, 502)))).resolves.toEqual({ kind: 'error', error: 'Couldn’t download.' });
+    await expect(loadAtlasRaids(vi.fn().mockRejectedValue(new Error('offline')))).resolves.toEqual({ kind: 'error', error: LOAD_TABLE_MESSAGES.UNREACHABLE });
+  });
+
+  it('posts a raid key only and returns the table as a load file named for the raid', async () => {
+    const fetcher = vi.fn().mockResolvedValue(response({ source: 'CLASSIC', name: 'AtlasLoot: Molten Core', file: sent }));
+    const result = await fetchAtlasTable('MoltenCore', fetcher);
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ raidKey: 'MoltenCore' });
+    expect(result).toEqual({ kind: 'ok', source: 'CLASSIC', value: { ...loadFile, name: 'AtlasLoot: Molten Core' } });
+  });
+
+  it('returns the server’s sentence for a refused raid, and a plain one for a bad answer', async () => {
+    await expect(fetchAtlasTable('Nope', vi.fn().mockResolvedValue(response({ error: 'No such raid.' }, 404)))).resolves.toEqual({ kind: 'error', error: 'No such raid.', missing: true });
+    await expect(fetchAtlasTable('Nope', vi.fn().mockResolvedValue(response({ error: 'Couldn’t download.' }, 502)))).resolves.toEqual({ kind: 'error', error: 'Couldn’t download.' });
+    await expect(fetchAtlasTable('X', vi.fn().mockResolvedValue(response({ source: 'CLASSIC', name: 'x', file: {} })))).resolves.toEqual({ kind: 'error', error: LOAD_TABLE_MESSAGES.UNREACHABLE });
   });
 });
