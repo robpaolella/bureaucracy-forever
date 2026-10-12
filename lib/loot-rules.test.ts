@@ -9,6 +9,8 @@ import {
   isEligible,
   LOOT_LOG_METHODS,
   parseAwardInput,
+  parseForeverItemRef,
+  NOT_FOREVER,
   parseItemRef,
   parseWinLimit,
   pickUnavailable,
@@ -344,12 +346,50 @@ describe('parseItemRef', () => {
   });
 });
 
+describe('parseForeverItemRef', () => {
+  it.each([
+    ['231044', 231044],
+    [' https://www.wowhead.com/forever/item=231044/whelp-scale-bracers-of-the-brood-mother ', 231044],
+    ['wowhead.com/forever/item=231044', 231044],
+    ['http://wowhead.com/forever/de/item=18205?x=1', 18205],
+    ['https://www.wowhead.com/forever/item=18205#comments', 18205],
+  ])('reads %s', (text, id) => {
+    expect(parseForeverItemRef(text)).toBe(id);
+  });
+
+  it.each([
+    '', 'abc', '0', 'item=231044', '10000000',
+    'https://www.wowhead.com/classic/item=231044',
+    'https://www.wowhead.com/item=231044',
+    'https://www.wowhead.com/forever/spell=231044',
+    'https://evil.example/wowhead.com/forever/item=231044',
+    'https://wowhead.com.evil.example/forever/item=231044',
+    'https://www.wowhead.com/forever/item=231044abc',
+  ])('refuses %j', (text) => {
+    expect(parseForeverItemRef(text)).toBeNull();
+  });
+});
+
 describe('parseAwardInput', () => {
   it('reads a win with a roll and note', () => {
     expect(parseAwardInput({ bossId: 'b1', itemId: 100, characterId: 'c1', method: 'HR', roll: '87', note: ' won ' })).toEqual({
       ok: true,
-      value: { bossId: 'b1', itemId: 100, characterId: 'c1', method: 'HR', roll: 87, note: 'won' },
+      value: { bossId: 'b1', itemId: 100, characterId: 'c1', method: 'HR', roll: 87, note: 'won', fromWowhead: false, requestKey: null },
     });
+  });
+
+  it('reads an unlisted drop by Forever link, which needs a boss and a request key', () => {
+    const body = { itemRef: 'https://www.wowhead.com/forever/item=231044/whelp-scale-bracers', bossId: 'b1', characterId: 'c1', method: 'OPEN_ROLL', requestKey: 'key-12345678' };
+    expect(parseAwardInput(body)).toMatchObject({ ok: true, value: { itemId: 231044, fromWowhead: true, requestKey: 'key-12345678' } });
+    expect(parseAwardInput({ ...body, itemRef: 'https://www.wowhead.com/classic/item=231044' })).toEqual({ ok: false, error: NOT_FOREVER, code: 'not-forever' });
+    expect(parseAwardInput({ ...body, itemRef: 5 })).toEqual({ ok: false, error: NOT_FOREVER, code: 'not-forever' });
+    expect(parseAwardInput({ ...body, bossId: '' })).toEqual({ ok: false, error: 'Pick the boss that dropped it.' });
+    expect(parseAwardInput({ ...body, requestKey: undefined })).toEqual({ ok: false, error: 'Bad request key.' });
+  });
+
+  it('takes an optional request key on a normal record, refusing a malformed one', () => {
+    expect(parseAwardInput({ itemId: 100, method: 'DISENCHANT_BANK', requestKey: 'abcdefgh' })).toMatchObject({ ok: true, value: { requestKey: 'abcdefgh', fromWowhead: false } });
+    expect(parseAwardInput({ itemId: 100, method: 'DISENCHANT_BANK', requestKey: 'short' })).toEqual({ ok: false, error: 'Bad request key.' });
   });
 
   it('drops the character for disenchant/bank and needs one otherwise', () => {

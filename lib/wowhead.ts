@@ -6,7 +6,8 @@
 import type { ItemSource } from '@/lib/loot-rules';
 
 export type WowheadItem = { id: number; name: string; quality: number; icon: string; tooltip: string };
-export type FetchResult = { ok: true; item: WowheadItem } | { ok: false; id: number; error: string };
+/** `notFound`: Wowhead answered that it has no such item, as opposed to not answering properly. */
+export type FetchResult = { ok: true; item: WowheadItem } | { ok: false; id: number; error: string; notFound?: true };
 
 /** Pause between requests; a little over a second. */
 export const WOWHEAD_GAP_MS = 1100;
@@ -25,7 +26,7 @@ export function iconUrl(icon: string, size: 'small' | 'medium' | 'large' = 'medi
 /** Reads Wowhead's JSON; `{"error":"Entity not found"}` and anything malformed are errors. */
 export function parseTooltipJson(id: number, body: unknown): FetchResult {
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
-  if (typeof b.error === 'string') return { ok: false, id, error: b.error };
+  if (typeof b.error === 'string') return { ok: false, id, error: b.error, notFound: true };
   const { name, quality, icon, tooltip } = b;
   if (typeof name !== 'string' || !name || !Number.isInteger(quality) || typeof icon !== 'string' || typeof tooltip !== 'string') {
     return { ok: false, id, error: 'Unexpected response from Wowhead.' };
