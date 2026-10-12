@@ -25,6 +25,17 @@ export const LOOT_TABLE = {
   itemId: (id: number) => `#${id}`,
 };
 
+export const LOOT_HISTORY_LOADS = {
+  lastLoaded: 'Last loaded from',
+  by: 'by',
+  show: 'Load history',
+  hide: 'Hide load history',
+  listLabel: 'Last 10 loads',
+  columns: ['Source', 'Officer', 'When', 'Mode', 'Changes'],
+  mode: (mode: string) => (mode === 'replace' ? 'Replace' : 'Merge'),
+  changes: (added: number, removed: number) => `+${added}${removed ? ` −${removed}` : ''}`,
+};
+
 export const LOOT_EDIT = {
   addBoss: 'Add boss',
   bossName: 'Boss name',
@@ -68,11 +79,20 @@ export const LOOT_EDIT = {
   failedIds: (ids: number[]) => `Wowhead had nothing for ${ids.map((id) => `#${id}`).join(', ')}.`,
 };
 
-/** The "Load table" window (design #203), file source only; AtlasLoot and replace arrive in #125 and #126. */
+/** The "Load table" window (design #203), replace arrives in #126. */
 const items = (n: number) => `${n} ${n === 1 ? 'item' : 'items'}`;
 const bosses = (n: number) => `${n} ${n === 1 ? 'boss' : 'bosses'}`;
 export const LOOT_LOAD = {
   title: 'Load table',
+  sourceLabel: 'Source',
+  sourceFile: 'File',
+  sourceAtlas: 'AtlasLoot',
+  atlasOff: 'AtlasLoot has Classic items only. The live site takes WoW Forever items.',
+  raidLabel: 'Raid',
+  raidPlaceholder: 'Choose a raid',
+  raidHint: 'From the AtlasLoot version this site uses.',
+  raidsLoading: 'Loading AtlasLoot’s raids…',
+  raidMissing: (name: string) => `AtlasLoot’s data on this site has no ${name}. Choose another raid or load a file manually.`,
   fileLabel: 'Loot list file (.json)',
   chooseFile: 'Choose file',
   noFile: 'No file chosen',
@@ -98,7 +118,22 @@ export const LOOT_LOAD = {
   nothingBody: 'The table already matches this file.',
   summaryAdds: 'Adds',
   summaryItems: items,
-  summaryRest: (newBosses: number, existing: number) => `: ${newBosses} new ${newBosses === 1 ? 'boss' : 'bosses'} and ${bosses(existing)} already on the table. Nothing is removed.`,
+  replaceLabel: 'Replace: remove bosses and items the source doesn’t have',
+  replaceHint: 'Items with reserves or awards are always kept, with their boss.',
+  removes: 'Removes',
+  /** `lead` is shown bold. */
+  removesSummary: (removed: number, removedBosses: number, kept: number) => ({
+    lead: removed > 0 ? items(removed) : bosses(removedBosses),
+    rest: `${removed > 0 && removedBosses > 0 ? ` and ${bosses(removedBosses)}` : ''}.${kept > 0 ? ` Keeps ${items(kept)} with reserves or awards.` : ''}`,
+  }),
+  bossRemoved: 'Boss removed',
+  bossKept: 'Boss kept: has reserves or awards',
+  keptTag: (has: 'awards' | 'reserves') => `Kept: has ${has}`,
+  removeCounts: (removed: number, kept: number) => `${removed} removed${kept ? ` · ${kept} kept` : ''}`,
+  loadAndRemove: (removed: number, removedBosses: number) =>
+    `Load and remove ${removed > 0 ? items(removed) : bosses(removedBosses)}`,
+  summaryRest: (newBosses: number, existing: number) => `: ${newBosses} new ${newBosses === 1 ? 'boss' : 'bosses'} and ${bosses(existing)} already on the table.`,
+  nothingRemoved: 'Nothing is removed.',
   notFound: (n: number) => `Wowhead couldn’t find ${items(n)}`,
   notFoundHint: 'They won’t be loaded. Check the ids in the file, or try again if Wowhead was busy.',
   adds: 'Adds',
@@ -106,9 +141,9 @@ export const LOOT_LOAD = {
   trash: 'Trash',
   counts: (added: number, already: number, notFound: number) =>
     [`${added} new`, already && `${already} already on the table`, notFound && `${notFound} not found`].filter(Boolean).join(' · '),
-  from: (name: string) => `From ${name} · merge`,
+  from: (name: string, replace = false) => `From ${name} · ${replace ? 'replace' : 'merge'}`,
   load: (n: number) => `Load ${items(n)}`,
-  loaded: (name: string, n: number) => `Loaded ${name}: added ${items(n)}.`,
+  loaded: (name: string, n: number, removed = 0) => `Loaded ${name}: added ${items(n)}${removed > 0 ? `, removed ${removed}` : ''}.`,
   stillMissing: (n: number) => `Wowhead still couldn’t find ${items(n)}.`,
 };
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { lockReserveTier } from '@/lib/loot-blocks';
 import { tableItemIds } from '@/lib/loot-data';
 import { parseAwardInput, REASONS } from '@/lib/loot-rules';
 import { ensureUser } from '@/lib/users';
@@ -36,21 +37,30 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (characterId && !character) return NextResponse.json({ error: 'No such character.' }, { status: 404, headers: NO_STORE });
 
   const officer = await ensureUser(auth.session);
-  const award = await db.lootAward.create({
-    data: {
-      raidId,
-      bossId,
-      bossName: boss?.name ?? null,
-      itemId,
-      characterId,
-      characterName: character?.name ?? null,
-      userId: character?.userId ?? null,
-      method,
-      roll,
-      note: note || null,
-      recordedById: officer.id,
-    },
-    select: { id: true },
-  });
+  // Same lock order as a table load: tier lock first, then the check and insert together, so an
+  // item removed in between can't gain an award.
+  const templateId = raid.templateId!;
+  const award = await db.$transaction(async (tx) => {
+    await lockReserveTier(tx, templateId);
+    const onTable = await tx.lootTableEntry.findFirst({ where: { itemId, boss: { templateId } }, select: { itemId: true } });
+    if (!onTable) return null;
+    return tx.lootAward.create({
+      data: {
+        raidId,
+        bossId,
+        bossName: boss?.name ?? null,
+        itemId,
+        characterId,
+        characterName: character?.name ?? null,
+        userId: character?.userId ?? null,
+        method,
+        roll,
+        note: note || null,
+        recordedById: officer.id,
+      },
+      select: { id: true },
+    });
+  }, { isolationLevel: 'ReadCommitted' });
+  if (!award) return NextResponse.json({ error: REASONS.notInTable }, { status: 409, headers: NO_STORE });
   return NextResponse.json(award, { status: 201, headers: NO_STORE });
 }
