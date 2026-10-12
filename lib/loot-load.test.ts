@@ -107,10 +107,11 @@ describe('loot table replace', () => {
     expect(tableStateToken(replaceState(), { ...shield, awards: [] })).not.toBe(token);
   });
 
-  it('locks awards, recomputes protection, removes, adds and audits replace; reserve settings stay', async () => {
+  it('takes only the tier lock, recomputes protection, removes, adds and audits replace; reserve settings stay', async () => {
     expect(await applyLootTable(input())).toEqual({ ok: true, added: 2, newBosses: 1, removed: 3 });
-    expect(tx.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(tx.raidTemplate.findUnique.mock.invocationCallOrder[0]);
-    expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(tx.$executeRaw.mock.invocationCallOrder[0]);
+    expect(tx.$queryRaw.mock.calls).toHaveLength(1);
+    expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(tx.raidTemplate.findUnique.mock.invocationCallOrder[0]);
+    expect(tx.$executeRaw).not.toHaveBeenCalled();
     expect(tx.lootTableEntry.deleteMany.mock.calls).toEqual([[{ where: { bossId: 'first', itemId: { in: [98] } } }], [{ where: { bossId: 'last', itemId: { in: [8] } } }]]);
     expect(tx.lootBoss.delete.mock.calls).toEqual([[{ where: { id: 'gone' } }], [{ where: { id: 'empty' } }]]);
     expect(tx.lootBoss.create).toHaveBeenCalledExactlyOnceWith({ data: { templateId: 'mc', name: 'New', isTrash: false, position: 4 }, select: { id: true } });

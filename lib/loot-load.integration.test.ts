@@ -133,6 +133,8 @@ describe.skipIf(process.env.LOOT_LOAD_INTEGRATION !== '1')('loot-table loads on 
     const award = await pool.connect();
     try {
       await award.query('BEGIN');
+      // As the award route does: the tier lock, then the insert.
+      await award.query(`SELECT "id" FROM "RaidTemplate" WHERE "id" = 'tier' FOR NO KEY UPDATE`);
       await award.query(`INSERT INTO "LootAward" ("id", "raidId", "itemId", "characterId", "characterName", "method", "recordedById") VALUES ('a', 'now', 4, 'char', 'Sample', 'OPEN_ROLL', 'officer')`);
       const applying = applyLootTable(request);
       await new Promise((resolve) => setTimeout(resolve, 300));
@@ -140,6 +142,30 @@ describe.skipIf(process.env.LOOT_LOAD_INTEGRATION !== '1')('loot-table loads on 
       expect(await applying).toMatchObject({ ok: false, status: 409 });
     } finally { award.release(); }
     expect(await state()).toEqual(before);
+  });
+  it('runs replace loads on two tiers at once, each removing a boss, without deadlock', async () => {
+    await db.raidTemplate.create({ data: { id: 'other', name: 'Other', short: 'O', size: 40, requirements: {}, lootBosses: { create: { id: 'other-boss', name: 'Other Boss', position: 0, entries: { create: { itemId: 3, position: 0 } } } } } });
+    const replace = async (templateId: string, bossName: string) => {
+      const before = await db.raidTemplate.findUniqueOrThrow({ where: { id: templateId }, select: LOAD_TABLE_SELECT });
+      const file = parseIdsFile({ bosses: [{ name: bossName, items: [] }] });
+      return { templateId, file, source: 'FOREVER' as const, token: tableStateToken(before, await protectedItems(db, before)), sourceName: 'small.json', officerId: 'officer', officerName: 'Sample Officer', replace: true };
+    };
+    const requests = [await replace('tier', 'Boss'), await replace('other', 'Fresh')];
+    // An award write in progress elsewhere holds the award table; both loads start while it does.
+    const writer = await pool.connect();
+    try {
+      await writer.query('BEGIN');
+      await writer.query('LOCK TABLE "LootAward" IN ROW EXCLUSIVE MODE');
+      const applying = Promise.allSettled(requests.map((request) => applyLootTable(request)));
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await writer.query('COMMIT');
+      expect(await applying).toEqual([
+        { status: 'fulfilled', value: { ok: true, added: 0, newBosses: 0, removed: 2 } },
+        { status: 'fulfilled', value: { ok: true, added: 0, newBosses: 1, removed: 1 } },
+      ]);
+    } finally { writer.release(); }
+    const bosses = await db.lootBoss.findMany({ orderBy: [{ templateId: 'asc' }, { position: 'asc' }], select: { templateId: true, name: true } });
+    expect(bosses).toEqual([{ templateId: 'other', name: 'Fresh' }, { templateId: 'tier', name: 'Boss' }]);
   });
   it('returns the newest ten snapshots, supports replace mode, and returns no history for a never-loaded tier', async () => {
     expect(await lootLoadHistory('tier')).toEqual([]);
