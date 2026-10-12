@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allItemIds, parseAtlasLoot, parseIdsFile } from './loot-import';
+import { allItemIds, listAtlasRaids, matchAtlasRaid, parseAtlasLoot, parseIdsFile } from './loot-import';
 
 // Trimmed from AtlasLootClassic_DungeonsAndRaids/data.lua at the pinned commit, with a
 // string entry and a block comment added to exercise the skips.
@@ -113,5 +113,45 @@ describe('parseIdsFile', () => {
     [{ bosses: [{ name: 'A', items: [1] }, { name: 'A', items: [2] }] }, '"A" is listed twice.'],
   ])('refuses %j', (json, message) => {
     expect(() => parseIdsFile(json)).toThrow(message);
+  });
+});
+
+describe('listAtlasRaids', () => {
+  const lua = `
+local RAID40_CONTENT = data:AddContentType(AL["40 Raids"], X)
+data["Ragefire"] = { ContentType = DUNGEON_CONTENT, items = {} }
+data["MoltenCore"] = { MapID = 1, ContentType = RAID40_CONTENT, items = {} }
+-- data["Ghost"] = { ContentType = RAID40_CONTENT }
+data["Onyxia"] = { ContentType = RAID40_CONTENT, items = {} }
+data["Zul'Gurub"] = { ContentType = RAID20_CONTENT, items = {} }
+data["TheRuinsofAhnQiraj"] = { -- AQ20
+  ContentType = RAID20_CONTENT, items = {} }
+data["WorldBosses"] = { ContentType = RAID40_CONTENT, items = {} }
+`;
+
+  it('lists raids only, in file order, with names that read like the tiers', () => {
+    expect(listAtlasRaids(lua)).toEqual([
+      { key: 'MoltenCore', name: 'Molten Core' },
+      { key: 'Onyxia', name: 'Onyxia’s Lair' },
+      { key: 'Zul\'Gurub', name: 'Zul\'Gurub' },
+      { key: 'TheRuinsofAhnQiraj', name: 'Ruins of Ahn’Qiraj' },
+    ]);
+  });
+
+  it('is empty for data with no raids', () => expect(listAtlasRaids('')).toEqual([]));
+});
+
+describe('matchAtlasRaid', () => {
+  const raids = listAtlasRaids('data["MoltenCore"] = { ContentType = RAID40_CONTENT }\ndata["Onyxia"] = { ContentType = RAID40_CONTENT }\ndata["TheRuinsofAhnQiraj"] = { ContentType = RAID20_CONTENT }');
+
+  it('matches the tier name, ignoring case, punctuation and a leading "The"', () => {
+    expect(matchAtlasRaid(raids, 'molten core')?.key).toBe('MoltenCore');
+    expect(matchAtlasRaid(raids, 'Onyxia\'s Lair')?.key).toBe('Onyxia');
+    expect(matchAtlasRaid(raids, 'The Ruins of Ahn\'Qiraj')?.key).toBe('TheRuinsofAhnQiraj');
+  });
+
+  it('chooses nothing when no name matches', () => {
+    expect(matchAtlasRaid(raids, 'Karazhan')).toBeNull();
+    expect(matchAtlasRaid(raids, '')).toBeNull();
   });
 });
