@@ -408,4 +408,17 @@ describe('LoadTableWindow replace', () => {
     expect(button('Load 4 items')).toBeDefined();
     expect(host.textContent).toContain('From molten-core.json · replace');
   });
+
+  it('locks Replace while an AtlasLoot table downloads, so the preview matches what was asked', async () => {
+    let finish!: (r: unknown) => void;
+    client.fetchAtlasTable.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    await render();
+    await act(async () => host.querySelector<HTMLInputElement>('input[value="atlas"]')!.click());
+    await act(async () => checkbox().click());
+    await click('Preview');
+    expect(checkbox().disabled).toBe(true);
+    client.previewLoadTable.mockResolvedValueOnce(ready());
+    await act(async () => finish({ kind: 'ok', source: 'CLASSIC', value: loadFile }));
+    expect(client.previewLoadTable).toHaveBeenCalledWith(expect.objectContaining({ replace: true }));
+  });
 });

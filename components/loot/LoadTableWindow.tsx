@@ -299,6 +299,7 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
           templateName={templateName}
           replace={replace}
           onReplace={setReplace}
+          locked={busy === 'table'}
         />
       )}
       </div>
@@ -321,9 +322,11 @@ type SourceStepProps = {
   fileName: string | null; error: string | null; stopped: boolean; onChoose: (file: File) => void;
   mode: Mode; onMode: (mode: Mode) => void; atlas: AtlasRaidsResult | null; raidKey: string; onRaid: (key: string) => void; templateName: string;
   replace: boolean; onReplace: (replace: boolean) => void;
+  /** An AtlasLoot table is downloading for the current choices; they stay as they were when Preview was pressed. */
+  locked: boolean;
 };
 
-function SourceStep({ fileName, error, stopped, onChoose, mode, onMode, atlas, raidKey, onRaid, templateName, replace, onReplace }: SourceStepProps) {
+function SourceStep({ fileName, error, stopped, onChoose, mode, onMode, atlas, raidKey, onRaid, templateName, replace, onReplace, locked }: SourceStepProps) {
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
   return (
@@ -389,6 +392,7 @@ function SourceStep({ fileName, error, stopped, onChoose, mode, onMode, atlas, r
       <Choice
         type="checkbox"
         checked={replace}
+        disabled={locked}
         onChange={(event) => onReplace(event.target.checked)}
         label={<>{LOOT_LOAD.replaceLabel}<small className="block text-xs text-fg-3">{LOOT_LOAD.replaceHint}</small></>}
       />

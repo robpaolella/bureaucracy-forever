@@ -72,6 +72,12 @@ describe('AtlasLoot route', () => {
     }
   });
 
+  it('names the missing raid with the full sentence', async () => {
+    const res = await post({ raidKey: 'Naxxramas' });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'AtlasLoot’s data on this site has no such raid. Choose another raid or load a file manually.' });
+  });
+
   it('says so plainly when the data can’t be downloaded', async () => {
     fetcher.mockResolvedValue(new Response('nope', { status: 404 }));
     for (const res of [await GET(), await post({ raidKey: 'Onyxia' })]) {
