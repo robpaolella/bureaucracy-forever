@@ -81,13 +81,14 @@ history is the only thing proved here; the Load table window is covered by its o
 - **History.** Click `Load history`: it becomes `Hide load history` and lists both
   loads newest first with Source, Officer, When, Mode (`Merge`) and Changes (`+5`, `+2`).
   Capture full-page at both widths (design state `history`; also `table` with the history closed). A merge shows only `+N`; a replace
-  with removals shows `+N −M`, which only a seeded audit row can show locally.
+  with removals shows `+N −M`. Make replace rows through the window: tick `Replace` on the source step, then
+  Preview and Load a file that drops items or a boss from the table.
 - **Guild time.** The popup shows only when your browser zone differs from guild time.
   To see it, set the site's own viewer-zone override (`localStorage` key
   `bureaucracy.viewer-timezone`, e.g. `Asia/Tokyo`), reload, then hover or Tab to a time:
   expect `<day> <time> guild time (PDT)`. Remove the key afterwards.
-- **Not proved locally.** Replace loads (#126) and a 10-row history cap need rows the
-  UI can't yet create cheaply; the component tests cover both.
+- **Not proved locally.** A 10-row history cap needs more loads than is cheap to make by
+  hand; the component tests cover it.
 
 ## Gotchas
 

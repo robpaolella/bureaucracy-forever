@@ -309,6 +309,23 @@ describe('LoadTableWindow AtlasLoot', () => {
     expect(button('Preview')!.disabled).toBe(false);
   });
 
+  it.each([
+    ['a download failure', { kind: 'error', error: 'Couldn’t download AtlasLoot’s data. Try again, or load a file manually.' }],
+    ['a missing raid', { kind: 'error', missing: true, error: 'AtlasLoot’s data on this site has no such raid. Choose another raid or load a file manually.' }],
+  ] as const)('shows %s when Preview again after a stale refusal', async (_name, failure) => {
+    client.fetchAtlasTable.mockResolvedValueOnce({ kind: 'ok', source: 'CLASSIC', value: { ...loadFile, name: 'AtlasLoot: Molten Core' } });
+    client.previewLoadTable.mockResolvedValueOnce(ready());
+    await render(); await useAtlas(); await click('Preview');
+    client.applyLoadTable.mockResolvedValueOnce({ kind: 'stale', error: 'The table changed since this preview.', hint: 'Preview again to see the current changes.' });
+    await click('Load 4 items');
+    expect(button('Preview again')).toBeDefined();
+    client.fetchAtlasTable.mockResolvedValueOnce(failure);
+    await click('Preview again');
+    expect(host.querySelector('[role="alert"]')!.textContent).toBe(failure.error);
+    expect(button('Preview again')).toBeUndefined();
+    expect(button('Preview')).toBeDefined();
+  });
+
   it('drops a table still downloading when the raid or source changes', async () => {
     let finish!: (value: unknown) => void;
     client.fetchAtlasTable.mockReturnValue(new Promise((resolve) => { finish = resolve; }));

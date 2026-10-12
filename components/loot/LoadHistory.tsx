@@ -31,7 +31,7 @@ export function LoadHistory({ loads }: { loads: LoadView[] }) {
   const last = loads[0];
   return (
     <div className="flex basis-full flex-wrap items-center gap-x-3.5 border-t border-line-faint pt-3 text-[13px] text-fg-3">
-      <span>
+      <span className="max-w-full [overflow-wrap:anywhere]">
         {COPY.lastLoaded} <b className="font-semibold text-fg-2">{last.sourceName}</b> {COPY.by} <b className="font-semibold text-fg-2">{last.officerName}</b> · <When at={last.createdAt} /> · {last.mode}
       </span>
       <button

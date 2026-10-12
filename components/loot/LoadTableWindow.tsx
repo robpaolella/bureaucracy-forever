@@ -150,6 +150,7 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
         setBusy(null);
         if (table.kind === 'error') {
           setError(table.error);
+          setPhase('source'); // from the stale screen, which never shows the error
           if (table.missing) setRefusedKey(raidKey);
           return;
         }
