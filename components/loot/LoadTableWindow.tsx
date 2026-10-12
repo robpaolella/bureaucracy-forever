@@ -469,7 +469,7 @@ function PreviewView({ ready, loadFile, replace, stale, busy, onRetry }: { ready
           </div>
         </section>
       )}
-      <section>
+      {(listed.length > 0 || removals.length === 0) && <section>
         <h3 className={cn(FIELD_LABEL, 'border-b border-line pb-1.5')}>{LOOT_LOAD.adds}</h3>
         {listed.map((boss) => (
           <div key={boss.name} className="flex flex-col gap-1.5 border-t border-line py-3.5 first-of-type:border-t-0">
@@ -494,7 +494,7 @@ function PreviewView({ ready, loadFile, replace, stale, busy, onRetry }: { ready
             )}
           </div>
         ))}
-      </section>
+      </section>}
     </div>
   );
 }
