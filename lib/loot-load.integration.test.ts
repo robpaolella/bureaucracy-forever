@@ -6,7 +6,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@/lib/generated/prisma/client';
 const holder = vi.hoisted(() => ({ db: null as unknown as PrismaClient }));
 vi.mock('@/lib/db', () => ({ get db() { return holder.db; } }));
-import { applyLootTable, LOAD_TABLE_SELECT, lootLoadHistory, mergePreview, tableStateToken } from './loot-load';
+import { applyLootTable, LOAD_TABLE_SELECT, lootLoadHistory, mergePreview, protectedItems, tableStateToken } from './loot-load';
 import { parseIdsFile } from './loot-import';
 
 // LOOT_LOAD_INTEGRATION=1 npx vitest run lib/loot-load.integration.test.ts
@@ -36,6 +36,7 @@ describe.skipIf(process.env.LOOT_LOAD_INTEGRATION !== '1')('loot-table loads on 
     if (container) docker('stop', container);
   });
   beforeEach(async () => {
+    await db.lootAward.deleteMany(); await db.reserve.deleteMany(); await db.raid.deleteMany(); await db.user.deleteMany();
     await db.lootTableLoad.deleteMany(); await db.raidTemplate.deleteMany(); await db.lootItem.deleteMany();
     await db.lootItem.createMany({ data: [1, 2, 3, 4].map((id) => ({ id, name: `Item ${id}`, quality: 4, icon: 'sample', tooltipHtml: '', source: 'FOREVER', fetchedAt: new Date() })) });
     await db.raidTemplate.create({ data: {
@@ -49,7 +50,7 @@ describe.skipIf(process.env.LOOT_LOAD_INTEGRATION !== '1')('loot-table loads on 
   it('writes exactly the preview additions and one audit snapshot, then refuses a repeat token', async () => {
     const before = await state(), request = await input();
     const preview = mergePreview(before, file, new Set([1, 2, 3, 4]));
-    expect(await applyLootTable(request)).toEqual({ ok: true, added: preview.added, newBosses: preview.newBosses });
+    expect(await applyLootTable(request)).toEqual({ ok: true, added: preview.added, newBosses: preview.newBosses, removed: 0 });
     const after = await state();
     expect(after.reserveSettings).toEqual(before.reserveSettings);
     expect(after.lootBosses.slice(0, 2).map(({ entries, ...boss }) => ({ ...boss, entries: entries.filter((entry) => entry.itemId !== 2) }))).toEqual(before.lootBosses);
@@ -78,7 +79,7 @@ describe.skipIf(process.env.LOOT_LOAD_INTEGRATION !== '1')('loot-table loads on 
   });
   it('does not write or audit a no-op, including uncached ids on an existing boss', async () => {
     const before = await state();
-    expect(await applyLootTable({ ...await input(), file: parseIdsFile({ bosses: [{ name: 'Boss', items: [1, 999] }] }) })).toEqual({ ok: true, added: 0, newBosses: 0 });
+    expect(await applyLootTable({ ...await input(), file: parseIdsFile({ bosses: [{ name: 'Boss', items: [1, 999] }] }) })).toEqual({ ok: true, added: 0, newBosses: 0, removed: 0 });
     expect(await state()).toEqual(before); expect(await db.lootTableLoad.count()).toBe(0);
   });
   it('serializes concurrent applies so just one succeeds and is audited', async () => {
@@ -93,6 +94,52 @@ describe.skipIf(process.env.LOOT_LOAD_INTEGRATION !== '1')('loot-table loads on 
     const before = await state();
     expect(await applyLootTable(await input())).toMatchObject({ ok: false, status: 409, conflicts: [2] });
     expect(await state()).toEqual(before); expect(await db.lootTableLoad.count()).toBe(0);
+  });
+  it('replace keeps items reserved in a past raid or with a voided award, removes the rest, and keeps settings', async () => {
+    // Boss: 1 (blocked setting) and 4. Keep (trash): 2, awarded then voided. Gone: 3, reserved in a past raid. Spare: 4, awarded from Gone.
+    await db.lootBoss.createMany({ data: [{ id: 'gone', templateId: 'tier', name: 'Gone', position: 11 }, { id: 'spare', templateId: 'tier', name: 'Spare', position: 12 }] });
+    await db.lootTableEntry.createMany({ data: [{ bossId: 'keep', itemId: 2, position: 0 }, { bossId: 'gone', itemId: 3, position: 0 }, { bossId: 'spare', itemId: 4, position: 0 }] });
+    await db.user.create({ data: { id: 'member', discordId: 'sample-member', discordName: 'Sample', characters: { create: { id: 'char', name: 'Sample', class: 'MAGE', spec: 'Fire', raidRole: 'RANGED' } } } });
+    await db.raid.create({ data: { id: 'past', name: 'Past', templateId: 'tier', startsAt: new Date('2025-01-01T03:00:00Z'), locksAt: new Date('2025-01-01T02:00:00Z'), requirements: {},
+      reserves: { create: { userId: 'member', characterId: 'char', itemId: 3, kind: 'SR' } },
+      lootAwards: { create: { bossId: 'gone', bossName: 'Gone', itemId: 4, characterId: 'char', characterName: 'Sample', method: 'SR', recordedById: 'officer' } } } });
+    await db.lootAward.create({ data: { raidId: 'past', bossId: 'keep', bossName: 'Keep', itemId: 2, characterId: 'char', characterName: 'Sample', method: 'MAIN_SPEC', recordedById: 'officer', voidedAt: new Date() } });
+    const replace = parseIdsFile({ bosses: [{ name: 'Boss', items: [4] }] });
+    const before = await state();
+    const preview = mergePreview(before, replace, new Set([1, 2, 3, 4]), { reserves: [3], awards: [2, 4] });
+    expect(preview).toMatchObject({ added: 0, removed: 1, removedBosses: 0, kept: 3 });
+    const protection = await protectedItems(db, before);
+    expect(protection).toEqual({ reserves: [3], awards: [2, 4] });
+    const request = { templateId: 'tier', file: replace, source: 'FOREVER' as const, token: tableStateToken(before, protection), sourceName: 'small.json', officerId: 'officer', officerName: 'Sample Officer', replace: true };
+    expect(await applyLootTable({ ...request, token: tableStateToken(before) })).toMatchObject({ ok: false, status: 409 });
+    expect(await applyLootTable(request)).toEqual({ ok: true, added: 0, newBosses: 0, removed: 1 });
+    const after = await state();
+    expect(after.lootBosses.map((boss) => [boss.name, boss.entries.map((entry) => entry.itemId)])).toEqual([['Boss', [4]], ['Keep', [2]], ['Gone', [3]], ['Spare', [4]]]);
+    expect(after.reserveSettings).toEqual(before.reserveSettings);
+    expect(await db.lootTableLoad.findMany({ select: { mode: true, added: true, removed: true } })).toEqual([{ mode: 'replace', added: 0, removed: 1 }]);
+    // Now only 4 is protected: it stays on both its bosses; Keep and Gone go, and Gone's award keeps the name.
+    await db.lootAward.deleteMany({ where: { itemId: 2 } }); await db.reserve.deleteMany();
+    const empty = parseIdsFile({ bosses: [{ name: 'Other', items: [] }] });
+    const now = await state();
+    expect(await applyLootTable({ ...request, file: empty, token: tableStateToken(now, await protectedItems(db, now)) })).toEqual({ ok: true, added: 0, newBosses: 1, removed: 2 });
+    expect((await state()).lootBosses.map((boss) => [boss.name, boss.entries.map((entry) => entry.itemId)])).toEqual([['Boss', [4]], ['Spare', [4]], ['Other', []]]);
+    expect(await db.lootAward.findMany({ select: { bossId: true, bossName: true, itemId: true } })).toEqual([{ bossId: null, bossName: 'Gone', itemId: 4 }]);
+  });
+  it('replace waits for an award being recorded, then refuses as stale instead of removing its item', async () => {
+    await db.user.create({ data: { id: 'member', discordId: 'sample-member', discordName: 'Sample', characters: { create: { id: 'char', name: 'Sample', class: 'MAGE', spec: 'Fire', raidRole: 'RANGED' } } } });
+    await db.raid.create({ data: { id: 'now', name: 'Now', templateId: 'tier', startsAt: new Date('2026-01-01T03:00:00Z'), locksAt: new Date('2026-01-01T02:00:00Z'), requirements: {} } });
+    const before = await state();
+    const request = { templateId: 'tier', file: parseIdsFile({ bosses: [{ name: 'Boss', items: [1] }] }), source: 'FOREVER' as const, token: tableStateToken(before, await protectedItems(db, before)), sourceName: 'small.json', officerId: 'officer', officerName: 'Sample Officer', replace: true };
+    const award = await pool.connect();
+    try {
+      await award.query('BEGIN');
+      await award.query(`INSERT INTO "LootAward" ("id", "raidId", "itemId", "characterId", "characterName", "method", "recordedById") VALUES ('a', 'now', 4, 'char', 'Sample', 'OPEN_ROLL', 'officer')`);
+      const applying = applyLootTable(request);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await award.query('COMMIT');
+      expect(await applying).toMatchObject({ ok: false, status: 409 });
+    } finally { award.release(); }
+    expect(await state()).toEqual(before);
   });
   it('returns the newest ten snapshots, supports replace mode, and returns no history for a never-loaded tier', async () => {
     expect(await lootLoadHistory('tier')).toEqual([]);

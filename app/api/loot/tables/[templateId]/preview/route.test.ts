@@ -1,9 +1,9 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ role: 'officer' as string | null, enabled: true, template: vi.fn(), cached: vi.fn(), refresh: vi.fn() }));
+const mocks = vi.hoisted(() => ({ role: 'officer' as string | null, enabled: true, template: vi.fn(), cached: vi.fn(), refresh: vi.fn(), reserves: vi.fn(), awards: vi.fn() }));
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.role ? { role: mocks.role } : null }));
 vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.enabled }));
-vi.mock('@/lib/db', () => ({ db: { raidTemplate: { findUnique: mocks.template }, lootItem: { findMany: mocks.cached } } }));
+vi.mock('@/lib/db', () => ({ db: { raidTemplate: { findUnique: mocks.template }, lootItem: { findMany: mocks.cached }, reserve: { findMany: mocks.reserves }, lootAward: { findMany: mocks.awards } } }));
 vi.mock('@/lib/loot-items', () => ({ refreshItems: mocks.refresh }));
 import { POST } from './route';
 
@@ -96,5 +96,15 @@ describe('loot table preview route', () => {
     const last = await (await call({ file: file([1, 2]) })).json();
     expect(mocks.cached).toHaveBeenLastCalledWith({ where: { id: { in: [1, 2] } }, select: { id: true, name: true, quality: true, icon: true } });
     expect(last.items).toEqual([row(1), row(2)]);
+  });
+  it('in replace, lists removals and protected items with their details; merge never reads protection', async () => {
+    mocks.template.mockResolvedValue({ id: 'mc', lootBosses: [{ id: 'b', name: 'Ragnaros', position: 0, isTrash: false, entries: [{ itemId: 5, position: 0 }, { itemId: 6, position: 1 }] }], reserveSettings: [] });
+    mocks.cached.mockResolvedValue([{ id: 1, source: 'FOREVER' }]);
+    await call({ file: file([1]) });
+    expect(mocks.reserves).not.toHaveBeenCalled();
+    mocks.reserves.mockResolvedValue([{ itemId: 6 }]); mocks.awards.mockResolvedValue([]);
+    const body = await (await call({ file: file([1]), replace: true })).json();
+    expect(body.preview).toMatchObject({ removed: 1, kept: 1, bosses: [{ remove: [5], kept: [{ id: 6, has: 'reserves' }], absent: null }] });
+    expect(mocks.cached).toHaveBeenLastCalledWith(expect.objectContaining({ where: { id: { in: [1, 5, 6] } } }));
   });
 });
