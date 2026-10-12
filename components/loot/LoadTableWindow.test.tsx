@@ -6,7 +6,7 @@ import { ToastHost } from '@/components/ui';
 import type { ApplyResult, LoadFile, PreviewResult } from '@/lib/loot-load-client';
 import { LoadTableWindow } from './LoadTableWindow';
 
-const client = vi.hoisted(() => ({ readLoadFile: vi.fn(), previewLoadTable: vi.fn(), applyLoadTable: vi.fn() }));
+const client = vi.hoisted(() => ({ readLoadFile: vi.fn(), previewLoadTable: vi.fn(), applyLoadTable: vi.fn(), loadAtlasRaids: vi.fn(), fetchAtlasTable: vi.fn() }));
 vi.mock('@/lib/loot-load-client', async (real) => ({ ...(await real<object>()), ...client }));
 
 const loadFile: LoadFile = {
@@ -23,6 +23,7 @@ const ready = (failed: number[] = [6], added = 4): PreviewResult => ({
   ] },
 });
 
+const atlasRaids = [{ key: 'MoltenCore', name: 'Molten Core' }, { key: 'Onyxia', name: 'Onyxia’s Lair' }];
 let root: Root, host: HTMLDivElement;
 const onClose = vi.fn(), onLoaded = vi.fn();
 beforeEach(() => {
@@ -31,6 +32,7 @@ beforeEach(() => {
   HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   HTMLDialogElement.prototype.close = function () { this.open = false; };
   client.readLoadFile.mockResolvedValue({ ok: true, value: loadFile });
+  client.loadAtlasRaids.mockResolvedValue({ kind: 'ready', source: 'CLASSIC', raids: atlasRaids });
   host = document.createElement('div'); document.body.append(host); root = createRoot(host);
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals(); });
@@ -176,7 +178,7 @@ describe('LoadTableWindow confirm', () => {
   it('loads, closes and tells the page', async () => {
     await toPreview(); applying({ kind: 'success', added: 4, newBosses: 1 });
     await click('Load 4 items');
-    expect(client.applyLoadTable).toHaveBeenCalledWith({ templateId: 'mc', loadFile, token: 'tok' });
+    expect(client.applyLoadTable).toHaveBeenCalledWith({ templateId: 'mc', loadFile, token: 'tok', source: 'FOREVER' });
     expect(onClose).toHaveBeenCalledOnce(); expect(onLoaded).toHaveBeenCalledOnce();
     expect(toasts()).toContain('Loaded molten-core.json: added 4 items.');
   });
@@ -222,5 +224,81 @@ describe('LoadTableWindow confirm', () => {
     expect(toasts()).toContain('Item ids 2: already cached for Classic.');
     expect(button('Retry')).toBeUndefined();
     expect(button('Load 4 items')).toBeDefined();
+  });
+});
+
+describe('LoadTableWindow AtlasLoot', () => {
+  const atlasRadio = () => host.querySelector<HTMLInputElement>('input[value="atlas"]')!;
+  const select = () => host.querySelector<HTMLSelectElement>('select')!;
+  const useAtlas = async () => act(async () => atlasRadio().click());
+  const pick = async (value: string) => act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')!.set!.call(select(), value);
+    select().dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  it('preselects the raid named like the tier, with the hint', async () => {
+    await render(); await useAtlas();
+    expect(select().value).toBe('MoltenCore');
+    expect([...select().options].map((o) => o.textContent)).toEqual(['Choose a raid', 'Molten Core', 'Onyxia’s Lair']);
+    expect(host.textContent).toContain('From the AtlasLoot version this site uses.');
+    expect(button('Preview')!.disabled).toBe(false);
+  });
+
+  it('previews a table fetched by raid key, with the configured item database as source', async () => {
+    client.fetchAtlasTable.mockResolvedValue({ kind: 'ok', source: 'CLASSIC', value: { ...loadFile, name: 'AtlasLoot: Molten Core' } });
+    client.previewLoadTable.mockResolvedValue(ready());
+    await render(); await useAtlas(); await click('Preview');
+    expect(client.fetchAtlasTable).toHaveBeenCalledWith('MoltenCore');
+    expect(client.previewLoadTable).toHaveBeenCalledWith(expect.objectContaining({ source: 'CLASSIC', loadFile: expect.objectContaining({ name: 'AtlasLoot: Molten Core' }) }));
+    expect(host.textContent).toContain('From AtlasLoot: Molten Core · merge');
+    client.applyLoadTable.mockResolvedValue({ kind: 'success', added: 4, newBosses: 1 });
+    await click('Load 4 items');
+    expect(client.applyLoadTable).toHaveBeenCalledWith(expect.objectContaining({ source: 'CLASSIC', token: 'tok' }));
+  });
+
+  it('preselects nothing and disables Preview when no raid matches the tier, until another is chosen', async () => {
+    client.loadAtlasRaids.mockResolvedValue({ kind: 'ready', source: 'CLASSIC', raids: [atlasRaids[1]] });
+    await render(); await useAtlas();
+    expect(select().value).toBe('');
+    expect(host.querySelector('[role="alert"]')!.textContent).toBe('AtlasLoot’s data on this site has no Molten Core. Choose another raid or load a file.');
+    expect(button('Preview')!.disabled).toBe(true);
+    await pick('Onyxia');
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+    expect(button('Preview')!.disabled).toBe(false);
+  });
+
+  it('greys AtlasLoot with the live-site reason and leaves File working', async () => {
+    client.loadAtlasRaids.mockResolvedValue({ kind: 'off' });
+    await render();
+    expect(atlasRadio().disabled).toBe(true);
+    expect(host.textContent).toContain('AtlasLoot has Classic items only. The live site takes WoW Forever items.');
+    await choose();
+    expect(button('Preview')!.disabled).toBe(false);
+  });
+
+  it('says so inline when the data can’t be downloaded, and keeps File available', async () => {
+    client.loadAtlasRaids.mockResolvedValue({ kind: 'error', error: 'Couldn’t download AtlasLoot’s data. Try again, or load a file.' });
+    await render(); await useAtlas();
+    expect(host.querySelector('[role="alert"]')!.textContent).toBe('Couldn’t download AtlasLoot’s data. Try again, or load a file.');
+    expect(button('Preview')!.disabled).toBe(true);
+    await act(async () => host.querySelector<HTMLInputElement>('input[value="file"]')!.click());
+    await choose();
+    expect(button('Preview')!.disabled).toBe(false);
+  });
+
+  it('shows the server’s sentence when the raid table is refused, and stays on step 1', async () => {
+    client.fetchAtlasTable.mockResolvedValue({ kind: 'error', error: 'AtlasLoot’s data on this site has no such raid. Choose another raid or load a file.' });
+    await render(); await useAtlas(); await click('Preview');
+    expect(host.querySelector('[role="alert"]')!.textContent).toContain('no such raid');
+    expect(client.previewLoadTable).not.toHaveBeenCalled();
+  });
+
+  it('never previews an AtlasLoot table when switched back to File', async () => {
+    client.previewLoadTable.mockResolvedValue({ kind: 'error', error: 'x' });
+    await render(); await choose(); await useAtlas();
+    await act(async () => host.querySelector<HTMLInputElement>('input[value="file"]')!.click());
+    await click('Preview');
+    expect(client.fetchAtlasTable).not.toHaveBeenCalled();
+    expect(client.previewLoadTable).toHaveBeenCalledWith(expect.objectContaining({ source: 'FOREVER', loadFile }));
   });
 });
