@@ -1,13 +1,16 @@
 # Officer loot tables
 
-Officers open a raid tier to see its boss-by-boss loot table. The local seed reaches
-the empty template pages. For a populated table, use the approved local-only import in
-[Loot data for local verification](loot-data.md).
+Officers open a raid tier to see its boss-by-boss loot table, load a whole table from a
+file with `Load table`, and read when it was last loaded. The local seed reaches the empty
+template pages. For a populated table, use the approved local-only import in
+[Loot data for local verification](loot-data.md); for the load flow, follow
+[Load a table and read its history](#load-a-table-and-read-its-history).
 
 ## Sub-features
 
 - `loot-tiers`: raid-tier links, loot counts/empty labels and inactive badges.
 - `loot-template`: `/officers/loot/[templateId]`, its empty boss list and populated boss/item table.
+- `loot-load-history`: the `Last loaded from …` line and `Load history` list under `Load table`.
 
 ## How to get to it (user POV)
 
@@ -48,14 +51,44 @@ enter as an officer.
 - **Proof.** Save list/detail snapshots and capture the populated detail page at
   1440 × 900 and 390 × 844. Record the count and artifact paths in `$EVIDENCE/notes.md`.
 
+### Load a table and read its history
+
+Run this on a tier that has never been loaded (Hyjal Summit in the seed), so the
+table is empty and the Onyxia import above stays untouched. The page's read of the
+history is the only thing proved here; the Load table window is covered by its own states.
+
+- **Never loaded.** Open the tier. Expect the toolbar with `Load table` and
+  `Refresh items from Wowhead`, and **no** `Last loaded from` line and no `Load history`
+  toggle. Capture at 1440 × 900 and 390 × 844 (design state `table-empty`).
+- **Make two loads.** The load window fetches WoW Forever items from Wowhead for any id
+  not already cached as a Forever item, so use ids that are not in the Classic Onyxia
+  import (Wowhead's public pages, a handful of requests). Write two files outside git:
+  `{"bosses":[{"name":"Lucifron","items":[17073,18814]}]}` and
+  `{"bosses":[{"name":"Lucifron","items":[17073,18814,18815,18820]},{"name":"Magmadar","items":[18821,18879,19138]}]}`.
+  Click `Load table`, `upload` the file onto `Choose file`, `Preview`, then `Load N items`;
+  repeat with the second file. Fresh handles after each step.
+- **Line.** After the second load, fully reopen the tier URL. Expect `Last loaded from
+  <second file> by Ledgerline · <date>, <time> · merge`. The time is in your zone; the
+  guild-time popup shows only when your zone differs from guild time.
+- **History.** Click `Load history`: it becomes `Hide load history` and lists both
+  loads newest first with Source, Officer, When, Mode (`Merge`) and Changes (`+5`, `+2`).
+  Capture at both widths (design state `history`). A merge shows only `+N`; a replace
+  with removals shows `+N −M`, which only a seeded audit row can show locally.
+- **Not proved locally.** Replace loads (#126) and a 10-row history cap need rows the
+  UI can't yet create cheaply; the component tests cover both.
+
 ## Gotchas
 
 - The page and loot APIs return 404 without `LOOT_ENABLED=true`. The local launcher
   already sets it through `childEnvironment` in `prisma/local-database.ts`; no
   settings-file change or extra flag is needed. Non-officers also get 404 (index).
-- The seed has raid templates but **no loot data**. Do not add bosses/items or click
-  `Refresh items from Wowhead`; for the approved populated local proof, follow
-  [Loot data for local verification](loot-data.md) instead.
+- The seed has raid templates but **no loot data**. Do not click
+  `Refresh items from Wowhead`. For a populated table follow
+  [Loot data for local verification](loot-data.md); `Load table` is the one approved way
+  to bring in external loot data besides that import, and only into this local database.
+  Classic ids from the Onyxia import are refused by `Load table` ("already saved from a
+  different game"), so load other ids as in the section above.
 - The no-templates tier-list state is not reached by the seed. Empty boss lists and
   `No loot table yet` are reached. Populated editing, ordering and item persistence
-  remain unverified; do not claim this map proves them.
+  remain unverified; do not claim this map proves them. Loading and the history read-back
+  are proved only as far as the section above says.
