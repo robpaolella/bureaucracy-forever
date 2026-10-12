@@ -74,7 +74,7 @@ lookup results and errors are announced (`role="status"`, error tied with `aria-
 Status is never colour alone.
 
 ## Host snapshot and offline proof
-- Source commit `origin/main` at 2026-10-12 (`Loot table loading: … (#227)`), branch
+- Source commit `a3776e46260365c07c35197469af85fa354a18c0` (`origin/main` on 2026-10-12, `Loot table loading: … (#227)`), branch
   `docs/239-design-unlisted-drop`, folder `/git/bureaucracy-forever`. Skill:
   `.pi/skills/verify-guild/SKILL.md` (Launch, Doctor, Editable offline page snapshot, Cleanup).
   Evidence `/tmp/verify-guild-ebSI2j` (`launch.txt` Doctor PASS, `import.txt`, `cleanup.txt` Cleanup PASS).
