@@ -21,8 +21,9 @@ export type LoadTableState = Prisma.RaidTemplateGetPayload<{ select: typeof LOAD
 export type Protection = { reserves: number[]; awards: number[] };
 
 /**
- * Pass the locked transaction when enforcing. Reserve saves take the tier lock; recording an
- * award doesn't, so apply also locks the award table while it reads and removes.
+ * Pass the locked transaction when enforcing. Reserve saves and recording an award take the tier
+ * lock, so under it protection can't change. Voiding keeps the award protected, and a raid with
+ * awards can't be deleted.
  */
 export async function protectedItems(client: Pick<Prisma.TransactionClient, 'reserve' | 'lootAward'>, state: LoadTableState): Promise<Protection> {
   const where = { itemId: { in: [...new Set(state.lootBosses.flatMap((boss) => boss.entries.map((entry) => entry.itemId)))] }, raid: { templateId: state.id } };
@@ -84,9 +85,9 @@ export async function applyLootTable(input: {
   sourceName: string; officerId: string; officerName: string; replace?: boolean;
 }) {
   return db.$transaction(async (tx) => {
+    // Reserve and award writes take this lock too, so protection read below is final. No award
+    // table lock: two tiers' replaces would each hold it and deadlock removing bosses (#233).
     await lockReserveTier(tx, input.templateId);
-    // Award inserts wait for this load to commit, and this waits for any in flight, so protection read below is final.
-    if (input.replace) await tx.$executeRaw`LOCK TABLE "LootAward" IN SHARE MODE`;
     const state = await tx.raidTemplate.findUnique({ where: { id: input.templateId }, select: LOAD_TABLE_SELECT });
     if (!state) return { ok: false as const, status: 404, error: 'No such raid tier.' };
     const protection = input.replace ? await protectedItems(tx, state) : undefined;
