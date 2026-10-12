@@ -5,9 +5,16 @@ type Fetcher = typeof fetch;
 type FailedItem = { id: number; error: string };
 type Preview = {
   token: string;
-  bosses: { bossId: string | null; name: string; isTrash: boolean; isNew: boolean; add: number[]; already: number[]; notFound: number[] }[];
+  bosses: {
+    bossId: string | null; name: string; isTrash: boolean; isNew: boolean; add: number[]; already: number[]; notFound: number[];
+    /** Replace only; empty, or null for absent, in a merge. */
+    remove: number[]; kept: { id: number; has: 'awards' | 'reserves' }[]; absent: 'remove' | 'keep' | null;
+  }[];
   added: number;
   newBosses: number;
+  removed: number;
+  removedBosses: number;
+  kept: number;
 };
 
 /** What the preview lists for an item to add; ids missing here show as their number. */
@@ -21,7 +28,7 @@ export type PreviewResult =
   | { kind: 'stopped' }
   | { kind: 'error'; error: string };
 export type ApplyResult =
-  | { kind: 'success'; added: number; newBosses: number }
+  | { kind: 'success'; added: number; newBosses: number; removed: number }
   | { kind: 'stale'; error: string; hint: string }
   | { kind: 'error'; error: string }
   | { kind: 'save-failed' };
@@ -132,16 +139,16 @@ function request(fetcher: Fetcher, url: string, body: unknown) {
 /** Runs every preview batch. Calling it again retries prior failures because it begins with an empty skip list. */
 export async function previewLoadTable(options: {
   templateId: string; loadFile: LoadFile; source?: ItemSource; onProgress?: (progress: { completed: number; total: number }) => void;
-  stopped?: () => boolean; fetcher?: Fetcher;
+  stopped?: () => boolean; fetcher?: Fetcher; replace?: boolean;
 }): Promise<PreviewResult> {
-  const { templateId, loadFile, source = 'FOREVER', onProgress, stopped = () => false, fetcher = fetch } = options;
+  const { templateId, loadFile, source = 'FOREVER', onProgress, stopped = () => false, fetcher = fetch, replace = false } = options;
   const failed = new Map<number, FailedItem>();
   let skip: number[] = [];
   while (true) {
     if (stopped()) return { kind: 'stopped' };
     let response: Response;
     try {
-      response = await request(fetcher, `/api/loot/tables/${templateId}/preview`, { file: toIdsFile(loadFile.file), source, skip });
+      response = await request(fetcher, `/api/loot/tables/${templateId}/preview`, { file: toIdsFile(loadFile.file), source, skip, replace });
     } catch {
       return { kind: 'error', error: UNREACHABLE };
     }
@@ -160,7 +167,8 @@ export async function previewLoadTable(options: {
     if (json.remaining > 0) continue;
     if (!isPreview(json.preview)) return { kind: 'error', error: UNREACHABLE };
     const items = Array.isArray(json.items) ? json.items.filter(isPreviewItem) : [];
-    return { kind: 'preview', preview: json.preview, items, failed: [...failed.values()], nothingToChange: json.preview.added === 0 && json.preview.newBosses === 0 };
+    const { added, newBosses, removed, removedBosses } = json.preview;
+    return { kind: 'preview', preview: json.preview, items, failed: [...failed.values()], nothingToChange: added + newBosses + removed + removedBosses === 0 };
   }
 }
 
@@ -171,18 +179,19 @@ function isPreviewItem(value: unknown): value is PreviewItem {
 }
 
 function isPreview(value: unknown): value is Preview {
-  return !!value && typeof value === 'object' && typeof (value as Preview).token === 'string' &&
-    typeof (value as Preview).added === 'number' && typeof (value as Preview).newBosses === 'number' && Array.isArray((value as Preview).bosses);
+  const preview = value as Preview;
+  return !!preview && typeof preview === 'object' && typeof preview.token === 'string' && Array.isArray(preview.bosses) &&
+    [preview.added, preview.newBosses, preview.removed, preview.removedBosses, preview.kept].every((n) => typeof n === 'number');
 }
 
 /** Applies exactly a completed preview. A failed save intentionally leaves that preview available to retry. */
 export async function applyLoadTable(options: {
-  templateId: string; loadFile: LoadFile; token: string; source?: ItemSource; fetcher?: Fetcher;
+  templateId: string; loadFile: LoadFile; token: string; source?: ItemSource; fetcher?: Fetcher; replace?: boolean;
 }): Promise<ApplyResult> {
-  const { templateId, loadFile, token, source = 'FOREVER', fetcher = fetch } = options;
+  const { templateId, loadFile, token, source = 'FOREVER', fetcher = fetch, replace = false } = options;
   let response: Response;
   try {
-    response = await request(fetcher, `/api/loot/tables/${templateId}/apply`, { file: toIdsFile(loadFile.file), source, token, sourceName: loadFile.name });
+    response = await request(fetcher, `/api/loot/tables/${templateId}/apply`, { file: toIdsFile(loadFile.file), source, token, sourceName: loadFile.name, replace });
   } catch {
     return { kind: 'save-failed' };
   }
@@ -190,8 +199,8 @@ export async function applyLoadTable(options: {
   if (response.status === 409 && json?.error === STALE) return { kind: 'stale', error: STALE, hint: STALE_HINT };
   if (response.status >= 500 || !json) return { kind: 'save-failed' };
   if (!response.ok) return { kind: 'error', error: routeError(json) };
-  if (typeof json.added !== 'number' || typeof json.newBosses !== 'number') return { kind: 'save-failed' };
-  return { kind: 'success', added: json.added, newBosses: json.newBosses };
+  if (typeof json.added !== 'number' || typeof json.newBosses !== 'number' || typeof json.removed !== 'number') return { kind: 'save-failed' };
+  return { kind: 'success', added: json.added, newBosses: json.newBosses, removed: json.removed };
 }
 
 export const LOAD_TABLE_MESSAGES = { INVALID_FILE, UNREACHABLE, STALE, STALE_HINT, SAVE_FAILED };

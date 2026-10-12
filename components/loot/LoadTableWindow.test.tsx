@@ -13,13 +13,14 @@ const loadFile: LoadFile = {
   name: 'molten-core.json', total: 6,
   file: { bosses: [{ name: 'Lucifron', isTrash: false, itemIds: [1, 2, 3] }, { name: 'Trash', isTrash: true, itemIds: [4, 5, 6] }], skipped: [] },
 };
+const merge = { remove: [], kept: [], absent: null };
 const ready = (failed: number[] = [6], added = 4): PreviewResult => ({
   kind: 'preview', nothingToChange: added === 0, failed: failed.map((id) => ({ id, error: 'Not found' })),
   items: [{ id: 2, name: 'Ashen Signet', quality: 4, icon: 'inv_ring' }],
-  preview: { token: 'tok', added, newBosses: 1, bosses: [
-    { bossId: 'b1', name: 'Lucifron', isTrash: false, isNew: false, add: [2, 3], already: [1], notFound: [] },
-    { bossId: 'b9', name: 'Test boss', isTrash: false, isNew: false, add: [], already: [], notFound: [] },
-    { bossId: null, name: 'Trash', isTrash: true, isNew: true, add: [4, 5], already: [], notFound: failed },
+  preview: { token: 'tok', added, newBosses: 1, removed: 0, removedBosses: 0, kept: 0, bosses: [
+    { bossId: 'b1', name: 'Lucifron', isTrash: false, isNew: false, add: [2, 3], already: [1], notFound: [], ...merge },
+    { bossId: 'b9', name: 'Test boss', isTrash: false, isNew: false, add: [], already: [], notFound: [], ...merge },
+    { bossId: null, name: 'Trash', isTrash: true, isNew: true, add: [4, 5], already: [], notFound: failed, ...merge },
   ] },
 });
 
@@ -176,7 +177,7 @@ describe('LoadTableWindow confirm', () => {
   const applying = (...results: ApplyResult[]) => results.forEach((r) => client.applyLoadTable.mockResolvedValueOnce(r));
 
   it('loads, closes and tells the page', async () => {
-    await toPreview(); applying({ kind: 'success', added: 4, newBosses: 1 });
+    await toPreview(); applying({ kind: 'success', added: 4, newBosses: 1, removed: 0 });
     await click('Load 4 items');
     expect(client.applyLoadTable).toHaveBeenCalledWith({ templateId: 'mc', loadFile, token: 'tok', source: 'FOREVER' });
     expect(onClose).toHaveBeenCalledOnce(); expect(onLoaded).toHaveBeenCalledOnce();
@@ -191,7 +192,7 @@ describe('LoadTableWindow confirm', () => {
     await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!.click());
     expect(onClose).not.toHaveBeenCalled();
     expect(button('Try again')!.disabled).toBe(true);
-    await act(async () => finish({ kind: 'success', added: 4, newBosses: 1 }));
+    await act(async () => finish({ kind: 'success', added: 4, newBosses: 1, removed: 0 }));
     expect(onClose).toHaveBeenCalledOnce(); expect(onLoaded).toHaveBeenCalledOnce();
     expect(toasts()).toContain('Loaded molten-core.json: added 4 items.');
   });
@@ -208,7 +209,7 @@ describe('LoadTableWindow confirm', () => {
   });
 
   it('keeps the preview when saving fails, and Retry re-applies with the same token', async () => {
-    await toPreview(); applying({ kind: 'save-failed' }, { kind: 'success', added: 4, newBosses: 1 });
+    await toPreview(); applying({ kind: 'save-failed' }, { kind: 'success', added: 4, newBosses: 1, removed: 0 });
     await click('Load 4 items');
     expect(toasts()).toContain('Couldn’t save that — try again.Retry');
     expect(button('Load 4 items')).toBeDefined();
@@ -251,7 +252,7 @@ describe('LoadTableWindow AtlasLoot', () => {
     expect(client.fetchAtlasTable).toHaveBeenCalledWith('MoltenCore');
     expect(client.previewLoadTable).toHaveBeenCalledWith(expect.objectContaining({ source: 'CLASSIC', loadFile: expect.objectContaining({ name: 'AtlasLoot: Molten Core' }) }));
     expect(host.textContent).toContain('From AtlasLoot: Molten Core · merge');
-    client.applyLoadTable.mockResolvedValue({ kind: 'success', added: 4, newBosses: 1 });
+    client.applyLoadTable.mockResolvedValue({ kind: 'success', added: 4, newBosses: 1, removed: 0 });
     await click('Load 4 items');
     expect(client.applyLoadTable).toHaveBeenCalledWith(expect.objectContaining({ source: 'CLASSIC', token: 'tok' }));
   });
