@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { allItemIds, parseIdsFile } from '@/lib/loot-import';
 import { refreshItems } from '@/lib/loot-items';
 import { itemSourceError, SOURCE_CONFLICT } from '@/lib/item-sources';
-import { LOAD_TABLE_SELECT, mergePreview } from '@/lib/loot-load';
+import { LOAD_TABLE_SELECT, mergePreview, protectedItems } from '@/lib/loot-load';
 import { REFRESH_BATCH } from '@/lib/loot-table-rules';
 import { requireLootOfficer } from '../../../../_loot';
 import { jsonBody, NO_STORE } from '../../../../_officer';
@@ -11,17 +11,17 @@ import { jsonBody, NO_STORE } from '../../../../_officer';
 export const maxDuration = 60;
 
 /**
- * Body: { file: parsed JSON, source?: 'FOREVER' | 'CLASSIC', skip?: number[] }.
+ * Body: { file: parsed JSON, source?: 'FOREVER' | 'CLASSIC', skip?: number[], replace?: boolean }.
  * Repeat with the same file/source and returned skip until remaining is zero. Cached items
  * resume successful fetches; skip carries failures (all remain visible in notFound).
  * No table writes. The token fingerprints the table, not the file; apply must validate both.
- * The final batch also returns `items`: name, quality and icon of each item to add, read from the cache.
+ * The final batch also returns `items`: name, quality and icon of each item to add, remove or keep, read from the cache.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ templateId: string }> }) {
   const auth = await requireLootOfficer();
   if ('deny' in auth) return NextResponse.json({ error: 'Not found.' }, { status: 404, headers: NO_STORE });
   const started = Date.now();
-  const body = (await jsonBody(request) ?? {}) as { file?: unknown; source?: unknown; skip?: unknown };
+  const body = (await jsonBody(request) ?? {}) as { file?: unknown; source?: unknown; skip?: unknown; replace?: unknown };
   const source = body.source ?? 'FOREVER';
   if (source !== 'FOREVER' && source !== 'CLASSIC') return NextResponse.json({ error: 'Pick Classic or Forever.' }, { status: 400, headers: NO_STORE });
   const policyError = itemSourceError(source);
@@ -47,9 +47,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ tem
   result.failed.forEach(({ id }) => skip.add(id));
   const remaining = pending.length - result.saved.length - result.failed.length;
   if (remaining) return NextResponse.json({ remaining, skip: [...skip], failed: result.failed, preview: null }, { headers: NO_STORE });
-  const preview = mergePreview(state, file, available);
+  const preview = mergePreview(state, file, available, body.replace === true ? await protectedItems(db, state) : undefined);
   const items = await db.lootItem.findMany({
-    where: { id: { in: preview.bosses.flatMap((boss) => boss.add) } }, select: { id: true, name: true, quality: true, icon: true },
+    where: { id: { in: preview.bosses.flatMap((boss) => [...boss.add, ...boss.remove, ...boss.kept.map((item) => item.id)]) } }, select: { id: true, name: true, quality: true, icon: true },
   });
   return NextResponse.json({ remaining, skip: [...skip], failed: result.failed, preview, items }, { headers: NO_STORE });
 }

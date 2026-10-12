@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { parseIdsFile } from './loot-import';
-import { applyLoadTable, LOAD_TABLE_MESSAGES, previewLoadTable, readLoadFile, toIdsFile, type LoadFile } from './loot-load-client';
+import { applyLoadTable, fetchAtlasTable, LOAD_TABLE_MESSAGES, loadAtlasRaids, previewLoadTable, readLoadFile, toIdsFile, type LoadFile } from './loot-load-client';
 
 const loadFile: LoadFile = { name: 'molten-core.json', file: { bosses: [{ name: 'Lucifron', isTrash: false, itemIds: [1, 2, 3] }], skipped: [] }, total: 3 };
-const preview = { token: 'a'.repeat(64), bosses: [], added: 2, newBosses: 0 };
+const preview = { token: 'a'.repeat(64), bosses: [], added: 2, newBosses: 0, removed: 0, removedBosses: 0, kept: 0 };
 const sent = { bosses: [{ name: 'Lucifron', trash: false, items: [1, 2, 3] }] };
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 
@@ -34,7 +34,7 @@ describe('previewLoadTable', () => {
 
     await expect(previewLoadTable({ templateId: 'mc', loadFile, fetcher, onProgress: progress })).resolves.toEqual({ kind: 'preview', preview, items: [], failed: [{ id: 2, error: 'Not found' }, { id: 3, error: 'Gone' }], nothingToChange: false });
     expect(fetcher.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string))).toEqual([
-      { file: sent, source: 'FOREVER', skip: [] }, { file: sent, source: 'FOREVER', skip: [2] },
+      { file: sent, source: 'FOREVER', skip: [], replace: false }, { file: sent, source: 'FOREVER', skip: [2], replace: false },
     ]);
     expect(progress).toHaveBeenCalledWith({ completed: 2, total: 3 });
     expect(progress).toHaveBeenLastCalledWith({ completed: 3, total: 3 });
@@ -62,12 +62,25 @@ describe('previewLoadTable', () => {
     await expect(previewLoadTable({ templateId: 'mc', loadFile, fetcher })).resolves.toMatchObject({ kind: 'preview', items: [item] });
   });
 
-  it('marks a completed preview as unchanged only when it has no additions or new bosses', async () => {
+  it('marks a completed preview as unchanged only when it adds and removes nothing', async () => {
+    const none = { ...preview, added: 0, newBosses: 0, kept: 2 };
     const fetcher = vi.fn()
-      .mockResolvedValueOnce(response({ remaining: 0, skip: [], failed: [], preview: { ...preview, added: 0, newBosses: 0 } }))
-      .mockResolvedValueOnce(response({ remaining: 0, skip: [], failed: [], preview: { ...preview, added: 0, newBosses: 1 } }));
+      .mockResolvedValueOnce(response({ remaining: 0, skip: [], failed: [], preview: none }))
+      .mockResolvedValueOnce(response({ remaining: 0, skip: [], failed: [], preview: { ...none, newBosses: 1 } }))
+      .mockResolvedValueOnce(response({ remaining: 0, skip: [], failed: [], preview: { ...none, removed: 1 } }))
+      .mockResolvedValueOnce(response({ remaining: 0, skip: [], failed: [], preview: { ...none, removedBosses: 1 } }));
     await expect(previewLoadTable({ templateId: 'mc', loadFile, fetcher })).resolves.toMatchObject({ kind: 'preview', nothingToChange: true });
-    await expect(previewLoadTable({ templateId: 'mc', loadFile, fetcher })).resolves.toMatchObject({ kind: 'preview', nothingToChange: false });
+    for (let i = 0; i < 3; i++) await expect(previewLoadTable({ templateId: 'mc', loadFile, fetcher })).resolves.toMatchObject({ kind: 'preview', nothingToChange: false });
+  });
+
+  it('sends the replace choice with every batch', async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(response({ remaining: 1, skip: [], failed: [], preview: null }))
+      .mockResolvedValueOnce(response({ remaining: 0, skip: [], failed: [], preview }));
+    await previewLoadTable({ templateId: 'mc', loadFile, fetcher, replace: true });
+    expect(fetcher.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string).replace)).toEqual([true, true]);
+    await previewLoadTable({ templateId: 'mc', loadFile, fetcher: fetcher.mockResolvedValueOnce(response({ remaining: 0, skip: [], failed: [], preview })) });
+    expect(JSON.parse((fetcher.mock.calls[2][1] as RequestInit).body as string).replace).toBe(false);
   });
 
   it('uses route sentences and the network message for preview failures', async () => {
@@ -78,9 +91,9 @@ describe('previewLoadTable', () => {
 
 describe('applyLoadTable', () => {
   it('sends the source filename and returns success', async () => {
-    const fetcher = vi.fn().mockResolvedValue(response({ added: 2, newBosses: 1 }));
-    await expect(applyLoadTable({ templateId: 'mc', loadFile, token: preview.token, fetcher })).resolves.toEqual({ kind: 'success', added: 2, newBosses: 1 });
-    expect(JSON.parse((fetcher.mock.calls[0][1] as RequestInit).body as string)).toMatchObject({ sourceName: 'molten-core.json', token: preview.token, file: sent });
+    const fetcher = vi.fn().mockResolvedValue(response({ added: 2, newBosses: 1, removed: 3 }));
+    await expect(applyLoadTable({ templateId: 'mc', loadFile, token: preview.token, fetcher, replace: true })).resolves.toEqual({ kind: 'success', added: 2, newBosses: 1, removed: 3 });
+    expect(JSON.parse((fetcher.mock.calls[0][1] as RequestInit).body as string)).toMatchObject({ sourceName: 'molten-core.json', token: preview.token, file: sent, replace: true });
   });
 
   it('maps stale, plain route, and save failures', async () => {
@@ -89,5 +102,28 @@ describe('applyLoadTable', () => {
     await expect(applyLoadTable({ templateId: 'mc', loadFile, token: preview.token, fetcher: vi.fn().mockResolvedValue(response({ error: 'Item ids 2: already cached for Classic.' }, 409)) })).resolves.toEqual({ kind: 'error', error: 'Item ids 2: already cached for Classic.' });
     await expect(applyLoadTable({ templateId: 'mc', loadFile, token: preview.token, fetcher: vi.fn().mockResolvedValue(response({ error: "Couldn't save that." }, 500)) })).resolves.toEqual({ kind: 'save-failed' });
     await expect(applyLoadTable({ templateId: 'mc', loadFile, token: preview.token, fetcher: vi.fn().mockResolvedValue(new Response('not json')) })).resolves.toEqual({ kind: 'save-failed' });
+  });
+});
+
+describe('AtlasLoot', () => {
+  it('lists raids, or says AtlasLoot is off, or surfaces the server’s sentence', async () => {
+    const raids = [{ key: 'Onyxia', name: 'Onyxia’s Lair' }];
+    await expect(loadAtlasRaids(vi.fn().mockResolvedValue(response({ source: 'CLASSIC', off: false, raids })))).resolves.toEqual({ kind: 'ready', raids, source: 'CLASSIC' });
+    await expect(loadAtlasRaids(vi.fn().mockResolvedValue(response({ source: 'CLASSIC', off: true, raids: [] })))).resolves.toEqual({ kind: 'off' });
+    await expect(loadAtlasRaids(vi.fn().mockResolvedValue(response({ error: 'Couldn’t download.' }, 502)))).resolves.toEqual({ kind: 'error', error: 'Couldn’t download.' });
+    await expect(loadAtlasRaids(vi.fn().mockRejectedValue(new Error('offline')))).resolves.toEqual({ kind: 'error', error: LOAD_TABLE_MESSAGES.UNREACHABLE });
+  });
+
+  it('posts a raid key only and returns the table as a load file named for the raid', async () => {
+    const fetcher = vi.fn().mockResolvedValue(response({ source: 'CLASSIC', name: 'AtlasLoot: Molten Core', file: sent }));
+    const result = await fetchAtlasTable('MoltenCore', fetcher);
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ raidKey: 'MoltenCore' });
+    expect(result).toEqual({ kind: 'ok', source: 'CLASSIC', value: { ...loadFile, name: 'AtlasLoot: Molten Core' } });
+  });
+
+  it('returns the server’s sentence for a refused raid, and a plain one for a bad answer', async () => {
+    await expect(fetchAtlasTable('Nope', vi.fn().mockResolvedValue(response({ error: 'No such raid.' }, 404)))).resolves.toEqual({ kind: 'error', error: 'No such raid.', missing: true });
+    await expect(fetchAtlasTable('Nope', vi.fn().mockResolvedValue(response({ error: 'Couldn’t download.' }, 502)))).resolves.toEqual({ kind: 'error', error: 'Couldn’t download.' });
+    await expect(fetchAtlasTable('X', vi.fn().mockResolvedValue(response({ source: 'CLASSIC', name: 'x', file: {} })))).resolves.toEqual({ kind: 'error', error: LOAD_TABLE_MESSAGES.UNREACHABLE });
   });
 });
