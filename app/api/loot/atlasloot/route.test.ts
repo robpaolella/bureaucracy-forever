@@ -53,7 +53,7 @@ describe('AtlasLoot route', () => {
     fetcher.mockImplementation(async () => new Response('data["Onyxia"] = {'));
     for (const res of [await GET(), await post({ raidKey: 'Onyxia' })]) {
       expect(res.status).toBe(502);
-      expect(await res.json()).toEqual({ error: 'Couldn’t read AtlasLoot’s data. Try again later, or load a file.' });
+      expect(await res.json()).toEqual({ error: 'Couldn’t read AtlasLoot’s data. Try again later, or load a file manually.' });
     }
   });
 
@@ -76,7 +76,7 @@ describe('AtlasLoot route', () => {
     fetcher.mockResolvedValue(new Response('nope', { status: 404 }));
     for (const res of [await GET(), await post({ raidKey: 'Onyxia' })]) {
       expect(res.status).toBe(502);
-      expect(await res.json()).toEqual({ error: 'Couldn’t download AtlasLoot’s data. Try again, or load a file.' });
+      expect(await res.json()).toEqual({ error: 'Couldn’t download AtlasLoot’s data. Try again, or load a file manually.' });
     }
     fetcher.mockRejectedValue(new Error('offline'));
     expect((await GET()).status).toBe(502);
