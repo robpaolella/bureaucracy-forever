@@ -10,7 +10,7 @@ const body = { file: { bosses: [{ name: 'Boss', items: [1] }] }, sourceName: 'ta
 const call = (input: unknown = body) => POST(new Request('https://example.test', { method: 'POST', body: JSON.stringify(input) }), { params: Promise.resolve({ templateId: 'tier' }) });
 beforeEach(() => {
   mocks.role = 'officer'; mocks.enabled = true;
-  mocks.apply.mockReset().mockResolvedValue({ ok: true, added: 1, newBosses: 1 });
+  mocks.apply.mockReset().mockResolvedValue({ ok: true, added: 1, newBosses: 1, removed: 0 });
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -38,8 +38,12 @@ describe('loot-table apply route', () => {
     const response = await call();
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('private, no-store');
-    expect(await response.json()).toEqual({ added: 1, newBosses: 1 });
-    expect(mocks.apply).toHaveBeenCalledWith({ templateId: 'tier', file: { bosses: [{ name: 'Boss', isTrash: false, itemIds: [1] }], skipped: [] }, source: 'FOREVER', token: body.token, sourceName: 'table.json', officerId: 'officer', officerName: 'Sample Officer' });
+    expect(await response.json()).toEqual({ added: 1, newBosses: 1, removed: 0 });
+    expect(mocks.apply).toHaveBeenCalledWith({ templateId: 'tier', file: { bosses: [{ name: 'Boss', isTrash: false, itemIds: [1] }], skipped: [] }, source: 'FOREVER', token: body.token, sourceName: 'table.json', officerId: 'officer', officerName: 'Sample Officer', replace: false });
+    await call({ ...body, replace: true });
+    expect(mocks.apply).toHaveBeenLastCalledWith(expect.objectContaining({ replace: true }));
+    await call({ ...body, replace: 'yes' });
+    expect(mocks.apply).toHaveBeenLastCalledWith(expect.objectContaining({ replace: false }));
   });
   it.each([
     [409, 'The table changed since this preview.'],
@@ -51,8 +55,8 @@ describe('loot-table apply route', () => {
     expect(await response.json()).toEqual({ error });
   });
   it('returns a normal zero result for no additions and a safe error for a database failure', async () => {
-    mocks.apply.mockResolvedValue({ ok: true, added: 0, newBosses: 0 });
-    expect(await (await call()).json()).toEqual({ added: 0, newBosses: 0 });
+    mocks.apply.mockResolvedValue({ ok: true, added: 0, newBosses: 0, removed: 0 });
+    expect(await (await call()).json()).toEqual({ added: 0, newBosses: 0, removed: 0 });
     mocks.apply.mockRejectedValue(new Error('database detail'));
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {

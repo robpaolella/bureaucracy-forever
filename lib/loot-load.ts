@@ -17,13 +17,37 @@ export const LOAD_TABLE_SELECT = {
 } satisfies Prisma.RaidTemplateSelect;
 export type LoadTableState = Prisma.RaidTemplateGetPayload<{ select: typeof LOAD_TABLE_SELECT }>;
 
-/** An optimistic-concurrency fingerprint, not authorization; apply must recompute it in its transaction. */
-export function tableStateToken(state: LoadTableState): string {
-  return createHash('sha256').update(JSON.stringify(state)).digest('hex');
+/** Table items that replace must keep, sorted: reserved in any raid of the tier, or awarded in it, voided or not (Robert, #126). */
+export type Protection = { reserves: number[]; awards: number[] };
+
+/**
+ * Pass the locked transaction when enforcing. Reserve saves and recording an award take the tier
+ * lock, so under it protection can't change. Voiding keeps the award protected, and a raid with
+ * awards can't be deleted.
+ */
+export async function protectedItems(client: Pick<Prisma.TransactionClient, 'reserve' | 'lootAward'>, state: LoadTableState): Promise<Protection> {
+  const where = { itemId: { in: [...new Set(state.lootBosses.flatMap((boss) => boss.entries.map((entry) => entry.itemId)))] }, raid: { templateId: state.id } };
+  const select = { itemId: true }, orderBy = { itemId: 'asc' } as const;
+  const reserves = await client.reserve.findMany({ where, select, orderBy, distinct: ['itemId'] });
+  const awards = await client.lootAward.findMany({ where, select, orderBy, distinct: ['itemId'] });
+  return { reserves: reserves.map((row) => row.itemId), awards: awards.map((row) => row.itemId) };
 }
 
-/** Only additions are proposed. Existing bosses, entries and reserve settings are never overwritten. */
-export function mergePreview(state: LoadTableState, file: ParsedTable, available: ReadonlySet<number>) {
+/**
+ * An optimistic-concurrency fingerprint, not authorization; apply must recompute it in its transaction.
+ * Replace also covers protection, so a reserve or award made after the preview makes it stale.
+ */
+export function tableStateToken(state: LoadTableState, protection?: Protection): string {
+  return createHash('sha256').update(JSON.stringify(protection ? { state, protection } : state)).digest('hex');
+}
+
+/**
+ * Merge (no protection) only adds: existing bosses, entries and reserve settings are never overwritten.
+ * Replace also removes entries the source doesn't have, except protected items, and bosses absent
+ * from the source with nothing protected (Robert, #47). Reserve settings stay either way.
+ */
+export function mergePreview(state: LoadTableState, file: ParsedTable, available: ReadonlySet<number>, protection?: Protection) {
+  const awarded = new Set(protection?.awards), reserved = new Set(protection?.reserves);
   const byName = new Map(file.bosses.map((boss) => [boss.name, boss]));
   const names = new Set(state.lootBosses.map((boss) => boss.name));
   const ordered = [
@@ -33,34 +57,54 @@ export function mergePreview(state: LoadTableState, file: ParsedTable, available
   const bosses = ordered.map(({ existing, incoming }) => {
     const current = new Set(existing?.entries.map((entry) => entry.itemId) ?? []);
     const ids = incoming?.itemIds ?? [];
+    const gone = protection ? (existing?.entries ?? []).map((entry) => entry.itemId).filter((id) => !ids.includes(id)) : [];
+    // An item with both says awards: the stronger reason.
+    const kept = gone.flatMap((id): { id: number; has: 'awards' | 'reserves' }[] => (awarded.has(id) ? [{ id, has: 'awards' }] : reserved.has(id) ? [{ id, has: 'reserves' }] : []));
     return {
       bossId: existing?.id ?? null, name: existing?.name ?? incoming!.name,
       isTrash: existing?.isTrash ?? incoming!.isTrash, isNew: !existing,
       add: ids.filter((id) => !current.has(id) && available.has(id)),
       already: ids.filter((id) => current.has(id)),
       notFound: ids.filter((id) => !available.has(id)),
+      remove: gone.filter((id) => !awarded.has(id) && !reserved.has(id)),
+      kept,
+      /** A table boss the source doesn't have, in replace: removed unless it keeps a protected item. */
+      absent: protection && !incoming ? (kept.length ? 'keep' as const : 'remove' as const) : null,
     };
   });
-  return { token: tableStateToken(state), bosses, added: bosses.reduce((n, boss) => n + boss.add.length, 0), newBosses: bosses.filter((boss) => boss.isNew).length };
+  const sum = (count: (boss: (typeof bosses)[number]) => number) => bosses.reduce((n, boss) => n + count(boss), 0);
+  return {
+    token: tableStateToken(state, protection), bosses, added: sum((boss) => boss.add.length), newBosses: bosses.filter((boss) => boss.isNew).length,
+    removed: sum((boss) => boss.remove.length), removedBosses: bosses.filter((boss) => boss.absent === 'remove').length, kept: sum((boss) => boss.kept.length),
+  };
 }
 
 /** Caller authorizes the officer and validates file/source/metadata. Never fetches items. */
 export async function applyLootTable(input: {
   templateId: string; file: ParsedTable; source: ItemSource; token: string;
-  sourceName: string; officerId: string; officerName: string;
+  sourceName: string; officerId: string; officerName: string; replace?: boolean;
 }) {
   return db.$transaction(async (tx) => {
+    // Reserve and award writes take this lock too, so protection read below is final. No award
+    // table lock: two tiers' replaces would each hold it and deadlock removing bosses (#233).
     await lockReserveTier(tx, input.templateId);
     const state = await tx.raidTemplate.findUnique({ where: { id: input.templateId }, select: LOAD_TABLE_SELECT });
     if (!state) return { ok: false as const, status: 404, error: 'No such raid tier.' };
-    if (tableStateToken(state) !== input.token) return { ok: false as const, status: 409, error: 'The table changed since this preview.' };
+    const protection = input.replace ? await protectedItems(tx, state) : undefined;
+    if (tableStateToken(state, protection) !== input.token) return { ok: false as const, status: 409, error: 'The table changed since this preview.' };
     const cached = await tx.lootItem.findMany({ where: { id: { in: allItemIds(input.file) } }, select: { id: true, source: true } });
     const conflicts = cached.filter((item) => item.source !== input.source).map((item) => item.id);
     if (conflicts.length) return { ok: false as const, status: 409, error: `Item ids ${conflicts.join(', ')}: ${SOURCE_CONFLICT}`, conflicts };
-    const preview = mergePreview(state, input.file, new Set(cached.map((item) => item.id)));
-    if (!preview.added && !preview.newBosses) return { ok: true as const, added: 0, newBosses: 0 };
-    let bossPosition = Math.max(-1, ...state.lootBosses.map((boss) => boss.position)) + 1;
+    const preview = mergePreview(state, input.file, new Set(cached.map((item) => item.id)), protection);
+    if (!preview.added && !preview.newBosses && !preview.removed && !preview.removedBosses) return { ok: true as const, added: 0, newBosses: 0, removed: 0 };
+    // Removal is recomputed here from the locked state, never taken from the request.
     for (const boss of preview.bosses) {
+      // Awards keep the boss name; their link to a removed boss is cleared by the schema.
+      if (boss.absent === 'remove') await tx.lootBoss.delete({ where: { id: boss.bossId! } });
+      else if (boss.remove.length) await tx.lootTableEntry.deleteMany({ where: { bossId: boss.bossId!, itemId: { in: boss.remove } } });
+    }
+    let bossPosition = Math.max(-1, ...state.lootBosses.map((boss) => boss.position)) + 1;
+    for (const boss of preview.bosses.filter((entry) => entry.absent !== 'remove')) {
       const id = boss.bossId ?? (await tx.lootBoss.create({
         data: { templateId: input.templateId, name: boss.name, isTrash: boss.isTrash, position: bossPosition++ }, select: { id: true },
       })).id;
@@ -70,9 +114,9 @@ export async function applyLootTable(input: {
     }
     await tx.lootTableLoad.create({ data: {
       templateId: input.templateId, sourceName: input.sourceName, officerId: input.officerId,
-      officerName: input.officerName, mode: 'merge', added: preview.added, removed: 0,
+      officerName: input.officerName, mode: input.replace ? 'replace' : 'merge', added: preview.added, removed: preview.removed,
     } });
-    return { ok: true as const, added: preview.added, newBosses: preview.newBosses };
+    return { ok: true as const, added: preview.added, newBosses: preview.newBosses, removed: preview.removed };
   }, { isolationLevel: 'ReadCommitted' });
 }
 
