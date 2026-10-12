@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { refreshItems, toItemView } from './loot-items';
+import { lookupForeverItem, refreshItems, toItemView } from './loot-items';
 import { FOREVER_ONLY, SOURCE_CONFLICT } from './item-sources';
 
 const now = new Date('2026-09-29T18:00:00.000Z');
@@ -98,5 +98,31 @@ describe('loot items', () => {
 
   it('sanitizes stored tooltips again on the way to a page', () => {
     expect(toItemView({ id: 1, name: 'X', quality: 3, icon: 'i', tooltipHtml: '<span onclick="x" class="q3">X</span>' }).tooltipHtml).toBe('<span class="q3">X</span>');
+  });
+});
+
+describe('lookupForeverItem', () => {
+  const row = { id: 7, name: 'A', quality: 2, icon: 'a', tooltipHtml: '<b>A</b><script>x</script>' };
+
+  it('answers from the cache without asking Wowhead, and refuses an id cached from Classic', async () => {
+    const fetcher = fakeFetch({});
+    findUnique.mockResolvedValueOnce({ ...row, source: 'FOREVER' });
+    expect(await lookupForeverItem(client, 7, fetcher)).toEqual({ ok: true, item: { ...row, tooltipHtml: '<b>A</b>' }, cached: true });
+    findUnique.mockResolvedValueOnce({ ...row, source: 'CLASSIC' });
+    expect(await lookupForeverItem(client, 7, fetcher)).toEqual({ ok: false, code: 'not-forever', status: 400, error: SOURCE_CONFLICT });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('fetches a new item from the Forever database and saves nothing', async () => {
+    const fetcher = fakeFetch({ 7: { ...item, tooltip: '<b>A</b><script>x</script>' } });
+    expect(await lookupForeverItem(client, 7, fetcher)).toEqual({ ok: true, item: { id: 7, name: 'A', quality: 2, icon: 'a', tooltipHtml: '<b>A</b>' }, cached: false });
+    expect(vi.mocked(fetcher).mock.calls[0][0]).toBe('https://nether.wowhead.com/forever/tooltip/item/7');
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('tells "no such item" apart from Wowhead not answering', async () => {
+    expect(await lookupForeverItem(client, 999999, fakeFetch({}))).toEqual({ ok: false, code: 'not-found', status: 404, error: 'Wowhead Forever has no item 999999. Check the link.' });
+    const down = vi.fn(async () => new Response('', { status: 503 })) as unknown as typeof fetch;
+    expect(await lookupForeverItem(client, 7, down)).toEqual({ ok: false, code: 'wowhead-down', status: 502, error: 'Couldn’t reach Wowhead.' });
   });
 });
