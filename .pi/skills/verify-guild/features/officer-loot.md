@@ -81,13 +81,27 @@ history is the only thing proved here; the Load table window is covered by its o
 - **History.** Click `Load history`: it becomes `Hide load history` and lists both
   loads newest first with Source, Officer, When, Mode (`Merge`) and Changes (`+5`, `+2`).
   Capture full-page at both widths (design state `history`; also `table` with the history closed). A merge shows only `+N`; a replace
-  with removals shows `+N −M`, which only a seeded audit row can show locally.
+  with removals shows `+N −M`. Make replace rows through the window: tick `Replace` on the source step, then
+  Preview and Load a file that drops items or a boss from the table.
 - **Guild time.** The popup shows only when your browser zone differs from guild time.
   To see it, set the site's own viewer-zone override (`localStorage` key
   `bureaucracy.viewer-timezone`, e.g. `Asia/Tokyo`), reload, then hover or Tab to a time:
   expect `<day> <time> guild time (PDT)`. Remove the key afterwards.
-- **Not proved locally.** Replace loads (#126) and a 10-row history cap need rows the
-  UI can't yet create cheaply; the component tests cover both.
+- **Window states by real clicks.** Items are fetched from the Forever Wowhead database, which
+  lacks most Molten Core ids; use ids that exist there (for example 19019, 18879, 19147, 18564,
+  17204) and ids that don't to see "Wowhead couldn't find". `fetching` and `stopped`: a file of
+  about 30 unknown ids, press `Preview`, capture, then `Stop`. `preview-replace`: tick `Replace`
+  after a reserve (raid page, `Change reserves`) and an award (raid page, loot log `Record`) on
+  items already in the table. `preview-stale`: open the window in tab A and Preview, load another
+  file in tab B, then press `Load` in A; capture with `--full-page` and crop, because a viewport
+  screenshot crashed the browser here. `apply-failed`: after Preview, `emulate --network Offline`,
+  press `Load`, check with `eval` and screenshot within 4 seconds (the toast goes after 4); the CLI
+  reports an error for snapshots and screenshots while offline, but the screenshot file is written.
+  Get the button's handle before going offline. Reset with `emulate --network "Fast 4G"`.
+- **Not proved locally.** A 10-row history cap needs more loads than is cheap to make by
+  hand; the component tests cover it. `source-atlas-off` needs the server to run with
+  `VERCEL_ENV=production`, which the launcher refuses, and `atlas-missing` needs AtlasLoot's raid
+  list to change between the list and the load; neither is reachable from the window.
 
 ## Gotchas
 

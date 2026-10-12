@@ -28,6 +28,16 @@ describe('LoadHistory', () => {
     expect(line).toMatch(/· replace$/);
   });
 
+  it('lets a 255-character unbroken file name wrap inside the line', async () => {
+    const name = 'a'.repeat(255);
+    await render([load(1, { sourceName: name })]);
+    const line = host.querySelector('span')!;
+    expect(line.textContent).toContain(name);
+    // happy-dom has no layout; the wrapping rule is what keeps the name inside a phone screen.
+    expect(line.className).toContain('[overflow-wrap:anywhere]');
+    expect(line.className).toContain('max-w-full');
+  });
+
   it('gives guild time on the time button for hover and focus', async () => {
     // A viewer outside guild time, so the time carries the guild-time popup.
     localStorage.setItem('bureaucracy.viewer-timezone', 'Asia/Tokyo');
