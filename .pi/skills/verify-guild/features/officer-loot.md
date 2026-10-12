@@ -59,21 +59,33 @@ history is the only thing proved here; the Load table window is covered by its o
 
 - **Never loaded.** Open the tier. Expect the toolbar with `Load table` and
   `Refresh items from Wowhead`, and **no** `Last loaded from` line and no `Load history`
-  toggle. Capture at 1440 × 900 and 390 × 844 (design state `table-empty`).
-- **Make two loads.** The load window fetches WoW Forever items from Wowhead for any id
-  not already cached as a Forever item, so use ids that are not in the Classic Onyxia
-  import (Wowhead's public pages, a handful of requests). Write two files outside git:
-  `{"bosses":[{"name":"Lucifron","items":[17073,18814]}]}` and
-  `{"bosses":[{"name":"Lucifron","items":[17073,18814,18815,18820]},{"name":"Magmadar","items":[18821,18879,19138]}]}`.
-  Click `Load table`, `upload` the file onto `Choose file`, `Preview`, then `Load N items`;
-  repeat with the second file. Fresh handles after each step.
+  toggle. Capture full-page at 1440 × 900 and 390 × 844 (design state `table-empty`).
+- **Cache Forever items first.** `Load table` fetches an item from Wowhead only when it
+  is not already cached as a WoW Forever item, so cache some into a *different* tier
+  and the loads below make no Wowhead request. Write a file outside git, for example
+  `{"bosses":[{"name":"Lucifron","items":[17073,18814,18815,18820]},{"name":"Magmadar","items":[18821,18879,19138]}]}`,
+  and import it into Onyxia's Lair with the database URL passed as in
+  [Loot data for local verification](loot-data.md), but
+  `npm run loot:import -- --template "Onyxia's Lair" --ids <file> --source forever`
+  (the importer's own public Wowhead fetches, approved there, local database only).
+  The Classic Onyxia import above cannot be reused: ids cached as Classic are refused
+  ("already saved from a different game").
+- **Make two loads into Hyjal Summit.** Write a second file with only
+  `{"bosses":[{"name":"Lucifron","items":[17073,18814]}]}`. Click `Load table`, `upload`
+  a file onto `Choose file`, `Preview` (it answers at once, with no fetching progress),
+  then `Load N items`; do the small file first, then the full one. Fresh handles after
+  each step.
 - **Line.** After the second load, fully reopen the tier URL. Expect `Last loaded from
   <second file> by Ledgerline · <date>, <time> · merge`. The time is in your zone; the
   guild-time popup shows only when your zone differs from guild time.
 - **History.** Click `Load history`: it becomes `Hide load history` and lists both
   loads newest first with Source, Officer, When, Mode (`Merge`) and Changes (`+5`, `+2`).
-  Capture at both widths (design state `history`). A merge shows only `+N`; a replace
+  Capture full-page at both widths (design state `history`; also `table` with the history closed). A merge shows only `+N`; a replace
   with removals shows `+N −M`, which only a seeded audit row can show locally.
+- **Guild time.** The popup shows only when your browser zone differs from guild time.
+  To see it, set the site's own viewer-zone override (`localStorage` key
+  `bureaucracy.viewer-timezone`, e.g. `Asia/Tokyo`), reload, then hover or Tab to a time:
+  expect `<day> <time> guild time (PDT)`. Remove the key afterwards.
 - **Not proved locally.** Replace loads (#126) and a 10-row history cap need rows the
   UI can't yet create cheaply; the component tests cover both.
 
@@ -87,7 +99,7 @@ history is the only thing proved here; the Load table window is covered by its o
   [Loot data for local verification](loot-data.md); `Load table` is the one approved way
   to bring in external loot data besides that import, and only into this local database.
   Classic ids from the Onyxia import are refused by `Load table` ("already saved from a
-  different game"), so load other ids as in the section above.
+  different game"); use the Forever-cache recipe in the section above.
 - The no-templates tier-list state is not reached by the seed. Empty boss lists and
   `No loot table yet` are reached. Populated editing, ordering and item persistence
   remain unverified; do not claim this map proves them. Loading and the history read-back
