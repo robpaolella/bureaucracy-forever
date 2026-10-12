@@ -11,6 +11,39 @@
 export const ATLASLOOT_COMMIT = '8e99341e4e779328460bf7684c0d5b22ce50ddf1';
 export const ATLASLOOT_DATA_URL = `https://raw.githubusercontent.com/Hoizame/AtlasLootClassic/${ATLASLOOT_COMMIT}/AtlasLootClassic_DungeonsAndRaids/data.lua`;
 
+export type AtlasRaid = { key: string; name: string };
+
+/** AtlasLoot keys are camel-cased ids with no display names; these read as the tier names do. */
+const RAID_NAMES: Record<string, string> = {
+  Onyxia: 'Onyxia’s Lair',
+  TheRuinsofAhnQiraj: 'Ruins of Ahn’Qiraj',
+  TheTempleofAhnQiraj: 'Temple of Ahn’Qiraj',
+};
+/** World bosses are in the raid content type but are not a raid tier. */
+const NOT_A_TIER = new Set(['WorldBosses']);
+
+/** The raids in AtlasLoot's data.lua (blocks whose ContentType is a raid), in file order. */
+export function listAtlasRaids(lua: string): AtlasRaid[] {
+  const src = stripComments(lua);
+  const raids: AtlasRaid[] = [];
+  for (const m of src.matchAll(/^data\["([^"]+)"\]\s*=\s*\{/gm)) {
+    const key = m[1];
+    if (NOT_A_TIER.has(key)) continue;
+    const { body } = braceBody(src, m.index + m[0].length - 1);
+    if (!/\bContentType\s*=\s*RAID\d*_CONTENT/.test(body)) continue;
+    raids.push({ key, name: RAID_NAMES[key] ?? key.replace(/([a-z])([A-Z])/g, '$1 $2') });
+  }
+  return raids;
+}
+
+const normalise = (name: string) => name.toLowerCase().replace(/^the\s+/, '').replace(/[^a-z0-9]/g, '');
+
+/** The raid whose name matches the tier's, or null. Ignores case, punctuation and a leading "The". */
+export function matchAtlasRaid(raids: AtlasRaid[], tierName: string): AtlasRaid | null {
+  const wanted = normalise(tierName);
+  return wanted ? raids.find((raid) => normalise(raid.name) === wanted) ?? null : null;
+}
+
 export type BossLoot = { name: string; isTrash: boolean; itemIds: number[] };
 export type ParsedTable = { bosses: BossLoot[]; skipped: string[] };
 
@@ -96,7 +129,7 @@ function namedTable(src: string, pattern: RegExp): string | null {
 /** Parses one raid (`key`, e.g. "MoltenCore") out of AtlasLootClassic's data.lua. */
 export function parseAtlasLoot(lua: string, key: string): ParsedTable {
   const src = stripComments(lua);
-  const raid = namedTable(src, new RegExp(`data\\["${key.replace(/[^\w]/g, '')}"\\]\\s*=\\s*\\{`));
+  const raid = namedTable(src, new RegExp(`data\\["${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"\\]\\s*=\\s*\\{`));
   if (raid === null) throw new Error(`No data["${key}"] in the AtlasLoot file.`);
   const items = namedTable(raid, /\bitems\s*=\s*\{/);
   if (items === null) throw new Error(`data["${key}"] has no items table.`);
