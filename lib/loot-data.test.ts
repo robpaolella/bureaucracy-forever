@@ -43,6 +43,14 @@ describe('loadLootTable', () => {
     mocks.blocked.mockResolvedValue(new Set([100]));
     expect(await loadLootTable('t1')).toBeNull();
   });
+
+  it('returns the empty view when asked, bosses without items included', async () => {
+    mocks.bosses.mockResolvedValue([{ id: 'b1', name: 'Onyxia', isTrash: false, entries: [] }]);
+    mocks.blocked.mockResolvedValue(new Set([100]));
+    expect(await loadLootTable('t1', { allowEmpty: true })).toMatchObject({ bosses: [{ id: 'b1', name: 'Onyxia', itemIds: [] }], items: {}, blocked: [] });
+    mocks.bosses.mockResolvedValue([]);
+    expect((await loadLootTable('t1', { allowEmpty: true }))?.bosses).toEqual([]);
+  });
 });
 
 describe('previous reserve wins', () => {

@@ -23,8 +23,11 @@ export type LootTableView = {
   winLimits?: WinLimits;
 };
 
-/** A raid tier's table for pickers and the loot log, or null when it has no items yet. */
-export async function loadLootTable(templateId: string): Promise<LootTableView | null> {
+/**
+ * A raid tier's table for pickers and the loot log, or null when it has no items yet.
+ * `allowEmpty` returns the empty view instead, for the officer loot log, which can add the first item.
+ */
+export async function loadLootTable(templateId: string, { allowEmpty = false } = {}): Promise<LootTableView | null> {
   const [bosses, blocked, limits] = await Promise.all([db.lootBoss.findMany({
     where: { templateId },
     orderBy: [{ position: 'asc' }, { id: 'asc' }],
@@ -32,7 +35,7 @@ export async function loadLootTable(templateId: string): Promise<LootTableView |
   }), blockedItemIds(templateId), winLimits(templateId)]);
   const items: Record<number, ItemView> = {};
   for (const b of bosses) for (const e of b.entries) items[e.item.id] = toItemView(e.item);
-  if (Object.keys(items).length === 0) return null;
+  if (!allowEmpty && Object.keys(items).length === 0) return null;
   return { bosses: bosses.map((b) => ({ id: b.id, name: b.name, isTrash: b.isTrash, itemIds: b.entries.map((e) => e.item.id) })), items, blocked: [...blocked].filter((id) => items[id]).sort((a, b) => a - b), winLimits: limits };
 }
 
