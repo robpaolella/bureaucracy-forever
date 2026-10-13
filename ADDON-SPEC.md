@@ -275,7 +275,8 @@ Ana's reserve is back for the next copy.
   "at": 1792001400 }
 ```
 
-A production site answers `409 practice-refused` and records nothing.
+A production site answers that operation `rejected` with code `practice-refused` and
+records nothing.
 
 ## 5. What the site does with an operation
 
