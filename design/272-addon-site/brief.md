@@ -31,6 +31,7 @@ names are **placeholders** the spec fills in (marked as such in the prototype).
 | #275 | Import awards on the raid page: paste box, importing, results (recorded, already there, voided, refused with reason, not on the site), unreadable / nothing new / failed; loot log marks (from the add-on, handed out by, sent by / imported by, not confirmed, practice) | Helper's automatic upload (#277); the members' loot list (unchanged) |
 | #276 | Helper keys on the In-game addon page: create, shown once, list with created / last used, revoke with confirmation, empty | The API that checks keys (#277) |
 | #280 | Get the add-on on the In-game addon page: release, no release, GitHub unreachable; install guide link; the In-game addon menu entry | Publishing releases (addon#18) |
+| #293 | The in-game instance number in the template's Edit/New window on Raids and series (`/officers/raids`): field, hint, error, and the templates list | The schema and migration; the snapshot and raids list carrying it (#274, #277); the add-on's matching |
 | Follow-up (not yet filed) | Get the helper on the In-game addon page: Mac and Windows downloads, no release yet | The helper's own releases and window (bureaucracy-forever-helper) |
 
 ## Boundaries and visual authority
@@ -71,21 +72,28 @@ Raid page (`/members/calendar/<raid>`, officer):
 | no-table | tier has no loot table | no add-on controls; the existing "No bosses on this tier's loot table yet…" message | link to the tier's table |
 | import-empty | paste box open, empty | label "Add-on copy-out text"; hint "In game, open the Sync tab, press Copy out, and paste all of it here." | Import (disabled while empty) |
 | importing | waiting | button spinner "Importing…", box disabled | — |
-| import-results | mixed outcome | "Imported 14 awards from the add-on." Recorded 11 · Already there 2 (nothing was doubled) · Voided 1 · Refused 1 · Not on the site 2; refused rows with reason; not-on-site rows "item · character name" + "Record by hand in the loot log." New rows appear in Recorded. | Done / import more |
+| import-results | mixed outcome | "Imported 14 awards from the add-on." Recorded 8 · Already there 2 (nothing was doubled) · Voided 1 · Refused 1 · Not on the site 2; refused rows with reason; not-on-site rows "item · character name" + "Record these by hand in the loot log." New rows appear in Recorded. | Done / import more |
 | import-nothing-new | repeat paste | "Nothing new. All 14 awards were already in the loot log." | — |
-| import-unreadable | not copy-out text | red: "That isn't the add-on's copy-out text. In game, open the Sync tab, press Copy out, and paste all of it." | fix and import again |
-| import-failed | server/network failure | red: "Nothing was imported. Try again; nothing will be recorded twice." | Import again |
+| import-unreadable | not copy-out text | the field-error pattern (red border and text under the box): "That isn't the add-on's copy-out text. In game, open the Sync tab, press Copy out, and paste all of it." | fix and import again |
+| import-failed | server/network failure | stop toast "Nothing was imported." / "Press Import again. Nothing will be recorded twice."; the window (A) or box (B) stays open with the text kept | Import again |
 
 In-game addon page (`/officers/addon`, officer; menu entry "In-game addon"):
 | State slug | Situation | Content and wording | Actions / feedback |
 | --- | --- | --- | --- |
 | addon-page | release and 3 keys | "Version 1.2.0 · released Nov 3, 2026", Download the add-on (zip), Install and update guide; helper line; Get the helper: "Version 0.3.0 · released Nov 8, 2026", Download for Mac, Download for Windows; keys "Rob's PC" (last used today), "Rob's MacBook" (Never used), a 40-character name | Create key, Revoke |
 | addon-no-release | no release yet (add-on and helper) | "No release yet. It will appear here once the first version is published." in each part | guide link stays |
-| addon-github-down | GitHub unreachable | last version seen + "Couldn't check for a newer version just now."; none seen: "See all releases on GitHub" | — |
+| addon-github-down | GitHub unreachable | last version seen + "Couldn't check for a newer version just now."; none seen: "Couldn't check for the latest version just now." + "See all releases on GitHub" (shown for the helper) | — |
 | keys-empty | no keys | "No helper keys yet. Create one for each computer you raid on." | Create key |
 | key-created | just created | key in a highlighted box, Copy, "Copy this key into the helper now. You won't be able to see it again." | Copy, Done |
 | key-revoke | revoke confirmation | "Revoke Rob's PC? The helper on that computer stops working until you give it a new key." | Cancel / Revoke key |
 | key-error | name missing or save failed | "Give the key a name." / toast "Nothing was saved. Try again." | — |
+
+Raids and series (`/officers/raids`, officer; #293, added 2026-10-13 after Robert's answer B on #289):
+| State slug | Situation | Content and wording | Actions / feedback |
+| --- | --- | --- | --- |
+| template-edit | Edit template, number set | "In-game instance number" field after Size and Length, value 249; hint "Optional. The add-on shows this number when you're inside the raid; Onyxia's Lair is 249."; list rows end "· Instance 249" or "· No instance number" | Save template / Cancel |
+| template-blank | a custom raid with none set | field empty, same hint (blank means not set) | Save template |
+| template-error | not a positive whole number ("24.9") | the field-error pattern (`Field`'s error: red border and wash, message in place of the hint): "The instance number is a whole number above 0, or leave it blank." Nothing saved | fix and save |
 
 Not applicable: no permission (members and socials get the existing 404 on officer pages and
 never get the Loot log; unchanged); locked (copying and importing work before, during and
@@ -95,7 +103,9 @@ other themes (dark only). Keyboard: real buttons, labelled textarea and inputs; 
 copy messages announced (`role="status"`); version A's import window and the revoke window are
 native modals (focus inside, Escape closes, focus returns); the key box is selectable text
 plus a Copy button. Status is never colour alone. Every time uses `LocalTime` (viewer's zone,
-guild time on hover/focus).
+guild time on hover/focus). The offline versions show `LocalTime`'s own fallback before the viewer's zone is known
+(the time once, labelled "guild time", no popup), as the captured host's Recorded row does; the
+build uses `LocalTime` everywhere, which then shows the viewer's zone with guild time on hover/focus.
 
 ## Host snapshot and offline proof
 - Source commit `d3534e4` (`origin/package/addon-3-loot-addon`, 2026-10-13), branch
@@ -120,9 +130,21 @@ guild time on hover/focus).
   (Healer, Melee DPS, Ranged DPS hidden for shorter captures; Tank kept). `hosts/officer.html`:
   reference only for the officer page head (eyebrow/title/lede classes); versions are built on
   `hosts/raid.html` alone.
+- Second host `hosts/planner.html` (2026-10-13, for #293): same commit and skill; evidence `/tmp/verify-guild-zarWck`
+  (`launch.txt` Doctor PASS, `cleanup.txt` Cleanup PASS). Route `/dev/session?as=officer&back=/officers/raids`,
+  clicked "Edit Onyxia's Lair" so the Edit template window is open; exported at 1440 with the same
+  recipe and scrub (3 generated ids → `sample-N`, localhost and Discord links → `#`, Open Graph tags
+  removed). Live `planner-live-{390,1440}.png`, `planner-edit-live-{390,1440}.png`; offline
+  `offline-planner-{390,1440}.png` (network Offline, only `file:`/`data:` requests) match.
+  Parts used: its `main` (templates list rows and the open Edit template `dialog` and `form`), copied
+  into each version as a `<template>` by `build.js`; the two hosts share the same stylesheet.
 - Versions are the raid host plus one `<style>` and one `<script>`, built outside the repo by
   `/git/bureaucracy-forever-worktrees/d272-build/build.js` from `proto.css` and `proto.js`
   (`node build.js hosts/raid.html versions`, run in the design folder).
+- Versions offline proof (2026-10-13): fresh browser session `d272-offline-VAO9OP`, network Offline,
+  `file://` only; a and b at log-marks, import-results, addon-page, key-revoke: fonts loaded, no
+  broken images, no console errors, only the local file and `data:` requests; the State switcher
+  updates the URL and `data-state`. Evidence `/tmp/design-review-VAO9OP/offline/`.
 
 ## Confirmed decisions
 (Robert, this tab, 2026-10-13)
@@ -142,4 +164,7 @@ guild time on hover/focus).
 None.
 
 ## Open decisions
-None.
+12. Raid page placement: version A or B (decision 2).
+13. Instance number wording: label "In-game instance number", hint "Optional. The add-on shows this number when you're inside the raid; Onyxia's Lair is 249."
+14. Validation: optional; blank means not set; anything but a whole number above 0 is refused with the field-error pattern (red field, message under it), "The instance number is a whole number above 0, or leave it blank."
+15. Templates list shows "· Instance 249" when set and "· No instance number" when not, so a template the add-on can't match stands out.

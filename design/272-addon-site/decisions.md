@@ -1,8 +1,8 @@
 # Design decisions: the site's pieces for the loot add-on and helper
 
-- Design issue: #272; covered build issues: #274, #275, #276, #280 (plus a not-yet-filed helper-download follow-up)
+- Design issue: #272; covered build issues: #274, #275, #276, #280, #293 (added 2026-10-13 by the conductor after Robert's answer B on #289) (plus a not-yet-filed helper-download follow-up)
 - Revision: 1; replaces: none
-- Maker: claude-bridge/claude-opus-5-5 (Opus 5.5), thinking medium; first session design-272
+- Maker: claude-bridge/claude-opus-5-5 (Opus 5.5), thinking medium; sessions design-272 and design-272-2
 
 ## Choice and approval
 Chosen version and why. When versions differed on more than one independent decision,
@@ -31,8 +31,15 @@ state × theme × width evidence: [manifest](screenshots/approved/manifest.json)
 Record actual counts, inspected image paths, offline proof and any capture limitations.
 
 ## Independent critique
-Maker and other-company reviewer, exact launch command, evidence path, verdict and date.
-Numbered findings, fixes and the single fixes-only re-check. Retain the final verdict.
+Maker claude-bridge/claude-opus-5-5; reviewer openai/gpt-5.6-terra, thinking medium (route.ts role checker).
+Command: `node /git/maestro/scripts/read-only-run.ts "$PWD" review /git/maestro/skills/design-feature/reviewer-prompt.md "<design, images, maker>" -- --model openai/gpt-5.6-terra --thinking medium`.
+Evidence `/tmp/design-review-VAO9OP/versions` (manifest; 80 images at the first review, 92 after the template states). Verdicts: `critique-{1,2,3}.txt` beside it.
+
+Before the critique (maker's own inspection, 2026-10-13): the prototype opened every captured dialog (site menu, Void, reserves) instead of only its own; result rows wrapped counts on phones; version B showed two labels for the paste box and kept the pasted text after an import; the helper line sat outside its box; the key form stretched across desktop; Revoke wandered on phones; the key wrapped badly; A's failed-import toast sat under the window's backdrop. All fixed and recaptured.
+
+1. FIXES (2026-10-13, 80 images): (1) copy-blocked didn't show the snapshot selected; (2) key-list times didn't show `LocalTime`'s treatment, and the brief claimed more than the captures showed. Fixed: the snapshot is focused and selected; key times use `LocalTime`'s look; brief documents its offline pre-zone fallback.
+2. Re-check of 1–2 plus first review of the new #293 template states (92 images): 1 and 2 resolved; new (3) template-error used only the form's bottom error line, not the site's invalid-field treatment. Fixed: `Field`'s error pattern (red field, message in place of the hint); brief updated.
+3. Fixes-only re-check of 3: **PASS** (2026-10-13). Final verdict PASS; the reviewer selects no version.
 
 ## Comments and changes
 | ID / source | Version / element | Original note | Agreed change and verification | Resolved |
