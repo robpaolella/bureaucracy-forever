@@ -13,6 +13,8 @@ type Status = { kind: 'idle' | 'looking' | 'not-forever' | 'down' } | { kind: 'n
 
 /** A pause after the last keystroke before the lookup runs, so a link being typed is not looked up half-written. */
 export const LOOKUP_DELAY_MS = 350;
+/** Text that is not a link yet may just be half-typed, so "not a Forever link" waits longer before it shows. */
+export const INVALID_DELAY_MS = 1200;
 
 type Props = {
   raidId: string;
@@ -67,7 +69,7 @@ export function UnlistedDrop({ raidId, disabled, bossName, onFound, onOnTable }:
         return latest.current.onFound(json.item);
       }
       setStatus(json.code === 'not-forever' ? { kind: 'not-forever' } : json.code === 'not-found' && id !== null ? { kind: 'not-found', id } : { kind: 'down' });
-    }, LOOKUP_DELAY_MS);
+    }, id === null ? INVALID_DELAY_MS : LOOKUP_DELAY_MS);
     return () => {
       current = false;
       clearTimeout(timer);

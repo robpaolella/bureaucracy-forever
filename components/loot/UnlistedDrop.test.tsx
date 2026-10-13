@@ -4,7 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LOOT_LOG } from '@/content/loot-log';
 import type { ItemView } from '@/lib/loot-items';
-import { LOOKUP_DELAY_MS, UnlistedDrop } from './UnlistedDrop';
+import { INVALID_DELAY_MS, LOOKUP_DELAY_MS, UnlistedDrop } from './UnlistedDrop';
 
 const LINK = 'https://www.wowhead.com/forever/item=231044/whelp-scale-bracers';
 const item: ItemView = { id: 231044, name: 'Whelp-Scale Bracers', quality: 4, icon: 'inv_bracer', tooltipHtml: '' };
@@ -27,8 +27,8 @@ const type = async (value: string) => act(async () => {
   Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input(), value);
   input().dispatchEvent(new Event('input', { bubbles: true }));
 });
-const settle = async () => act(async () => { await vi.advanceTimersByTimeAsync(LOOKUP_DELAY_MS); });
-const lookup = async (value: string) => { await type(value); await settle(); };
+const settle = async (ms = LOOKUP_DELAY_MS) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+const lookup = async (value: string) => { await type(value); await settle(INVALID_DELAY_MS); };
 
 describe('UnlistedDrop', () => {
   it('moves focus to the box, labelled with the hint', async () => {
@@ -48,6 +48,14 @@ describe('UnlistedDrop', () => {
     expect(input().getAttribute('aria-invalid')).toBe('true');
     expect(host.querySelector('[role="status"]')!.textContent).toContain(copy.notForever);
     expect(input().getAttribute('aria-describedby')).toBe(host.querySelector('span[id$="-note"]')!.id);
+  });
+
+  it('gives half-typed text longer before calling it not a Forever link', async () => {
+    await render();
+    await type('wowhead.com/for'); await settle();
+    expect(host.textContent).not.toContain(copy.notForever);
+    await settle(INVALID_DELAY_MS - LOOKUP_DELAY_MS);
+    expect(host.textContent).toContain(copy.notForever);
   });
 
   it('waits for a pause in typing, then shows the lookup and the found item', async () => {
