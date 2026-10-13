@@ -42,6 +42,10 @@ describe('parseApplication', () => {
     if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(['agree', 'availability', 'class', 'discord', 'firstName', 'logs', 'pitch', 'secondName']);
   });
 
+  it('asks a raider to confirm the raider expectations', () => {
+    expect(parseApplication(form({ ...raider, agree: '' }), null)).toEqual({ ok: false, errors: { agree: 'Read the raider expectations first.' } });
+  });
+
   it('asks for both parts of the name, twelve letters each', () => {
     const errorsFor = (firstName: string, secondName: string) => {
       const r = parseApplication(form({ ...raider, firstName, secondName }), null);

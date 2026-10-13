@@ -27,6 +27,7 @@ export const REASONS = {
   cancelled: 'This raid was cancelled.',
   noTable: 'This raid has no loot table yet.',
   notEligible: 'Sign up as Accept or Tentative to reserve.',
+  trial: 'Reserves open once your trial ends.',
   locked: 'Reserves are locked. Ask an officer to change them.',
   notYourCharacter: 'That character is not yours.',
   notInTable: "That item isn't in this raid's loot table.",
@@ -107,6 +108,8 @@ export type ReserveInput = { characterId: string; hr: number | null; sr: number 
 export type ReserveContext = {
   /** The sign-up answer of the member the reserves are for. */
   response: RaidResponse | null;
+  /** The member the reserves are for is on trial: they may clear reserves, not set them. */
+  onTrial?: boolean;
   ownCharacterIds: readonly string[];
   tableItemIds: ReadonlySet<number>;
   hrAwards: readonly HrAward[];
@@ -129,6 +132,8 @@ export function decideReserve(actor: { role: 'social' | 'member' | 'officer' }, 
   if (reservesLocked(raid.startsAt, now) && !(officerOverride && actor.role === 'officer')) return { ok: false, status: 409, reason: REASONS.locked };
   // Clearing is always allowed before the lock, so a member who turned Absent can take theirs back.
   if (input.hr === null && input.sr === null) return { ok: true };
+  // Before the lock override matters: it lifts the lock, not this.
+  if (ctx.onTrial) return { ok: false, status: 409, reason: REASONS.trial };
   if (!isEligible(ctx.response)) return { ok: false, status: 409, reason: REASONS.notEligible };
   if (!ctx.ownCharacterIds.includes(input.characterId)) return { ok: false, status: 403, reason: REASONS.notYourCharacter };
   if (input.hr !== null && input.hr === input.sr) return { ok: false, status: 409, reason: REASONS.sameItem };
@@ -146,8 +151,8 @@ export function decideReserve(actor: { role: 'social' | 'member' | 'officer' }, 
   return { ok: true };
 }
 
-/** A reserve whose holder is eligible for this raid (the caller filters on the sign-up). */
-export type ActiveReserve = { userId: string; characterId: string; itemId: number; kind: ReserveKind };
+/** A reserve whose holder is eligible for this raid (the caller filters on the sign-up and drops trials). */
+export type ActiveReserve = { userId: string; characterId: string; itemId: number; kind: ReserveKind; /** Held by a member on trial: shown, but never rolls. */ onTrial?: boolean };
 /** A non-voided award on this raid. */
 export type RaidAward = { itemId: number; userId: string | null };
 
@@ -157,13 +162,13 @@ export type Resolution = { mode: DropMode; contenders: ActiveReserve[] };
 /**
  * Who rolls for a drop. A reserve is spent once its holder has received that item on this
  * raid, so a second copy goes to the remaining HR holders, then SR holders, then an open roll.
- * HR and SR holders whose characters already won it through either reserve method as many
+ * Reserves held by a trial don't count. HR and SR holders whose characters already won it through either reserve method as many
  * times as its win limit are skipped too, so a lowered limit holds a saved reserve back.
  */
 export function resolveDrop(itemId: number, reserves: readonly ActiveReserve[], raidAwards: readonly RaidAward[], hrAwards: readonly HrAward[], exceptions: readonly HrException[] = [], winLimits: WinLimits = {}): Resolution {
   const received = new Set(raidAwards.filter((a) => a.itemId === itemId && a.userId).map((a) => a.userId));
   const limit = winLimitOf(itemId, winLimits);
-  const live = reserves.filter((r) => r.itemId === itemId && !received.has(r.userId) && !hrBlocked(r.characterId, itemId, hrAwards, exceptions, limit));
+  const live = reserves.filter((r) => r.itemId === itemId && !r.onTrial && !received.has(r.userId) && !hrBlocked(r.characterId, itemId, hrAwards, exceptions, limit));
   const hr = live.filter((r) => r.kind === 'HR');
   if (hr.length > 0) return { mode: 'HR', contenders: hr };
   const sr = live.filter((r) => r.kind === 'SR');

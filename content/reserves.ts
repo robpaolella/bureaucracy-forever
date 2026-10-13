@@ -9,6 +9,8 @@ export const RESERVES = {
   lockedOfficer: 'Reserves are locked. As an officer, you can still change them.',
   cancelled: 'This raid was cancelled.',
   notEligible: 'You must be signed up for this raid to reserve items.',
+  /** A member on trial can't reserve; the same words the reserve route refuses with. */
+  trial: REASONS.trial,
   noCharacter: 'Add a character on the roster to reserve.',
   forWhom: 'Reserves for',
   you: (name: string) => `${name} (you)`,
@@ -48,6 +50,8 @@ export const RESERVES = {
   none: "You haven't picked reserves for this raid.",
   noPick: 'None',
   pick: 'Pick reserves',
+  /** A trial who still holds reserves from before. */
+  removeMine: 'Remove my reserves',
   change: 'Change reserves',
   /** The reserves window. */
   title: 'Pick your reserves',

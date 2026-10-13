@@ -12,7 +12,7 @@ The [feature index](features/README.md) maps public, member and officer routes,
 entry points, seeded fixtures and actual user steps. Follow the relevant map rather
 than visiting only the final URL. Never use real member data or real Discord calls.
 
-- Public: `/`, `/about`, `/schedule`, `/recruitment`, `/loot`; role `out`.
+- Public: `/`, `/about`, `/schedule`, `/recruitment`; role `out`.
 - Member: `/apply`, `/members/calendar`, `/members/calendar/<seeded raid>`,
   `/members/availability`; roles `member` (Redtape) and `member-unsubmitted`
   (availability/application prompt), as appropriate to the feature map.
