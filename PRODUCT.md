@@ -55,7 +55,7 @@ Decided by Robert on 2026-10-12 in the planning for [issue #90](https://github.c
 3. Calls to action are short and persuasive: what the reader gets and what to do, without step-by-step instructions.
 4. Functional text (errors, not-found, empty states) uses the familiar wording people expect: "Page not found. The link might be broken, or the page may have moved."
 5. Robert's own home and About copy (Sept 27, 2026) is the reference for the voice (commits `6baa2cc` home, `456206d` About, `c13b3f8` Naxxramas claim fix).
-6. Confident and plain. "Slightly dry" is dropped. No exclamation marks or emoji.
+6. Confident and plain. No exclamation marks or emoji.
 7. Avoid patterns that read as AI-written: "not X, but Y" contrasts, dashes used for drama, lists of three for rhythm.
 8. Nothing that goes stale with time ("forming now", "before launch", "first lockout"), except in spots built to be updated, such as the home page's announcement bar. One deliberate exception: the Raiding page intro "We'll post our raid days and times here soon…" until the days and times are set.
 9. Public pages say what the reader gets, not how officers run things behind the scenes. For example, "Officers pick raid nights from members' availability" stays off public pages, and no page says an officer "claims" an application.
