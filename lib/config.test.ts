@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atlasLootSettings } from './config';
+import { SITE_DESCRIPTION, atlasLootSettings } from './config';
 import { ATLASLOOT_DATA_URL } from './loot-import';
 
 describe('atlasLootSettings', () => {
@@ -15,5 +15,11 @@ describe('atlasLootSettings', () => {
 
   it('falls back to Classic for an unrecognised item database, which production refuses', () => {
     expect(atlasLootSettings({ ATLASLOOT_ITEM_SOURCE: 'retail' }).itemSource).toBe('CLASSIC');
+  });
+});
+
+describe('SITE_DESCRIPTION', () => {
+  it('describes the guild without a player count', () => {
+    expect(SITE_DESCRIPTION).toBe('A competitive raiding guild on WoW Forever.');
   });
 });
