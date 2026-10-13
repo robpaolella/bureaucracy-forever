@@ -128,6 +128,12 @@ describe('PUT /api/raids/[id]/reserves', () => {
     expect(mocks.deleteMany).toHaveBeenCalled();
   });
 
+  it('uses the rank as it is inside the write, not as first read', async () => {
+    mocks.user.mockResolvedValueOnce({ id: 'u1', characters: [{ id: 'c1' }] }).mockResolvedValueOnce({ rank: 'TRIAL' });
+    expect((await call(BODY)).status).toBe(409);
+    expect(mocks.createMany).not.toHaveBeenCalled();
+  });
+
   it('clears with two nulls', async () => {
     expect((await call({ characterId: 'c1', hr: null, sr: null })).status).toBe(200);
     expect(mocks.createMany.mock.calls[0][0].data).toEqual([]);

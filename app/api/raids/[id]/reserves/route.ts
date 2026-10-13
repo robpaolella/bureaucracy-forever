@@ -62,8 +62,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const raid = await db.raid.findUnique({ where: { id: raidId }, select: { startsAt: true, cancelledAt: true, templateId: true } });
   if (!raid) return NextResponse.json({ error: 'No such raid.' }, { status: 404, headers: NO_STORE });
   const target = forUserId
-    ? await db.user.findUnique({ where: { id: forUserId }, select: { id: true, rank: true, characters: { select: { id: true } } } })
-    : await db.user.findUnique({ where: { discordId: session.discordId }, select: { id: true, rank: true, characters: { select: { id: true } } } });
+    ? await db.user.findUnique({ where: { id: forUserId }, select: { id: true, characters: { select: { id: true } } } })
+    : await db.user.findUnique({ where: { discordId: session.discordId }, select: { id: true, characters: { select: { id: true } } } });
   if (!target) return NextResponse.json({ error: forUserId ? 'No such member.' : 'Sign up as Accept or Tentative to reserve.' }, { status: forUserId ? 404 : 409, headers: NO_STORE });
 
   const items = raid.templateId ? await tableItemIds(raid.templateId) : new Set<number>();
@@ -90,11 +90,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       const blocked = raid.templateId ? await blockedItemIds(raid.templateId, tx) : new Set<number>();
       const limits = raid.templateId ? await winLimits(raid.templateId, tx) : {};
       const existing = await tx.reserve.findMany({ where: { raidId, userId: target.id } });
+      // Read again inside the write: a rank change since the first read must not slip a reserve past the rule.
+      const rank = await tx.user.findUnique({ where: { id: target.id }, select: { rank: true } });
       const result = decideReserve(
         { role: session.role },
         { cancelled: raid.cancelledAt !== null, startsAt: raid.startsAt, hasLootTable: items.size > 0 },
         { characterId, hr, sr },
-        { response: signupAnswer(signup?.response).response, onTrial: target.rank === 'TRIAL', ownCharacterIds: target.characters.map((c) => c.id), tableItemIds: items, hrAwards, blockedItemIds: blocked, winLimits: limits, existingReserves: existing },
+        { response: signupAnswer(signup?.response).response, onTrial: rank?.rank === 'TRIAL', ownCharacterIds: target.characters.map((c) => c.id), tableItemIds: items, hrAwards, blockedItemIds: blocked, winLimits: limits, existingReserves: existing },
         new Date(),
         officer,
       );
