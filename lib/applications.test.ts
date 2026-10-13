@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isHoneypotFilled, parseApplication, submittedSearch } from './applications';
+import { FORM } from '@/content/recruitment';
 import { ACTIONS } from '@/content/applications';
 
 function form(fields: Record<string, string>): FormData {
@@ -51,7 +52,7 @@ describe('parseApplication', () => {
   });
 
   it('asks a raider to confirm the raider expectations', () => {
-    expect(parseApplication(form({ ...raider, agree: '' }), null)).toEqual({ ok: false, errors: { agree: 'Read the raider expectations first.' } });
+    expect(parseApplication(form({ ...raider, agree: '' }), null)).toEqual({ ok: false, errors: { agree: FORM.agreeError } });
   });
 
   it('asks for both parts of the name, twelve letters each', () => {

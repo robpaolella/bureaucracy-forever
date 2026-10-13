@@ -65,33 +65,41 @@ export const EXPECTATIONS = {
   ],
 };
 
+/** Where the form's tickbox sends the applicant: the raider expectations on the Recruitment page. */
+export const EXPECTATIONS_HREF = '/recruitment#expectations';
+
 export const FORM = {
   title: 'Apply',
   lede: 'Pick a path. The Raider form asks for logs and a spec; the Social form asks for almost nothing.',
   paths: {
-    raider: { title: 'Raider', text: 'You want a spot in the 40. Six questions and a logs link.' },
-    social: { title: 'Social', text: 'You want the Discord and the odd alt run. Two questions.' },
+    raider: { title: 'Raider', text: 'Apply for a raid spot with your logs and availability.' },
+    social: { title: 'Social', text: 'Join the guild as a social member.' },
   },
   /** WoW Forever names are two parts, each up to twelve letters, as the game allows. */
   firstName: 'First name',
   secondName: 'Second name',
   nameHint: 'Both parts, exactly as in game.',
-  logsHint: 'Any recent raid. We care more about deaths avoided than damage done.',
+  logsHint: 'A link to any recent raid.',
   /** Pre-launch: no raid days yet, so the question names none. */
   availabilityQuestion: "Can you make both progression nights once they're set?",
-  availabilityHint: "Days and times are still TBD. Officers pick them from members' availability.",
+  availabilityHint: "Pick the closest fit.",
   availabilityOptions: ['Both nights', 'One of them', 'Neither'] as const,
   pitchQuestion: "Please tell us why you'd be a good addition to our team.",
-  pitchPlaceholder: 'Short and honest beats long and polished.',
+  pitchPlaceholder: 'Your raiding experience, your goals and what you play.',
   /** PLACEHOLDER: the Social path's one open field is not drawn in the artboard. */
   socialQuestion: 'Anything we should know?',
   socialPlaceholder: 'How you found us, who you know here, what you play.',
   submit: 'Submit application',
-  submitNote: "You'll get a Discord DM when an officer picks it up.",
-  tooMany: 'That is a lot of applications from one place. Wait an hour, or ask in #recruitment.',
-  duplicate: 'An application for this character is already waiting on an officer.',
-  duplicateAccount: 'You already have an application waiting on an officer.',
-  signInRequired: 'Sign in with Discord first, then submit again.',
+  submitNote: "We'll reply to you on Discord.",
+  discordHint: 'Sign in with Discord to fill this in.',
+  expectationsLead: 'I have read the ',
+  expectationsLink: 'raider expectations',
+  agreeError: 'Confirm that you have read the raider expectations.',
+  discordError: 'Enter your Discord handle.',
+  tooMany: 'You have sent too many applications in a short time. Try again in an hour, or ask an officer in our Discord.',
+  duplicate: 'We already have an application for this character. To change it, ask an officer in our Discord.',
+  duplicateAccount: 'You already have an application with us. To change it, ask an officer in our Discord.',
+  signInRequired: 'You need to sign in with Discord to apply. Sign in, then submit again.',
 };
 
 /** docs/04 § Application submitted. */
@@ -110,12 +118,12 @@ export const SUBMITTED = {
 export const APPLY_GATE = {
   eyebrow: 'Apply',
   signInTitle: 'Sign in with Discord to apply',
-  signInBody: "Applications are tied to your Discord account so officers can reach you and so one person applies once. If you're not in the server yet, join first; the sign-in follows.",
+  signInBody: "We reply to every application on Discord. Sign in with your Discord account to send yours, and join our server first if you haven't yet.",
   signIn: 'Sign in with Discord',
   joinTitle: "You're not in our Discord yet",
-  joinBody: "Join the server first, then come back to this page. Officers decide applications in Discord and reach you there.",
+  joinBody: "Join our Discord server, then come back to this page. We reply to every application there.",
   join: 'Join Discord',
-  retry: "I've joined — try again",
+  retry: "I've joined. Try again.",
   checking: 'Checking your Discord sign-in…',
 };
 

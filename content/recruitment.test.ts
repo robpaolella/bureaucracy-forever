@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { APPLY_LINKS, EXPECTATIONS, NEEDS_SECTION, NEXT_STEPS, RECRUITMENT_HEAD, SUBMITTED } from './recruitment';
+import { APPLY_GATE, APPLY_LINKS, EXPECTATIONS, FORM, NEEDS_SECTION, NEXT_STEPS, RECRUITMENT_HEAD, SUBMITTED } from './recruitment';
 
 const everything = (o: unknown) => JSON.stringify(o);
 
@@ -34,5 +34,19 @@ describe('recruitment copy', () => {
     const banned = ['#recruitment', 'full loot', 'claims it', 'picks it up', 'lockout', 'None of this is unusual', 'fifteen minutes', 'straight answer'];
     const text = everything([RECRUITMENT_HEAD, NEEDS_SECTION, EXPECTATIONS, APPLY_LINKS, NEXT_STEPS, SUBMITTED]).toLowerCase();
     for (const phrase of banned) expect(text).not.toContain(phrase.toLowerCase());
+  });
+
+  it('keeps counts, quips and behind-the-scenes talk off the application form and sign-in step', () => {
+    const banned = ['#recruitment', 'the 40', 'six questions', 'two questions', 'picks it up', 'waiting on an officer', 'claims it', 'deaths avoided', 'honest beats', 'tbd', 'officers pick', 'so an officer'];
+    const text = everything([FORM, APPLY_GATE]).toLowerCase();
+    for (const phrase of banned) expect(text).not.toContain(phrase);
+  });
+
+  it('sends questions to an officer in the Discord', () => {
+    for (const m of [FORM.tooMany, FORM.duplicate, FORM.duplicateAccount]) expect(m).toContain('an officer in our Discord');
+  });
+
+  it('keeps the stored availability answers as written', () => {
+    expect(FORM.availabilityOptions).toEqual(['Both nights', 'One of them', 'Neither']);
   });
 });
