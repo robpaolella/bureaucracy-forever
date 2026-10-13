@@ -164,7 +164,7 @@ export function ApplicationForm({
                     onClick={onExpectationsClick}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-teal-text underline underline-offset-2"
+                    className="-my-3 inline-block py-3 text-teal-text underline underline-offset-2"
                   >
                     {FORM.expectationsLink}
                   </Link>
