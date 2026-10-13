@@ -15,6 +15,10 @@ export const ABOUT_HEAD = {
   ],
 };
 
+/** Link-preview description for the About page. */
+export const ABOUT_DESCRIPTION =
+  'Bureaucracy has raided together since 2011. We were server first in Blackwing Lair and AQ40 on Smolderweb, and one of the top 150 guilds in the region to clear Naxxramas in week one.';
+
 export const HOW_WE_RUN = {
   title: 'How we raid',
   points: [

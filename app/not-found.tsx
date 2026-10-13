@@ -5,7 +5,7 @@ import { ButtonLink } from '@/components/ui';
 import { LOGIN_URL } from '@/lib/config';
 import { NOT_FOUND } from '@/content/errors';
 
-export const metadata: Metadata = { title: 'Not found', robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: 'Page not found', robots: { index: false, follow: false } };
 
 /** The root not-found page also answers the member and officer gates, which 404 rather than confirm a route exists (docs/03). */
 export default function NotFound() {
