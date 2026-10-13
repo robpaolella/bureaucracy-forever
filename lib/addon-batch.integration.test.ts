@@ -181,6 +181,30 @@ describe.skipIf(process.env.ADDON_BATCH_INTEGRATION !== '1')('writing add-on ope
     }
   });
 
+  it('a held replacement and another raid\'s award claiming its new key at once: one is told key-conflict', async () => {
+    for (let round = 0; round < 10; round++) {
+      await db.lootOperationRejection.deleteMany();
+      await db.lootOperation.deleteMany();
+      await db.lootAward.deleteMany();
+      const results = await Promise.all([
+        write([REPLACE]),
+        write([{ ...NEW_AWARD, raid: 'other-raid', boss: 'lb_other' }], { raidId: 'other-raid' }),
+      ]);
+      expect([['key-conflict', 'pending'], ['key-conflict', 'recorded']]).toContainEqual(results.map(statuses).flat().sort());
+      // The original arriving later still saves.
+      expect(statuses(await write([AWARD]))).toHaveLength(1);
+      expect(await db.lootAward.count({ where: { requestKey: NEW_AWARD.id } })).toBe(1);
+    }
+  });
+
+  it('a held replacement keeps the winner it was checked against when the name later belongs to someone else', async () => {
+    await write([REPLACE]);
+    await db.character.update({ where: { name: 'Bo Marsh' }, data: { name: 'Bo Renamed' } });
+    await db.user.create({ data: { id: 'u_cy', discordId: 'd-u_cy', discordName: 'u_cy', characters: { create: { name: 'Bo Marsh', class: 'MAGE', spec: 'Fire', raidRole: 'RANGED' } } } });
+    await write([AWARD]);
+    expect(await db.lootAward.findUnique({ where: { requestKey: NEW_AWARD.id } })).toMatchObject({ characterId: null, characterName: 'Bo Marsh', userId: 'u_bo' });
+  });
+
   it('waits for a loot-table edit holding the tier lock, as the loot log does', async () => {
     let release!: () => void;
     const hold = new Promise<void>((resolve) => { release = resolve; });

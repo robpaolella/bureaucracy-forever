@@ -13,8 +13,9 @@ import { applyOperation, keyOf, samePayload, type AwardOperation, type Change, t
  * Safe with several helpers at once: a batch takes the tier lock (as the loot log does, so an
  * award and a table edit never interleave), then the raid's row, so two batches for one raid
  * run one after the other and the second sees the first's records. Keys are unique across
- * raids, so a batch for another raid that claims the same key at the same moment fails the
- * unique index; the batch then runs again and sees it.
+ * raids, so it then locks each id and key it names, in order: a batch for another raid naming
+ * one waits, including for a held replacement's new key, which no unique index guards. A key
+ * typed into the loot log meanwhile fails the unique index; the batch then runs again.
  */
 export async function writeOperationBatch(input: BatchInput): Promise<BatchResult[]> {
   for (let attempt = 1; ; attempt++) {
@@ -39,7 +40,7 @@ const json = (op: Operation) => op as unknown as Prisma.InputJsonValue;
 class RaidChanged extends Error {}
 
 type Tx = Prisma.TransactionClient;
-type Names = { bosses: Map<string, string>; characters: Map<string, { id: string; name: string; userId: string }> };
+type Names = { bosses: Map<string, string>; characters: Map<string, { id: string; name: string; userId: string }>; users: Set<string> };
 
 async function writeBatch(tx: Tx, { raidId, operations, env, officerId, receivedAt }: BatchInput): Promise<BatchResult[]> {
   const raid = await lockRaid(tx, raidId);
@@ -53,6 +54,10 @@ async function writeBatch(tx: Tx, { raidId, operations, env, officerId, received
     return results;
   }
 
+  // Sorted, so two batches never wait on each other's keys in a circle.
+  for (const key of [...new Set(operations.flatMap((o) => [o.id, keyOf(o), ...(o.type === 'replace' ? [o.award.id] : [])]))].sort()) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`addon-key:${key}`}, 0))`;
+  }
   const state = await loadState(tx, raidId, operations);
   const items = new Set(raid.templateId ? (await tx.lootTableEntry.findMany({ where: { boss: { templateId: raid.templateId } }, select: { itemId: true } })).map((e) => e.itemId) : []);
   const names = await loadNames(tx, raid.templateId, operations, state);
@@ -112,14 +117,15 @@ async function loadState(tx: Tx, raidId: string, operations: Operation[]): Promi
   };
 }
 
-/** The tier's bosses, and every character an award in the batch or a held replacement names. */
+/** The tier's bosses, and every character and user an award in the batch or a held replacement names. */
 async function loadNames(tx: Tx, templateId: string | null, operations: Operation[], state: LootState): Promise<Names> {
   const awards = [...operations, ...[...state.receipts.values()].map((r) => r.op)]
     .flatMap((op) => (op.type === 'award' ? [op] : op.type === 'replace' ? [op.award] : []));
   const wanted = [...new Set(awards.flatMap((a) => (a.char ? [a.char, a.sender] : [a.sender])))];
   const bosses = templateId ? await tx.lootBoss.findMany({ where: { templateId }, select: { id: true, name: true } }) : [];
   const characters = await tx.character.findMany({ where: { name: { in: wanted } }, select: { id: true, name: true, userId: true } });
-  return { bosses: new Map(bosses.map((b) => [b.id, b.name])), characters: new Map(characters.map((c) => [c.name, c])) };
+  const users = await tx.user.findMany({ where: { id: { in: awards.flatMap((a) => (a.user ? [a.user] : [])) } }, select: { id: true } });
+  return { bosses: new Map(bosses.map((b) => [b.id, b.name])), characters: new Map(characters.map((c) => [c.name, c])), users: new Set(users.map((u) => u.id)) };
 }
 
 async function save(tx: Tx, raidId: string, change: Change, names: Names, now: Date) {
@@ -134,8 +140,10 @@ async function save(tx: Tx, raidId: string, change: Change, names: Names, now: D
       return;
     case 'award': {
       const { award } = change;
-      // A replacement held since an earlier batch was checked then; a name gone since is kept as sent.
-      const character = award.char ? names.characters.get(award.char) : undefined;
+      // A replacement held since an earlier batch was checked then. If its name has gone, or now
+      // belongs to another account, the name is kept as sent and the winner stays the user checked.
+      const found = award.char ? names.characters.get(award.char) : undefined;
+      const character = found && (award.user === null || found.userId === award.user) ? found : undefined;
       await tx.lootAward.create({ data: {
         raidId,
         bossId: names.bosses.has(award.boss) ? award.boss : null,
@@ -143,7 +151,7 @@ async function save(tx: Tx, raidId: string, change: Change, names: Names, now: D
         itemId: award.item,
         characterId: character?.id ?? null,
         characterName: character?.name ?? award.char,
-        userId: character?.userId ?? null,
+        userId: character?.userId ?? (award.user && names.users.has(award.user) ? award.user : null),
         method: award.method,
         roll: award.roll,
         note: award.note,
