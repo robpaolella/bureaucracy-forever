@@ -162,12 +162,13 @@ describe.skipIf(process.env.LOOT_BLOCK_INTEGRATION !== '1')('real PostgreSQL res
     expect((await saving).status).toBe(200);
     await demoting;
     state.db = client;
+    const held = await client.reserve.findFirstOrThrow();
     expect(await client.reserve.count()).toBe(1);
     // Once the holder is a Trial the same save is refused and the held reserve is untouched.
     const res = await save(200);
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: 'Reserves open once your trial ends.' });
-    expect(await client.reserve.count()).toBe(1);
+    expect(await client.reserve.findMany()).toEqual([held]);
     await client.reserve.deleteMany();
     await client.user.update({ where: { id: 'u1' }, data: { rank: 'SOCIAL' } });
   }, 20_000);
