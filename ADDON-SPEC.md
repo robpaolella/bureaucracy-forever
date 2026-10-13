@@ -460,17 +460,20 @@ any officer's helper, with no earlier state, records the award from `WoWChatLog.
   officer to void it on the site or by the helper's upload instead.
 - The **machine part is never shortened**. Its worst case is a replacement (ids of 11,
   24 and 11 characters, a 7-digit item, a 5-character boss code, a 15-character method,
-  a roll and a winner of 12 + 1 + 12 two-byte letters): 149 bytes.
+  a roll and a winner of 12 + 1 + 12 two-byte letters): at most 150 bytes.
 - The **human part gives way**. If the line is over 255 bytes the add-on drops parts in
   this order until it fits: ` not {oldwinner}`, then `({method}, roll {roll})`, then the
   winner's name, then the label (`Correction:`, `Undo:`), leaving the link and the
   machine part.
-- The shortest line is the link and the machine part. With the worst machine part and an
-  item name of 40 characters (a link of about 90 bytes) a replacement is 252 bytes, so
-  **every valid award, Undo and replacement fits**; the `[Practice] ` prefix adds 11 bytes
-  and the same drops apply. If a line still cannot fit (an item name over 40 characters
-  on an extreme practice replacement), the add-on does not post it and says so; the
-  award is still saved and uploads through the helper.
+- The shortest line is `[Practice] ` (practice only, 11 bytes), the link, a space and the
+  machine part. With the worst machine part (at most 150 bytes) and an item link of up
+  to **100 bytes** (an item name of about 50 characters), a non-practice line is at
+  most 251 bytes and a practice line at most 262: so a non-practice line fits for every
+  such link, and a practice line can exceed 255 only in the most extreme case (a
+  replacement with maximum ids, a winner of 25 two-byte letters and an item name over
+  about 40 characters). A line that still cannot fit is **not posted** and the add-on
+  says so; the award is still saved and uploads through the helper. Chat is the
+  convenience path, not the only one.
 
 ### 9.2 The three lines
 
