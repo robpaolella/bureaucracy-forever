@@ -62,7 +62,7 @@ describe.skipIf(process.env.LOOT_BLOCK_INTEGRATION !== '1')('real PostgreSQL res
   });
 
   /** Pause the first transaction immediately after its real PostgreSQL tier lock. */
-  function pauseFirstLock() {
+  function pauseFirstLock(match = /RaidTemplate/) {
     const acquired = deferred();
     const release = deferred();
     let first = true;
@@ -72,7 +72,8 @@ describe.skipIf(process.env.LOOT_BLOCK_INTEGRATION !== '1')('real PostgreSQL res
         if (k !== '$queryRaw') return Reflect.get(t, k);
         return async (...args: Parameters<typeof tx.$queryRaw>) => {
           const result = await tx.$queryRaw(...args);
-          if (first) { first = false; acquired.resolve(); await release.promise; }
+          const sql = Array.isArray(args[0]) ? (args[0] as string[]).join('?') : '';
+          if (first && match.test(sql)) { first = false; acquired.resolve(); await release.promise; }
           return result;
         };
       } })), { ...options, timeout: 15_000 });
@@ -142,4 +143,33 @@ describe.skipIf(process.env.LOOT_BLOCK_INTEGRATION !== '1')('real PostgreSQL res
     expect(await blockedItemIds('t1')).toEqual(new Set([200]));
     expect(await client.reserve.count({ where: { itemId: 200 } })).toBe(2);
   });
+
+  it('holder row lock: a rank change waits for a save in flight, then a trial is refused', async () => {
+    await client.reserve.deleteMany();
+    const gate = pauseFirstLock(/FROM "User"/);
+    const saving = save();
+    await gate.acquired.promise;
+    const demoting = Promise.resolve(client.user.update({ where: { id: 'u1' }, data: { rank: 'TRIAL' } })); // Prisma sends nothing until awaited
+    try {
+      for (let attempt = 0; ; attempt++) {
+        const { rows } = await pool.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE 'UPDATE%User%'");
+        if (rows.length) break;
+        if (attempt === 100) throw new Error('The rank change did not wait for the holder row lock: ' + JSON.stringify((await pool.query('SELECT wait_event_type, state, left(query, 120) q FROM pg_stat_activity WHERE datname = current_database()')).rows));
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    } finally { gate.release.resolve(); }
+    // The save was first in line: it wrote under the lock, and the rank change landed after it.
+    expect((await saving).status).toBe(200);
+    await demoting;
+    state.db = client;
+    const held = await client.reserve.findFirstOrThrow();
+    expect(await client.reserve.count()).toBe(1);
+    // Once the holder is a Trial the same save is refused and the held reserve is untouched.
+    const res = await save(200);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'Reserves open once your trial ends.' });
+    expect(await client.reserve.findMany()).toEqual([held]);
+    await client.reserve.deleteMany();
+    await client.user.update({ where: { id: 'u1' }, data: { rank: 'SOCIAL' } });
+  }, 20_000);
 });

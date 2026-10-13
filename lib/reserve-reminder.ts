@@ -19,10 +19,10 @@ export function reserveReminderDue(raid: ReminderRaid, now: Date, enabled: boole
 export type ReminderSignup = {
   userId: string;
   response: 'ACCEPT' | 'TENTATIVE' | 'ABSENT' | null;
-  user: { discordId: string; characters: readonly { id: string }[] };
+  user: { discordId: string; rank?: string; characters: readonly { id: string }[] };
 };
 
-/** Reserves belong to their holder, regardless of who entered them; standing is irrelevant. */
+/** Reserves belong to their holder, regardless of who entered them; standing is irrelevant. Trials can't reserve, so they aren't reminded. */
 export function reserveReminderRecipients(signups: readonly ReminderSignup[], reserves: readonly { userId: string; kind: 'HR' | 'SR' }[]): string[] {
   const kinds = new Map<string, Set<string>>();
   for (const reserve of reserves) {
@@ -30,6 +30,6 @@ export function reserveReminderRecipients(signups: readonly ReminderSignup[], re
     kinds.get(reserve.userId)!.add(reserve.kind);
   }
   return signups.filter((s) => isEligible(s.response?.toLowerCase() as RaidResponse | undefined)
-    && s.user.characters.length > 0 && !(kinds.get(s.userId)?.has('HR') && kinds.get(s.userId)?.has('SR')))
+    && s.user.rank !== 'TRIAL' && s.user.characters.length > 0 && !(kinds.get(s.userId)?.has('HR') && kinds.get(s.userId)?.has('SR')))
     .map((s) => s.user.discordId);
 }

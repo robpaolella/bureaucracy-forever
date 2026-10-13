@@ -54,6 +54,8 @@ export type ReserveView = {
   wowClass: WowClass;
   itemId: number;
   kind: ReserveKind;
+  /** The holder is on trial: the reserve is listed but doesn't count for a drop. */
+  onTrial: boolean;
 };
 
 const lower = <T extends string>(v: T) => v.toLowerCase() as Lowercase<T>;
@@ -63,9 +65,9 @@ export async function loadActiveReserves(raidId: string): Promise<ReserveView[]>
   const rows = await db.reserve.findMany({
     where: { raidId, user: { signups: { some: { raidId, response: { in: ['ACCEPT', 'TENTATIVE'] } } } } },
     orderBy: [{ itemId: 'asc' }, { kind: 'asc' }, { userId: 'asc' }],
-    select: { userId: true, characterId: true, itemId: true, kind: true, user: { select: { discordName: true } }, character: { select: { name: true, class: true } } },
+    select: { userId: true, characterId: true, itemId: true, kind: true, user: { select: { discordName: true, rank: true } }, character: { select: { name: true, class: true } } },
   });
-  return rows.map((r) => ({ userId: r.userId, name: r.user.discordName, characterId: r.characterId, characterName: r.character.name, wowClass: lower(r.character.class) as WowClass, itemId: r.itemId, kind: r.kind }));
+  return rows.map((r) => ({ userId: r.userId, name: r.user.discordName, characterId: r.characterId, characterName: r.character.name, wowClass: lower(r.character.class) as WowClass, itemId: r.itemId, kind: r.kind, onTrial: r.user.rank === 'TRIAL' }));
 }
 
 /** Non-voided HR/SR wins across all raids, including the current raid. Keeps the legacy HR name. */
@@ -97,7 +99,7 @@ export type ReserveTargetRow = {
  * and they have a character; an officer also everyone else who is eligible. `reason` says
  * why the viewer has nothing to set.
  */
-export async function loadReserveTargets(raidId: string, viewerDiscordId: string, officer: boolean): Promise<{ targets: ReserveTargetRow[]; reason: 'notEligible' | 'noCharacter' | null }> {
+export async function loadReserveTargets(raidId: string, viewerDiscordId: string, officer: boolean): Promise<{ targets: ReserveTargetRow[]; reason: 'notEligible' | 'noCharacter' | 'trial' | null; trialClear: { characterId: string } | null }> {
   const raid = await db.raid.findUnique({ where: { id: raidId }, select: { templateId: true } });
   const signups = await db.signup.findMany({
     where: { raidId, ...(officer ? {} : { user: { discordId: viewerDiscordId } }) },
@@ -109,6 +111,7 @@ export async function loadReserveTargets(raidId: string, viewerDiscordId: string
           id: true,
           discordId: true,
           discordName: true,
+          rank: true,
           characters: { orderBy: [{ isMain: 'desc' }, { name: 'asc' }], select: { id: true, name: true, class: true, isMain: true } },
           reserves: { where: { raidId }, select: { characterId: true, itemId: true, kind: true } },
         },
@@ -116,7 +119,8 @@ export async function loadReserveTargets(raidId: string, viewerDiscordId: string
     },
   });
   const mine = signups.find((s) => s.user.discordId === viewerDiscordId);
-  const usable = signups.filter((s) => signupAnswer(s.response).eligible && s.user.characters.length > 0);
+  // Trials can't set reserves, so they are no one's target; they can still take theirs back.
+  const usable = signups.filter((s) => signupAnswer(s.response).eligible && s.user.characters.length > 0 && s.user.rank !== 'TRIAL');
   const [awards, limits] = await Promise.all([
     hrAwardsFor(usable.flatMap((s) => s.user.characters.map((c) => c.id))),
     raid?.templateId ? winLimits(raid.templateId) : Promise.resolve({}),
@@ -143,8 +147,9 @@ export async function loadReserveTargets(raidId: string, viewerDiscordId: string
       };
     })
     .sort((a, b) => Number(b.self) - Number(a.self) || a.name.localeCompare(b.name));
-  const reason = targets.some((t) => t.self) ? null : !mine || !signupAnswer(mine.response).eligible ? 'notEligible' : 'noCharacter';
-  return { targets, reason };
+  const reason = targets.some((t) => t.self) ? null : !mine || !signupAnswer(mine.response).eligible ? 'notEligible' : mine.user.rank === 'TRIAL' ? 'trial' : 'noCharacter';
+  const held = mine?.user.rank === 'TRIAL' ? mine.user.reserves[0] : undefined;
+  return { targets, reason, trialClear: held ? { characterId: held.characterId } : null };
 }
 
 /** GET /api/raids/[id]/reserves: what the reserves window needs away from the raid page. */

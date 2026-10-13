@@ -44,17 +44,17 @@ export async function loadRaidView(id: string, viewerDiscordId: string | null): 
       id: true, templateId: true, name: true, status: true, startsAt: true, locksAt: true, durationMin: true, notes: true, cancelReason: true, requirements: true, postedAt: true, discordThreadId: true, discordMessageId: true,
       template: { select: { name: true, short: true, size: true } },
       series: { select: { postAheadDays: true } },
-      signups: { select: { standing: true, response: true, attended: true, character: { select: MAIN_CHARACTER.select }, user: { select: { discordId: true, reserves: { where: { raidId: id }, select: { kind: true } }, characters: MAIN_CHARACTER } } } },
+      signups: { select: { standing: true, response: true, attended: true, character: { select: MAIN_CHARACTER.select }, user: { select: { discordId: true, rank: true, reserves: { where: { raidId: id }, select: { kind: true } }, characters: MAIN_CHARACTER } } } },
     },
   });
   if (!r) return null;
-  const rows = r.signups.map((s) => ({ standing: s.standing, response: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null, role: (characterBrought(s)?.raidRole.toLowerCase() as Role | undefined) ?? null, attended: s.attended, character: characterBrought(s), discordId: s.user.discordId, kinds: s.user.reserves.map((x) => x.kind) }));
+  const rows = r.signups.map((s) => ({ standing: s.standing, response: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null, role: (characterBrought(s)?.raidRole.toLowerCase() as Role | undefined) ?? null, attended: s.attended, character: characterBrought(s), discordId: s.user.discordId, trial: s.user.rank === 'TRIAL', kinds: s.user.reserves.map((x) => x.kind) }));
   const roster = rows.filter((s) => s.standing === 'ROSTER');
   const mine = viewerDiscordId ? rows.find((s) => s.discordId === viewerDiscordId) : undefined;
   const characters = mine ? await db.character.findMany({ where: { user: { discordId: viewerDiscordId! } },
     orderBy: [{ isMain: 'desc' }, { name: 'asc' }], select: { ...MAIN_CHARACTER.select, isMain: true } }) : [];
-  // A table counts once it has an item, as for the reserve reminder.
-  const hasLootTable = !!mine && lootEnabled() && r.templateId !== null && (await db.lootTableEntry.count({ where: { boss: { templateId: r.templateId } } })) > 0;
+  // A table counts once it has an item, as for the reserve reminder. A trial can't reserve, so for them there is none.
+  const hasLootTable = !!mine && !mine.trial && lootEnabled() && r.templateId !== null && (await db.lootTableEntry.count({ where: { boss: { templateId: r.templateId } } })) > 0;
   const postAhead = (r.series?.postAheadDays ?? 14) * 24 * 3_600_000;
   return {
     id: r.id,
