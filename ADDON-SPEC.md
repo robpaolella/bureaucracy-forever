@@ -289,6 +289,27 @@ of a batch. An award becomes a `LootAward` the way `POST /api/raids/[id]/loot` m
 one: the officer on the key is `recordedById`, names are copied, and the winner is not
 re-checked against sign-ups or reserves — the officer in the game had the last word.
 
+A rejected operation changes nothing and is kept for the problems list (7.4). Besides
+`unsupported-version` (section 6) and the sender check (7.2), its `code` is one of:
+
+| Code | Why |
+| --- | --- |
+| `wrong-environment` | The record is for the other site (section 2). |
+| `unknown-raid` | The site doesn't hold the raid, or the record names a raid the batch isn't for. |
+| `practice-refused` | A practice record sent to production (section 2). |
+| `key-conflict` | The id or key is already used with another payload, or on another raid (4.2). |
+| `raid-cancelled` | An award for a cancelled raid. |
+| `item-not-in-table` | The award's `item` is not in the raid's loot table (section 4). |
+| `unknown-boss` | The award's `boss` is not a boss of the raid's loot table. |
+| `unknown-character` | No character has the award's `char` name. |
+| `user-mismatch` | The award's `user` is given but doesn't own `char`. |
+
+The last five check an award, including the new award inside a `replace`. A `replace` is
+checked when it arrives, even if it would otherwise be kept `pending`, and is rejected
+whole with its new award's code, so a held replacement never fails later. A pending void
+or confirmation carries no award and is kept as 4.2 says. A recorded award sent again is
+`replayed` without being checked again.
+
 ## 6. Versions
 
 `formatVersion` is an integer. A reader that sees a higher number than it knows must
