@@ -469,9 +469,8 @@ any officer's helper, with no earlier state, records the award from `WoWChatLog.
   machine part. With the worst machine part (at most 150 bytes) and an item link of up
   to **100 bytes** (an item name of about 50 characters), a non-practice line is at
   most 251 bytes and a practice line at most 262: so a non-practice line fits for every
-  such link, and a practice line can exceed 255 only in the most extreme case (a
-  replacement with maximum ids, a winner of 25 two-byte letters and an item name over
-  about 40 characters). A line that still cannot fit is **not posted** and the add-on
+  such link. A practice line can exceed 255 when a long link meets a long machine part.
+  A line that still cannot fit is **not posted** and the add-on
   says so; the award is still saved and uploads through the helper. Chat is the
   convenience path, not the only one.
 
