@@ -3,12 +3,12 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ComponentProps, type MouseEvent, type ReactNode } from 'react';
 import { checkApplyGate } from '@/app/(site)/apply/actions';
 import { ApplicationForm } from '@/components/recruitment/ApplicationForm';
 import type { ApplicationPath, ApplyGate } from '@/components/recruitment/form-state';
 import { Button, ButtonLink, buttonClassName, type ButtonSize, type ButtonVariant } from '@/components/ui';
-import { APPLY_GATE, FORM } from '@/content/recruitment';
+import { APPLY_GATE, EXPECTATIONS_HREF, FORM } from '@/content/recruitment';
 import { cn } from '@/lib/cn';
 import { DISCORD_INVITE_URL, LOGIN_URL } from '@/lib/config';
 
@@ -122,6 +122,19 @@ export function ApplyModalProvider({ children }: { children: ReactNode }) {
   }, [open]);
 
   const close = () => setOpen(false);
+  // The link opens a new tab, which keeps the draft: the home page and the other pages have
+  // separate layouts, so navigating away would unmount the form. On the Recruitment page a
+  // new tab is no use, so close the window and scroll to the expectations here instead.
+  const onExpectationsClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (pathname !== EXPECTATIONS_HREF.split('#')[0]) return;
+    e.preventDefault();
+    close();
+    // After the close effect has given the page its scroll back.
+    setTimeout(() => {
+      window.history.pushState(null, '', EXPECTATIONS_HREF);
+      document.getElementById(EXPECTATIONS_HREF.split('#')[1])?.scrollIntoView();
+    }, 0);
+  };
   const showForm = gate?.kind === 'form';
 
   return (
@@ -154,7 +167,7 @@ export function ApplyModalProvider({ children }: { children: ReactNode }) {
               </Button>
             </div>
             {showForm ? (
-              <ApplicationForm key={epoch} discordHandle={gate.name} initialPath={formPath} className="rounded-none border-0" />
+              <ApplicationForm key={epoch} discordHandle={gate.name} initialPath={formPath} onExpectationsClick={onExpectationsClick} className="rounded-none border-0" />
             ) : (
               <GatePanel gate={gate} returnTo={returnTo} onRetry={() => check(formPath)} />
             )}
