@@ -47,7 +47,7 @@ export const ACTIONS = {
   decline: 'Decline',
   toSocial: 'Move to social',
   acceptTitle: (name: string) => `Accept ${name}?`,
-  acceptBody: 'They will be told they are in and invited to a short chat in Discord, then a two-week trial with full loot rights. Officer notes stay private.',
+  acceptBody: 'They will be told they are in and invited to a short chat in Discord, then a two-week trial. Officer notes stay private.',
   acceptEffects: ['Status becomes Accepted and the Discord post is tagged Accepted.', 'The #applications thread is closed.', 'The applicant gets a DM with the trial details.', 'They get the Guild Member role and lose Guest.', 'They can be given a main on the roster, which puts them on future raids.'],
   acceptConfirm: 'Accept the application',
   declineTitle: (name: string) => `Decline ${name}?`,
