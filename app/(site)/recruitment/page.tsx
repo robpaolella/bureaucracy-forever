@@ -5,11 +5,17 @@ import { AccentLink, EYEBROW } from '@/components/site/SectionHead';
 import { ButtonLink, Card } from '@/components/ui';
 import { APPLY_LINKS, EXPECTATIONS, FORM, NEED_LABEL, NEEDS_SECTION, NEXT_STEPS, RECRUITMENT_HEAD } from '@/content/recruitment';
 import { getClassNeeds } from '@/lib/class-needs-data';
-import { DISCORD_INVITE_URL } from '@/lib/config';
+import { DISCORD_INVITE_URL, SITE_NAME } from '@/lib/config';
 
+const TITLE = 'Recruitment';
+const DESCRIPTION = 'See which classes and specs we need most, what we expect of every raider, and how to apply.';
+
+/** Root layout's openGraph/twitter are whole-object overrides, not merged — repeat siteName/locale/card here too. */
 export const metadata: Metadata = {
-  title: 'Recruitment',
-  description: 'Open needs by class and role, what we expect of a raider, and the application form.',
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: { type: 'website', siteName: SITE_NAME, locale: 'en_US', title: `${TITLE} — ${SITE_NAME}`, description: DESCRIPTION },
+  twitter: { card: 'summary_large_image', title: `${TITLE} — ${SITE_NAME}`, description: DESCRIPTION },
 };
 
 const GUTTER = 'px-4 md:px-gutter';
@@ -55,14 +61,12 @@ export default async function RecruitmentPage() {
           </ul>
         </div>
         <NeedsTable needs={needs} />
-        <p className="text-xs text-fg-3">{NEEDS_SECTION.note}</p>
       </section>
 
-      <section className={`${GUTTER} grid grid-cols-1 gap-10 pb-[72px] lg:grid-cols-[360px_minmax(0,1fr)] lg:gap-16`}>
+      <section id="expectations" className={`${GUTTER} grid grid-cols-1 gap-10 pb-[72px] lg:grid-cols-[360px_minmax(0,1fr)] lg:gap-16`}>
         <div className="flex flex-col gap-3.5">
           <span className={EYEBROW}>{EXPECTATIONS.eyebrow}</span>
           <h2 className="font-display text-[30px] font-medium leading-[1.1] md:text-[38px]">{EXPECTATIONS.title}</h2>
-          <p className="text-[15px] leading-[1.7] text-fg-3">{EXPECTATIONS.note}</p>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {EXPECTATIONS.items.map((item, i) => (
