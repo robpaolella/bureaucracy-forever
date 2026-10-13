@@ -45,7 +45,8 @@ In development, `/dev/session` sets a dev-session cookie that stands in for a re
 
 ## Layout
 - `app/(home)`, `app/(site)` — public pages, plus `members/` and `officers/` areas.
-- `app/api/` — route handlers; `app/api/bot/*` is the bot's signed API (SYNC-SPEC).
+- `app/api/` — route handlers; `app/api/bot/*` is the bot's signed API (SYNC-SPEC);
+  `app/api/helper/*` will be the loot helper's API (ADDON-SPEC).
 - `app/actions/` — server actions. `app/dev/` — dev-only playground (components, foundations,
   shell) and the session stub.
 - `proxy.ts` + `lib/auth/gate.ts` — route gating by role. `lib/auth/roles.ts` — Discord role →
@@ -131,3 +132,6 @@ not depend on that unmerged work.
 - `SYNC-SPEC.md` — shared contract with the Discord bot
   (`bureaucracy-forever-discord-bot`). The same file lives in both repos; change both in the
   same PR.
+- `ADDON-SPEC.md` — contract between the site, the officers' loot add-on
+  (`bureaucracy-forever-addon`) and its helper (`bureaucracy-forever-helper`). Lives here only;
+  change it in the same PR as any code that changes a format.
