@@ -112,4 +112,6 @@ Status is never colour alone.
 None.
 
 ## Open decisions
-1. Version A or B (Robert, after trying them).
+None. Robert chose version A ("Let's just go with A. It's fine.", herdr, 2026-10-12), as
+recorded in [revision 1's decisions](../239-unlisted-drop/decisions.md). Revision 1's brief still
+listed this as open; this revision corrects that.

@@ -13,8 +13,9 @@ revision. Revision 1 stays untouched; approved records are never rewritten in pl
 ## What changed from revision 1
 - `design.json`: `design_issue` 245, `covers` [98, 243], `revision` 2. States, themes and the
   approved version are the same.
-- `brief.md`: header and the Covers table (which issue builds which half). Everything else,
-  including the States wording table, is revision 1's text.
+- `brief.md`: header, the Covers table (which issue builds which half) and Open decisions,
+  which revision 1 left saying A versus B was open although Robert had chosen A. Everything
+  else, including the States wording table, is revision 1's text.
 - `index.html` and `screenshots/approved/` are byte-identical copies of revision 1.
 
 ## Choice and approval
