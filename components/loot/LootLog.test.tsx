@@ -130,6 +130,17 @@ describe('LootLog unlisted drop', () => {
     expect(host.textContent).toContain(LOOT_LOG.addedRecorded('Whelp-Scale Bracers', 'Onyxia', 'notary (Notary)'));
   });
 
+  it('disables the controls and shows the button loading while saving', async () => {
+    await foundAndWinner();
+    let finish!: (v: unknown) => void;
+    fetcher.mockReturnValueOnce(new Promise((r) => { finish = r; }));
+    await submit();
+    expect(button(LOOT_LOG.addAndRecord).getAttribute('aria-busy')).toBe('true');
+    for (const el of host.querySelectorAll<HTMLInputElement | HTMLSelectElement>('form select, form input')) expect(el.disabled).toBe(true);
+    await act(async () => finish(answer(201, { id: 'a1', addedToTable: true })));
+    expect(select('Item').disabled).toBe(false);
+  });
+
   it('treats a request that never answers as a failed save', async () => {
     await foundAndWinner();
     fetcher.mockRejectedValueOnce(new DOMException('timed out', 'TimeoutError'));
