@@ -47,9 +47,11 @@ carry the short **raid code** instead) and the **environment**: `production` or
 - **The add-on's active raid** is the raid of the snapshot it has loaded. It changes only
   when an officer loads another snapshot, and the add-on asks first if the current raid
   has awards.
-- **No snapshot:** awards made with none loaded are held as **no raid**. They are not
-  uploaded until an officer attaches them to a raid; attaching rewrites their `raid` and
-  `env` and keeps their keys.
+- **No snapshot:** awards made with none loaded are held as **no raid**. This is the one
+  exception to "every record carries a raid id and environment": they sit in a separate
+  `noRaid` list in the add-on's saved data, without `raid` or `env`, and are never
+  uploaded or sent as chat. An officer attaches them to a raid, which adds that raid's
+  `raid` and `env` (and moves them to the awards list) and keeps their keys.
 - **The helper's raid list** (section 7) offers the raids an officer is likely to run
   and defaults to the soonest.
 
@@ -126,7 +128,7 @@ line breaks for reading; the real text has none that matter.
 ```lua
 {
   formatVersion = 1, raid = "cm9xr2k4a0001", code = "SA0001", env = "staging",
-  name = "Molten Core — sample", startsAt = 1792000000, generated = 1791990000,
+  name = "Molten Core - sample", startsAt = 1792000000, generated = 1791990000,
   addon = { version = "0.1.0",
     url = "https://github.com/robpaolella/bureaucracy-forever-addon/releases/latest" },
   bosses = {
@@ -204,22 +206,23 @@ announced ──▶ confirmed ──▶ voided
 ### 4.2 Arrival order
 
 Records arrive late, twice and out of order (the helper retries, two officers upload the
-same raid). The site applies these rules per key:
+same raid). The site applies these rules per key. Outcomes are the per-operation `status` words of
+section 7.1, never separate HTTP codes:
 
 | What arrives | Already held | Outcome |
 | --- | --- | --- |
-| `award` | nothing | Recorded (`201`). |
-| `void` | its `award` | Award marked void (`200`). |
-| `void` | nothing | **Kept** as a pending void (`202`), applied the moment the award arrives. |
-| `award` | a pending void for its key | Recorded already void (`201`). A void always wins over a later upload of the same award. |
-| `award` | the same award (same id, same payload) | Nothing changes; `200`, `replayed: true`. |
-| `award` | the same id with a **different payload** | Rejected (`409 key-conflict`) and reported (section 7.4); nothing changes. |
-| `void` | the same void again | `200`, `replayed: true`. |
-| `void` | its award, already voided by another void | `200`; the first void's reason and time stand. |
+| `award` | nothing | Recorded (`recorded`). |
+| `void` | its `award` | Award marked void (`voided`). |
+| `void` | nothing | **Kept** as a pending void (`pending`), applied the moment the award arrives. |
+| `award` | a pending void for its key | Recorded already void (`voided`). A void always wins over a later upload of the same award. |
+| `award` | the same award (same id, same payload) | Nothing changes (`replayed`). |
+| `award` | the same id with a **different payload** | Rejected (`rejected`, code `key-conflict`) and reported (section 7.4); nothing changes. |
+| `void` | the same void again | `replayed`. |
+| `void` | its award, already voided by another void | `voided`; the first void's reason and time stand. |
 | `confirm` / `not-confirmed` | its award (any state) | State updated by the rule above; a voided award stays void. |
 | `confirm` / `not-confirmed` | nothing | Kept pending, applied when the award arrives. |
-| `replace` | its original | Original voided, new award recorded, in one transaction. |
-| `replace` | nothing | Kept pending like a void; the new award is recorded when the original arrives. |
+| `replace` | its original | Original voided, new award recorded, in one transaction (`recorded`). |
+| `replace` | nothing | Kept pending like a void (`pending`); the new award is recorded when the original arrives. |
 
 "The same payload" compares the operation's fields except `at`-style times that the
 site only stores. Pending records are kept per raid; a pending record that never finds
@@ -307,8 +310,8 @@ Routes under `/api/helper/`. JSON in and out, `Cache-Control: no-store`, errors 
 | `GET /api/helper/raids/{raid}/problems` | Records the site rejected or is holding for this raid (7.4). |
 
 `status` per operation is one of `recorded`, `replayed`, `pending`, `voided`,
-`rejected`; HTTP is `200` when the request itself was valid, even if some operations
-were rejected. Section 4.2 gives the per-record outcomes.
+`rejected` (with a `code`). HTTP is always `200` when the request itself was valid, even
+if some operations were rejected or pending; the status words carry the outcome. Section 4.2 gives the per-record outcomes.
 
 ### 7.2 Authentication and trust
 
