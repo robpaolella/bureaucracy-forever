@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useActionState, useEffect, useId, useRef, useState, useTransition, type FormEvent } from 'react';
 import { submitApplication } from '@/app/(site)/recruitment/actions';
 import { INITIAL_STATE, type ApplicationPath } from '@/components/recruitment/form-state';
@@ -149,15 +148,7 @@ export function ApplicationForm({
               aria-describedby={e.agree ? agreeErrorId : undefined}
               aria-invalid={e.agree ? true : undefined}
               className={cn(e.agree && 'text-stop')}
-              label={
-                <>
-                  I have read the{' '}
-                  <Link href="/loot" className="text-teal hover:brightness-110">
-                    loot rules
-                  </Link>{' '}
-                  and the raider expectations above.
-                </>
-              }
+              label="I have read the raider expectations above."
             />
             {e.agree && (
               <span id={agreeErrorId} className="text-xs text-stop">

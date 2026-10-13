@@ -91,7 +91,7 @@ export default function ComponentsPage() {
               <Button variant="secondary">Join Discord</Button>
               <Button variant="ghost">Cancel</Button>
               <Button variant="danger">Decline</Button>
-              <TextLink href="#buttons">Read the loot rules</TextLink>
+              <TextLink href="#buttons">Read the raider expectations</TextLink>
             </div>
             <div className="flex gap-5 text-xs text-fg-3">
               <span>primary</span>
@@ -151,7 +151,7 @@ export default function ComponentsPage() {
               <Choice card type="radio" name="path" label="Raider" defaultChecked />
               <Choice card type="radio" name="path" label="Social" />
             </ChoiceGroup>
-            <Choice type="checkbox" label="I have read the loot rules and the raider expectations." defaultChecked />
+            <Choice type="checkbox" label="I have read the raider expectations above." defaultChecked />
             <ToggleDemo />
           </Panel>
         </div>

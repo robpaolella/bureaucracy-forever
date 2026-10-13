@@ -16,8 +16,6 @@ another. Re-seeding destroys local changes, so use a fresh run for baseline data
   `member-unsubmitted` form path and submitted summary at `/apply`.
 - [Member availability](member-availability.md): paint modes, desktop and phone
   paths, autosave/manual save and reload proof at `/members/availability`.
-- [Public loot rules](public-loot.md): policy navigation, FAQ disclosure and
-  application entry at `/loot`.
 - [Officer raid planning](officer-raids.md): templates, weekly series and calendar read-back.
 - [Officer loot tables](officer-loot.md): tier list, empty and populated template pages,
   and loading a table with its last-loaded line and history. Load approved local test data
