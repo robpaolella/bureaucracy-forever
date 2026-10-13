@@ -79,7 +79,7 @@ replaced before launch:
 - Every character name — Ledgerline, Redtape, Subclause, Paperclip, Formfiller, Memoranda,
   Rubberstamp, Triplicate, Quorum, Addendum
 
-The guild's real, verified claims — use these as written:
+The guild's real, verified claims — superseded by `PRODUCT.md`'s Evidence on Hand (the Naxxramas line below is out of date):
 
 - Multiple server-first kills and fastest clear times on **Smolderweb** in WoW Classic
 - Top 500 guilds worldwide to clear **Naxxramas** at release
@@ -89,13 +89,7 @@ The guild's real, verified claims — use these as written:
 
 ## Voice
 
-Confident, plain, slightly dry. Short sentences. Never grandiose, never sentimental,
-no exclamation marks, no emoji. The home page headline sets the register:
-
-> We don't out-play people. We out-prepare them.
-
-When writing new copy, prefer the concrete over the aspirational: "First pull on the hour"
-beats "We value punctuality."
+Superseded: the voice rules are in PRODUCT.md.
 
 ---
 
