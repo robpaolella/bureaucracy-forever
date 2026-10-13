@@ -102,6 +102,32 @@ describe('PUT /api/raids/[id]/reserves', () => {
     expect((await call({ characterId: 'c1', hr: 300, sr: 200, forUserId })).status).toBe(200);
   });
 
+  it.each([
+    ['a trial', 'member', undefined], ['an officer acting for a trial', 'officer', 'u1'],
+  ] as const)('refuses %s setting reserves and writes nothing', async (_label, role, forUserId) => {
+    mocks.session = { role, discordId: 'd1' };
+    mocks.user.mockResolvedValue({ id: 'u1', rank: 'TRIAL', characters: [{ id: 'c1' }] });
+    const res = await call({ ...BODY, forUserId });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'Reserves open once your trial ends.' });
+    expect(mocks.deleteMany).not.toHaveBeenCalled();
+    expect(mocks.createMany).not.toHaveBeenCalled();
+  });
+
+  it('refuses a trial even after the lock, for an officer with the override', async () => {
+    mocks.session = { role: 'officer', discordId: 'd1' };
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1' });
+    mocks.user.mockResolvedValue({ id: 'u1', rank: 'TRIAL', characters: [{ id: 'c1' }] });
+    expect((await call({ ...BODY, forUserId: 'u1' })).status).toBe(409);
+    expect(mocks.createMany).not.toHaveBeenCalled();
+  });
+
+  it('lets a trial clear what they hold', async () => {
+    mocks.user.mockResolvedValue({ id: 'u1', rank: 'TRIAL', characters: [{ id: 'c1' }] });
+    expect((await call({ characterId: 'c1', hr: null, sr: null })).status).toBe(200);
+    expect(mocks.deleteMany).toHaveBeenCalled();
+  });
+
   it('clears with two nulls', async () => {
     expect((await call({ characterId: 'c1', hr: null, sr: null })).status).toBe(200);
     expect(mocks.createMany.mock.calls[0][0].data).toEqual([]);

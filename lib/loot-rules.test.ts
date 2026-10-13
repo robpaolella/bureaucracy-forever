@@ -88,6 +88,28 @@ describe('decideReserve', () => {
   });
 });
 
+describe('trial reserves', () => {
+  const trial = { ...ctx, onTrial: true };
+  const late = new Date('2026-10-16T01:00:00.000Z');
+  it('refuses a trial setting a hard, soft or both, for a member or an officer acting for them', () => {
+    const refusal = { ok: false, status: 409, reason: REASONS.trial };
+    for (const input of [pick, { characterId: 'c1', hr: 100, sr: null }, { characterId: 'c1', hr: null, sr: 200 }]) {
+      expect(decideReserve(member, raid, input, trial, now)).toEqual(refusal);
+      expect(decideReserve({ role: 'officer' }, raid, input, trial, now, true)).toEqual(refusal);
+    }
+  });
+  it('is not bypassed by the officer lock override', () => {
+    expect(decideReserve({ role: 'officer' }, raid, pick, trial, late, true)).toEqual({ ok: false, status: 409, reason: REASONS.trial });
+  });
+  it('lets a trial clear', () => {
+    expect(decideReserve(member, raid, { characterId: 'c1', hr: null, sr: null }, trial, now)).toEqual({ ok: true });
+  });
+  it('leaves raiders and officers alone', () => {
+    expect(decideReserve(member, raid, pick, { ...ctx, onTrial: false }, now)).toEqual({ ok: true });
+    expect(decideReserve({ role: 'officer' }, raid, pick, ctx, now)).toEqual({ ok: true });
+  });
+});
+
 describe('blocked tier items', () => {
   const blocked = { ...ctx, blockedItemIds: new Set([100]) };
   const existing = { characterId: 'c1', itemId: 100, kind: 'HR' as const };
@@ -192,6 +214,12 @@ describe('resolveDrop', () => {
 
   it('falls to SR holders when nobody hard-reserved', () => {
     expect(resolveDrop(200, reserves, [], [])).toEqual({ mode: 'SR', contenders: [r('d', 'SR', 200)] });
+  });
+
+  it("does not count a trial's reserves, so the drop falls through", () => {
+    const trial = { ...r('t', 'HR'), onTrial: true };
+    expect(resolveDrop(100, [trial, r('c', 'SR')], [], [])).toEqual({ mode: 'SR', contenders: [r('c', 'SR')] });
+    expect(resolveDrop(100, [trial, { ...r('u', 'SR'), onTrial: true }], [], [])).toEqual({ mode: 'OPEN', contenders: [] });
   });
 
   it('is an open roll when nobody reserved it', () => {
