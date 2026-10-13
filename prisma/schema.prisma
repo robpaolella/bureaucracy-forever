@@ -521,6 +521,9 @@ model LootAward {
   voidedAt      DateTime?
   voidedById    String?
   voidReason    String?
+  /// The client's key for the submission, so a retry after a timeout returns this record
+  /// instead of recording a second one. Null on records made before it existed.
+  requestKey    String?    @unique
 
   @@index([raidId])
   @@index([characterId, itemId])

@@ -204,15 +204,45 @@ export function parseItemRef(text: string): { id: number; source?: ItemSource } 
   return db ? { id, source: db === 'forever' ? 'FOREVER' : 'CLASSIC' } : { id };
 }
 
+export const NOT_FOREVER = 'That isn’t a WoW Forever item link. Use a link from wowhead.com/forever, or the item’s number.';
+
+/**
+ * An unlisted drop's item: a bare id or a link into Wowhead's Forever database, such as
+ * wowhead.com/forever/item=231044/whelp-scale-bracers. Stricter than parseItemRef: any other
+ * link, including Classic, is refused, so the item is always fetched as a Forever item.
+ */
+export function parseForeverItemRef(text: string): number | null {
+  const t = text.trim();
+  const m = /^(\d+)$/.exec(t) ?? /^(?:https?:\/\/)?(?:www\.)?wowhead\.com\/forever\/(?:[a-z]{2}\/)?item=(\d+)(?:[/?#][^\s]*)?$/i.exec(t);
+  if (!m) return null;
+  const id = Number(m[1]);
+  return Number.isSafeInteger(id) && id >= 1 && id < MAX_ITEM_ID ? id : null;
+}
+
+/** A client-made key for one submission, so a retry after a timeout can't record twice. */
+export function parseRequestKey(value: unknown): string | null {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]{8,128}$/.test(value) ? value : null;
+}
+
 export type AwardInput = { bossId: string | null; itemId: number; characterId: string | null; method: LootMethod; roll: number | null; note: string };
+/** `fromWowhead`: the item came as `itemRef` and is added to the boss's table if it isn't on the tier's. */
+export type AwardRequest = AwardInput & { fromWowhead: boolean; requestKey: string | null };
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
-/** The loot log's record form. Rolls are /roll 1–100; disenchant/bank has no character. */
-export function parseAwardInput(body: unknown): Parsed<AwardInput> {
+/**
+ * The loot log's record form. Rolls are /roll 1–100; disenchant/bank has no character.
+ * An unlisted drop sends `itemRef` (a Forever link or id) instead of `itemId`, and must name
+ * the boss and carry a `requestKey`; any record may carry one.
+ */
+export function parseAwardInput(body: unknown): Parsed<AwardRequest> | { ok: false; error: string; code: 'not-forever' } {
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
   const num = (v: unknown) => (typeof v === 'number' ? v : typeof v === 'string' && v.trim() ? Number(v) : NaN);
-  const itemId = num(b.itemId);
-  if (!Number.isSafeInteger(itemId) || itemId < 1) return { ok: false, error: 'Pick an item.' };
+  const fromWowhead = b.itemRef !== undefined;
+  const itemId = fromWowhead ? (typeof b.itemRef === 'string' ? parseForeverItemRef(b.itemRef) : null) : num(b.itemId);
+  if (fromWowhead && itemId === null) return { ok: false, error: NOT_FOREVER, code: 'not-forever' };
+  if (itemId === null || !Number.isSafeInteger(itemId) || itemId < 1) return { ok: false, error: 'Pick an item.' };
+  const requestKey = parseRequestKey(b.requestKey);
+  if (!requestKey && (fromWowhead || (b.requestKey !== undefined && b.requestKey !== null))) return { ok: false, error: 'Bad request key.' };
   const method = typeof b.method === 'string' && (LOOT_METHODS as readonly string[]).includes(b.method) ? (b.method as LootMethod) : null;
   if (!method) return { ok: false, error: 'Pick how it was handed out.' };
   const characterId = typeof b.characterId === 'string' && b.characterId ? b.characterId : null;
@@ -223,8 +253,9 @@ export function parseAwardInput(body: unknown): Parsed<AwardInput> {
     if (!Number.isInteger(roll) || roll < 1 || roll > 100) return { ok: false, error: 'A roll is 1 to 100.' };
   }
   const bossId = typeof b.bossId === 'string' && b.bossId ? b.bossId : null;
+  if (fromWowhead && !bossId) return { ok: false, error: 'Pick the boss that dropped it.' };
   const note = typeof b.note === 'string' ? b.note.trim().slice(0, 500) : '';
-  return { ok: true, value: { bossId, itemId, characterId: method === 'DISENCHANT_BANK' ? null : characterId, method, roll, note } };
+  return { ok: true, value: { bossId, itemId, characterId: method === 'DISENCHANT_BANK' ? null : characterId, method, roll, note, fromWowhead, requestKey } };
 }
 
 /** Voiding is the only correction; a void record stays void. */

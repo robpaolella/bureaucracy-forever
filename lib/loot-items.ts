@@ -16,6 +16,26 @@ export function toItemView(row: { id: number; name: string; quality: number; ico
   return { id: row.id, name: row.name, quality: row.quality, icon: row.icon, tooltipHtml: sanitizeTooltip(row.tooltipHtml) };
 }
 
+/** Why an unlisted drop's item can't be used; the loot log shows a state for each. */
+export type LookupError = { ok: false; code: 'not-forever' | 'not-found' | 'wowhead-down'; status: 400 | 404 | 502; error: string };
+/** `cached`: already in the LootItem cache, so recording it writes no item row. The tooltip is sanitized. */
+export type ForeverLookup = { ok: true; item: ItemView; cached: boolean } | LookupError;
+
+/**
+ * A Forever item from the cache, or else from Wowhead's Forever database. Saves nothing.
+ * An id cached from Classic is refused, since recording it would mix the two games.
+ */
+export async function lookupForeverItem(client: Pick<PrismaClient, 'lootItem'>, id: number, fetcher?: typeof fetch): Promise<ForeverLookup> {
+  const cached = await client.lootItem.findUnique({ where: { id }, select: { id: true, name: true, quality: true, icon: true, tooltipHtml: true, source: true } });
+  if (cached?.source === 'FOREVER') return { ok: true, item: toItemView(cached), cached: true };
+  if (cached) return { ok: false, code: 'not-forever', status: 400, error: SOURCE_CONFLICT };
+  const res = await fetchItem(id, 'FOREVER', fetcher);
+  if (res.ok) return { ok: true, item: toItemView({ ...res.item, tooltipHtml: res.item.tooltip }), cached: false };
+  return res.notFound
+    ? { ok: false, code: 'not-found', status: 404, error: `Wowhead Forever has no item ${id}. Check the link.` }
+    : { ok: false, code: 'wowhead-down', status: 502, error: 'Couldn’t reach Wowhead.' };
+}
+
 export type RefreshTarget = { id: number; source: ItemSource };
 export type RefreshResult = { saved: number[]; failed: { id: number; error: string }[]; notReached: number[] };
 

@@ -15,8 +15,11 @@ describe('wowhead', () => {
     expect(parseTooltipJson(17076, BODY)).toEqual({ ok: true, item: { id: 17076, name: "Bonereaver's Edge", quality: 4, icon: 'inv_sword_12', tooltip: '<table></table>' } });
   });
 
+  it('marks Wowhead’s own "not found" answer apart from other failures', () => {
+    expect(parseTooltipJson(1, { error: 'Entity not found' })).toEqual({ ok: false, id: 1, error: 'Entity not found', notFound: true });
+  });
+
   it.each([
-    [{ error: 'Entity not found' }, 'Entity not found'],
     [{ ...BODY, name: '' }, 'Unexpected response from Wowhead.'],
     [null, 'Unexpected response from Wowhead.'],
     [{ ...BODY, icon: '../../evil' }, 'Unexpected icon name from Wowhead.'],
@@ -27,7 +30,7 @@ describe('wowhead', () => {
 
   it('fetches, and reports 404 bodies and server errors', async () => {
     expect(await fetchItem(17076, 'CLASSIC', respond(200, BODY))).toMatchObject({ ok: true });
-    expect(await fetchItem(1, 'FOREVER', respond(404, { error: 'Entity not found' }))).toEqual({ ok: false, id: 1, error: 'Entity not found' });
+    expect(await fetchItem(1, 'FOREVER', respond(404, { error: 'Entity not found' }))).toEqual({ ok: false, id: 1, error: 'Entity not found', notFound: true });
     expect(await fetchItem(1, 'CLASSIC', respond(503, {}))).toEqual({ ok: false, id: 1, error: 'Wowhead answered 503.' });
     const html = vi.fn(async () => new Response('<html>blocked</html>', { status: 200 })) as unknown as typeof fetch;
     expect(await fetchItem(1, 'CLASSIC', html)).toEqual({ ok: false, id: 1, error: 'Unexpected response from Wowhead.' });
