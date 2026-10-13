@@ -1,0 +1,28 @@
+{
+  "design_issue": 245,
+  "covers": [
+    98,
+    243
+  ],
+  "revision": 2,
+  "versions": {
+    "approved": "index.html"
+  },
+  "states": [
+    "log",
+    "entry",
+    "looking-up",
+    "found",
+    "on-table",
+    "not-forever",
+    "not-found",
+    "wowhead-down",
+    "saving",
+    "save-failed",
+    "recorded",
+    "no-bosses"
+  ],
+  "themes": [
+    "default"
+  ]
+}
