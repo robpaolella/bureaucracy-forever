@@ -1,0 +1,164 @@
+{
+  "images": [
+    {
+      "image": "a-recruitment-default-390.png",
+      "version": "a",
+      "state": "recruitment",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4178
+    },
+    {
+      "image": "a-recruitment-default-1440.png",
+      "version": "a",
+      "state": "recruitment",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 2339
+    },
+    {
+      "image": "a-raiding-default-390.png",
+      "version": "a",
+      "state": "raiding",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 2243
+    },
+    {
+      "image": "a-raiding-default-1440.png",
+      "version": "a",
+      "state": "raiding",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1147
+    },
+    {
+      "image": "b-recruitment-default-390.png",
+      "version": "b",
+      "state": "recruitment",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4155
+    },
+    {
+      "image": "b-recruitment-default-1440.png",
+      "version": "b",
+      "state": "recruitment",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 2408
+    },
+    {
+      "image": "b-raiding-default-390.png",
+      "version": "b",
+      "state": "raiding",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 2168
+    },
+    {
+      "image": "b-raiding-default-1440.png",
+      "version": "b",
+      "state": "raiding",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1220
+    },
+    {
+      "image": "c-recruitment-default-390.png",
+      "version": "c",
+      "state": "recruitment",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4241
+    },
+    {
+      "image": "c-recruitment-default-1440.png",
+      "version": "c",
+      "state": "recruitment",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 2395
+    },
+    {
+      "image": "c-raiding-default-390.png",
+      "version": "c",
+      "state": "raiding",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 2140
+    },
+    {
+      "image": "c-raiding-default-1440.png",
+      "version": "c",
+      "state": "raiding",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1151
+    },
+    {
+      "image": "combined-recruitment-default-390.png",
+      "version": "combined",
+      "state": "recruitment",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4275
+    },
+    {
+      "image": "combined-recruitment-default-1440.png",
+      "version": "combined",
+      "state": "recruitment",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 2353
+    },
+    {
+      "image": "combined-raiding-default-390.png",
+      "version": "combined",
+      "state": "raiding",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 2185
+    },
+    {
+      "image": "combined-raiding-default-1440.png",
+      "version": "combined",
+      "state": "raiding",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1220
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "design_issue": 254,
+  "covers": [
+    255,
+    256
+  ],
+  "revision": 1,
+  "versions": {
+    "approved": "index.html"
+  },
+  "states": [
+    "recruitment",
+    "raiding"
+  ],
+  "themes": [
+    "default"
+  ]
+}

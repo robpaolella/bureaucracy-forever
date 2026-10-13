@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import { ApplyButton } from '@/components/recruitment/ApplyModal';
 import { NeedsTable } from '@/components/recruitment/NeedsTable';
-import { AccentLink, EYEBROW } from '@/components/site/SectionHead';
+import { EYEBROW } from '@/components/site/SectionHead';
 import { ButtonLink, Card } from '@/components/ui';
-import { APPLY_LINKS, EXPECTATIONS, FORM, NEED_LABEL, NEEDS_SECTION, NEXT_STEPS, RECRUITMENT_HEAD } from '@/content/recruitment';
+import { APPLY_LINKS, EXPECTATIONS, NEED_LABEL, NEEDS_SECTION, NEXT_STEPS, QUESTIONS, RECRUITMENT_HEAD } from '@/content/recruitment';
 import { getClassNeeds } from '@/lib/class-needs-data';
 import { DISCORD_INVITE_URL, SITE_NAME } from '@/lib/config';
 
@@ -33,18 +33,23 @@ export default async function RecruitmentPage() {
   const needs = await getClassNeeds();
   return (
     <>
-      <section className={`${GUTTER} grid grid-cols-1 items-end gap-8 pb-12 pt-16 md:pt-20 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16`}>
+      <section className={`${GUTTER} grid grid-cols-1 gap-8 pb-12 pt-16 md:pt-20 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-16`}>
         <div className="flex flex-col gap-6">
           <span className="font-eyebrow text-eyebrow font-semibold uppercase tracking-[0.32em] text-sand">{RECRUITMENT_HEAD.eyebrow}</span>
           <h1 className="font-display text-[40px] font-medium leading-[1.04] tracking-[-0.025em] md:text-[60px]">{RECRUITMENT_HEAD.title}</h1>
           <p className="max-w-[640px] text-[17px] leading-[1.7] text-fg-2">{RECRUITMENT_HEAD.lede}</p>
         </div>
-        <Card className="flex flex-col gap-2.5">
+        <Card className="flex flex-col gap-4">
           <span className="text-label font-semibold uppercase text-fg-3">{RECRUITMENT_HEAD.aside.label}</span>
           <span className="text-[15px] leading-[1.6] text-fg-2">{RECRUITMENT_HEAD.aside.text}</span>
-          <AccentLink href="#apply" className="mt-1 self-start">
-            {RECRUITMENT_HEAD.aside.linkLabel}
-          </AccentLink>
+          <div className="flex flex-col gap-3">
+            <ApplyButton path={APPLY_LINKS.raider.path} size="lg" className="w-full font-bold">
+              {APPLY_LINKS.raider.label}
+            </ApplyButton>
+            <ApplyButton path={APPLY_LINKS.social.path} size="lg" variant="secondary" className="w-full">
+              {APPLY_LINKS.social.label}
+            </ApplyButton>
+          </div>
         </Card>
       </section>
 
@@ -78,44 +83,38 @@ export default async function RecruitmentPage() {
         </div>
       </section>
 
-      <section id="apply" className={`${GUTTER} grid grid-cols-1 items-start gap-10 pb-20 lg:grid-cols-[minmax(0,1fr)_380px]`}>
-        <Card className="flex flex-col gap-6 p-6 md:p-10">
-          <div className="flex flex-col gap-2.5">
-            <h2 className="font-display text-[34px] font-medium leading-[1.1]">{FORM.title}</h2>
-            <p className="text-[15px] leading-[1.65] text-fg-2">{FORM.lede}</p>
+      <section id="apply" className={`${GUTTER} flex flex-col gap-4 pb-20`}>
+        <Card className="grid grid-cols-1 gap-8 p-6 md:p-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-12">
+          <div className="flex flex-col gap-6">
+            <h2 className="font-display text-[34px] font-medium leading-[1.1]">{APPLY_LINKS.title}</h2>
+            <div className="flex flex-col gap-4">
+              {[APPLY_LINKS.raider, APPLY_LINKS.social].map((link) => (
+                <div key={link.path} className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-5">
+                  <ApplyButton path={link.path} size="lg" variant={link.path === 'raider' ? 'primary' : 'secondary'} className={link.path === 'raider' ? 'w-full font-bold sm:w-[220px] sm:flex-none' : 'w-full sm:w-[220px] sm:flex-none'}>
+                    {link.label}
+                  </ApplyButton>
+                  <p className="text-[15px] leading-[1.6] text-fg-2">{link.line}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-[13px] text-fg-3">{APPLY_LINKS.note}</p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <ApplyButton path={APPLY_LINKS.raider.path} size="lg" className="font-bold">
-              {APPLY_LINKS.raider.label}
-            </ApplyButton>
-            <ApplyButton path={APPLY_LINKS.social.path} size="lg" variant="secondary">
-              {APPLY_LINKS.social.label}
-            </ApplyButton>
-          </div>
-          <p className="text-[13px] text-fg-3">{APPLY_LINKS.note}</p>
-        </Card>
-        <div className="flex flex-col gap-4">
-          <Card className="flex flex-col gap-4 p-[26px]">
+          <div className="flex flex-col gap-4 border-t border-line pt-6 lg:border-l lg:border-t-0 lg:pl-12 lg:pt-0">
             <h3 className="text-[17px] font-semibold">{NEXT_STEPS.title}</h3>
             <ol className="flex list-decimal flex-col gap-3 pl-5 text-sm leading-[1.6] text-fg-2">
-              {NEXT_STEPS.steps.map((s, i) => (
-                <li key={i}>
-                  <span className="font-semibold text-fg">{s.lead}</span> — {s.text}
-                </li>
+              {NEXT_STEPS.steps.map((s) => (
+                <li key={s}>{s}</li>
               ))}
             </ol>
-          </Card>
-          <Card className="flex flex-col gap-2.5 p-[26px]">
-            <h3 className="text-[17px] font-semibold">{NEXT_STEPS.social.title}</h3>
-            <p className="text-sm leading-[1.65] text-fg-2">{NEXT_STEPS.social.text}</p>
-          </Card>
-          <div className="flex flex-col gap-2.5 rounded-card border border-teal-line bg-teal-wash p-[26px]">
-            <h3 className="text-[17px] font-semibold">{NEXT_STEPS.questions.title}</h3>
-            <p className="text-sm leading-[1.65] text-teal-text">{NEXT_STEPS.questions.text}</p>
-            <ButtonLink href={DISCORD_INVITE_URL} variant="secondary" className="mt-1 border-teal-dim">
-              {NEXT_STEPS.questions.button}
-            </ButtonLink>
           </div>
+        </Card>
+        <div className="flex flex-col gap-3.5 rounded-card border border-teal-line bg-teal-wash px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[15px] leading-[1.6] text-teal-text">
+            <span className="font-semibold text-fg">{QUESTIONS.title}</span> {QUESTIONS.text}
+          </p>
+          <ButtonLink href={DISCORD_INVITE_URL} variant="secondary" className="border-teal-dim">
+            {QUESTIONS.button}
+          </ButtonLink>
         </div>
       </section>
     </>
