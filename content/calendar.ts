@@ -3,7 +3,7 @@
 export const CALENDAR_HEAD = {
   eyebrow: 'Members',
   title: 'Raid calendar',
-  lede: 'Every scheduled raid with who is coming. Answer here or in Discord; both land in the same place.',
+  lede: "Bureaucracy's upcoming raids and attendance. Attendance answers in Discord are reflected on the web calendar as well.",
 };
 
 export const CALENDAR_EMPTY = {
