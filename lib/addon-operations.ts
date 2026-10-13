@@ -119,7 +119,9 @@ export type Change =
   | { kind: 'void'; key: string; voidedById: string; voidedAt: Date; reason: string | null }
   | { kind: 'confirmation'; key: string; confirmation: Confirmation; confirmedAt: number };
 
-export type RejectCode = 'wrong-environment' | 'unknown-raid' | 'practice-refused' | 'key-conflict';
+export type RejectCode =
+  | 'wrong-environment' | 'unknown-raid' | 'practice-refused' | 'key-conflict'
+  | 'raid-cancelled' | 'item-not-in-table' | 'unknown-boss' | 'unknown-character' | 'user-mismatch';
 export type Outcome = { status: 'recorded' | 'replayed' | 'pending' | 'voided' } | { status: 'rejected'; code: RejectCode };
 
 /** Section 2: the site's own environment and raid; practice records only on staging. */
@@ -134,9 +136,11 @@ function identityProblem(op: Operation, state: LootState, env: SiteEnv): RejectC
 
 /**
  * Applies one operation by the table in section 4.2, updating `state` so the next
- * operation in the batch sees it. A rejection changes nothing.
+ * operation in the batch sees it. A rejection changes nothing. `site.check` refuses an award
+ * the site can't record (section 5); a `replace` is checked on arrival, even when it would be
+ * kept pending, so a held replacement never fails later.
  */
-export function applyOperation(state: LootState, op: Operation, site: { env: SiteEnv }, from: { officerId: string; now: Date }): { outcome: Outcome; changes: Change[] } {
+export function applyOperation(state: LootState, op: Operation, site: { env: SiteEnv; check?: (award: AwardOperation) => RejectCode | null }, from: { officerId: string; now: Date }): { outcome: Outcome; changes: Change[] } {
   const reject = (code: RejectCode) => ({ outcome: { status: 'rejected' as const, code }, changes: [] });
   const bad = identityProblem(op, state, site.env);
   if (bad) return reject(bad);
@@ -154,6 +158,8 @@ export function applyOperation(state: LootState, op: Operation, site: { env: Sit
     return [...state.receipts.values()].some((r) => r.op.type === 'replace' && r.op.award.id === award.id && !samePayload(r.op.award, award));
   };
   if (op.type === 'award' ? claimed(op) : op.type === 'replace' && claimed(op.award)) return reject('key-conflict');
+  const refused = op.type === 'award' || op.type === 'replace' ? site.check?.(op.type === 'award' ? op : op.award) : null;
+  if (refused) return reject(refused);
 
   const changes: Change[] = [];
   const receipt = keep(state, op, op.type === 'award' || held ? 'APPLIED' : 'PENDING', from.officerId, from.now, changes);

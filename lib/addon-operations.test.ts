@@ -306,3 +306,33 @@ describe('raid, site and practice records (ADDON-SPEC section 2)', () => {
     }
   });
 });
+
+describe('awards the site cannot record (ADDON-SPEC section 5)', () => {
+  const notInTable = (a: { item: number }) => (a.item === 16805 ? null : 'item-not-in-table' as const);
+  const runChecked = (state: LootState, input: Record<string, unknown>) =>
+    applyOperation(state, op(input), { env: 'staging', check: notInTable }, { officerId: 'officer-1', now: new Date(1_800_000_000_000 + clock++ * 1000) });
+
+  it('refuses the award with the check\'s code and changes nothing', () => {
+    const state = fresh();
+    expect(runChecked(state, { ...AWARD, item: 1 })).toEqual({ outcome: { status: 'rejected', code: 'item-not-in-table' }, changes: [] });
+    expect(state.receipts.size + state.awards.size).toBe(0);
+  });
+
+  it('answers a recorded award sent again as replayed, without checking it again', () => {
+    const state = fresh();
+    run(state, { ...AWARD, item: 1 });
+    expect(runChecked(state, { ...AWARD, item: 1 }).outcome).toEqual({ status: 'replayed' });
+  });
+
+  it('refuses a replace whose new award fails on arrival, whether its original is held or not', () => {
+    const bad = { ...REPLACE, award: { ...NEW_AWARD, item: 1 } };
+    const held = fresh();
+    run(held, AWARD);
+    expect(runChecked(held, bad)).toEqual({ outcome: { status: 'rejected', code: 'item-not-in-table' }, changes: [] });
+    expect(award(held)?.voided).toBe(false);
+    const empty = fresh();
+    expect(runChecked(empty, bad)).toEqual({ outcome: { status: 'rejected', code: 'item-not-in-table' }, changes: [] });
+    expect(empty.receipts.size).toBe(0);
+    expect(runChecked(empty, REPLACE).outcome).toEqual({ status: 'pending' });
+  });
+});
