@@ -19,6 +19,8 @@ export type Operation = AwardOperation | ConfirmOperation | VoidOperation | Repl
 /** Notes, reasons and names: at most 200 characters (section 7.6). */
 const TEXT_MAX = 200;
 const MAX_ITEM_ID = 10_000_000;
+/** The latest Unix second a JavaScript Date (and so a stored DateTime) can hold. */
+const MAX_AT = 8_640_000_000_000;
 
 type Parsed = { ok: true; value: Operation } | { ok: false; error: string; code?: 'unsupported-version' };
 
@@ -43,7 +45,7 @@ export function parseOperation(input: unknown): Parsed {
   if (!raid) return { ok: false, error: 'Bad raid.' };
   if (o.env !== 'production' && o.env !== 'staging') return { ok: false, error: 'Bad environment.' };
   if (!absent(o.practice) && typeof o.practice !== 'boolean') return { ok: false, error: 'Bad practice mark.' };
-  if (typeof o.at !== 'number' || !Number.isSafeInteger(o.at) || o.at < 0) return { ok: false, error: 'Bad time.' };
+  if (typeof o.at !== 'number' || !Number.isSafeInteger(o.at) || o.at < 0 || o.at > MAX_AT) return { ok: false, error: 'Bad time.' };
   const common: Common = { id, formatVersion: FORMAT_VERSION, raid, env: o.env, practice: o.practice === true, at: o.at };
 
   if (o.type === 'award') {
@@ -145,10 +147,13 @@ export function applyOperation(state: LootState, op: Operation, site: { env: Sit
   const held = state.awards.get(key);
   // A key used on another raid, or (for an award, which would have a receipt) one the loot log holds.
   if (held && (held.raidId !== state.raidId || op.type === 'award')) return reject('key-conflict');
-  if (op.type === 'replace') {
-    const inner = state.receipts.get(op.award.id);
-    if (inner ? !samePayload(inner.op, op.award) : state.awards.has(op.award.id)) return reject('key-conflict');
-  }
+  // An award's key is also claimed by any replacement carrying it, pending or applied.
+  const claimed = (award: AwardOperation) => {
+    const own = state.receipts.get(award.id);
+    if (own ? !samePayload(own.op, award) : state.awards.has(award.id)) return true;
+    return [...state.receipts.values()].some((r) => r.op.type === 'replace' && r.op.award.id === award.id && !samePayload(r.op.award, award));
+  };
+  if (op.type === 'award' ? claimed(op) : op.type === 'replace' && claimed(op.award)) return reject('key-conflict');
 
   const changes: Change[] = [];
   const receipt = keep(state, op, op.type === 'award' || held ? 'APPLIED' : 'PENDING', from.officerId, from.now, changes);
@@ -173,7 +178,7 @@ function record(state: LootState, award: AwardOperation, receipt: Receipt, chang
   state.awards.set(award.id, { raidId: award.raid, voided: false, confirmation: 'ANNOUNCED', confirmedAt: null });
   changes.push({ kind: 'award', award, recordedById: receipt.deliveredById });
   const pending = [...state.receipts.values()]
-    .filter((r) => r.status === 'PENDING' && keyOf(r.op) === award.id)
+    .filter((r) => r.status === 'PENDING' && r.op.raid === award.raid && keyOf(r.op) === award.id)
     .sort((a, b) => a.receivedAt.getTime() - b.receivedAt.getTime() || (a.op.id < b.op.id ? -1 : 1));
   for (const r of pending) {
     r.status = 'APPLIED';

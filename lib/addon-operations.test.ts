@@ -45,6 +45,7 @@ describe('parseOperation', () => {
     ['another environment word', { env: 'dev' }],
     ['a practice mark that is not true or false', { practice: 'yes' }],
     ['no game time', { at: undefined }],
+    ['a game time no date can hold', { at: 8_640_000_000_001 }],
     ['an item that is not a whole number', { item: 1.5 }],
     ['an unknown method', { method: 'NEED' }],
     ['no winner', { char: '' }],
@@ -219,6 +220,26 @@ describe('arrival order, beyond the table', () => {
     run(state, { ...NEW_AWARD, roll: 1 });
     expect(run(state, REPLACE).outcome).toEqual({ status: 'rejected', code: 'key-conflict' });
     expect(award(state)?.voided).toBe(false);
+  });
+
+  it('an award that reuses a pending replacement\'s new key with another payload is rejected, and the replacement still records its own', () => {
+    const state = fresh();
+    run(state, REPLACE);
+    expect(run(state, { ...NEW_AWARD, char: 'Cy Orchard', user: 'u_cy' }).outcome).toEqual({ status: 'rejected', code: 'key-conflict' });
+    expect(run(state, { ...REPLACE, id: 'rp-second01', award: { ...NEW_AWARD, char: 'Cy Orchard', user: 'u_cy' } }).outcome).toEqual({ status: 'rejected', code: 'key-conflict' });
+    expect(run(state, AWARD).outcome).toEqual({ status: 'voided' });
+    expect(state.receipts.get(NEW_AWARD.id)?.op).toMatchObject({ char: 'Bo Marsh' });
+    // The same new award, uploaded on its own or in a second replacement, is not a conflict.
+    const same = fresh();
+    run(same, REPLACE);
+    expect(run(same, NEW_AWARD).outcome).toEqual({ status: 'recorded' });
+  });
+
+  it('a pending correction kept for another raid never applies to this raid\'s award', () => {
+    const state = fresh();
+    state.receipts.set(VOID.id, { op: op({ ...VOID, raid: 'another-raid' }), status: 'PENDING', deliveredById: 'o', receivedAt: new Date() });
+    expect(run(state, AWARD).outcome).toEqual({ status: 'recorded' });
+    expect(state.receipts.get(VOID.id)?.status).toBe('PENDING');
   });
 
   it('every order of an award, its confirmation, a void and a replacement ends the same', () => {
