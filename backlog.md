@@ -67,3 +67,4 @@
 - Unlisted drop (#243 critique): in the found block, "New to the table…" is smaller and lighter than the mode line below it; consider giving it more weight (approved design has the same hierarchy, so Robert decides).
 - Unlisted drop (#243 critique): "Item not on the table…" sits last in a long Item list; if officers miss it, consider a visible link beside the list (design version B's idea).
 - Unlisted drop (#243 critique): when a lookup moves Boss to match an item already on the table, nothing highlights the changed field beyond the note.
+- The error page's Try again re-renders on the client but does not re-fetch, so an error thrown by a server component stays on screen until the page is reloaded (found in #257; baseline behaviour).
