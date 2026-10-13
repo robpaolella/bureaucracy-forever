@@ -66,7 +66,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
         discordThreadId: true,
         seriesId: true,
         templateId: true,
-        template: { select: { short: true } },
+        template: { select: { short: true, name: true } },
         signups: {
           select: {
             userId: true,
@@ -142,15 +142,18 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
 
   // Loot reserves: behind LOOT_ENABLED, for members and officers, on raids whose tier has a table.
   const showLoot = lootEnabled() && session.role !== 'social' && raid.templateId !== null;
-  const [table, reserves, reserveTargets, awards, logContext] = showLoot
+  const [loadedTable, reserves, reserveTargets, awards, logContext] = showLoot
     ? await Promise.all([
-        loadLootTable(raid.templateId!),
+        // Officers get the empty view too, so the loot log can add a tier's first item.
+        loadLootTable(raid.templateId!, { allowEmpty: officer }),
         loadActiveReserves(raid.id),
         loadReserveTargets(raid.id, session.discordId, officer),
         officer ? loadAwards(raid.id) : Promise.resolve([]),
         officer ? loadLootLogContext(raid.id) : Promise.resolve(null),
       ])
     : [null, [], null, [], null];
+  // The reserves window and the member loot list keep their rule: a table with items.
+  const table = loadedTable && Object.keys(loadedTable.items).length > 0 ? loadedTable : null;
   const memberLoot = table && reserveTargets && session.role === 'member' ? await loadMemberRaidLoot(raid.id) : null;
   const locked = reservesLocked(raid.startsAt, now);
   // The bot's reserves link (SYNC-SPEC §4) opens the viewer's own window, when they could open it themselves.
@@ -227,8 +230,8 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
           />
         )}
         {memberLoot && <RaidLoot key={raid.id} raidId={raid.id} initial={memberLoot} />}
-        {table && logContext && !card.cancelled && (
-          <LootLog raidId={raid.id} table={table} reserves={reserves} candidates={logContext.candidates} raidAwards={logContext.raidAwards} hrAwards={logContext.hrAwards} awards={awards} />
+        {loadedTable && logContext && !card.cancelled && raid.templateId && (
+          <LootLog raidId={raid.id} templateId={raid.templateId} templateName={raid.template?.name ?? ''} table={loadedTable} reserves={reserves} candidates={logContext.candidates} raidAwards={logContext.raidAwards} hrAwards={logContext.hrAwards} awards={awards} />
         )}
       </div>
     </ToastHost>

@@ -64,3 +64,6 @@
 - Reserve picker and roster search (#178/#172 critiques): raise search placeholder contrast (detector measured 3.8:1 on the input background); existing shared muted-text findings remain above.
 - Reserves window (#178 review): restore keyboard focus after a refused save; disabling the form while saving can move focus off the search input.
 - Item names (#203 design): a very long item name on a phone likely makes the loot table scroll sideways; ItemName's screen-reader quality word is positioned outside the truncating name. Check with a long name at 390 wide.
+- Unlisted drop (#243 critique): in the found block, "New to the table…" is smaller and lighter than the mode line below it; consider giving it more weight (approved design has the same hierarchy, so Robert decides).
+- Unlisted drop (#243 critique): "Item not on the table…" sits last in a long Item list; if officers miss it, consider a visible link beside the list (design version B's idea).
+- Unlisted drop (#243 critique): when a lookup moves Boss to match an item already on the table, nothing highlights the changed field beyond the note.

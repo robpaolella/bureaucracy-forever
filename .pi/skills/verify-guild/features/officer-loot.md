@@ -103,6 +103,25 @@ history is the only thing proved here; the Load table window is covered by its o
   `VERCEL_ENV=production`, which the launcher refuses, and `atlas-missing` needs AtlasLoot's raid
   list to change between the list and the load; neither is reachable from the window.
 
+### Record an unlisted drop (raid page loot log)
+
+Load Onyxia's Lair with `--source forever` (not `classic`: a Classic-cached id is refused as
+"not Forever") so its table items count as Forever items; expect 10 imported, the rest "Entity not
+found". Enter as `officer`, open a seeded Onyxia's Lair raid and scroll to `Loot log`.
+
+- **Not on the table.** Pick `Item not on the table…` in Item; focus moves to the link box.
+  Type `wowhead.com/for` (`not-forever`, no request), `999999` (`not-found`), then `19019`
+  (Wowhead answers: found, `New to the table…`). Pick a winner, press `Add and record`; the row
+  appears on top of Recorded and the tier's table page count goes up by one.
+- **Already on the table.** Repeat with `19019`: Item switches to it, the teal note shows,
+  button reads `Record`.
+- **Wowhead down / save failed.** The browser can't make Wowhead fail, but `emulate --network
+  Offline` makes the lookup (`Couldn't reach Wowhead.`, `Try again`) and the save (`Nothing was
+  saved.`) fail; go back with `--network "Fast 4G"` and press the button again. Screenshots report
+  an error after `emulate` but the file is written.
+- **No bosses.** Open a Hyjal Summit raid (seeded, no table): the log shows the no-bosses message
+  and a link to that tier's table, and `Nothing recorded yet.`
+
 ## Gotchas
 
 - The page and loot APIs return 404 without `LOOT_ENABLED=true`. The local launcher
