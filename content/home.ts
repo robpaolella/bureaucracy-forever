@@ -1,7 +1,5 @@
 /**
- * Home page copy. Voice: confident, plain, slightly dry. No exclamation marks.
- * Items marked PLACEHOLDER are invented (design-handover/CLAUDE.md § Content that is
- * placeholder) and must be replaced before launch. The pedigree claims are real.
+ * Home page copy. Voice rules and approved lines: PRODUCT.md. The pedigree claims are real.
  */
 
 import { DISCORD_INVITE_URL } from '@/lib/config';
@@ -17,7 +15,7 @@ export const HERO = {
   eyebrow: 'US · Alliance · PvP',
   headline: ["Smolderweb's #1 raiding guild.", 'Now on WoW Forever.'],
   lede:
-    "Bureaucracy has been raiding together since 2011. On Smolderweb we were the top guild from Molten Core through Naxx, with server firsts, the fastest clears, and a top 150 regional Naxx clear in week one. We're bringing the same crew to WoW Forever and building on what we did there.",
+    "Bureaucracy has raided together since 2011. On Smolderweb, we were the top guild from Molten Core through Naxxramas, with server firsts, the fastest clear times and a top 150 regional Naxxramas clear in week one. Now we're bringing the same team to WoW Forever.",
   /** Opens the apply modal on the Raider path. */
   primary: { label: 'Apply to raid', path: 'raider' as const },
   secondary: { label: 'Join our Discord', href: DISCORD_INVITE_URL },
@@ -48,8 +46,8 @@ export const PROGRESSION: ProgressionRow[] = [
 ];
 
 export const CLOSING = {
-  headline: 'Are you ready to take your game to the next level?',
-  text: "Bureaucracy is always recruiting talented players to join our core team. If you're a competitive player who wants to keep climbing, fill out an application. We read every application and will respond within a few days.",
+  headline: 'Ready to compete?',
+  text: "We're recruiting skilled, prepared raiders for WoW Forever. We read every application and respond within a few days.",
   /** Both open the apply modal, one path each. */
   primary: { label: 'Apply to raid', path: 'raider' as const },
   secondary: { label: 'Join as a social member', path: 'social' as const },
