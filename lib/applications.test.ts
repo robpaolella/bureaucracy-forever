@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { isHoneypotFilled, parseApplication, submittedSearch } from './applications';
+import { FORM } from '@/content/recruitment';
+import { ACTIONS } from '@/content/applications';
 
 function form(fields: Record<string, string>): FormData {
   const data = new FormData();
@@ -19,6 +21,13 @@ const raider = {
   pitch: 'I read every fight before the night and I never miss a pull.',
   agree: 'on',
 };
+
+describe('applications copy', () => {
+  it('describes the accept window without promising loot or gear', () => {
+    expect(ACTIONS.acceptBody).toContain('two-week trial');
+    expect(ACTIONS.acceptBody).not.toMatch(/loot|gear/i);
+  });
+});
 
 describe('parseApplication', () => {
   it('accepts a raider and normalises the names', () => {
@@ -43,7 +52,7 @@ describe('parseApplication', () => {
   });
 
   it('asks a raider to confirm the raider expectations', () => {
-    expect(parseApplication(form({ ...raider, agree: '' }), null)).toEqual({ ok: false, errors: { agree: 'Read the raider expectations first.' } });
+    expect(parseApplication(form({ ...raider, agree: '' }), null)).toEqual({ ok: false, errors: { agree: FORM.agreeError } });
   });
 
   it('asks for both parts of the name, twelve letters each', () => {

@@ -2,13 +2,19 @@ import type { Metadata } from 'next';
 import { ApplicationForm } from '@/components/recruitment/ApplicationForm';
 import { StatusPage } from '@/components/site/StatusPage';
 import { ButtonLink } from '@/components/ui';
-import { DISCORD_INVITE_URL, LOGIN_URL } from '@/lib/config';
+import { DISCORD_INVITE_URL, LOGIN_URL, SITE_NAME } from '@/lib/config';
 import { applyGate } from '@/lib/apply-gate';
 import { APPLY_GATE } from '@/content/recruitment';
 
+const TITLE = `Apply — ${SITE_NAME}`;
+const DESCRIPTION = 'Apply to raid with Bureaucracy, or join the guild as a social member.';
+
+/** Root layout's openGraph/twitter are whole-object overrides, not merged: repeat siteName/locale/card here too. */
 export const metadata: Metadata = {
   title: 'Apply',
-  description: 'Apply to Bureaucracy as a raider or a social member.',
+  description: DESCRIPTION,
+  openGraph: { type: 'website', siteName: SITE_NAME, locale: 'en_US', title: TITLE, description: DESCRIPTION },
+  twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
   robots: { index: false, follow: false },
 };
 

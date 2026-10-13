@@ -1,11 +1,12 @@
 'use client';
 
-import { useActionState, useEffect, useId, useRef, useState, useTransition, type FormEvent } from 'react';
+import Link from 'next/link';
+import { useActionState, useEffect, useId, useRef, useState, useTransition, type FormEvent, type MouseEvent } from 'react';
 import { submitApplication } from '@/app/(site)/recruitment/actions';
 import { INITIAL_STATE, type ApplicationPath } from '@/components/recruitment/form-state';
 import { useSiteSession } from '@/components/shell/SiteSessionProvider';
 import { Button, Choice, ChoiceGroup, Field, Input, Select, Textarea } from '@/components/ui';
-import { FORM } from '@/content/recruitment';
+import { EXPECTATIONS_HREF, FORM } from '@/content/recruitment';
 import { HONEYPOT_FIELD } from '@/lib/applications';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS, CLASSES, SPECS, type WowClass } from '@/lib/design/class-colors';
@@ -31,7 +32,14 @@ export function ApplicationForm({
   discordHandle: known,
   initialPath = 'raider',
   className,
-}: { discordHandle?: string; initialPath?: ApplicationPath; className?: string } = {}) {
+  onExpectationsClick,
+}: {
+  discordHandle?: string;
+  initialPath?: ApplicationPath;
+  className?: string;
+  /** The link opens a new tab, so the answers stay on this page; the apply modal can still take over the click. */
+  onExpectationsClick?: (e: MouseEvent<HTMLAnchorElement>) => void;
+} = {}) {
   // From the session when logged in; the field is then read-only. Read on the client so
   // the page stays static.
   // The server-gated /apply page passes the name it already knows; the client context is the fallback.
@@ -116,7 +124,7 @@ export function ApplicationForm({
         )}
         <Field
           label="Discord handle"
-          hint={discordHandle ? 'From your Discord login.' : "So an officer can reach you. Log in with Discord to fill it in automatically."}
+          hint={discordHandle ? 'From your Discord login.' : FORM.discordHint}
           error={e.discord}
           className="sm:col-span-2"
         >
@@ -148,7 +156,21 @@ export function ApplicationForm({
               aria-describedby={e.agree ? agreeErrorId : undefined}
               aria-invalid={e.agree ? true : undefined}
               className={cn(e.agree && 'text-stop')}
-              label="I have read the raider expectations above."
+              label={
+                <>
+                  {FORM.expectationsLead}
+                  <Link
+                    href={EXPECTATIONS_HREF}
+                    onClick={onExpectationsClick}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="-my-3 inline-block py-3 text-teal-text underline underline-offset-2"
+                  >
+                    {FORM.expectationsLink}
+                  </Link>
+                  .
+                </>
+              }
             />
             {e.agree && (
               <span id={agreeErrorId} className="text-xs text-stop">
