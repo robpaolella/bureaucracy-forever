@@ -41,31 +41,27 @@ export const CLASS_NEEDS: ClassNeed[] = [
 
 export const RECRUITMENT_HEAD = {
   eyebrow: 'Recruitment',
-  title: "We're filling a raid, not a bench",
-  lede: 'Needs below are honest — a closed spec means closed, not "convince us". Apply anyway if you are exceptional; we will say so if you are.',
+  title: 'Join a raid team built to compete',
+  lede: "The table below shows the classes and specs we need most. If your spec is closed and you're an exceptional player, we still want to hear from you.",
   aside: {
     label: 'Right now',
-    text: 'Recruiting for the first WoW Forever lockout. Applications close when the raid is full.',
+    text: 'We read every application and respond within a few days.',
     linkLabel: 'Jump to the form →',
   },
 };
 
 export const NEEDS_SECTION = {
   title: 'Open needs by class and role',
-  note: 'Officers set each row from the Officers menu or with /recruitment in Discord. A change reaches this table and the home page strip within a minute.',
 };
 
 export const EXPECTATIONS = {
   eyebrow: 'The deal',
   title: 'What we expect of a raider',
-  note: 'None of this is unusual. All of it is enforced.',
   items: [
-    { title: 'Both progression nights', text: 'Days to be announced. Make roughly 90% of the tier. Life happens — tell us before the day.' },
-    { title: 'Read the fight first', text: 'Strategy goes up in Discord before the night. Come knowing your job, not asking what it is.' },
-    { title: 'Your own consumables', text: 'Flasks, potions, world buffs where they matter. The guild bank covers repairs, not your flasks.' },
-    { title: 'Voice and an addon pack', text: 'In Discord for every pull. Boss timers and a logging client running — we review the logs, not our memories.' },
-    { title: 'Take the call', text: 'One person calls during a pull. Disagree between pulls — we would rather hear it than lose the night.' },
-    { title: 'Two weeks of trial', text: 'Full loot rights from night one. We tell you where you stand at the end, either way.' },
+    { title: 'Both progression nights', text: "Raiders attend both progression nights. If you can't make one, let us know in Discord ahead of time." },
+    { title: 'Come prepared', text: 'We expect every raider to show up prepared, with consumables, enchants and gear ready to go.' },
+    { title: 'In Discord for every raid', text: 'Every raid runs in Discord voice, and every raider is in it.' },
+    { title: 'Two-week trial', text: "New raiders start with a two-week trial. Gear isn't awarded during the trial." },
   ],
 };
 
@@ -102,12 +98,12 @@ export const FORM = {
 export const SUBMITTED = {
   eyebrow: 'Received',
   title: 'Your application is in',
-  body: "An officer picks it up within a day and you'll get a Discord DM either way. If you're not in the server yet, join now — that's where we'll reach you.",
+  body: "Thanks for applying. We'll get back to you on Discord within a few days. If you have a question in the meantime, ask an officer in our Discord.",
   summary: { character: 'Character', wowClass: 'Class', spec: 'Spec', path: 'Path' },
   paths: { raider: 'Raider', social: 'Social' },
   join: 'Join Discord',
   back: 'Back to the site',
-  mistake: 'Applied by mistake or need to change something? Post in #recruitment.',
+  mistake: 'Applied by mistake or need to change something? Ask an officer in our Discord.',
 };
 
 /** SYNC-SPEC §9.1: /apply sits behind a Discord sign-in and a guild-membership check. */
@@ -133,18 +129,17 @@ export const APPLY_LINKS = {
 export const NEXT_STEPS = {
   title: 'What happens next',
   steps: [
-    { lead: 'Within a day', text: 'an officer claims it and reads your logs.' },
-    { lead: 'A short chat', text: 'in Discord, usually fifteen minutes.' },
-    { lead: 'Two-week trial', text: 'with full loot rights.' },
-    { lead: 'A straight answer', text: 'at the end of it.' },
+    { lead: 'Within a few days', text: "you'll hear back from us." },
+    { lead: 'A short chat', text: 'in Discord.' },
+    { lead: 'Two-week trial', text: 'for new raiders.' },
   ],
   social: {
     title: 'Not raiding?',
-    text: 'Social members get the Discord, alt runs and the calendar. No attendance, no trial, no loot rules to memorise.',
+    text: 'You can also apply as a social member.',
   },
   questions: {
     title: 'Questions first?',
-    text: 'Join the Discord and ask in #recruitment. Nobody will pressure you into applying.',
+    text: 'Ask an officer in our Discord.',
     button: 'Join Discord',
   },
 };
