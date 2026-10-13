@@ -96,8 +96,8 @@ export function ApplyModalProvider({ children }: { children: ReactNode }) {
     };
   }, [reveal]);
 
-  // Any navigation (the submitted page, the loot rules link inside the form) closes it. A
-  // draft survives the loot rules; only a submitted application starts the next form fresh.
+  // Any navigation (such as the submitted page) closes it. A draft survives other
+  // navigation; only a submitted application starts the next form fresh.
   // Adjusted during render, as React recommends for resets driven by a changed value.
   const [shownPath, setShownPath] = useState(pathname);
   if (shownPath !== pathname) {

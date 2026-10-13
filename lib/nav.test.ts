@@ -24,8 +24,8 @@ describe('isActive', () => {
   });
 
   it('keeps the four public links in the documented order', () => {
-    expect(PUBLIC_LINKS.map((l) => l.href)).toEqual(['/about', '/schedule', '/recruitment', '/loot']);
-    expect(PUBLIC_LINKS.map((l) => l.label)).toEqual(['About', 'Raiding', 'Recruitment', 'Loot rules']);
+    expect(PUBLIC_LINKS.map((l) => l.href)).toEqual(['/about', '/schedule', '/recruitment']);
+    expect(PUBLIC_LINKS.map((l) => l.label)).toEqual(['About', 'Raiding', 'Recruitment']);
   });
 
   it('places Loot history after Raid calendar in the shared member links', () => {

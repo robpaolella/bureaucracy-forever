@@ -16,7 +16,6 @@ export const PUBLIC_LINKS: NavItem[] = [
   { href: '/about', label: 'About' },
   { href: '/schedule', label: 'Raiding' },
   { href: '/recruitment', label: 'Recruitment' },
-  { href: '/loot', label: 'Loot rules' },
 ];
 
 /** The footer repeats the public links. */

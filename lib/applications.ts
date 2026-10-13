@@ -89,7 +89,7 @@ export function parseApplication(data: FormData, sessionHandle: string | null): 
     if (pitch.length < 20) errors.pitch = 'A few honest sentences.';
     else answers.pitch = pitch.slice(0, ANSWER_MAX);
 
-    if (data.get('agree') !== 'on') errors.agree = 'Read the loot rules and the expectations first.';
+    if (data.get('agree') !== 'on') errors.agree = 'Read the raider expectations first.';
   } else {
     const note = text(data, 'note');
     if (note) answers.note = note.slice(0, ANSWER_MAX);
