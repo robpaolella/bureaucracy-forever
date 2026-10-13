@@ -226,6 +226,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
             officer={officer}
             targets={reserveTargets.targets}
             reason={reserveTargets.reason ? RESERVES[reserveTargets.reason] : null}
+            trialClear={reserveTargets.trialClear}
             openOnLoad={openReserves}
           />
         )}

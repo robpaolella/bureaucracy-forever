@@ -140,6 +140,21 @@ describe('loadReserveTargets', () => {
     expect(mocks.limits).not.toHaveBeenCalled();
   });
 
+  it('leaves trials out of the targets; a trial viewer gets the trial reason and can take back what they hold', async () => {
+    const trialUser = (id: string, discordId: string, reserves: { characterId: string; itemId: number; kind: 'HR' | 'SR' }[] = []) => ({ ...user(id, discordId, undefined, reserves), rank: 'TRIAL' });
+    mocks.signups.mockResolvedValue([
+      { response: 'ACCEPT', user: { ...trialUser('me', 'd1'), rank: 'TRIAL' } },
+      { response: 'ACCEPT', user: trialUser('other', 'd2') },
+      { response: 'ACCEPT', user: { ...user('raider', 'd3'), rank: 'RAIDER' } },
+    ]);
+    const out = await loadReserveTargets('r1', 'd1', true);
+    expect(out.targets.map((t) => t.name)).toEqual(['raider']);
+    expect(out.reason).toBe('trial');
+    expect(out.trialClear).toBeNull();
+    mocks.signups.mockResolvedValue([{ response: 'ACCEPT', user: trialUser('me', 'd1', [{ characterId: 'me-c', itemId: 5, kind: 'HR' }]) }]);
+    expect(await loadReserveTargets('r1', 'd1', false)).toMatchObject({ targets: [], reason: 'trial', trialClear: { characterId: 'me-c' } });
+  });
+
   it('says why the viewer has nothing to set', async () => {
     mocks.signups.mockResolvedValue([{ response: 'ABSENT', user: user('me', 'd1') }]);
     expect((await loadReserveTargets('r1', 'd1', false)).reason).toBe('notEligible');
@@ -151,6 +166,12 @@ describe('loadReserveTargets', () => {
 });
 
 describe('loadActiveReserves', () => {
+  it('marks a trial holder so a drop skips them', async () => {
+    const row = (rank: string) => ({ userId: rank, characterId: 'c', itemId: 1, kind: 'HR', user: { discordName: rank, rank }, character: { name: 'C', class: 'MAGE' } });
+    mocks.reserves.mockResolvedValue([row('TRIAL'), row('RAIDER')]);
+    expect((await loadActiveReserves('r1')).map((r) => r.onTrial)).toEqual([true, false]);
+  });
+
   it('asks only for holders whose sign-up is Accept or Tentative', async () => {
     mocks.reserves.mockResolvedValue([]);
     await loadActiveReserves('r1');

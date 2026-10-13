@@ -1,7 +1,9 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useEffect, useId, useMemo, useState } from 'react';
 import { LocalTime } from '@/components/time/LocalTime';
+import { SAVE_FAILED } from '@/content/calendar';
 import { Button, Field, useToast } from '@/components/ui';
 import { CONTROL } from '@/components/ui/Field';
 import { RESERVES } from '@/content/reserves';
@@ -30,6 +32,8 @@ type Props = {
   targets: ReserveTarget[];
   /** Why the viewer cannot reserve, when `targets` is empty. */
   reason: string | null;
+  /** A trial who still holds reserves: the character they were saved with, so they can remove them. */
+  trialClear?: { characterId: string } | null;
   /** Open the window on the viewer's own reserves at load (the bot's reserves link). */
   openOnLoad?: boolean;
 };
@@ -39,8 +43,10 @@ type Props = {
  * open the reserves window until the lock (officers after it too, for anyone eligible), and
  * everyone's reserves, visible to all members.
  */
-export function Reserves({ raid, table, reserves, lockAt, locked, cancelled, officer, targets, reason, openOnLoad = false }: Props) {
+export function Reserves({ raid, table, reserves, lockAt, locked, cancelled, officer, targets, reason, trialClear = null, openOnLoad = false }: Props) {
   const toast = useToast();
+  const router = useRouter();
+  const [clearing, setClearing] = useState(false);
   const [targetId, setTargetId] = useState(targets.find((t) => t.self)?.userId ?? targets[0]?.userId);
   const [open, setOpen] = useState(openOnLoad);
   const target = targets.find((t) => t.userId === targetId) ?? targets[0];
@@ -61,6 +67,26 @@ export function Reserves({ raid, table, reserves, lockAt, locked, cancelled, off
   const button = (label: string, primary: boolean) => canChange && (
     <Button variant={primary ? 'primary' : 'secondary'} size={primary ? 'md' : 'sm'} onClick={() => setOpen(true)}>{label}</Button>
   );
+  async function clearMine() {
+    if (!trialClear || clearing) return;
+    setClearing(true);
+    try {
+      const res = await fetch(`/api/raids/${raid.id}/reserves`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+        body: JSON.stringify({ characterId: trialClear.characterId, hr: null, sr: null }),
+      });
+      const result = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) toast({ tone: 'stop', title: result?.error ?? SAVE_FAILED });
+      else {
+        toast({ tone: 'ok', title: RESERVES.cleared });
+        router.refresh();
+      }
+    } catch {
+      toast({ tone: 'stop', title: SAVE_FAILED });
+    } finally {
+      setClearing(false);
+    }
+  }
   return (
     <section id="loot-reserves" className="flex scroll-mt-24 flex-col gap-5 rounded-card border border-line bg-ink-850 p-4 md:p-5" aria-labelledby="reserves-heading">
       <h2 id="reserves-heading" className="font-display text-2xl font-medium">
@@ -75,7 +101,12 @@ export function Reserves({ raid, table, reserves, lockAt, locked, cancelled, off
         <p className="text-sm text-warn">{officer ? RESERVES.lockedOfficer : RESERVES.locked}</p>
       ) : null}
       {cancelled ? null : !target || !picks ? (
-        reason && <p className="text-sm text-fg-3">{reason}</p>
+        reason && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-fg-3">{reason}</p>
+            {trialClear && !locked && <Button variant="secondary" size="sm" loading={clearing} onClick={clearMine}>{RESERVES.removeMine}</Button>}
+          </div>
+        )
       ) : (
         <div className="flex flex-col gap-3 rounded-card border border-line-faint bg-ink-900 p-4">
           {chooser ? (

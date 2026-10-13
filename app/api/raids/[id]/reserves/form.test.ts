@@ -105,7 +105,7 @@ describe('reserve picker', () => {
     const html = render({
       table: { ...props.table, bosses: [...props.table.bosses, { id: 'nef', name: 'Nefarian', isTrash: false, itemIds: [100] }] },
       targets: target({ blockedHr: {} }),
-      reserves: [{ userId: 'u2', name: 'ledgerline', characterId: 'c2', characterName: 'Ledgerline', wowClass: 'warrior', itemId: 100, kind: 'SR' }],
+      reserves: [{ userId: 'u2', name: 'ledgerline', characterId: 'c2', characterName: 'Ledgerline', wowClass: 'warrior', itemId: 100, kind: 'SR', onTrial: false }],
     });
     expect(html).toContain('aria-label="Deathbringer — Epic — Onyxia, Nefarian — HR 0, SR 1"');
     expect(html).toContain('>Shared<');

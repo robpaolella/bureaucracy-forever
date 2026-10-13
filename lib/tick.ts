@@ -171,7 +171,7 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
           data: { remindReservesAt: now },
         });
         if (marked.count === 0) return false;
-        const signups = await tx.signup.findMany({ where: { raidId: raid.id }, select: { userId: true, response: true, user: { select: { discordId: true, characters: { select: { id: true } } } } } });
+        const signups = await tx.signup.findMany({ where: { raidId: raid.id }, select: { userId: true, response: true, user: { select: { discordId: true, rank: true, characters: { select: { id: true } } } } } });
         const reserves = await tx.reserve.findMany({ where: { raidId: raid.id }, select: { userId: true, kind: true } });
         const discordIds = reserveReminderRecipients(signups, reserves);
         if (discordIds.length === 0) return false;

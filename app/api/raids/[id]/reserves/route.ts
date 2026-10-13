@@ -90,11 +90,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       const blocked = raid.templateId ? await blockedItemIds(raid.templateId, tx) : new Set<number>();
       const limits = raid.templateId ? await winLimits(raid.templateId, tx) : {};
       const existing = await tx.reserve.findMany({ where: { raidId, userId: target.id } });
+      // Lock the holder's row so a rank change can't land between this check and the write.
+      const [rank] = await tx.$queryRaw<{ rank: string }[]>`SELECT "rank"::text AS "rank" FROM "User" WHERE "id" = ${target.id} FOR UPDATE`;
       const result = decideReserve(
         { role: session.role },
         { cancelled: raid.cancelledAt !== null, startsAt: raid.startsAt, hasLootTable: items.size > 0 },
         { characterId, hr, sr },
-        { response: signupAnswer(signup?.response).response, ownCharacterIds: target.characters.map((c) => c.id), tableItemIds: items, hrAwards, blockedItemIds: blocked, winLimits: limits, existingReserves: existing },
+        { response: signupAnswer(signup?.response).response, onTrial: rank?.rank === 'TRIAL', ownCharacterIds: target.characters.map((c) => c.id), tableItemIds: items, hrAwards, blockedItemIds: blocked, winLimits: limits, existingReserves: existing },
         new Date(),
         officer,
       );

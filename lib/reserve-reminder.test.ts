@@ -28,6 +28,11 @@ describe('reserve reminder recipients', () => {
     const reserves = [{ userId: 'a', kind: 'HR' as const, setById: 'officer' }, { userId: 'a', kind: 'SR' as const, setById: 'officer' }, { userId: 'b', kind: 'HR' as const }, { userId: 'c', kind: 'SR' as const }];
     expect(reserveReminderRecipients([signup('a'), signup('b'), signup('c')], reserves)).toEqual(['discord-b', 'discord-c']);
   });
+  it('skips trials, who cannot reserve', () => {
+    const trial = { ...signup('t'), user: { ...signup('t').user, rank: 'TRIAL' } };
+    const raider = { ...signup('r'), user: { ...signup('r').user, rank: 'RAIDER' } };
+    expect(reserveReminderRecipients([trial, raider], [])).toEqual(['discord-r']);
+  });
   it('handles no signups', () => expect(reserveReminderRecipients([], [])).toEqual([]));
   it('shares raid ordering', () => expect(entityKey('raid.reserves.remind', { raidId: 'r' })).toBe(entityKey('raid.update', { raidId: 'r' })));
 });
