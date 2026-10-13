@@ -9,7 +9,9 @@ vi.mock('@/app/(site)/recruitment/actions', () => ({ submitApplication: vi.fn() 
 vi.mock('@/components/shell/SiteSessionProvider', () => ({ useSiteSession: () => ({ session: null }) }));
 
 // Runs after React's handlers: records nothing, only keeps happy-dom from really fetching the page.
-const stopNavigation = (e: Event) => e.preventDefault();
+const stopNavigation = (e: Event) => {
+  if ((e.target as Element).closest('a')) e.preventDefault();
+};
 let root: Root, host: HTMLDivElement;
 beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
@@ -48,5 +50,22 @@ describe('ApplicationForm tickbox', () => {
     input.value = 'Redtape';
     await act(async () => link()!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
     expect(host.querySelector<HTMLInputElement>('input[name="firstName"]')!.value).toBe('Redtape');
+  });
+
+  it('gives the expectations link its own 44px target without moving the label text', async () => {
+    await act(async () => root.render(<ApplicationForm />));
+    // 20px line + 12px above and below; the negative margin keeps the line height unchanged.
+    expect(link()?.classList.contains('inline-block')).toBe(true);
+    expect(link()?.classList.contains('py-3')).toBe(true);
+    expect(link()?.classList.contains('-my-3')).toBe(true);
+  });
+
+  it('ticks the agreement from the label text', async () => {
+    await act(async () => root.render(<ApplicationForm />));
+    const box = host.querySelector<HTMLInputElement>('input[name="agree"]')!;
+    expect(box.checked).toBe(false);
+    // happy-dom ticks the box on a link click, which real browsers don't; that is checked in the browser.
+    await act(async () => box.closest('label')!.firstElementChild!.nextElementSibling!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
+    expect(box.checked).toBe(true);
   });
 });
