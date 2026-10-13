@@ -1,21 +1,26 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { LocalTime } from '@/components/time/LocalTime';
-import { Button, Choice, Field, Input, Modal, useToast } from '@/components/ui';
+import { Button, Choice, Field, Input, Modal, TextLink, useToast } from '@/components/ui';
 import { CONTROL } from '@/components/ui/Field';
 import { SAVE_FAILED } from '@/content/calendar';
 import { LOOT_LOG, METHOD_LABEL } from '@/content/loot-log';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
 import type { AwardView, Candidate, LootTableView, ReserveView } from '@/lib/loot-data';
+import type { ItemView } from '@/lib/loot-items';
 import { mergeAwards, type LocalAward, type LoggedAward, type LoggedHr } from '@/lib/loot-log-state';
 import { defaultMethodFor, LOOT_LOG_METHODS, resolveDrop, type LootMethod } from '@/lib/loot-rules';
 import { ItemName } from './ItemName';
+import { UnlistedDrop, type OnTableBoss } from './UnlistedDrop';
 
 type Props = {
   raidId: string;
+  /** The raid's tier, for the link to its loot table when it has no bosses. */
+  templateId: string;
+  templateName: string;
   table: LootTableView;
   reserves: ReserveView[];
   candidates: Candidate[];
@@ -24,9 +29,13 @@ type Props = {
   awards: AwardView[];
 };
 
-async function send(url: string, method: string, body: unknown): Promise<{ ok: boolean; json: Record<string, unknown> }> {
+/** An unlisted drop waits on Wowhead, so a save that never answers is given up on and can be pressed again. */
+const UNLISTED_SAVE_TIMEOUT_MS = 20_000;
+const UNLISTED = 'unlisted';
+
+async function send(url: string, method: string, body: unknown, timeoutMs?: number): Promise<{ ok: boolean; json: Record<string, unknown> }> {
   try {
-    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) });
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body), signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined });
     return { ok: res.ok, json: (await res.json().catch(() => ({}))) as Record<string, unknown> };
   } catch {
     return { ok: false, json: {} };
@@ -36,11 +45,19 @@ async function send(url: string, method: string, body: unknown): Promise<{ ok: b
 const select = cn(CONTROL, 'h-[46px] px-3');
 
 /** Raid detail § Loot log (officers): boss → item → who may roll → record the winner. */
-export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwards, awards }: Props) {
+export function LootLog({ raidId, templateId, templateName, table, reserves, candidates, raidAwards, hrAwards, awards }: Props) {
   const router = useRouter();
   const toast = useToast();
   const [bossId, setBossId] = useState(table.bosses[0]?.id ?? '');
   const [itemId, setItemId] = useState<number | null>(null);
+  // "Item not on the table…" chosen; `found` is the looked-up item once it is new to the table (itemId is then its id).
+  const [unlisted, setUnlisted] = useState(false);
+  const [found, setFound] = useState<ItemView | null>(null);
+  // Set when the lookup found the item already on the table and switched the Item list to it.
+  const [switched, setSwitched] = useState<string | null>(null);
+  // One key per attempt at the same item, reused on every retry, so a save that did land is never recorded twice.
+  const requestKey = useRef<{ itemId: number; key: string } | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [winner, setWinner] = useState('');
   const [method, setMethod] = useState<LootMethod>('OPEN_ROLL');
   const [roll, setRoll] = useState('');
@@ -63,6 +80,10 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
   const given = merged.raidAwards;
   const hrGiven = merged.hrAwards;
 
+  useEffect(() => {
+    if (switched) formRef.current?.querySelector<HTMLElement>('select[required]')?.focus();
+  }, [switched]);
+
   const boss = table.bosses.find((b) => b.id === bossId);
   const characters = useMemo(() => new Map(candidates.flatMap((c) => c.characters.map((ch) => [ch.id, { ...ch, owner: c.name, userId: c.userId }] as const))), [candidates]);
   const resolution = itemId === null ? null : resolveDrop(itemId, reserves, given, hrGiven, [], table.winLimits);
@@ -80,16 +101,43 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
     }
   }
 
+  function chooseItem(value: string) {
+    setSwitched(null);
+    setFound(null);
+    requestKey.current = null;
+    setUnlisted(value === UNLISTED);
+    pickItem(value && value !== UNLISTED ? Number(value) : null);
+  }
+
+  function foundItem(item: ItemView | null) {
+    setFound(item);
+    requestKey.current = null;
+    pickItem(item?.id ?? null);
+  }
+
+  // The item is already on the table: record it the usual way. The Item list holds the selected boss's items only.
+  function switchToTableItem(item: ItemView, bosses: OnTableBoss[]) {
+    setUnlisted(false);
+    setFound(null);
+    if (!bosses.some((b) => b.bossId === bossId)) setBossId(bosses[0].bossId);
+    pickItem(item.id);
+    setSwitched(LOOT_LOG.unlisted.onTable(item.name, bosses.map((b) => b.bossName).join(', ')));
+  }
+
   async function record(e: FormEvent | null, disenchant = false) {
     e?.preventDefault();
     if (busy || itemId === null) return;
     const isDisenchant = disenchant || method === 'DISENCHANT_BANK';
+    const added = found !== null;
+    if (added && requestKey.current?.itemId !== itemId) requestKey.current = { itemId, key: crypto.randomUUID() };
+    const common = { bossId: bossId || null, characterId: isDisenchant ? null : winner, method: isDisenchant ? 'DISENCHANT_BANK' : method, roll: isDisenchant ? null : roll, note };
     setBusy(true);
-    const r = await send(`/api/raids/${raidId}/loot`, 'POST', { bossId: bossId || null, itemId, characterId: isDisenchant ? null : winner, method: isDisenchant ? 'DISENCHANT_BANK' : method, roll: isDisenchant ? null : roll, note });
+    const r = await send(`/api/raids/${raidId}/loot`, 'POST', added ? { ...common, itemRef: String(itemId), requestKey: requestKey.current?.key } : { ...common, itemId }, added ? UNLISTED_SAVE_TIMEOUT_MS : undefined);
     setBusy(false);
-    const itemName = table.items[itemId]?.name ?? `#${itemId}`;
+    const itemName = found?.name ?? table.items[itemId]?.name ?? `#${itemId}`;
     if (!r.ok) {
-      toast({ tone: 'stop', title: typeof r.json.error === 'string' ? r.json.error : SAVE_FAILED });
+      // The form and the request key stay, so pressing again is safe. The server's own wording is not shown for this path.
+      toast(added ? { tone: 'stop', title: LOOT_LOG.notSaved, detail: LOOT_LOG.notSavedDetail } : { tone: 'stop', title: typeof r.json.error === 'string' ? r.json.error : SAVE_FAILED });
       return;
     }
     const who = characters.get(winner);
@@ -97,8 +145,17 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
       const id = r.json.id;
       setPending((p) => [...p, { id, itemId, userId: isDisenchant ? null : (who?.userId ?? null), characterId: isDisenchant ? null : winner, method: isDisenchant ? 'DISENCHANT_BANK' : method }]);
     }
-    toast({ tone: 'ok', title: isDisenchant ? LOOT_LOG.banked(itemName) : LOOT_LOG.recorded(itemName, who ? `${who.owner} (${who.name})` : '') });
-    pickItem(null);
+    // A 201 can say another officer added the item meanwhile (addedToTable false); a replay counts as the first save.
+    const addedHere = added && r.json.addedToTable !== false;
+    const whoName = who ? `${who.owner} (${who.name})` : '';
+    const bossLabel = boss?.name ?? '';
+    toast({
+      tone: 'ok',
+      title: addedHere
+        ? isDisenchant ? LOOT_LOG.addedBanked(itemName, bossLabel) : LOOT_LOG.addedRecorded(itemName, bossLabel, whoName)
+        : isDisenchant ? LOOT_LOG.banked(itemName) : LOOT_LOG.recorded(itemName, whoName),
+    });
+    chooseItem('');
     router.refresh();
   }
 
@@ -127,107 +184,131 @@ export function LootLog({ raidId, table, reserves, candidates, raidAwards, hrAwa
         <p className="max-w-[720px] text-sm text-fg-2">{LOOT_LOG.lede}</p>
       </div>
 
-      <form onSubmit={(e) => record(e)} className="flex flex-col gap-4 rounded-card border border-line-faint bg-ink-900 p-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label={LOOT_LOG.boss}>
-            <select
-              className={select}
-              value={bossId}
-              onChange={(e) => {
-                setBossId(e.target.value);
-                pickItem(null);
-              }}
-            >
-              {table.bosses.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={LOOT_LOG.item}>
-            <select className={select} value={itemId ?? ''} onChange={(e) => pickItem(e.target.value ? Number(e.target.value) : null)}>
-              <option value="">{LOOT_LOG.pickItem}</option>
-              {boss?.itemIds.map((id) => (
-                <option key={id} value={id}>
-                  {table.items[id]?.name ?? `#${id}`}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-
-        {itemId !== null && resolution && (
+      <form ref={formRef} onSubmit={(e) => record(e)} className="flex flex-col gap-4 rounded-card border border-line-faint bg-ink-900 p-4">
+        {table.bosses.length === 0 ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-fg-3">{LOOT_LOG.unlisted.noBosses}</p>
+            <TextLink href={`/officers/loot/${templateId}`} className="self-start">
+              {LOOT_LOG.unlisted.tableLink(templateName)}
+            </TextLink>
+          </div>
+        ) : (
           <>
-            <div className="flex flex-wrap items-center gap-3">
-              <ItemName item={table.items[itemId]} />
-              <span className={cn('text-sm font-semibold', resolution.mode === 'HR' ? 'text-sand' : resolution.mode === 'SR' ? 'text-teal' : 'text-fg-2')}>{LOOT_LOG.mode[resolution.mode]}</span>
-            </div>
-            {resolution.contenders.length > 0 && (
-              <fieldset className="flex flex-col gap-2">
-                <legend className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-fg-2">{LOOT_LOG.contenders}</legend>
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                  {resolution.contenders.map((c) => {
-                    const ch = characters.get(c.characterId);
-                    return (
-                      <Choice
-                        key={c.characterId}
-                        type="radio"
-                        name="contender"
-                        card
-                        checked={winner === c.characterId}
-                        onChange={() => setWinner(c.characterId)}
-                        label={`${ch?.owner ?? '?'} · ${ch?.name ?? '?'} (${c.kind})`}
-                      />
-                    );
-                  })}
-                </div>
-              </fieldset>
-            )}
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {method !== 'DISENCHANT_BANK' && (
-                <>
-                  <Field label={LOOT_LOG.winner} hint={winner && resolution.mode !== 'OPEN' && !contenderIds.has(winner) ? LOOT_LOG.notContender(resolution.mode) : undefined}>
-                    <select className={select} value={winner} onChange={(e) => setWinner(e.target.value)} required>
-                      <option value="">{LOOT_LOG.pickWinner}</option>
-                      {candidates.map((c) => (
-                        <optgroup key={c.userId} label={c.name}>
-                          {c.characters.map((ch) => (
-                            <option key={ch.id} value={ch.id}>
-                              {ch.name} · {CLASS_COLORS[ch.wowClass].label}
-                              {contenderIds.has(ch.id) ? ` (${resolution.mode})` : ''}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label={LOOT_LOG.roll}>
-                    <Input type="number" inputMode="numeric" min={1} max={100} value={roll} onChange={(e) => setRoll(e.target.value)} />
-                  </Field>
-                </>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label={LOOT_LOG.boss}>
+              <select
+                className={select}
+                value={bossId}
+                disabled={busy}
+                onChange={(e) => {
+                  setBossId(e.target.value);
+                  setSwitched(null);
+                  // A looked-up item stays through a Boss change: the choice only says which list it joins.
+                  if (!unlisted) pickItem(null);
+                }}
+              >
+                {table.bosses.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label={LOOT_LOG.item}>
+              <select className={select} value={unlisted ? UNLISTED : (itemId ?? '')} disabled={busy} onChange={(e) => chooseItem(e.target.value)}>
+                <option value="">{LOOT_LOG.pickItem}</option>
+                {boss?.itemIds.map((id) => (
+                  <option key={id} value={id}>
+                    {table.items[id]?.name ?? `#${id}`}
+                  </option>
+                ))}
+                <optgroup label={LOOT_LOG.unlisted.group}>
+                  <option value={UNLISTED}>{LOOT_LOG.unlisted.option}</option>
+                </optgroup>
+              </select>
+            </Field>
+          </div>
+
+          {switched && (
+            <p role="status" className="rounded-card border border-teal-line bg-teal-wash px-3.5 py-3 text-sm text-teal-text">
+              {switched}
+            </p>
+          )}
+          {unlisted && <UnlistedDrop raidId={raidId} disabled={busy} bossName={boss?.name ?? ''} onFound={foundItem} onOnTable={switchToTableItem} />}
+
+          {itemId !== null && resolution && (
+            <>
+              <div className="flex flex-wrap items-center gap-3">
+                {!found && <ItemName item={table.items[itemId]} />}
+                <span className={cn('text-sm font-semibold', resolution.mode === 'HR' ? 'text-sand' : resolution.mode === 'SR' ? 'text-teal' : 'text-fg-2')}>{LOOT_LOG.mode[resolution.mode]}</span>
+              </div>
+              {resolution.contenders.length > 0 && (
+                <fieldset className="flex flex-col gap-2">
+                  <legend className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-fg-2">{LOOT_LOG.contenders}</legend>
+                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                    {resolution.contenders.map((c) => {
+                      const ch = characters.get(c.characterId);
+                      return (
+                        <Choice
+                          key={c.characterId}
+                          type="radio"
+                          name="contender"
+                          card
+                          checked={winner === c.characterId}
+                          onChange={() => setWinner(c.characterId)}
+                          label={`${ch?.owner ?? '?'} · ${ch?.name ?? '?'} (${c.kind})`}
+                        />
+                      );
+                    })}
+                  </div>
+                </fieldset>
               )}
-              <Field label={LOOT_LOG.method}>
-                <select className={select} value={method} onChange={(e) => setMethod(e.target.value as LootMethod)}>
-                  {LOOT_LOG_METHODS.map((m) => (
-                    <option key={m} value={m}>
-                      {METHOD_LABEL[m]}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={LOOT_LOG.note}>
-                <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
-              </Field>
-            </div>
-            <div className="flex flex-wrap justify-end gap-2.5">
-              <Button variant="secondary" disabled={busy} onClick={() => record(null, true)}>
-                {LOOT_LOG.disenchant}
-              </Button>
-              <Button type="submit" loading={busy} disabled={!winner && method !== 'DISENCHANT_BANK'}>
-                {LOOT_LOG.record}
-              </Button>
-            </div>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {method !== 'DISENCHANT_BANK' && (
+                  <>
+                    <Field label={LOOT_LOG.winner} hint={winner && resolution.mode !== 'OPEN' && !contenderIds.has(winner) ? LOOT_LOG.notContender(resolution.mode) : undefined}>
+                      <select className={select} value={winner} disabled={busy} onChange={(e) => setWinner(e.target.value)} required>
+                        <option value="">{LOOT_LOG.pickWinner}</option>
+                        {candidates.map((c) => (
+                          <optgroup key={c.userId} label={c.name}>
+                            {c.characters.map((ch) => (
+                              <option key={ch.id} value={ch.id}>
+                                {ch.name} · {CLASS_COLORS[ch.wowClass].label}
+                                {contenderIds.has(ch.id) ? ` (${resolution.mode})` : ''}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label={LOOT_LOG.roll}>
+                      <Input type="number" inputMode="numeric" min={1} max={100} value={roll} disabled={busy} onChange={(e) => setRoll(e.target.value)} />
+                    </Field>
+                  </>
+                )}
+                <Field label={LOOT_LOG.method}>
+                  <select className={select} value={method} disabled={busy} onChange={(e) => setMethod(e.target.value as LootMethod)}>
+                    {LOOT_LOG_METHODS.map((m) => (
+                      <option key={m} value={m}>
+                        {METHOD_LABEL[m]}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label={LOOT_LOG.note}>
+                  <Input value={note} disabled={busy} onChange={(e) => setNote(e.target.value)} maxLength={500} />
+                </Field>
+              </div>
+              <div className="flex flex-wrap justify-end gap-2.5">
+                <Button variant="secondary" disabled={busy} onClick={() => record(null, true)}>
+                  {LOOT_LOG.disenchant}
+                </Button>
+                <Button type="submit" loading={busy} disabled={!winner && method !== 'DISENCHANT_BANK'}>
+                  {found ? LOOT_LOG.addAndRecord : LOOT_LOG.record}
+                </Button>
+              </div>
+            </>
+          )}
           </>
         )}
         {candidates.length === 0 && <p className="text-sm text-fg-3">{LOOT_LOG.noCharacters}</p>}
