@@ -90,8 +90,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       const blocked = raid.templateId ? await blockedItemIds(raid.templateId, tx) : new Set<number>();
       const limits = raid.templateId ? await winLimits(raid.templateId, tx) : {};
       const existing = await tx.reserve.findMany({ where: { raidId, userId: target.id } });
-      // Read again inside the write: a rank change since the first read must not slip a reserve past the rule.
-      const rank = await tx.user.findUnique({ where: { id: target.id }, select: { rank: true } });
+      // Lock the holder's row so a rank change can't land between this check and the write.
+      const [rank] = await tx.$queryRaw<{ rank: string }[]>`SELECT "rank"::text AS "rank" FROM "User" WHERE "id" = ${target.id} FOR UPDATE`;
       const result = decideReserve(
         { role: session.role },
         { cancelled: raid.cancelledAt !== null, startsAt: raid.startsAt, hasLootTable: items.size > 0 },

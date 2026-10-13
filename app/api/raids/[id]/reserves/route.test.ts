@@ -106,7 +106,7 @@ describe('PUT /api/raids/[id]/reserves', () => {
     ['a trial', 'member', undefined], ['an officer acting for a trial', 'officer', 'u1'],
   ] as const)('refuses %s setting reserves and writes nothing', async (_label, role, forUserId) => {
     mocks.session = { role, discordId: 'd1' };
-    mocks.user.mockResolvedValue({ id: 'u1', rank: 'TRIAL', characters: [{ id: 'c1' }] });
+    mocks.query.mockResolvedValue([{ rank: 'TRIAL' }]);
     const res = await call({ ...BODY, forUserId });
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: 'Reserves open once your trial ends.' });
@@ -117,19 +117,19 @@ describe('PUT /api/raids/[id]/reserves', () => {
   it('refuses a trial even after the lock, for an officer with the override', async () => {
     mocks.session = { role: 'officer', discordId: 'd1' };
     mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1' });
-    mocks.user.mockResolvedValue({ id: 'u1', rank: 'TRIAL', characters: [{ id: 'c1' }] });
+    mocks.query.mockResolvedValue([{ rank: 'TRIAL' }]);
     expect((await call({ ...BODY, forUserId: 'u1' })).status).toBe(409);
     expect(mocks.createMany).not.toHaveBeenCalled();
   });
 
   it('lets a trial clear what they hold', async () => {
-    mocks.user.mockResolvedValue({ id: 'u1', rank: 'TRIAL', characters: [{ id: 'c1' }] });
+    mocks.query.mockResolvedValue([{ rank: 'TRIAL' }]);
     expect((await call({ characterId: 'c1', hr: null, sr: null })).status).toBe(200);
     expect(mocks.deleteMany).toHaveBeenCalled();
   });
 
-  it('uses the rank as it is inside the write, not as first read', async () => {
-    mocks.user.mockResolvedValueOnce({ id: 'u1', characters: [{ id: 'c1' }] }).mockResolvedValueOnce({ rank: 'TRIAL' });
+  it('uses the rank under the row lock, not as first read', async () => {
+    mocks.query.mockResolvedValue([{ rank: 'TRIAL' }]);
     expect((await call(BODY)).status).toBe(409);
     expect(mocks.createMany).not.toHaveBeenCalled();
   });
