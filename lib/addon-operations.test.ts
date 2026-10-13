@@ -20,7 +20,6 @@ let clock = 0;
 function run(state: LootState, input: Record<string, unknown>, env: SiteEnv = 'staging', officerId = 'officer-1') {
   return applyOperation(state, op(input), { env }, { officerId, now: new Date(1_800_000_000_000 + clock++ * 1000) });
 }
-const statuses = (state: LootState, ...inputs: Record<string, unknown>[]) => inputs.map((i) => run(state, i).outcome.status);
 const award = (state: LootState, key = AWARD.id) => state.awards.get(key);
 const loggedAward = (raidId = RAID): HeldAward => ({ raidId, voided: false, confirmation: 'CONFIRMED', confirmedAt: null });
 
