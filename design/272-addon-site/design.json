@@ -1,0 +1,11 @@
+{
+  "design_issue": 272,
+  "covers": [274, 275, 276, 280],
+  "revision": 1,
+  "versions": {
+    "a": "versions/a.html",
+    "b": "versions/b.html"
+  },
+  "states": ["log-marks", "log-practice", "copy-ready", "copied", "copy-blocked", "no-reserves", "no-table", "import-empty", "importing", "import-results", "import-nothing-new", "import-unreadable", "import-failed", "addon-page", "addon-no-release", "addon-github-down", "keys-empty", "key-created", "key-revoke", "key-error"],
+  "themes": ["default"]
+}
