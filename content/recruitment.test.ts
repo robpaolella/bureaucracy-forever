@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { APPLY_GATE, APPLY_LINKS, EXPECTATIONS, FORM, NEEDS_SECTION, NEXT_STEPS, RECRUITMENT_HEAD, SUBMITTED } from './recruitment';
+import { APPLY_GATE, APPLY_LINKS, EXPECTATIONS, FORM, NEEDS_SECTION, NEXT_STEPS, QUESTIONS, RECRUITMENT_HEAD, SUBMITTED } from './recruitment';
 
 const everything = (o: unknown) => JSON.stringify(o);
 
@@ -27,12 +27,28 @@ describe('recruitment copy', () => {
   });
 
   it('says three things happen next', () => {
-    expect(NEXT_STEPS.steps).toHaveLength(3);
+    expect(NEXT_STEPS.steps).toEqual([
+      "You'll hear back from us within a few days.",
+      "Then we'll have a short chat in Discord.",
+      'New raiders start with a two-week trial.',
+    ]);
+  });
+
+  it('uses the approved Apply box, Apply card and questions strip', () => {
+    expect(RECRUITMENT_HEAD.aside).toEqual({ label: 'Apply', text: 'We read every application and respond within a few days.' });
+    expect(APPLY_LINKS.raider.line).toBe('Apply for a raid spot with your logs and availability.');
+    expect(APPLY_LINKS.social.line).toBe('Not raiding? You can also apply as a social member.');
+    expect(QUESTIONS).toEqual({ title: 'Questions first?', text: 'Ask an officer in our Discord.', button: 'Join Discord' });
+  });
+
+  it('drops the old side box, intro and Not raiding box', () => {
+    const text = everything([RECRUITMENT_HEAD, APPLY_LINKS, NEXT_STEPS, QUESTIONS]);
+    for (const phrase of ['Right now', 'Jump to the form', 'Not raiding?"', 'Pick a path']) expect(text).not.toContain(phrase);
   });
 
   it('keeps removed or false claims off the public recruitment copy', () => {
     const banned = ['#recruitment', 'full loot', 'claims it', 'picks it up', 'lockout', 'None of this is unusual', 'fifteen minutes', 'straight answer'];
-    const text = everything([RECRUITMENT_HEAD, NEEDS_SECTION, EXPECTATIONS, APPLY_LINKS, NEXT_STEPS, SUBMITTED]).toLowerCase();
+    const text = everything([RECRUITMENT_HEAD, NEEDS_SECTION, EXPECTATIONS, APPLY_LINKS, NEXT_STEPS, QUESTIONS, SUBMITTED]).toLowerCase();
     for (const phrase of banned) expect(text).not.toContain(phrase.toLowerCase());
   });
 

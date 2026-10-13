@@ -44,9 +44,8 @@ export const RECRUITMENT_HEAD = {
   title: 'Join a raid team built to compete',
   lede: "The table below shows the classes and specs we need most. If your spec is closed and you're an exceptional player, we still want to hear from you.",
   aside: {
-    label: 'Right now',
+    label: 'Apply',
     text: 'We read every application and respond within a few days.',
-    linkLabel: 'Jump to the form →',
   },
 };
 
@@ -129,25 +128,19 @@ export const APPLY_GATE = {
 
 /** The recruitment page's apply section: two doors to the apply modal (SYNC-SPEC §9.1). */
 export const APPLY_LINKS = {
-  raider: { label: 'Apply as a Raider', path: 'raider' as const },
-  social: { label: 'Apply as Social', path: 'social' as const },
+  title: 'Apply',
+  raider: { label: 'Apply as a Raider', path: 'raider' as const, line: 'Apply for a raid spot with your logs and availability.' },
+  social: { label: 'Apply as Social', path: 'social' as const, line: 'Not raiding? You can also apply as a social member.' },
   note: "You'll sign in with Discord before the form opens, so join the server first.",
 };
 
 export const NEXT_STEPS = {
   title: 'What happens next',
-  steps: [
-    { lead: 'Within a few days', text: "you'll hear back from us." },
-    { lead: 'A short chat', text: 'in Discord.' },
-    { lead: 'Two-week trial', text: 'for new raiders.' },
-  ],
-  social: {
-    title: 'Not raiding?',
-    text: 'You can also apply as a social member.',
-  },
-  questions: {
-    title: 'Questions first?',
-    text: 'Ask an officer in our Discord.',
-    button: 'Join Discord',
-  },
+  steps: ["You'll hear back from us within a few days.", "Then we'll have a short chat in Discord.", 'New raiders start with a two-week trial.'],
+};
+
+export const QUESTIONS = {
+  title: 'Questions first?',
+  text: 'Ask an officer in our Discord.',
+  button: 'Join Discord',
 };
