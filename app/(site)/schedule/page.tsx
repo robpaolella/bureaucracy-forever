@@ -1,14 +1,19 @@
 import type { Metadata } from 'next';
-import { AccentLink } from '@/components/site/SectionHead';
 import { TimezoneBar } from '@/components/time/TimezoneBar';
 import { Card } from '@/components/ui';
 import { RAID_WEEK, SCHEDULE_ASIDES, SCHEDULE_HEAD } from '@/content/schedule';
 import { cn } from '@/lib/cn';
-import { MEMBER_LINKS } from '@/lib/nav';
+import { SITE_NAME } from '@/lib/config';
 
+const TITLE = 'Raid schedule';
+const DESCRIPTION = 'Two progression nights a week, plus an optional night for farm and alt runs. Attendance, sign-ups and loot.';
+
+/** Root layout's openGraph/twitter are whole-object overrides, not merged: repeat siteName/locale/card here too. */
 export const metadata: Metadata = {
-  title: 'Raid schedule',
-  description: 'Two progression nights a week plus an optional farm and alt night. Days and times to be announced. Attendance and sign-ups.',
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: { type: 'website', siteName: SITE_NAME, locale: 'en_US', title: TITLE, description: DESCRIPTION },
+  twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
 };
 
 const GUTTER = 'px-4 md:px-gutter';
@@ -45,22 +50,17 @@ export default function SchedulePage() {
         </ol>
       </section>
 
-      <section className={`${GUTTER} grid grid-cols-1 items-start gap-4 pb-20 lg:grid-cols-3`}>
-        <Card className="flex flex-col gap-3 p-[26px]">
-          <h2 className="text-[17px] font-semibold">{SCHEDULE_ASIDES.attendance.title}</h2>
-          <p className="text-sm leading-[1.65] text-fg-2">{SCHEDULE_ASIDES.attendance.text}</p>
+      <section className={`${GUTTER} pb-20`}>
+        <Card className="px-[26px] py-0">
+          <dl className="flex flex-col">
+            {SCHEDULE_ASIDES.map((row) => (
+              <div key={row.title} className="flex flex-col gap-2 border-t border-line-faint py-[22px] first:border-t-0 md:grid md:grid-cols-[200px_minmax(0,1fr)] md:items-baseline md:gap-6">
+                <dt className="text-[13px] font-semibold uppercase tracking-[0.1em] text-sand">{row.title}</dt>
+                <dd className="text-[15px] leading-[1.65] text-fg-2">{row.text}</dd>
+              </div>
+            ))}
+          </dl>
         </Card>
-        <Card className="flex flex-col gap-3 p-[26px]">
-          <h2 className="text-[17px] font-semibold">{SCHEDULE_ASIDES.signups.title}</h2>
-          <p className="text-sm leading-[1.65] text-fg-2">{SCHEDULE_ASIDES.signups.text}</p>
-          <AccentLink href={MEMBER_LINKS.calendar.href} className="self-start">
-            {SCHEDULE_ASIDES.signups.linkLabel}
-          </AccentLink>
-        </Card>
-        <div className="flex flex-col gap-3 rounded-card border border-teal-line bg-teal-wash p-[26px]">
-          <h2 className="text-[17px] font-semibold">{SCHEDULE_ASIDES.availability.title}</h2>
-          <p className="text-sm leading-[1.65] text-teal-text">{SCHEDULE_ASIDES.availability.text}</p>
-        </div>
       </section>
     </>
   );
