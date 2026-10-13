@@ -23,7 +23,7 @@ describe('isActive', () => {
     expect(isActive('/', '/')).toBe(true);
   });
 
-  it('keeps the four public links in the documented order', () => {
+  it('keeps the three public links in the documented order', () => {
     expect(PUBLIC_LINKS.map((l) => l.href)).toEqual(['/about', '/schedule', '/recruitment']);
     expect(PUBLIC_LINKS.map((l) => l.label)).toEqual(['About', 'Raiding', 'Recruitment']);
   });
