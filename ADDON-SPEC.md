@@ -448,8 +448,29 @@ any officer's helper, with no earlier state, records the award from `WoWChatLog.
 - The **machine part** is the last thing on the line: `<` `BF1` fields separated by `;`
   `>`. Fields are escaped by 9.3. `BF1` is the line format's version.
 - Chat sends the line as given. The game counts bytes, so the add-on counts **UTF-8
-  bytes**, and refuses to post (and tells the officer) a line over 255. A line carries no
+  bytes** (see 9.1a). A line carries no
   `|` outside item-link escapes, and no `<` or `>` outside the machine part.
+
+### 9.1a Fitting 255
+
+- **Ids the add-on makes are 11 characters**: a two-letter type (`aw`, `vd`, `rp`), `-`,
+  and eight lower-case letters or digits. This is a narrower rule than section 4's
+  8–128, which the site still accepts. A key longer than **24** characters (one the
+  site made, or an older add-on's) cannot ride in a chat line: the add-on tells the
+  officer to void it on the site or by the helper's upload instead.
+- The **machine part is never shortened**. Its worst case is a replacement (ids of 11,
+  24 and 11 characters, a 7-digit item, a 5-character boss code, a 15-character method,
+  a roll and a winner of 12 + 1 + 12 two-byte letters): 149 bytes.
+- The **human part gives way**. If the line is over 255 bytes the add-on drops parts in
+  this order until it fits: ` not {oldwinner}`, then `({method}, roll {roll})`, then the
+  winner's name, then the label (`Correction:`, `Undo:`), leaving the link and the
+  machine part.
+- The shortest line is the link and the machine part. With the worst machine part and an
+  item name of 40 characters (a link of about 90 bytes) a replacement is 252 bytes, so
+  **every valid award, Undo and replacement fits**; the `[Practice] ` prefix adds 11 bytes
+  and the same drops apply. If a line still cannot fit (an item name over 40 characters
+  on an extreme practice replacement), the add-on does not post it and says so; the
+  award is still saved and uploads through the helper.
 
 ### 9.2 The three lines
 
@@ -502,8 +523,8 @@ nothing from it. It is malformed if any of these holds:
 - the type is not `A`, `V` or `R`, or the field count is wrong for it;
 - `raid` is not `P` or `S` followed by five characters of `[A-Z0-9]`, or no raid the
   reader knows ends in that code;
-- a `key`, `newkey` or `id` outside the rule of section 4 (letters, digits, `_`, `-`,
-  8–128 long), or `newkey` equal to `key`;
+- a `key`, `newkey` or `id` outside the rule of section 4 (letters, digits, `_`, `-`),
+  or longer than 24 characters, or `newkey` equal to `key`;
 - `item` not a positive integer of at most 7 digits, `roll` not 1–100 or empty,
   `method` not a `LootMethod`, `winner` empty where a character is required (or set for
   `DISENCHANT_BANK`);
