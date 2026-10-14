@@ -29,8 +29,8 @@ function op(input: Record<string, unknown>): Operation {
 describe.skipIf(process.env.ADDON_BATCH_INTEGRATION !== '1')('writing add-on operation batches on PostgreSQL', () => {
   let container: string, pool: Pool, db: PrismaClient;
   const docker = (...args: string[]) => execFileSync('docker', args, { encoding: 'utf8', timeout: 120_000 }).trim();
-  const write = (inputs: Record<string, unknown>[], { raidId = RAID, officerId = 'officer-1' } = {}) =>
-    writeOperationBatch({ raidId, operations: inputs.map(op), env: 'staging', officerId, receivedAt: new Date() });
+  const write = (inputs: Record<string, unknown>[], { raidId = RAID, officerId = 'officer-1', via = 'helper' as 'helper' | 'import' } = {}) =>
+    writeOperationBatch({ raidId, operations: inputs.map(op), env: 'staging', officerId, receivedAt: new Date(), via });
   const statuses = (results: { status: string; code?: string }[]) => results.map((r) => r.code ?? r.status);
   const awards = () => db.lootAward.findMany({ orderBy: { requestKey: 'asc' } });
 
@@ -84,9 +84,15 @@ describe.skipIf(process.env.ADDON_BATCH_INTEGRATION !== '1')('writing add-on ope
     expect(award).toMatchObject({
       raidId: RAID, bossId: 'lb_lucifron', bossName: 'Boss lb_lucifron', itemId: 16805, characterName: 'Ana Vale', userId: 'u_ana',
       method: 'HR', roll: 91, recordedById: 'officer-1', requestKey: AWARD.id, source: 'ADDON', awardedAt: new Date(AWARD.at * 1000),
-      handedOutByName: 'Rae Quill', handedOutById: 'u_rae', confirmation: 'ANNOUNCED', practice: false, voidedAt: null,
+      handedOutByName: 'Rae Quill', handedOutById: 'u_rae', deliveredVia: 'HELPER', confirmation: 'ANNOUNCED', practice: false, voidedAt: null,
     });
     expect(await db.lootOperation.findUnique({ where: { opId: AWARD.id } })).toMatchObject({ type: 'AWARD', key: AWARD.id, status: 'APPLIED', deliveredById: 'officer-1' });
+  });
+
+  it('stores how the batch arrived: import for a pasted one, helper for an upload', async () => {
+    await write([AWARD], { via: 'import' });
+    await write([NEW_AWARD], { via: 'helper' });
+    expect((await awards()).map((a) => [a.requestKey, a.deliveredVia])).toEqual([[NEW_AWARD.id, 'HELPER'], [AWARD.id, 'IMPORT']]);
   });
 
   it('answers every operation in the batch\'s order with its outcome word', async () => {
@@ -144,6 +150,29 @@ describe.skipIf(process.env.ADDON_BATCH_INTEGRATION !== '1')('writing add-on ope
       { requestKey: NEW_AWARD.id, characterName: 'Bo Marsh', userId: 'u_bo', recordedById: 'officer-2', voidedAt: null },
       { requestKey: AWARD.id, voidedById: 'officer-2' },
     ]);
+  });
+
+  it('reads an add-on award stored without a delivery way as unknown, not as either', async () => {
+    await db.lootAward.create({ data: { id: 'legacy-1', raidId: RAID, itemId: 16805, characterName: 'Ana Vale', method: 'OPEN_ROLL', recordedById: 'officer-1', source: 'ADDON', handedOutByName: 'Rae Quill' } });
+    expect(await db.lootAward.findUnique({ where: { id: 'legacy-1' }, select: { deliveredVia: true, recordedById: true } })).toEqual({ deliveredVia: null, recordedById: 'officer-1' });
+  });
+
+  it('does not claim a way of delivery for a replacement held from another officer\'s batch', async () => {
+    await write([REPLACE], { officerId: 'officer-2', via: 'import' });
+    await write([AWARD], { officerId: 'officer-1', via: 'helper' });
+    expect((await awards()).map((a) => [a.requestKey, a.recordedById, a.deliveredVia])).toEqual([[NEW_AWARD.id, 'officer-2', null], [AWARD.id, 'officer-1', 'HELPER']]);
+  });
+
+  it('does the same when a clashing award with the held replacement\'s id arrives with the original', async () => {
+    await write([REPLACE], { via: 'import' });
+    expect(statuses(await write([AWARD, { ...NEW_AWARD, item: 17011 }], { via: 'helper' }))).toEqual(['voided', 'key-conflict']);
+    expect((await awards()).map((a) => [a.requestKey, a.deliveredVia])).toEqual([[NEW_AWARD.id, null], [AWARD.id, 'HELPER']]);
+  });
+
+  it('does the same when one officer sent both batches', async () => {
+    await write([REPLACE], { via: 'import' });
+    await write([AWARD], { via: 'helper' });
+    expect((await awards()).map((a) => [a.requestKey, a.deliveredVia])).toEqual([[NEW_AWARD.id, null], [AWARD.id, 'HELPER']]);
   });
 
   it('two helpers uploading overlapping batches at once record each award once and apply every void', async () => {
