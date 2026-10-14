@@ -30,7 +30,7 @@ async function send(url: string, method: string, body: unknown): Promise<{ ok: b
 }
 
 /** A new template starts at 40 players and three hours, with the four needs left for the officer to fill. */
-const BLANK_TEMPLATE: TemplateInput = { name: '', short: '', size: 40, durationMin: 180, requirements: { tank: 0, healer: 0, melee: 0, ranged: 0 }, active: true };
+const BLANK_TEMPLATE: TemplateInput = { name: '', short: '', size: 40, durationMin: 180, requirements: { tank: 0, healer: 0, melee: 0, ranged: 0 }, active: true, instance: null };
 
 const failure = (r: { status: number; json: Record<string, unknown> }) => (r.status === 400 || r.status === 409 ? String(r.json.error ?? SAVE_FAILED) : SAVE_FAILED);
 
@@ -144,7 +144,7 @@ function Planner({ templates, series, canDeleteTemplates }: Props) {
                     {t.name} <span className="text-fg-3">· {t.short}</span>
                   </span>
                   <span className="tabular text-[13px] text-fg-3">
-                    {t.size}-player · {t.durationMin} min · {ROLES.map((r) => t.requirements[r]).join(' / ')}
+                    {t.size}-player · {t.durationMin} min · {ROLES.map((r) => t.requirements[r]).join(' / ')} · {t.instance === null ? TEMPLATES.instanceNone : TEMPLATES.instanceSet(t.instance)}
                   </span>
                 </div>
                 <StatusPill tone={t.active ? 'ok' : 'closed'}>{t.active ? TEMPLATES.active : TEMPLATES.inactive}</StatusPill>
