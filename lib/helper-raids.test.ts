@@ -3,8 +3,8 @@ import { helperRaids } from './helper-raids';
 
 const now = new Date('2026-10-14T18:00:00Z');
 const hours = (h: number) => new Date(now.getTime() + h * 3_600_000);
-const row = (id: string, startsAt: Date, extra: { durationMin?: number; cancelledAt?: Date; hasLootTable?: boolean } = {}) => ({
-  id, name: `Raid ${id}`, startsAt, durationMin: extra.durationMin ?? 180, cancelledAt: extra.cancelledAt ?? null, hasLootTable: extra.hasLootTable ?? true,
+const row = (id: string, startsAt: Date, extra: { instance?: number | null; durationMin?: number; cancelledAt?: Date; hasLootTable?: boolean } = {}) => ({
+  id, name: `Raid ${id}`, startsAt, durationMin: extra.durationMin ?? 180, cancelledAt: extra.cancelledAt ?? null, hasLootTable: extra.hasLootTable ?? true, instance: extra.instance,
 });
 
 describe('helperRaids', () => {
@@ -24,6 +24,17 @@ describe('helperRaids', () => {
   it('gives each entry the fields of section 7.5, startsAt in seconds like the snapshot', () => {
     const [raid] = helperRaids([row('cm9xr2k4a0001', new Date(1792000000 * 1000), { durationMin: 240, hasLootTable: false })], 'staging', new Date(1791990000 * 1000));
     expect(raid).toEqual({ id: 'cm9xr2k4a0001', code: 'SA0001', name: 'Raid cm9xr2k4a0001', startsAt: 1792000000, durationMin: 240, hasLootTable: false });
+  });
+
+  it('carries the template instance number when set and leaves the field out otherwise', () => {
+    const [set, unset, none] = helperRaids([
+      row('cmraid00000a1', hours(1), { instance: 249 }),
+      row('cmraid00000b2', hours(2), { instance: null }),
+      row('cmraid00000c3', hours(3)),
+    ], 'production', now);
+    expect(set.instance).toBe(249);
+    expect('instance' in unset).toBe(false);
+    expect('instance' in none).toBe(false);
   });
 
   it('is empty with no raids in the window', () => {
