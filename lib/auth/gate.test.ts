@@ -79,7 +79,7 @@ describe('gateDecision with the loot flag', () => {
 });
 
 describe('rejectsBearer', () => {
-  it('refuses a bearer header anywhere but the bot routes', () => {
+  it('refuses a bearer header anywhere but the bot and helper routes', () => {
     expect(rejectsBearer('/api/bot/tick', 'Bearer x')).toBe(false);
     expect(rejectsBearer('/api/bot', 'Bearer x')).toBe(false);
     expect(rejectsBearer('/api/raids', 'Bearer x')).toBe(true);
@@ -87,5 +87,12 @@ describe('rejectsBearer', () => {
     expect(rejectsBearer('/members/roster', 'bearer x')).toBe(true);
     expect(rejectsBearer('/api/raids', null)).toBe(false);
     expect(rejectsBearer('/api/raids', 'Basic x')).toBe(false);
+  });
+
+  it('leaves /api/helper to its own guard', () => {
+    expect(rejectsBearer('/api/helper/me', 'Bearer bfh_abc')).toBe(false);
+    expect(rejectsBearer('/api/helper', 'Bearer bfh_abc')).toBe(false);
+    expect(rejectsBearer('/api/helperx', 'Bearer bfh_abc')).toBe(true);
+    expect(rejectsBearer('/api/raids', 'Bearer bfh_abc')).toBe(true);
   });
 });
