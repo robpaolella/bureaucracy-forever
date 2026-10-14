@@ -40,8 +40,8 @@ describe('the helper routes share the guard', () => {
   it.each(calls)('%s refuses while switched off', async (_name, call) => {
     mocks.enabled = false;
     const res = await call();
-    expect(res.status).toBe(404);
-    expect((await res.json()).code).toBe('not-enabled');
+    expect(res.status).toBe(503);
+    expect((await res.json()).code).toBe('helper-off');
   });
 
   it.each(calls)('%s refuses a bad, revoked or other-site key with 401', async (_name, call) => {

@@ -44,7 +44,7 @@ export type HelperCaller = { userId: string; keyId: string; body: unknown };
  * otherwise `body` is undefined. Answers the caller, or the refusal to send back.
  */
 export async function guardHelperRequest(request: Request, options: { body?: boolean } = {}): Promise<HelperCaller | { deny: NextResponse }> {
-  if (!helperEnabled()) return { deny: helperError(404, 'not-enabled', 'The loot helper isn’t switched on for this site.') };
+  if (!helperEnabled()) return { deny: helperError(503, 'helper-off', 'The helper connection isn\'t switched on for this site yet.') };
 
   const failures = `helper-auth-fail:${clientAddress(request.headers)}`;
   if (limitReached(failures, HELPER_LIMITS.failedAuthPerAddress)) return { deny: slowDown(failures) };

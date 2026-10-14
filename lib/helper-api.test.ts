@@ -41,11 +41,12 @@ describe('guardHelperRequest', () => {
     expect(mocks.record).toHaveBeenCalledWith(keyId);
   });
 
-  it('refuses everything while the switch is off, before looking at the key', async () => {
+  it.each([['a live key', undefined], ['no key', null], ['a bad key', 'bfh_wrong']])('answers 503 to %s while the switch is off, before looking at the key', async (_name, key) => {
     mocks.enabled = false;
-    const res = await deny(request());
-    expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: 'The loot helper isn’t switched on for this site.', code: 'not-enabled' });
+    mocks.verify.mockResolvedValue({ ok: false, status: 401 });
+    const res = await deny(request({ key }));
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: 'The helper connection isn\'t switched on for this site yet.', code: 'helper-off' });
     expect(res.headers.get('cache-control')).toBe('private, no-store');
     expect(mocks.verify).not.toHaveBeenCalled();
   });

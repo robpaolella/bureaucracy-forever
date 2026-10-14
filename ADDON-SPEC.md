@@ -428,13 +428,6 @@ latest add-on version and link for this). The site accepts the versions it lists
 Routes under `/api/helper/`. JSON in and out, `Cache-Control: no-store`, errors as
 `{ "error": "<plain sentence>", "code": "<machine code>" }` like the loot log.
 
-The API sits behind the site's `ADDON_HELPER_ENABLED` switch: on for staging, off in
-production until the chain test passes. While it is off every route answers `404`
-`not-enabled`. Every request then passes the same checks, in this order: an address over
-the failed-authentication limit (`429`), the body size (`413` `too-large`), the key
-(7.2: `401` `bad-key`, `403` `not-officer`) and the key's request rate (`429`
-`rate-limited`). The limits are in 7.6.
-
 ### 7.1 Endpoints
 
 | Route | Purpose |
@@ -449,6 +442,15 @@ the failed-authentication limit (`429`), the body size (`413` `too-large`), the 
 `status` per operation is one of `recorded`, `replayed`, `pending`, `voided`,
 `rejected` (with a `code`). HTTP is always `200` when the request itself was valid, even
 if some operations were rejected or pending; the status words carry the outcome. Section 4.2 gives the per-record outcomes.
+
+The API sits behind the site's `ADDON_HELPER_ENABLED` switch: on for staging, off in
+production until the chain test passes. While it is off every route answers `503` with
+`{ "error": "The helper connection isn't switched on for this site yet.", "code": "helper-off" }`,
+checked before the key, so a request with no key or a bad key gets the same answer.
+Every request then passes the same checks, in this order: an address over
+the failed-authentication limit (`429`), the body size (`413` `too-large`), the key
+(7.2: `401` `bad-key`, `403` `not-officer`) and the key's request rate (`429`
+`rate-limited`). The limits are in 7.6.
 
 ### 7.2 Authentication and trust
 
@@ -474,6 +476,9 @@ if some operations were rejected or pending; the status words carry the outcome.
   `401` `bad-key`, and a raid id the site doesn't hold, including one from the other site,
   is `404` `unknown-raid`, each with the usual error body. Inside an upload, a record
   whose `env` is not the site's is the per-operation `wrong-environment` (section 2, 4.2).
+- **The switch comes first.** While the site's helper switch is off (7.1), every
+  route answers `503` `helper-off` before the key is checked, so no key, a bad key and a
+  good key all get the same answer.
 
 ### 7.3 The inbox file
 
