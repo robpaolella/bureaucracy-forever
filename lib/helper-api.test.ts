@@ -85,6 +85,23 @@ describe('guardHelperRequest', () => {
     expect(res.status).toBe(413);
   });
 
+  it('stops reading an undeclared body once it passes 64 KiB', async () => {
+    let pulled = 0;
+    const chunk = new Uint8Array(16 * 1024);
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        if (pulled > 1000) controller.close();
+        else controller.enqueue(chunk);
+      },
+    });
+    const r = new Request('https://example.test/api/helper/operations', {
+      method: 'POST', body: stream, duplex: 'half', headers: { authorization: `Bearer ${KEY}`, 'x-real-ip': ip },
+    } as RequestInit);
+    expect((await deny(r, { body: true })).status).toBe(413);
+    expect(pulled).toBeLessThan(10);
+  });
+
   it('reads and parses a JSON body when asked', async () => {
     expect(await guardHelperRequest(request({ body: '{"operations":[]}' }), { body: true })).toMatchObject({ body: { operations: [] } });
     const res = await deny(request({ body: '{nope' }), { body: true });

@@ -37,6 +37,25 @@ const tooLarge = () => helperError(413, 'too-large', `The request is over ${HELP
 const slowDown = (bucket: string) =>
   helperError(429, 'rate-limited', 'Too many requests. Wait a minute and try again.', { 'Retry-After': String(retryAfterSeconds(bucket)) });
 
+/** The body as text, or null once it passes `max` bytes; the rest is never read. */
+async function readLimited(request: Request, max: number): Promise<string | null> {
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 export type HelperCaller = { userId: string; keyId: string; body: unknown };
 
 /**
@@ -69,8 +88,8 @@ export async function guardHelperRequest(request: Request, options: { body?: boo
 
   let body: unknown;
   if (options.body) {
-    const raw = await request.text();
-    if (Buffer.byteLength(raw, 'utf8') > HELPER_LIMITS.bodyBytes) return { deny: tooLarge() };
+    const raw = await readLimited(request, HELPER_LIMITS.bodyBytes);
+    if (raw === null) return { deny: tooLarge() };
     try {
       body = raw ? JSON.parse(raw) : null;
     } catch {
