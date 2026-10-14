@@ -234,6 +234,8 @@ model RaidTemplate {
   /// { tank, healer, melee, ranged } — sums to size.
   requirements Json
   active       Boolean      @default(true)
+  /// The in-game instance id (GetInstanceInfo) the loot add-on matches on; null when not set.
+  instance     Int?
   series       RaidSeries[]
   raids        Raid[]
   lootBosses   LootBoss[]
