@@ -12,7 +12,7 @@ import { HELPER_KEYS as COPY } from './copy';
 export type KeyView = { id: string; name: string; createdAt: string; lastUsedAt: string | null };
 
 /** "Oct 13, 2026, 9:12 PM EDT": the date in the viewer's zone, then LocalTime, with guild time on hover and focus. */
-function When({ at }: { at: string }) {
+export function When({ at }: { at: string }) {
   const zone = useViewerTimeZone()?.zone ?? GUILD_TIMEZONE;
   const date = new Intl.DateTimeFormat('en-US', { timeZone: zone, month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(at));
   return <>{date}</>;
