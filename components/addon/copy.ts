@@ -35,7 +35,6 @@ export const GET_ADDON = {
   released: 'released',
   download: 'Download the add-on (zip)',
   guide: 'Install and update guide',
-  helperLine: 'The desktop helper delivers reserves and awards for you. Create a key for it below.',
   none: 'No release yet. It will appear here once the first version is published.',
   stale: 'Couldn’t check for a newer version just now.',
   unreachable: 'Couldn’t check for the latest version just now.',

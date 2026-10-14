@@ -16,7 +16,6 @@ export function GetAddon({ found }: { found: AddonRelease }) {
         {COPY.heading}
       </h2>
       <div className="flex flex-col gap-3 rounded-card border border-line bg-ink-900 p-4 md:p-5">
-        <p className="text-sm text-fg-2">{COPY.helperLine}</p>
         {found.status === 'none' && <p className="text-sm text-fg-2">{COPY.none}</p>}
         {found.status === 'unreachable' && (
           <>
