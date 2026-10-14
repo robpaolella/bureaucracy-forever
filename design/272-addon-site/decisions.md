@@ -11,7 +11,10 @@ them, even if no single version had all of them:
 
 | # | Decision | Options (version) | Robert's pick and why |
 | --- | --- | --- | --- |
-| 1 | <e.g. how names show> | <a: ...; b: ...> | <pick, reference/date> |
+| 12 | Raid page placement | a: bar in the Loot log, import in a window; b: own card above the Loot log, paste box always open, results in the card | **a**: "Yeah, I'm fine with A. It's cleaner." (herdr, 2026-10-14) |
+| 13 | Instance number label and hint | same in both versions | Keep as drafted: "Sure." (2026-10-14) |
+| 14 | Instance number validation | same in both versions | Keep as drafted: "Sure." (2026-10-14) |
+| 15 | Templates list instance line | same in both versions | Keep as drafted: "Sure." (2026-10-14) |
 
 Robert's exact confirmation and date/reference authorizing the
 PR. Design PR: use the linked PR on the design issue once created; the session adds
@@ -21,7 +24,8 @@ chat approval, a critique PASS and a closed/unmerged PR do not.
 ## Alternatives
 | Version | What differs / why rejected or chosen | Only this version had (lost) | Robert's OK to drop | Evidence |
 | --- | --- | --- | --- | --- |
-| a | <reason> | <features no kept version has, or none> | <his words, date/reference> | [All-version manifest](screenshots/all/manifest.json) and named images |
+| a | Chosen: calmer raid page; import only when needed | — | — | [All-version manifest](screenshots/all/manifest.json) |
+| b | Rejected for placement (decision 12) | The always-open paste box on the raid page and the results shown inline in the card | Robert was told before choosing ("If you pick A, B's always-open paste box and in-card results go away") and answered "Yeah, I'm fine with A. It's cleaner." (2026-10-14) | [All-version manifest](screenshots/all/manifest.json) |
 
 A version is removed, replaced or left out at freeze only after Robert confirms what it
 alone had can go.

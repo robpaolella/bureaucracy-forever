@@ -160,11 +160,13 @@ build uses `LocalTime` everywhere, which then shows the viewer's zone with guild
 10. A neutral **Practice** tag beside "From the add-on" for practice awards in the loot log (only staging accepts them; production never shows it), part of #275. "Sure."
 11. Brief confirmed with 9 and 10 as recommended. "Yes."
 
+12. Raid page placement: **version A**, a bar in the Loot log with the import in a window. "Yeah, I'm fine with A. It's cleaner." (2026-10-14)
+13. Instance number wording: label "In-game instance number", hint "Optional. The add-on shows this number when you're inside the raid; Onyxia's Lair is 249." "Sure."
+14. Validation: optional; blank means not set; anything but a whole number above 0 is refused with the field-error pattern (red field, message under it), "The instance number is a whole number above 0, or leave it blank." "Sure."
+15. Templates list shows "· Instance 249" when set and "· No instance number" when not, so a template the add-on can't match stands out. "Sure."
+
 ## Real-site experiment
 None.
 
 ## Open decisions
-12. Raid page placement: version A or B (decision 2).
-13. Instance number wording: label "In-game instance number", hint "Optional. The add-on shows this number when you're inside the raid; Onyxia's Lair is 249."
-14. Validation: optional; blank means not set; anything but a whole number above 0 is refused with the field-error pattern (red field, message under it), "The instance number is a whole number above 0, or leave it blank."
-15. Templates list shows "· Instance 249" when set and "· No instance number" when not, so a template the add-on can't match stands out.
+None.
