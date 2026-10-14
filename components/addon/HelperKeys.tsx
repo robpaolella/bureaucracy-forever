@@ -106,7 +106,7 @@ export function HelperKeys({ keys, nameMax }: { keys: KeyView[]; nameMax: number
       <Modal
         open={revoking !== null}
         onClose={() => !revokeBusy && setRevoking(null)}
-        title={COPY.revokeTitle}
+        title={revoking ? COPY.revokeTitle(revoking.name) : COPY.revokeAction}
         actions={
           <>
             <Button variant="ghost" disabled={revokeBusy} onClick={() => setRevoking(null)}>{COPY.cancel}</Button>
@@ -114,7 +114,7 @@ export function HelperKeys({ keys, nameMax }: { keys: KeyView[]; nameMax: number
           </>
         }
       >
-        {revoking && <p>{COPY.revokeConfirm(revoking.name)}</p>}
+        <p>{COPY.revokeConfirm}</p>
       </Modal>
     </section>
   );

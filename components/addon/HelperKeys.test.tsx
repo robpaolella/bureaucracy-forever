@@ -82,7 +82,8 @@ describe('HelperKeys', () => {
     m.revoke.mockResolvedValue({ ok: true });
     await render([key('1', 'Rob’s PC')]);
     await act(async () => button('Revoke').click());
-    expect(host.textContent).toContain('Revoke Rob’s PC? The helper on that computer stops working until you give it a new key.');
+    expect(host.querySelector('dialog h2')!.textContent).toBe('Revoke Rob’s PC?');
+    expect(host.textContent).toContain('The helper on that computer stops working until you give it a new key.');
     expect(m.revoke).not.toHaveBeenCalled();
     await act(async () => button('Revoke key').click());
     expect(m.revoke).toHaveBeenCalledWith('1');

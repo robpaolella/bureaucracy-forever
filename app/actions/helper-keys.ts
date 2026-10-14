@@ -23,6 +23,8 @@ export async function createHelperKeyAction(name: string): Promise<CreateKeyResu
 
 /** Revoke one of the signed-in officer's own keys. Someone else's key reads as not found. */
 export async function revokeHelperKeyAction(keyId: string): Promise<RevokeKeyResult> {
+  // Server actions take whatever the network sends: an object here would become a Prisma filter matching every key.
+  if (typeof keyId !== 'string' || !keyId) return { ok: false, error: 'That key wasn’t found. It may already be revoked.' };
   const result = await revokeHelperKey(await officerSession(), keyId);
   revalidatePath('/officers/addon');
   return result.ok ? { ok: true } : { ok: false, error: result.error };

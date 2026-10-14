@@ -64,6 +64,11 @@ describe('revokeHelperKeyAction', () => {
     expect(await revokeHelperKeyAction('theirs')).toEqual({ ok: false, error: 'That key wasn’t found. It may already be revoked.' });
   });
 
+  it('refuses an id that is not a plain string, without touching the keys', async () => {
+    for (const bad of [{ not: '' }, '', null, 42]) expect(await revokeHelperKeyAction(bad as never)).toMatchObject({ ok: false });
+    expect(m.revoke).not.toHaveBeenCalled();
+  });
+
   it('refuses a non-officer', async () => {
     m.session = null;
     m.revoke.mockResolvedValue({ ok: false, status: 401, error: 'Log in first.' });
