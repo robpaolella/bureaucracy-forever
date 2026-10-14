@@ -443,6 +443,19 @@ Routes under `/api/helper/`. JSON in and out, `Cache-Control: no-store`, errors 
 `rejected` (with a `code`). HTTP is always `200` when the request itself was valid, even
 if some operations were rejected or pending; the status words carry the outcome. Section 4.2 gives the per-record outcomes.
 
+The upload in detail:
+
+- One request may carry records for several raids. The site applies each raid's records
+  in the order sent, so a void listed before its award is held and then applied (4.2).
+- A record the site can't read (section 8.4) is answered alone: `rejected` with code
+  `bad-record`, or `unsupported-version` (section 6), and `id` as sent, or `null` when it
+  has no string id. It is not kept for the problems list, since the site can't tell which
+  raid it is for.
+- A body that isn't `{ "operations": [ ... ] }` is `400` `bad-request`; more than 100
+  records is `413` `too-large` (7.6). Neither records anything.
+- A failure on the site's side is `500` `server-error`. Records answered before it may
+  already be stored; the helper sends the same upload again, and those come back `replayed`.
+
 The API sits behind the site's `ADDON_HELPER_ENABLED` switch: on for staging, off in
 production until the chain test passes. While it is off every route answers `503` with
 `{ "error": "The helper connection isn't switched on for this site yet.", "code": "helper-off" }`,
@@ -471,6 +484,16 @@ the failed-authentication limit (`429`), the body size (`413` `too-large`), the 
   recorded officer is the key's owner, always; `sender` is stored as a claim. The audit
   trail is the point, since awards are never deleted and any can be voided.
 - A key works in one environment: the one that issued it.
+- **Staging's Vercel login.** Staging sits behind Vercel's own login, in front of the
+  site. To get through it, the helper sends `x-vercel-protection-bypass: <token>` on every
+  request to staging. The token is optional, set only for staging and kept in the
+  helper's local settings. It is **never sent to production**, and never written to a log,
+  a repo or an error message. It is not a helper key and does not replace
+  `Authorization: Bearer bfh_...`: Vercel handles the header before the request reaches
+  the site, so the site has no code for it and every check in 7.1 and 7.2 is unchanged.
+  A response that is Vercel's login page (an HTML `401` or a `302`, not the site's
+  `{ error, code }` JSON) is its own result: the helper reports that staging access isn't
+  set up, never `bad-key`.
 - **The other site.** Keys and raid ids exist only in the database of the site that made
   them, so the API needs no separate environment refusal: a key from the other site is
   `401` `bad-key`, and a raid id the site doesn't hold, including one from the other site,
