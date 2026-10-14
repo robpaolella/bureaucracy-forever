@@ -37,7 +37,7 @@ describe('POST /api/raids/[id]/loot/import', () => {
       { id: 'aw-00000001', type: 'award', status: 'rejected', code: 'unknown-character', item: 16805, character: 'Ana Vale' },
       { id: 'aw-00000002', type: 'award', status: 'recorded', item: 16805, character: 'Ana Vale' },
     ] });
-    expect(mocks.write).toHaveBeenCalledWith(expect.objectContaining({ raidId: RAID, env: 'production', officerId: 'officer-user' }));
+    expect(mocks.write).toHaveBeenCalledWith(expect.objectContaining({ raidId: RAID, env: 'production', officerId: 'officer-user', via: 'import' }));
   });
 
   it('applies 250 operations in order in batches of 100', async () => {

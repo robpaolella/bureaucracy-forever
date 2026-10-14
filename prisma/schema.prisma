@@ -122,6 +122,12 @@ enum LootSource {
   ADDON
 }
 
+/// How an add-on award reached the site: the helper's upload or a pasted import.
+enum LootDelivery {
+  HELPER
+  IMPORT
+}
+
 /// Whether the game confirmed a hand-out (ADDON-SPEC section 4.1).
 enum LootConfirmation {
   ANNOUNCED
@@ -563,6 +569,8 @@ model LootAward {
   /// delivered it (ADDON-SPEC section 5).
   handedOutByName String?
   handedOutById   String?
+  /// Add-on awards: how it arrived. Null on those stored before the column existed.
+  deliveredVia    LootDelivery?
   /// Hand-recorded awards are confirmed; an add-on award is announced until the game says.
   confirmation  LootConfirmation @default(CONFIRMED)
   /// Game time of the confirmation that set `confirmation`; the later one wins.

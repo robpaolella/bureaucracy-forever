@@ -28,7 +28,9 @@ export async function writeOperationBatch(input: BatchInput): Promise<BatchResul
   }
 }
 
-export type BatchInput = { raidId: string; operations: Operation[]; env: SiteEnv; officerId: string; receivedAt: Date };
+export type BatchInput = { raidId: string; operations: Operation[]; env: SiteEnv; officerId: string; receivedAt: Date;
+  /** How the batch reached the site, kept on the awards it stores. Required, so a new caller must say. */
+  via: 'helper' | 'import' };
 export type BatchResult = { id: string } & Outcome;
 
 const ATTEMPTS = 3;
@@ -42,7 +44,7 @@ class RaidChanged extends Error {}
 type Tx = Prisma.TransactionClient;
 type Names = { bosses: Map<string, string>; characters: Map<string, { id: string; name: string; userId: string }>; users: Set<string> };
 
-async function writeBatch(tx: Tx, { raidId, operations, env, officerId, receivedAt }: BatchInput): Promise<BatchResult[]> {
+async function writeBatch(tx: Tx, { raidId, operations, env, officerId, receivedAt, via }: BatchInput): Promise<BatchResult[]> {
   const raid = await lockRaid(tx, raidId);
   const results: BatchResult[] = [];
   if (!raid) {
@@ -75,7 +77,7 @@ async function writeBatch(tx: Tx, { raidId, operations, env, officerId, received
   for (const op of operations) {
     const { outcome, changes } = applyOperation(state, op, { env, check }, { officerId, now: receivedAt });
     if (outcome.status === 'rejected') await keepRejection(tx, op, outcome.code, officerId, receivedAt);
-    for (const change of changes) await save(tx, raidId, change, names, receivedAt);
+    for (const change of changes) await save(tx, raidId, change, names, receivedAt, via);
     results.push({ id: op.id, ...outcome });
   }
   return results;
@@ -128,7 +130,7 @@ async function loadNames(tx: Tx, templateId: string | null, operations: Operatio
   return { bosses: new Map(bosses.map((b) => [b.id, b.name])), characters: new Map(characters.map((c) => [c.name, c])), users: new Set(users.map((u) => u.id)) };
 }
 
-async function save(tx: Tx, raidId: string, change: Change, names: Names, now: Date) {
+async function save(tx: Tx, raidId: string, change: Change, names: Names, now: Date, via: BatchInput['via']) {
   switch (change.kind) {
     case 'receipt': {
       const { op, status, deliveredById, receivedAt } = change.receipt;
@@ -161,6 +163,7 @@ async function save(tx: Tx, raidId: string, change: Change, names: Names, now: D
         awardedAt: gameTime(award.at),
         handedOutByName: award.sender,
         handedOutById: names.characters.get(award.sender)?.userId ?? null,
+        deliveredVia: via === 'helper' ? 'HELPER' : 'IMPORT',
         confirmation: 'ANNOUNCED',
         practice: award.practice,
       } });
