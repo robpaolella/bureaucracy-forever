@@ -53,7 +53,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     for (let from = 0; from < parsed.operations.length; from += BATCH) {
       const operations = parsed.operations.slice(from, from + BATCH);
-      const batch = await writeOperationBatch({ raidId, operations, env, officerId: officer.id, receivedAt: new Date() });
+      const batch = await writeOperationBatch({ raidId, operations, env, officerId: officer.id, receivedAt: new Date(), via: 'import' });
       operations.forEach((op, i) => {
         const outcome = batch[i];
         const named = award(op);
