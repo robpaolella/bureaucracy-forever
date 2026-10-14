@@ -48,6 +48,11 @@ describe('HelperKeys', () => {
     expect(rows[1].textContent).not.toContain('Never used');
   });
 
+  it('shows when a used key was last used', async () => {
+    await render([key('2', 'MacBook', '2026-10-14T01:00:00.000Z')]);
+    expect(host.querySelector('li')!.textContent).toMatch(/Created Oct 13, 2026 · Last used Oct 13, /);
+  });
+
   it('shows a blank-name error and keeps the field', async () => {
     m.create.mockResolvedValue({ ok: false, error: 'Give the key a name.' });
     await render([]);
