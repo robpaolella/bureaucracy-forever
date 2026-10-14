@@ -194,6 +194,13 @@ describe('GET /api/helper/raids/[raid]/catchup', () => {
     expect(await (await getCatchup('r1')).json()).toMatchObject({ awards: [], voids: [] });
   });
 
+  it('answers 404 when the raid is deleted after the check', async () => {
+    mocks.raid.mockResolvedValueOnce({ cancelledAt: null }).mockResolvedValueOnce(null);
+    mocks.award.mockResolvedValue([]);
+    mocks.ops.mockResolvedValue([]);
+    expect((await getCatchup('r1')).status).toBe(404);
+  });
+
   it('answers 404 for a raid this site doesn’t hold and 409 for a cancelled one, reading nothing more', async () => {
     mocks.raid.mockResolvedValue(null);
     const missing = await getCatchup('cmstagingonly1');

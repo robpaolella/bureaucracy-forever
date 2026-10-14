@@ -47,9 +47,10 @@ export function buildCatchup(input: CatchupInput): Catchup {
   };
 }
 
-/** A raid's catch-up from the database. The caller has checked that the raid exists. */
-export async function loadCatchup(raidId: string, now: Date = new Date()): Promise<Catchup> {
-  const [awards, pending] = await Promise.all([
+/** A raid's catch-up from the database, or null when the raid doesn't exist. */
+export async function loadCatchup(raidId: string, now: Date = new Date()): Promise<Catchup | null> {
+  const [raid, awards, pending] = await Promise.all([
+    db.raid.findUnique({ where: { id: raidId }, select: { id: true } }),
     db.lootAward.findMany({
       where: { raidId },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -61,5 +62,6 @@ export async function loadCatchup(raidId: string, now: Date = new Date()): Promi
       select: { key: true, at: true, payload: true },
     }),
   ]);
+  if (!raid) return null;
   return buildCatchup({ raidId, env: isStagingDeployment() ? 'staging' : 'production', now, awards, pending });
 }
