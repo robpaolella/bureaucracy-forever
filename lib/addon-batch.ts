@@ -74,10 +74,12 @@ async function writeBatch(tx: Tx, { raidId, operations, env, officerId, received
     return award.user !== null && award.user !== character.userId ? 'user-mismatch' : null;
   };
 
+  // An award the batch itself carries; any other came from a replacement held by an earlier batch.
+  const carried = new Set(operations.flatMap((o) => (o.type === 'award' ? [o.id] : o.type === 'replace' ? [o.award.id] : [])));
   for (const op of operations) {
     const { outcome, changes } = applyOperation(state, op, { env, check }, { officerId, now: receivedAt });
     if (outcome.status === 'rejected') await keepRejection(tx, op, outcome.code, officerId, receivedAt);
-    for (const change of changes) await save(tx, raidId, change, names, receivedAt, change.kind === 'award' && change.recordedById !== officerId ? null : via);
+    for (const change of changes) await save(tx, raidId, change, names, receivedAt, change.kind === 'award' && !carried.has(change.award.id) ? null : via);
     results.push({ id: op.id, ...outcome });
   }
   return results;
@@ -131,8 +133,8 @@ async function loadNames(tx: Tx, templateId: string | null, operations: Operatio
 }
 
 /**
- * `via` is how this batch arrived. A replacement held from an earlier batch is recorded under the
- * officer who delivered it then, and nothing stores how that went, so it gets null here.
+ * `via` is how this batch arrived. A replacement held from an earlier batch arrived some way that
+ * nothing stores, so it gets null here.
  */
 async function save(tx: Tx, raidId: string, change: Change, names: Names, now: Date, via: BatchInput['via'] | null) {
   switch (change.kind) {

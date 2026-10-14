@@ -163,6 +163,12 @@ describe.skipIf(process.env.ADDON_BATCH_INTEGRATION !== '1')('writing add-on ope
     expect((await awards()).map((a) => [a.requestKey, a.recordedById, a.deliveredVia])).toEqual([[NEW_AWARD.id, 'officer-2', null], [AWARD.id, 'officer-1', 'HELPER']]);
   });
 
+  it('does the same when one officer sent both batches', async () => {
+    await write([REPLACE], { via: 'import' });
+    await write([AWARD], { via: 'helper' });
+    expect((await awards()).map((a) => [a.requestKey, a.deliveredVia])).toEqual([[NEW_AWARD.id, null], [AWARD.id, 'HELPER']]);
+  });
+
   it('two helpers uploading overlapping batches at once record each award once and apply every void', async () => {
     for (let round = 0; round < 10; round++) {
       await db.lootOperation.deleteMany();
