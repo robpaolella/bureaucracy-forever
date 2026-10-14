@@ -6,6 +6,7 @@
  */
 import 'server-only';
 
+import { addonForSnapshot, ADDON_RELEASES_URL, getAddonRelease } from '@/lib/addon-release';
 import { FORMAT_VERSION, type SiteEnv } from '@/lib/addon-operations';
 import { db } from '@/lib/db';
 import { isStagingDeployment } from '@/lib/deploy-env';
@@ -31,13 +32,15 @@ export type Snapshot = {
   awards: SnapshotAward[];
 };
 
-/** Until #280 looks the latest version up. */
-export const ADDON_PLACEHOLDER = { version: '', url: 'https://github.com/robpaolella/bureaucracy-forever-addon/releases/latest' };
+/** The `addon` field when no release has been seen (#280 fills it from the lookup otherwise). */
+export const ADDON_PLACEHOLDER = { version: '', url: `${ADDON_RELEASES_URL}/latest` };
 
 export type SnapshotInput = {
   raid: { id: string; name: string; startsAt: Date; durationMin: number };
   env: SiteEnv;
   now: Date;
+  /** The latest add-on version and where to get it; the placeholder when omitted. */
+  addon?: { version: string; url: string };
   bosses: SnapshotBoss[];
   reserves: { userId: string; characterId: string; characterName: string; itemId: number; kind: ReserveKind; onTrial: boolean }[];
   winLimits: WinLimits;
@@ -80,7 +83,7 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
     startsAt: seconds(raid.startsAt),
     durationMin: raid.durationMin,
     generated: seconds(now),
-    addon: { ...ADDON_PLACEHOLDER },
+    addon: { ...(input.addon ?? ADDON_PLACEHOLDER) },
     bosses: input.bosses,
     reserves,
     awards,
@@ -91,7 +94,7 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
 export async function loadSnapshot(raidId: string, now: Date = new Date()): Promise<Snapshot | null> {
   const raid = await db.raid.findUnique({ where: { id: raidId }, select: { id: true, name: true, startsAt: true, durationMin: true, templateId: true } });
   if (!raid) return null;
-  const [table, reserves, awards] = await Promise.all([
+  const [table, reserves, awards, addon] = await Promise.all([
     raid.templateId ? loadLootTable(raid.templateId) : null,
     loadActiveReserves(raid.id),
     db.lootAward.findMany({
@@ -99,6 +102,7 @@ export async function loadSnapshot(raidId: string, now: Date = new Date()): Prom
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       select: { id: true, requestKey: true, bossId: true, itemId: true, characterName: true, userId: true, method: true, roll: true, voidedAt: true },
     }),
+    getAddonRelease().then(addonForSnapshot),
   ]);
   const wins = await db.lootAward.findMany({
     where: { raidId: { not: raidId }, characterId: { in: [...new Set(reserves.map((r) => r.characterId))] }, method: { in: ['HR', 'SR'] }, voidedAt: null },
@@ -108,6 +112,7 @@ export async function loadSnapshot(raidId: string, now: Date = new Date()): Prom
     raid,
     env: isStagingDeployment() ? 'staging' : 'production',
     now,
+    addon,
     bosses: (table?.bosses ?? []).map((b) => ({ id: b.id, name: b.name, trash: b.isTrash, items: b.itemIds })),
     reserves,
     winLimits: table?.winLimits ?? {},

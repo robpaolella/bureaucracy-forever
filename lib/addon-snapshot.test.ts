@@ -51,6 +51,11 @@ describe('buildSnapshot', () => {
     expect(snap.addon).toEqual(ADDON_PLACEHOLDER);
   });
 
+  it('carries the add-on version and url from the lookup', () => {
+    const addon = { version: '1.2.0', url: 'https://example.test/addon.zip' };
+    expect(buildSnapshot({ ...sample(), addon }).addon).toEqual(addon);
+  });
+
   it('marks trial holders, and keeps a win-limit holder listed with the reason', () => {
     const { reserves } = buildSnapshot(sample());
     expect(reserves['16805'].map((h) => h.trial)).toEqual([false, false, true]);
