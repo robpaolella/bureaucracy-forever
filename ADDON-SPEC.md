@@ -484,16 +484,6 @@ the failed-authentication limit (`429`), the body size (`413` `too-large`), the 
   recorded officer is the key's owner, always; `sender` is stored as a claim. The audit
   trail is the point, since awards are never deleted and any can be voided.
 - A key works in one environment: the one that issued it.
-- **Staging's Vercel login.** Staging sits behind Vercel's own login, in front of the
-  site. To get through it, the helper sends `x-vercel-protection-bypass: <token>` on every
-  request to staging. The token is optional, set only for staging and kept in the
-  helper's local settings. It is **never sent to production**, and never written to a log,
-  a repo or an error message. It is not a helper key and does not replace
-  `Authorization: Bearer bfh_...`: Vercel handles the header before the request reaches
-  the site, so the site has no code for it and every check in 7.1 and 7.2 is unchanged.
-  A response that is Vercel's login page (an HTML `401` or a `302`, not the site's
-  `{ error, code }` JSON) is its own result: the helper reports that staging access isn't
-  set up, never `bad-key`.
 - **The other site.** Keys and raid ids exist only in the database of the site that made
   them, so the API needs no separate environment refusal: a key from the other site is
   `401` `bad-key`, and a raid id the site doesn't hold, including one from the other site,
