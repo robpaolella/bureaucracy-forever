@@ -235,10 +235,11 @@ voided }`, with `user` and `roll` absent when none) plus:
 | Added field | Meaning |
 | --- | --- |
 | `state` | `announced`, `confirmed` or `not-confirmed` (section 4.1), or `manual` for an award made by hand on the site, where no game ever confirmed it. A voided award keeps the state it had. |
-| `at` | When the state last changed, Unix seconds, for 4.1's later-wins rule |
+| `at` | When the state last changed, Unix seconds, for 4.1's later-wins rule: the game time of the confirmation, else of the hand-out; for a `manual` award, when it was recorded on the site |
 | `practice` | `true` on a practice record (staging only); absent otherwise |
 
-A pending void is `{ key, reason, at }` (`reason` absent when none). The catch-up has no
+A pending void is `{ key, reason, at }` (`reason` absent when none); a replace held for an
+original the site lacks is listed as a void of that original. The catch-up has no
 `replace`: a replacement is the voided original and the new award, as the site stores it.
 Practice awards are in it, marked, so the add-on's spending matches the site's.
 
