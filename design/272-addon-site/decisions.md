@@ -45,7 +45,7 @@ Before the critique (maker's own inspection, 2026-10-13): the prototype opened e
 Review of the design PR branch (openai/gpt-5.6-terra, thinking medium, cross-company) found two gaps against the brief, both fixed in `index.html` before the PR:
 1. Import results showed only the practice-award refusal; the brief names three reasons. Now Refused 3 (Recorded 6, total still 14), one row each: "Practice award: only the staging site takes these.", "For another raid.", "From the other site (staging).".
 2. The brief's key save failure ("Nothing was saved. Try again.") had no state. Added `key-save-failed`: the typed name stays and the site's stop toast reads "Nothing was saved." / "Try again." `key-error` now covers only the missing name.
-Both are wording and states Robert had already confirmed in the brief (decisions 4 and 5), not new choices.
+Both use wording Robert had already confirmed in the brief (decision 5 for the refusal reasons; the brief's states table, which he confirmed in decision 11, for the save failure), not new choices.
 
 ## Comments and changes
 | ID / source | Version / element | Original note | Agreed change and verification | Resolved |
