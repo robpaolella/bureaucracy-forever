@@ -13,6 +13,7 @@ import type { AwardView, Candidate, LootTableView, ReserveView } from '@/lib/loo
 import type { ItemView } from '@/lib/loot-items';
 import { mergeAwards, type LocalAward, type LoggedAward, type LoggedHr } from '@/lib/loot-log-state';
 import { defaultMethodFor, LOOT_LOG_METHODS, resolveDrop, type LootMethod } from '@/lib/loot-rules';
+import { CopyReservesBar } from './CopyReservesBar';
 import { ItemName } from './ItemName';
 import { UnlistedDrop, type OnTableBoss } from './UnlistedDrop';
 
@@ -183,6 +184,8 @@ export function LootLog({ raidId, templateId, templateName, table, reserves, can
         </h2>
         <p className="max-w-[720px] text-sm text-fg-2">{LOOT_LOG.lede}</p>
       </div>
+
+      {table.bosses.length > 0 && <CopyReservesBar raidId={raidId} reserves={reserves.length} awards={given.length} />}
 
       <form ref={formRef} onSubmit={(e) => record(e)} className="flex flex-col gap-4 rounded-card border border-line-faint bg-ink-900 p-4">
         {table.bosses.length === 0 ? (
