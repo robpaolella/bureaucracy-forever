@@ -7,13 +7,16 @@ const mocks = vi.hoisted(() => ({
   raid: vi.fn(),
   raids: vi.fn(),
   load: vi.fn(),
+  release: vi.fn(),
 }));
 
 vi.mock('@/lib/flags', () => ({ helperEnabled: () => mocks.enabled }));
 vi.mock('@/lib/helper-keys', () => ({ verifyHelperKey: mocks.verify, recordHelperKeyUse: async () => {} }));
 vi.mock('@/lib/db', () => ({ db: { user: { findUnique: mocks.user }, raid: { findUnique: mocks.raid, findMany: mocks.raids } } }));
+vi.mock('@/lib/addon-release', async (real) => ({ ...(await real<typeof import('@/lib/addon-release')>()), getAddonRelease: mocks.release }));
 vi.mock('@/lib/addon-snapshot', async (real) => ({ ...(await real<typeof import('@/lib/addon-snapshot')>()), loadSnapshot: mocks.load }));
 
+import { addonForSnapshot } from '@/lib/addon-release';
 import { buildSnapshot } from '@/lib/addon-snapshot';
 import { GET as me } from './me/route';
 import { GET as raids } from './raids/route';
@@ -32,6 +35,7 @@ beforeEach(() => {
   mocks.enabled = true;
   mocks.verify.mockResolvedValue({ ok: true, userId: 'u1', keyId: `rk${n}` });
   mocks.user.mockResolvedValue({ discordName: 'Sample Officer' });
+  mocks.release.mockResolvedValue({ status: 'unreachable' });
 });
 
 describe('the helper routes share the guard', () => {
@@ -69,6 +73,14 @@ describe('GET /api/helper/me', () => {
       addon: { version: '', url: 'https://github.com/robpaolella/bureaucracy-forever-addon/releases/latest' },
     });
     expect(mocks.user).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'u1' } }));
+  });
+
+  it('reports the latest add-on release exactly as the snapshot carries it', async () => {
+    const found = { status: 'release', stale: false, release: { version: '1.2.0', publishedAt: '2026-10-14T00:00:00.000Z', downloadUrl: 'https://example.test/addon-1.2.0.zip' } } as const;
+    mocks.release.mockResolvedValue(found);
+    const body = await (await me(request('me'))).json();
+    expect(body.addon).toEqual({ version: '1.2.0', url: 'https://example.test/addon-1.2.0.zip' });
+    expect(body.addon).toEqual(addonForSnapshot(found));
   });
 
   it('refuses a key whose owner disappeared after the check', async () => {
