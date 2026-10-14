@@ -37,6 +37,7 @@ dialog[id^="pd-"]:focus-visible{outline:none}
     ['key-created', 'In-game addon · Key just created'],
     ['key-revoke', 'In-game addon · Revoke a key'],
     ['key-error', 'In-game addon · Key name missing'],
+    ['key-save-failed', 'In-game addon · Key not saved'],
     ['template-edit', 'Raids and series · Template with instance number'],
     ['template-blank', 'Raids and series · Template without one'],
     ['template-error', 'Raids and series · Instance number not valid'],
@@ -150,7 +151,7 @@ dialog[id^="pd-"]:focus-visible{outline:none}
   }
   function results(kind) {
     if (kind === 'nothing') return '<div role="status" class="flex flex-col gap-1 rounded-card border border-line bg-ink-900 p-4"><p class="text-[15px] font-semibold text-fg">Nothing new. All 14 awards were already in the loot log.</p></div>';
-    var c = [['ok', 'Recorded', 8, ''], ['closed', 'Already there', 2, 'Nothing was doubled.'], ['closed', 'Voided', 1, ''], ['stop', 'Refused', 1, ''], ['warn', 'Not on the site', 2, '']];
+    var c = [['ok', 'Recorded', 6, ''], ['closed', 'Already there', 2, 'Nothing was doubled.'], ['closed', 'Voided', 1, ''], ['stop', 'Refused', 3, ''], ['warn', 'Not on the site', 2, '']];
     var h = '<div role="status" class="flex flex-col gap-3 rounded-card border border-line bg-ink-900 p-4">' +
       '<p class="text-[15px] font-semibold text-fg">Imported 14 awards from the add-on.</p>' +
       '<ul class="pd-results divide-y divide-line-faint rounded-card border border-line-faint">' +
@@ -158,7 +159,9 @@ dialog[id^="pd-"]:focus-visible{outline:none}
         return '<li class="flex min-h-11 items-center justify-between gap-3 px-3 py-2"><span class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">' + pill(x[0], x[1]) + (x[3] ? '<span class="text-xs text-fg-3">' + x[3] + '</span>' : '') + '</span><span class="tabular text-sm font-semibold text-fg">' + x[2] + '</span></li>';
       }).join('') + '</ul>' +
       '<div class="flex flex-col gap-1.5"><h4 class="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">Refused</h4>' +
-      '<p class="text-sm text-fg-2"><span class="font-semibold" style="color:#B866F5">Shard of the Scale</span> · indent (Indent): Practice award: only the staging site takes these.</p></div>' +
+      '<ul class="flex flex-col gap-1 text-sm text-fg-2"><li><span class="font-semibold" style="color:#B866F5">Shard of the Scale</span> · indent (Indent): Practice award: only the staging site takes these.</li>' +
+      '<li><span class="font-semibold" style="color:#B866F5">Vis’kag the Bloodletter</span> · quorum (Quorum): For another raid.</li>' +
+      '<li><span class="font-semibold" style="color:#B866F5">Mature Black Dragon Sinew</span> · notary (Notary): From the other site (staging).</li></ul></div>' +
       '<div class="flex flex-col gap-1.5"><h4 class="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">Not on the site</h4>' +
       '<ul class="flex flex-col gap-1 text-sm text-fg-2"><li><span class="font-semibold" style="color:#3A9BE8">Ring of Binding</span> · Gravelstone</li><li><span class="font-semibold" style="color:#B866F5">Scale of Onyxia</span> · Quillfeather</li></ul>' +
       '<p class="text-xs text-fg-3">Record these by hand in the loot log.</p></div>' +
@@ -252,10 +255,11 @@ dialog[id^="pd-"]:focus-visible{outline:none}
       '<section class="flex flex-col gap-3" aria-labelledby="pd-get-helper"><h2 id="pd-get-helper" class="font-display text-2xl font-medium">Get the helper</h2>' + release(rel, 'helper') + '</section>' +
       '</div>' +
       '<section class="flex flex-col gap-4" aria-labelledby="pd-keys"><div class="flex flex-col gap-2"><h2 id="pd-keys" class="font-display text-2xl font-medium">Helper keys</h2><p class="max-w-[640px] text-sm text-fg-2">Each key connects one computer’s helper to the site as you. Only you can see your keys.</p></div>' +
-      '<form class="flex max-w-[720px] flex-col gap-3 rounded-card border border-line-faint bg-ink-900 p-4 sm:flex-row pd-key-form" onsubmit="return false"><div class="flex min-w-0 flex-1 flex-col gap-2"><label for="pd-keyname" class="' + LABEL + '">Key name</label><input id="pd-keyname" maxlength="40" aria-describedby="pd-keyname-note"' + (err ? ' aria-invalid="true"' : '') + ' class="' + CONTROL + ' h-[46px] px-3.5"><span id="pd-keyname-note" class="text-xs ' + (err ? 'text-stop' : 'text-fg-3') + '">' + (err ? 'Give the key a name.' : 'So you can tell your computers apart, such as Rob’s PC.') + '</span></div><button type="submit" class="' + B.primary + ' pd-key-submit">Create key</button></form>' +
+      '<form class="flex max-w-[720px] flex-col gap-3 rounded-card border border-line-faint bg-ink-900 p-4 sm:flex-row pd-key-form" onsubmit="return false"><div class="flex min-w-0 flex-1 flex-col gap-2"><label for="pd-keyname" class="' + LABEL + '">Key name</label><input id="pd-keyname" maxlength="40" aria-describedby="pd-keyname-note"' + (err ? ' aria-invalid="true"' : '') + (st === 'key-save-failed' ? ' value="Rob’s PC"' : '') + ' class="' + CONTROL + ' h-[46px] px-3.5"><span id="pd-keyname-note" class="text-xs ' + (err ? 'text-stop' : 'text-fg-3') + '">' + (err ? 'Give the key a name.' : 'So you can tell your computers apart, such as Rob’s PC.') + '</span></div><button type="submit" class="' + B.primary + ' pd-key-submit">Create key</button></form>' +
       created + keyList(st) + '</section></div>');
     main.innerHTML = '';
     main.appendChild(page);
+    if (st === 'key-save-failed') document.body.appendChild(el(toast('stop', 'Nothing was saved.', 'Try again.')));
     if (st === 'key-revoke') {
       document.body.appendChild(el(modal('pd-revoke', 'Revoke Rob’s PC?', '<p>The helper on that computer stops working until you give it a new key.</p>', '<button type="button" class="' + B.ghost + '" data-close>Cancel</button><button type="button" class="' + B.danger + '">Revoke key</button>')));
     }

@@ -401,6 +401,26 @@
       "pixelHeight": 1145
     },
     {
+      "image": "approved-key-save-failed-default-390.png",
+      "version": "approved",
+      "state": "key-save-failed",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 1778
+    },
+    {
+      "image": "approved-key-save-failed-default-1440.png",
+      "version": "approved",
+      "state": "key-save-failed",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1145
+    },
+    {
       "image": "approved-template-edit-default-390.png",
       "version": "approved",
       "state": "template-edit",

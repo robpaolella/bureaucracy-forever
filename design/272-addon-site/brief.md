@@ -72,7 +72,7 @@ Raid page (`/members/calendar/<raid>`, officer):
 | no-table | tier has no loot table | no add-on controls; the existing "No bosses on this tier's loot table yet…" message | link to the tier's table |
 | import-empty | paste box open, empty | label "Add-on copy-out text"; hint "In game, open the Sync tab, press Copy out, and paste all of it here." | Import (disabled while empty) |
 | importing | waiting | button spinner "Importing…", box disabled | — |
-| import-results | mixed outcome | "Imported 14 awards from the add-on." Recorded 8 · Already there 2 (nothing was doubled) · Voided 1 · Refused 1 · Not on the site 2; refused rows with reason; not-on-site rows "item · character name" + "Record these by hand in the loot log." New rows appear in Recorded. | Done / import more |
+| import-results | mixed outcome | "Imported 14 awards from the add-on." Recorded 6 · Already there 2 (nothing was doubled) · Voided 1 · Refused 3 · Not on the site 2; refused rows with reason, one of each kind (practice award, for another raid, from the other site); not-on-site rows "item · character name" + "Record these by hand in the loot log." New rows appear in Recorded. | Done / import more |
 | import-nothing-new | repeat paste | "Nothing new. All 14 awards were already in the loot log." | — |
 | import-unreadable | not copy-out text | the field-error pattern (red border and text under the box): "That isn't the add-on's copy-out text. In game, open the Sync tab, press Copy out, and paste all of it." | fix and import again |
 | import-failed | server/network failure | stop toast "Nothing was imported." / "Press Import again. Nothing will be recorded twice."; the window (A) or box (B) stays open with the text kept | Import again |
@@ -86,7 +86,8 @@ In-game addon page (`/officers/addon`, officer; menu entry "In-game addon"):
 | keys-empty | no keys | "No helper keys yet. Create one for each computer you raid on." | Create key |
 | key-created | just created | key in a highlighted box, Copy, "Copy this key into the helper now. You won't be able to see it again." | Copy, Done |
 | key-revoke | revoke confirmation | "Revoke Rob's PC? The helper on that computer stops working until you give it a new key." | Cancel / Revoke key |
-| key-error | name missing or save failed | "Give the key a name." / toast "Nothing was saved. Try again." | — |
+| key-error | name missing | "Give the key a name." (field error) | — |
+| key-save-failed | save failed (server or network) | the typed name stays; stop toast "Nothing was saved." / "Try again." | Create key again |
 
 Raids and series (`/officers/raids`, officer; #293, added 2026-10-13 after Robert's answer B on #289):
 | State slug | Situation | Content and wording | Actions / feedback |

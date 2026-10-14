@@ -26,8 +26,8 @@ chat approval, a critique PASS and a closed/unmerged PR do not.
 | b | Rejected for placement (decision 12) | The always-open paste box on the raid page and the results shown inline in the card | Robert was told before choosing ("If you pick A, B's always-open paste box and in-card results go away") and answered "Yeah, I'm fine with A. It's cleaner." (2026-10-14) | [All-version manifest](screenshots/all/manifest.json) |
 
 All-version captures (2026-10-14, `design.ts shots`): 92 images, 2 versions × 23 states × 1 theme × 390/1440, in `screenshots/all/` ([manifest](screenshots/all/manifest.json)); every image inspected before `versions/` was removed. No layout faults.
-Approved captures: 46 images, 23 states × 1 theme × 390/1440, in `screenshots/approved/` ([manifest](screenshots/approved/manifest.json)). Each is pixel-identical to the inspected version-A capture of the same state and width, except the 15×14 px spinner in `importing` (animation frame).
-Offline proof of `index.html` (2026-10-14): fresh browser session `d272-offline-M3yerB`, network Offline, `file://` only. States log-marks, import-results, addon-page, key-revoke and template-error: `data-state`/`data-theme` set, no broken images, no requests other than the file and `data:` assets, site fonts (Cinzel, Newsreader, Archivo) loaded. The only font "errors" are the site's own metric-fallback faces pointing at local Times New Roman, absent on the capture host; no asset is missing. Offline 390/1440 captures matched.
+Approved captures: 48 images, 24 states × 1 theme × 390/1440, in `screenshots/approved/` ([manifest](screenshots/approved/manifest.json)), all inspected. They match the inspected version-A captures except: the spinner frame in `importing`; `import-results`, which now lists one refused award of each reason; and the new `key-save-failed` state. The last two came from the PR review's fixes after the freeze (below), so the all-version captures don't show them.
+Offline proof of `index.html` (2026-10-14): fresh browser session `d272-offline-M3yerB`, network Offline, `file://` only. States log-marks, import-results, addon-page, key-revoke and template-error, and after the review fixes key-save-failed and import-results again (session `d272-offline2-M3yerB`): `data-state`/`data-theme` set, no broken images, no requests other than the file and `data:` assets, site fonts (Cinzel, Newsreader, Archivo) loaded. The only font "errors" are the site's own metric-fallback faces pointing at local Times New Roman, absent on the capture host; no asset is missing. Offline 390/1440 captures matched.
 Capture limitation: full-page captures show a window's backdrop covering only the first screen's height, so content below looks undimmed; in a browser the fixed backdrop always covers the viewport.
 
 ## Independent critique
@@ -40,6 +40,12 @@ Before the critique (maker's own inspection, 2026-10-13): the prototype opened e
 1. FIXES (2026-10-13, 80 images): (1) copy-blocked didn't show the snapshot selected; (2) key-list times didn't show `LocalTime`'s treatment, and the brief claimed more than the captures showed. Fixed: the snapshot is focused and selected; key times use `LocalTime`'s look; brief documents its offline pre-zone fallback.
 2. Re-check of 1–2 plus first review of the new #293 template states (92 images): 1 and 2 resolved; new (3) template-error used only the form's bottom error line, not the site's invalid-field treatment. Fixed: `Field`'s error pattern (red field, message in place of the hint); brief updated.
 3. Fixes-only re-check of 3: **PASS** (2026-10-13). Final verdict PASS; the reviewer selects no version.
+
+## PR review fixes (after freeze)
+Review of the design PR branch (openai/gpt-5.6-terra, thinking medium, cross-company) found two gaps against the brief, both fixed in `index.html` before the PR:
+1. Import results showed only the practice-award refusal; the brief names three reasons. Now Refused 3 (Recorded 6, total still 14), one row each: "Practice award: only the staging site takes these.", "For another raid.", "From the other site (staging).".
+2. The brief's key save failure ("Nothing was saved. Try again.") had no state. Added `key-save-failed`: the typed name stays and the site's stop toast reads "Nothing was saved." / "Try again." `key-error` now covers only the missing name.
+Both are wording and states Robert had already confirmed in the brief (decisions 4 and 5), not new choices.
 
 ## Comments and changes
 | ID / source | Version / element | Original note | Agreed change and verification | Resolved |

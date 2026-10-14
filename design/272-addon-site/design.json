@@ -32,6 +32,7 @@
     "key-created",
     "key-revoke",
     "key-error",
+    "key-save-failed",
     "template-edit",
     "template-blank",
     "template-error"
