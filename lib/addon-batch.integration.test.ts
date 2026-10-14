@@ -76,6 +76,7 @@ describe.skipIf(process.env.ADDON_BATCH_INTEGRATION !== '1')('writing add-on ope
     for (const [user, name] of [['u_ana', 'Ana Vale'], ['u_bo', 'Bo Marsh'], ['u_rae', 'Rae Quill']]) {
       await db.user.create({ data: { id: user, discordId: `d-${user}`, discordName: user, characters: { create: { name, class: 'MAGE', spec: 'Fire', raidRole: 'RANGED' } } } });
     }
+    await db.user.update({ where: { id: 'u_rae' }, data: { role: 'OFFICER' } });
   });
 
   it('records an award the way the loot log does, marked as the add-on\'s', async () => {
@@ -109,6 +110,11 @@ describe.skipIf(process.env.ADDON_BATCH_INTEGRATION !== '1')('writing add-on ope
     ['unknown-boss', { ...AWARD, boss: 'lb_other' }, null],
     ['unknown-character', { ...AWARD, char: 'Nobody Here' }, null],
     ['user-mismatch', { ...AWARD, user: 'u_bo' }, null],
+    ['unknown-sender', { ...AWARD, sender: 'Ana Vale' }, null],
+    ['unknown-sender', { ...AWARD, sender: 'Nobody Here' }, null],
+    ['unknown-sender', AWARD, () => db.user.update({ where: { id: 'u_rae' }, data: { role: 'MEMBER' } })],
+    ['unknown-sender', AWARD, () => db.character.update({ where: { name: 'Rae Quill' }, data: { name: 'Rae Renamed' } })],
+    ['unknown-sender', { ...AWARD, method: 'DISENCHANT_BANK', char: undefined, user: undefined, sender: 'Ana Vale' }, null],
   ] as const)('refuses an award with %s, changes no loot, keeps it as a problem and goes on with the batch', async (code, bad, setup) => {
     await setup?.();
     const results = await write([bad, { ...VOID, key: 'aw-nothing1' }]);
@@ -119,6 +125,37 @@ describe.skipIf(process.env.ADDON_BATCH_INTEGRATION !== '1')('writing add-on ope
     // The helper sending it again is still one problem.
     await write([bad]);
     expect(await db.lootOperationRejection.count()).toBe(1);
+  });
+
+  it('records an award whose sender is a current officer\'s alt on the site', async () => {
+    await db.character.create({ data: { userId: 'u_rae', name: 'Rae Alt', class: 'PRIEST', spec: 'Holy', raidRole: 'HEALER', isMain: false } });
+    expect(statuses(await write([{ ...AWARD, sender: 'Rae Alt' }]))).toEqual(['recorded']);
+    expect(await awards()).toMatchObject([{ handedOutByName: 'Rae Alt', handedOutById: 'u_rae' }]);
+  });
+
+  it('answers an award recorded before its sender stopped being an officer replayed, not refused', async () => {
+    await write([AWARD]);
+    await db.user.update({ where: { id: 'u_rae' }, data: { role: 'MEMBER' } });
+    expect(statuses(await write([AWARD]))).toEqual(['replayed']);
+    expect(await db.lootOperationRejection.count()).toBe(0);
+  });
+
+  it.each([
+    ['item-not-in-table', { item: 17011 }],
+    ['unknown-character', { char: 'Nobody Here' }],
+    ['user-mismatch', { user: 'u_bo' }],
+  ] as const)('gives an award failing %s and the sender check the earlier code', async (code, bad) => {
+    expect(statuses(await write([{ ...AWARD, ...bad, sender: 'Ana Vale' }]))).toEqual([code]);
+  });
+
+  it('refuses a replace whose new award has a sender who isn\'t a current officer, held original or not', async () => {
+    const bad = { ...REPLACE, award: { ...NEW_AWARD, sender: 'Bo Marsh' } };
+    expect(statuses(await write([bad]))).toEqual(['unknown-sender']);
+    await write([AWARD]);
+    expect(statuses(await write([bad]))).toEqual(['unknown-sender']);
+    expect(await awards()).toMatchObject([{ requestKey: AWARD.id, voidedAt: null }]);
+    expect(await db.lootOperation.findMany({ select: { opId: true } })).toEqual([{ opId: AWARD.id }]);
+    expect(await db.lootOperationRejection.findMany({ select: { opId: true, code: true } })).toEqual([{ opId: REPLACE.id, code: 'unknown-sender' }]);
   });
 
   it('records disenchant/bank with no winner', async () => {

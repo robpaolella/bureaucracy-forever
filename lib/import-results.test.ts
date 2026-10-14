@@ -11,6 +11,12 @@ describe('summarize', () => {
     expect(s.unknown).toEqual([{ item: 1, character: 'Gravelstone' }]);
   });
 
+  it('lists an unknown sender under refused, not with the unknown characters', () => {
+    const s = summarize([r('rejected', { code: 'unknown-sender' })]);
+    expect(s.refused).toEqual([{ item: 1, character: 'Gravelstone', code: 'unknown-sender' }]);
+    expect(s.unknown).toEqual([]);
+  });
+
   it('keeps a missing item or character as null', () => {
     expect(summarize([{ id: 'v', type: 'void', status: 'rejected', code: 'user-mismatch' }]).refused).toEqual([{ item: null, character: null, code: 'user-mismatch' }]);
   });

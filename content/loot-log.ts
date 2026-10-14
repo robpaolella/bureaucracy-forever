@@ -122,6 +122,7 @@ export const LOOT_LOG = {
       'key-conflict': 'Clashes with a different award already recorded.',
       'raid-cancelled': 'This raid is cancelled.',
       'user-mismatch': 'Character belongs to someone else.',
+      'unknown-sender': 'The sender isn’t a character of a current officer.',
     } as Record<string, string>,
     refusedOther: 'Couldn’t be recorded.',
     unreadable: 'That isn’t the add-on’s copy-out text. In game, open the Sync tab, press Copy out, and paste all of it.',
