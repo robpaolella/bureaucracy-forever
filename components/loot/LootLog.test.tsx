@@ -204,6 +204,13 @@ describe('LootLog add-on bar', () => {
     expect(bar.compareDocumentPosition(host.querySelector('form')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('opens the Import awards window beside Copy reserves', async () => {
+    HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+    await render();
+    await act(async () => { button(LOOT_LOG.addon.import).click(); });
+    expect(host.querySelector<HTMLDialogElement>('dialog[open]')!.textContent).toContain(LOOT_LOG.import.title);
+  });
+
   it('has no add-on controls when the tier has no bosses', async () => {
     await render({ bosses: [], items: {}, blocked: [] });
     expect(host.textContent).not.toContain(LOOT_LOG.addon.heading);

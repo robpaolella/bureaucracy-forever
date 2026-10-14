@@ -14,6 +14,7 @@ import type { ItemView } from '@/lib/loot-items';
 import { mergeAwards, type LocalAward, type LoggedAward, type LoggedHr } from '@/lib/loot-log-state';
 import { defaultMethodFor, LOOT_LOG_METHODS, resolveDrop, type LootMethod } from '@/lib/loot-rules';
 import { CopyReservesBar } from './CopyReservesBar';
+import { ImportAwardsDialog } from './ImportAwardsDialog';
 import { ItemName } from './ItemName';
 import { UnlistedDrop, type OnTableBoss } from './UnlistedDrop';
 
@@ -28,6 +29,8 @@ type Props = {
   raidAwards: LoggedAward[];
   hrAwards: LoggedHr[];
   awards: AwardView[];
+  /** This is the staging site; the import names the other site when a paste came from it. */
+  staging?: boolean;
 };
 
 /** An unlisted drop waits on Wowhead, so a save that never answers is given up on and can be pressed again. */
@@ -46,7 +49,7 @@ async function send(url: string, method: string, body: unknown, timeoutMs?: numb
 const select = cn(CONTROL, 'h-[46px] px-3');
 
 /** Raid detail § Loot log (officers): boss → item → who may roll → record the winner. */
-export function LootLog({ raidId, templateId, templateName, table, reserves, candidates, raidAwards, hrAwards, awards }: Props) {
+export function LootLog({ raidId, templateId, templateName, table, reserves, candidates, raidAwards, hrAwards, awards, staging = false }: Props) {
   const router = useRouter();
   const toast = useToast();
   const [bossId, setBossId] = useState(table.bosses[0]?.id ?? '');
@@ -65,6 +68,7 @@ export function LootLog({ raidId, templateId, templateName, table, reserves, can
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [voiding, setVoiding] = useState<AwardView | null>(null);
+  const [importing, setImporting] = useState(false);
   const [reason, setReason] = useState('');
   // Records saved here that the server props do not show yet: the next drop resolves
   // against them straight away instead of waiting for the refresh.
@@ -185,7 +189,13 @@ export function LootLog({ raidId, templateId, templateName, table, reserves, can
         <p className="max-w-[720px] text-sm text-fg-2">{LOOT_LOG.lede}</p>
       </div>
 
-      {table.bosses.length > 0 && <CopyReservesBar raidId={raidId} reserves={reserves.length} awards={given.length} />}
+      {table.bosses.length > 0 && (
+        <CopyReservesBar raidId={raidId} reserves={reserves.length} awards={given.length}>
+          <Button variant="secondary" size="sm" aria-haspopup="dialog" onClick={() => setImporting(true)}>
+            {LOOT_LOG.addon.import}
+          </Button>
+        </CopyReservesBar>
+      )}
 
       <form ref={formRef} onSubmit={(e) => record(e)} className="flex flex-col gap-4 rounded-card border border-line-faint bg-ink-900 p-4">
         {table.bosses.length === 0 ? (
@@ -329,6 +339,8 @@ export function LootLog({ raidId, templateId, templateName, table, reserves, can
           </ul>
         )}
       </div>
+
+      <ImportAwardsDialog open={importing} onClose={() => setImporting(false)} raidId={raidId} items={table.items} staging={staging} onChanged={() => router.refresh()} />
 
       <Modal
         open={voiding !== null}
