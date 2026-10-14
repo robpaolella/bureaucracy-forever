@@ -69,3 +69,4 @@
 - Unlisted drop (#243 critique): when a lookup moves Boss to match an item already on the table, nothing highlights the changed field beyond the note.
 - The error page's Try again re-renders on the client but does not re-fetch, so an error thrown by a server component stays on screen until the page is reloaded (found in #257; baseline behaviour).
 - Loot add-on (#272 design, Robert 2026-10-13: "a good feature to have"): during a raid, show live helper status on the raid page ("Live from Ledgerline's helper, last update 2 min ago"); needs the helper's live upload (#277, #278) first.
+- Loot add-on (#272 design, Robert 2026-10-14): flag likely duplicates between hand-entered and add-on awards. When the same item goes to the same character on the same raid both by hand and from the add-on, tell the officer ("There is another entry for <item> to <character> on this raid. Is this a duplicate?") and let them void one. Add-on IDs only stop the add-on's own repeats.

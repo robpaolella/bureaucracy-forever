@@ -141,6 +141,7 @@ build uses `LocalTime` everywhere, which then shows the viewer's zone with guild
 - Versions are the raid host plus one `<style>` and one `<script>`, built outside the repo by
   `/git/bureaucracy-forever-worktrees/d272-build/build.js` from `proto.css` and `proto.js`
   (`node build.js hosts/raid.html versions`, run in the design folder).
+- At freeze (2026-10-14) version A became `index.html`; the host snapshots (`hosts/`) and `versions/` were working files, never committed, and were removed once `index.html`'s offline proof was recorded in `decisions.md`.
 - Versions offline proof (2026-10-13): fresh browser session `d272-offline-VAO9OP`, network Offline,
   `file://` only; a and b at log-marks, import-results, addon-page, key-revoke: fonts loaded, no
   broken images, no console errors, only the local file and `data:` requests; the State switcher

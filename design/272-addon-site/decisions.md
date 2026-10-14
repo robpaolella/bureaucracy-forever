@@ -2,12 +2,10 @@
 
 - Design issue: #272; covered build issues: #274, #275, #276, #280, #293 (added 2026-10-13 by the conductor after Robert's answer B on #289) (plus a not-yet-filed helper-download follow-up)
 - Revision: 1; replaces: none
-- Maker: claude-bridge/claude-opus-5-5 (Opus 5.5), thinking medium; sessions design-272 and design-272-2
+- Maker: claude-bridge/claude-opus-5-5 (Opus 5.5), thinking medium; sessions design-272, design-272-2 and design-272-3
 
 ## Choice and approval
-Chosen version and why. When versions differed on more than one independent decision,
-Robert's pick for each, asked as its own numbered question; the chosen version combines
-them, even if no single version had all of them:
+Chosen: **version A** (`index.html`). The versions differed on one decision (12, placement); 13–15 were the same in both. Robert's pick per decision:
 
 | # | Decision | Options (version) | Robert's pick and why |
 | --- | --- | --- | --- |
@@ -16,9 +14,9 @@ them, even if no single version had all of them:
 | 14 | Instance number validation | same in both versions | Keep as drafted: "Sure." (2026-10-14) |
 | 15 | Templates list instance line | same in both versions | Keep as drafted: "Sure." (2026-10-14) |
 
-Robert's exact confirmation and date/reference authorizing the
-PR. Design PR: use the linked PR on the design issue once created; the session adds
-that link there after opening it. Only Robert merging that PR approves it for building;
+Robert's confirmation (herdr, 2026-10-14), after reviewing version A with decisions 12–15 recorded: "A looks good." Version A is the approved choice.
+
+Design PR: linked on the design issue under `## Design PR`. Only Robert merging that PR approves the design for building;
 chat approval, a critique PASS and a closed/unmerged PR do not.
 
 ## Alternatives
@@ -27,12 +25,10 @@ chat approval, a critique PASS and a closed/unmerged PR do not.
 | a | Chosen: calmer raid page; import only when needed | — | — | [All-version manifest](screenshots/all/manifest.json) |
 | b | Rejected for placement (decision 12) | The always-open paste box on the raid page and the results shown inline in the card | Robert was told before choosing ("If you pick A, B's always-open paste box and in-card results go away") and answered "Yeah, I'm fine with A. It's cleaner." (2026-10-14) | [All-version manifest](screenshots/all/manifest.json) |
 
-A version is removed, replaced or left out at freeze only after Robert confirms what it
-alone had can go.
-
-All-version captures were completed and inspected before pruning versions/. Approved
-state × theme × width evidence: [manifest](screenshots/approved/manifest.json).
-Record actual counts, inspected image paths, offline proof and any capture limitations.
+All-version captures (2026-10-14, `design.ts shots`): 92 images, 2 versions × 23 states × 1 theme × 390/1440, in `screenshots/all/` ([manifest](screenshots/all/manifest.json)); every image inspected before `versions/` was removed. No layout faults.
+Approved captures: 46 images, 23 states × 1 theme × 390/1440, in `screenshots/approved/` ([manifest](screenshots/approved/manifest.json)). Each is pixel-identical to the inspected version-A capture of the same state and width, except the 15×14 px spinner in `importing` (animation frame).
+Offline proof of `index.html` (2026-10-14): fresh browser session `d272-offline-M3yerB`, network Offline, `file://` only. States log-marks, import-results, addon-page, key-revoke and template-error: `data-state`/`data-theme` set, no broken images, no requests other than the file and `data:` assets, site fonts (Cinzel, Newsreader, Archivo) loaded. The only font "errors" are the site's own metric-fallback faces pointing at local Times New Roman, absent on the capture host; no asset is missing. Offline 390/1440 captures matched.
+Capture limitation: full-page captures show a window's backdrop covering only the first screen's height, so content below looks undimmed; in a browser the fixed backdrop always covers the viewport.
 
 ## Independent critique
 Maker claude-bridge/claude-opus-5-5; reviewer openai/gpt-5.6-terra, thinking medium (route.ts role checker).
@@ -48,15 +44,15 @@ Before the critique (maker's own inspection, 2026-10-13): the prototype opened e
 ## Comments and changes
 | ID / source | Version / element | Original note | Agreed change and verification | Resolved |
 | --- | --- | --- | --- | --- |
-| <Open Design ID or herdr reference> | <target> | <note> | <result> | <date/status> |
+| herdr, Robert 2026-10-14 | Import (both versions) | Is there a duplicate tracker, so an award the helper already sent isn't recorded again on import? | No design change: every add-on award carries its own ID, kept on the award, and the helper upload and paste import share one writer (#282), so repeats show as "Already there (nothing was doubled)". Hand-entered vs add-on duplicates are a follow-up in `backlog.md` (Robert: flag "another entry for <item> to <character> on this raid, is this a duplicate?"). | Answered |
+
+No Open Design comments were left on this design (`design.ts comments`: none open, 2026-10-14).
 
 ## Experiment
-None, or Robert's permission, question, branch/preview, chosen behaviour, rejected
-attempts, static-version updates and unmerged/closed experiment PR. Code reuse: forbidden
-unless specific parts are explicitly authorized here. Keep the branch as a primary source.
+None. No real-site experiment was needed. The build reuses no prototype code.
 
 ## Open items
-None affecting the approved scope. Preserve any deferred, out-of-scope questions explicitly.
+None affecting the approved scope. Deferred, out of scope: live helper status on the raid page and the hand-entered duplicate flag (both in `backlog.md`); a build issue for the helper download part, to be filed once the helper has releases (decision 9); format and result names stay placeholders until the spec (#271) settles them.
 
 ## Build handoff
 Merged folder/revision is the feature authority; DESIGN.md/live site govern site-wide
