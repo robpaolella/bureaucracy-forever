@@ -45,7 +45,8 @@ In development, `/dev/session` sets a dev-session cookie that stands in for a re
 
 ## Layout
 - `app/(home)`, `app/(site)` — public pages, plus `members/` and `officers/` areas.
-- `app/api/` — route handlers; `app/api/bot/*` is the bot's signed API (SYNC-SPEC).
+- `app/api/` — route handlers; `app/api/bot/*` is the bot's signed API (SYNC-SPEC);
+  `app/api/helper/*` will be the loot helper's API (ADDON-SPEC).
 - `app/actions/` — server actions. `app/dev/` — dev-only playground (components, foundations,
   shell) and the session stub.
 - `proxy.ts` + `lib/auth/gate.ts` — route gating by role. `lib/auth/roles.ts` — Discord role →
@@ -121,8 +122,9 @@ not depend on that unmerged work.
 ## Reference material
 - The live site and `DESIGN.md` — the site-wide visual authority; approved feature
   designs govern their feature as described above.
-- `design-handover/CLAUDE.md` — read before writing components. It covers non-negotiables,
-  voice and placeholder content; it is background rather than the source of truth.
+- `design-handover/CLAUDE.md` — read before writing components. It covers non-negotiables
+  and placeholder content; it is background rather than the source of truth. The voice rules
+  and approved facts live in `PRODUCT.md`.
 - `design-handover/docs/`, `design-handover/design/`, `design-handover/reference/*.html` —
   background specs, tokens and artboards.
 - `REVIEW.md` — project rules the `review` skill weights: access control, time handling,
@@ -130,3 +132,6 @@ not depend on that unmerged work.
 - `SYNC-SPEC.md` — shared contract with the Discord bot
   (`bureaucracy-forever-discord-bot`). The same file lives in both repos; change both in the
   same PR.
+- `ADDON-SPEC.md` — contract between the site, the officers' loot add-on
+  (`bureaucracy-forever-addon`) and its helper (`bureaucracy-forever-helper`). Lives here only;
+  change it in the same PR as any code that changes a format.

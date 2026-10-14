@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { LocalTime } from '@/components/time/LocalTime';
-import { Button, Choice, Field, Input, Modal, TextLink, useToast } from '@/components/ui';
+import { Button, Choice, Field, Input, Modal, StatusPill, Tag, TextLink, useToast } from '@/components/ui';
 import { CONTROL } from '@/components/ui/Field';
 import { SAVE_FAILED } from '@/content/calendar';
 import { LOOT_LOG, METHOD_LABEL } from '@/content/loot-log';
@@ -13,6 +13,7 @@ import type { AwardView, Candidate, LootTableView, ReserveView } from '@/lib/loo
 import type { ItemView } from '@/lib/loot-items';
 import { mergeAwards, type LocalAward, type LoggedAward, type LoggedHr } from '@/lib/loot-log-state';
 import { defaultMethodFor, LOOT_LOG_METHODS, resolveDrop, type LootMethod } from '@/lib/loot-rules';
+import { CopyReservesBar } from './CopyReservesBar';
 import { ItemName } from './ItemName';
 import { UnlistedDrop, type OnTableBoss } from './UnlistedDrop';
 
@@ -183,6 +184,8 @@ export function LootLog({ raidId, templateId, templateName, table, reserves, can
         </h2>
         <p className="max-w-[720px] text-sm text-fg-2">{LOOT_LOG.lede}</p>
       </div>
+
+      {table.bosses.length > 0 && <CopyReservesBar raidId={raidId} reserves={reserves.length} awards={given.length} />}
 
       <form ref={formRef} onSubmit={(e) => record(e)} className="flex flex-col gap-4 rounded-card border border-line-faint bg-ink-900 p-4">
         {table.bosses.length === 0 ? (
@@ -357,6 +360,7 @@ export function LootLog({ raidId, templateId, templateName, table, reserves, can
 export function AwardRow({ award, table, onVoid }: { award: AwardView; table: LootTableView; onVoid?: () => void }) {
   const item = table.items[award.itemId];
   const voided = award.voidedAt !== null;
+  const addon = award.addon;
   return (
     <li className={cn('grid gap-x-4 gap-y-1 px-3 py-2 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-center', voided && 'opacity-60')}>
       <span className={cn('flex min-w-0 flex-col', voided && 'line-through')}>
@@ -376,15 +380,25 @@ export function AwardRow({ award, table, onVoid }: { award: AwardView; table: Lo
         )}
       </span>
       <span className="flex flex-col text-sm">
-        <span>
-          {METHOD_LABEL[award.method]}
-          {award.roll !== null && <span className="tabular text-fg-3"> · {award.roll}</span>}
-          {voided && <span className="ml-2 font-semibold text-stop">{LOOT_LOG.voidedLabel}</span>}
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>
+            {METHOD_LABEL[award.method]}
+            {award.roll !== null && <span className="tabular text-fg-3"> · {award.roll}</span>}
+          </span>
+          {voided && <span className="font-semibold text-stop">{LOOT_LOG.voidedLabel}</span>}
+          {addon && <Tag>{LOOT_LOG.marks.tag}</Tag>}
+          {addon?.practice && <Tag>{LOOT_LOG.marks.practice}</Tag>}
         </span>
         <span className="text-xs text-fg-3">
           <LocalTime startsAt={award.createdAt} durationMin={0} className="text-xs" />
-          {award.recordedBy && ` · ${LOOT_LOG.by(award.recordedBy)}`}
+          {addon ? ` · ${addonLine(addon, award.recordedBy)}` : award.recordedBy && ` · ${LOOT_LOG.by(award.recordedBy)}`}
         </span>
+        {addon && !addon.confirmed && (
+          <span className="mt-1 flex flex-col items-start gap-1">
+            <StatusPill tone="warn">{LOOT_LOG.marks.notConfirmed}</StatusPill>
+            <span className="text-xs text-fg-2">{LOOT_LOG.marks.notConfirmedHelp}</span>
+          </span>
+        )}
         {(award.note || award.voidReason) && <span className="text-xs text-fg-2">{[award.note, award.voidReason].filter(Boolean).join(' · ')}</span>}
       </span>
       {onVoid && !voided ? (
@@ -396,4 +410,11 @@ export function AwardRow({ award, table, onVoid }: { award: AwardView; table: Lo
       )}
     </li>
   );
+}
+
+/** "Handed out by <loot master> · sent by <officer>'s helper"; an award stored before the route was kept reads "delivered by". */
+function addonLine(addon: NonNullable<AwardView['addon']>, officer: string | null) {
+  const { handedOut, sent, imported, delivered } = LOOT_LOG.marks;
+  const who = officer ?? 'an officer';
+  return `${handedOut(addon.handedOutBy)} · ${addon.via === 'helper' ? sent(who) : addon.via === 'import' ? imported(who) : delivered(who)}`;
 }

@@ -39,8 +39,8 @@ export const LOCKOUT_RESET = { day: 2 as Weekday, time: '08:00' };
 
 export const SCHEDULE_HEAD = {
   eyebrow: 'Raid schedule',
-  title: 'Two progression nights. Days to be announced.',
-  lede: 'Raid days and times get set before launch, around when the roster can actually play. When they land, every time on this page will show in your own timezone. Hover or tap one to see it in guild time.',
+  title: 'Two progression nights, plus one optional night.',
+  lede: "We'll post our raid days and times here soon. Each one will show in your own time zone, so you'll always know when raid starts where you are.",
 };
 
 export const WEEK_NOTE_PREFIX = 'Raid nights are shown in bronze. Lockouts reset';
@@ -57,18 +57,9 @@ export const RUN_OF_NIGHT = {
   ],
 };
 
-export const SCHEDULE_ASIDES = {
-  attendance: {
-    title: 'Attendance',
-    text: "Raiders are expected on both progression nights. Miss one, post in Discord before the day — that's the whole rule.",
-  },
-  signups: {
-    title: 'Sign-ups',
-    text: 'Accept, Tentative or Absent — on the calendar here or with the bot in Discord. Both write to the same place.',
-    linkLabel: 'Open the calendar →',
-  },
-  availability: {
-    title: 'Help us pick the days',
-    text: 'Paint your week on the availability page after you log in. Officers set raid days around what the roster actually has.',
-  },
-};
+/** The bottom card's rows (approved design 254): static text, same for every visitor. */
+export const SCHEDULE_ASIDES = [
+  { title: 'Attendance', text: "Raiders attend both progression nights. If you can't make one, let us know in Discord ahead of time." },
+  { title: 'Sign-ups', text: 'Sign up for each raid as Accept, Tentative or Absent, on the calendar or with our bot in Discord.' },
+  { title: 'Loot', text: 'Loot runs on hard reserve, then soft reserve, then open roll.' },
+];

@@ -1,0 +1,47 @@
+{
+  "design_issue": 272,
+  "covers": [
+    274,
+    275,
+    276,
+    280,
+    293,
+    297,
+    298,
+    299,
+    300
+  ],
+  "revision": 2,
+  "versions": {
+    "approved": "index.html"
+  },
+  "states": [
+    "log-marks",
+    "log-practice",
+    "copy-ready",
+    "copied",
+    "copy-blocked",
+    "no-reserves",
+    "no-table",
+    "import-empty",
+    "importing",
+    "import-results",
+    "import-nothing-new",
+    "import-unreadable",
+    "import-failed",
+    "addon-page",
+    "addon-no-release",
+    "addon-github-down",
+    "keys-empty",
+    "key-created",
+    "key-revoke",
+    "key-error",
+    "key-save-failed",
+    "template-edit",
+    "template-blank",
+    "template-error"
+  ],
+  "themes": [
+    "default"
+  ]
+}

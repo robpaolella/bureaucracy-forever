@@ -56,7 +56,7 @@ export function parseApplication(data: FormData, sessionHandle: string | null): 
     discord = sessionHandle.trim().slice(0, 64);
   } else {
     discord = text(data, 'discord').toLowerCase().replace(/^@/, '');
-    if (!DISCORD.test(discord)) errors.discord = 'Your Discord handle, so an officer can reach you.';
+    if (!DISCORD.test(discord)) errors.discord = FORM.discordError;
   }
 
   let wowClass: WowClass | null = null;
@@ -89,7 +89,7 @@ export function parseApplication(data: FormData, sessionHandle: string | null): 
     if (pitch.length < 20) errors.pitch = 'A few honest sentences.';
     else answers.pitch = pitch.slice(0, ANSWER_MAX);
 
-    if (data.get('agree') !== 'on') errors.agree = 'Read the raider expectations first.';
+    if (data.get('agree') !== 'on') errors.agree = FORM.agreeError;
   } else {
     const note = text(data, 'note');
     if (note) answers.note = note.slice(0, ANSWER_MAX);

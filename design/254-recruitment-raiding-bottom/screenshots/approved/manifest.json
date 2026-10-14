@@ -1,0 +1,44 @@
+{
+  "images": [
+    {
+      "image": "approved-recruitment-default-390.png",
+      "version": "approved",
+      "state": "recruitment",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 4275
+    },
+    {
+      "image": "approved-recruitment-default-1440.png",
+      "version": "approved",
+      "state": "recruitment",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 2353
+    },
+    {
+      "image": "approved-raiding-default-390.png",
+      "version": "approved",
+      "state": "raiding",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 2185
+    },
+    {
+      "image": "approved-raiding-default-1440.png",
+      "version": "approved",
+      "state": "raiding",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1220
+    }
+  ]
+}

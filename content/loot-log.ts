@@ -43,6 +43,16 @@ export const LOOT_LOG = {
   listEmpty: 'Nothing recorded yet.',
   trash: 'Trash',
   by: (name: string) => `by ${name}`,
+  marks: {
+    tag: 'From the add-on',
+    practice: 'Practice',
+    notConfirmed: 'Not confirmed',
+    notConfirmedHelp: 'The game didn’t confirm the hand-out. Check in game and void it if it wasn’t handed out.',
+    handedOut: (master: string | null) => `Handed out by ${master ?? 'an unknown character'}`,
+    sent: (officer: string) => `sent by ${officer}’s helper`,
+    imported: (officer: string) => `imported by ${officer}`,
+    delivered: (officer: string) => `delivered by ${officer}`,
+  },
   void: 'Void',
   voidTitle: 'Void this record?',
   voidBody: 'It stays in the log, struck through, and stops counting: the item can drop to its reserve holders again and an HR win no longer blocks that character. Record the right winner separately.',
@@ -69,5 +79,16 @@ export const LOOT_LOG = {
     retry: 'Try again',
     noBosses: 'No bosses on this tier’s loot table yet, so there’s nothing to record against. Add a boss first.',
     tableLink: (tier: string) => `Open the ${tier} loot table`,
+  },
+
+  addon: {
+    heading: 'Loot add-on',
+    copy: 'Copy reserves',
+    includes: (reserves: number, awards: number) => `Includes ${reserves} ${reserves === 1 ? 'reserve' : 'reserves'} and ${awards} ${awards === 1 ? 'award' : 'awards'} so far.`,
+    noReserves: 'Nobody has reserved yet. Every drop will be an open roll until you copy again.',
+    copied: 'Copied. In game, open the add-on’s Sync tab and paste it.',
+    copiedPart: (part: number, parts: number) => (part < parts ? `Copied part ${part} of ${parts}. Paste it in game, then press Copy again for part ${part + 1}.` : `Copied part ${part} of ${parts}. Paste it in game.`),
+    blocked: 'Couldn’t copy automatically. Select all of this and copy it.',
+    fetchFailed: 'Couldn’t get the reserves. Try again.',
   },
 };

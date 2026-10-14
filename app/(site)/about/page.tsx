@@ -2,7 +2,7 @@ import Image from 'next/image';
 import type { Metadata } from 'next';
 import { EYEBROW, SectionHead } from '@/components/site/SectionHead';
 import { Card } from '@/components/ui';
-import { ABOUT_HEAD, ACCOLADES, HISTORY, HOW_WE_RUN, OFFICERS } from '@/content/about';
+import { ABOUT_DESCRIPTION, ABOUT_HEAD, ACCOLADES, HISTORY, HOW_WE_RUN, OFFICERS } from '@/content/about';
 import { cn } from '@/lib/cn';
 import { SITE_NAME } from '@/lib/config';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
@@ -10,8 +10,7 @@ import { initials } from '@/lib/format';
 import { MEMBER_LINKS } from '@/lib/nav';
 
 const TITLE = 'About Bureaucracy | WoW Forever Raiding Guild';
-const DESCRIPTION =
-  'Bureaucracy has raided together since 2011. #1 on Smolderweb in Classic with server firsts and a top 150 regional Naxx clear in week one. Now recruiting for WoW Forever.';
+const DESCRIPTION = ABOUT_DESCRIPTION;
 
 /** Root layout's openGraph/twitter are whole-object overrides, not merged — repeat siteName/locale/card here too. */
 export const metadata: Metadata = {
