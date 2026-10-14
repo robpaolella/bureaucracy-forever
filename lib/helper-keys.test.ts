@@ -2,17 +2,19 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import type { Session } from '@/lib/session';
 
 const mocks = vi.hoisted(() => ({
-  create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn(), ensureUser: vi.fn(),
+  create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn(), upsert: vi.fn(),
 }));
-vi.mock('@/lib/db', () => ({ db: { helperKey: { create: mocks.create, findMany: mocks.findMany, findUnique: mocks.findUnique, updateMany: mocks.updateMany } } }));
-vi.mock('@/lib/users', () => ({ ensureUser: mocks.ensureUser }));
+vi.mock('@/lib/db', () => ({ db: {
+  helperKey: { create: mocks.create, findMany: mocks.findMany, findUnique: mocks.findUnique, updateMany: mocks.updateMany },
+  user: { upsert: mocks.upsert },
+} }));
 import { createHelperKey, hashHelperKey, helperKeyName, listHelperKeys, newHelperKey, recordHelperKeyUse, revokeHelperKey, verifyHelperKey } from './helper-keys';
 
 const session = (role: Session['role'], discordId = 'officer-a') => ({ discordId, role, name: 'Sample' }) as Session;
 const created = new Date('2026-10-14T12:00:00Z');
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.ensureUser.mockResolvedValue({ id: 'user-a' });
+  mocks.upsert.mockResolvedValue({ id: 'user-a' });
   mocks.create.mockImplementation(({ data }) => Promise.resolve({ id: 'key-1', name: data.name, createdAt: created, lastUsedAt: null }));
 });
 
@@ -39,12 +41,14 @@ it('creates a key, returning the plain key once and storing only its hash', asyn
   const { data } = mocks.create.mock.calls[0][0];
   expect(data).toEqual({ userId: 'user-a', name: 'Raid laptop', keyHash: hashHelperKey(result.key) });
   expect(JSON.stringify(mocks.create.mock.calls)).not.toContain(result.key);
+  // A new row starts as an officer; an existing row's stored role is never touched.
+  expect(mocks.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: expect.objectContaining({ role: 'OFFICER' }), update: {} }));
 });
 
 it('refuses a bad name before writing anything', async () => {
   expect(await createHelperKey(session('officer'), ' ')).toMatchObject({ ok: false, status: 400 });
   expect(await createHelperKey(session('officer'), 'x'.repeat(41))).toMatchObject({ ok: false, status: 400 });
-  expect(mocks.ensureUser).not.toHaveBeenCalled();
+  expect(mocks.upsert).not.toHaveBeenCalled();
   expect(mocks.create).not.toHaveBeenCalled();
 });
 

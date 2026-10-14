@@ -83,6 +83,12 @@ describe.skipIf(process.env.HELPER_KEYS_INTEGRATION !== '1')('helper keys on Pos
       const result = await verifyHelperKey(made.key);
       expect(result.ok ? 200 : result.status).toBe(expected);
     }
+    // An officer session still in hand after the bot's demotion can't undo it by making a key.
+    await db.user.update({ where: { discordId: 'a' }, data: { role: 'MEMBER' } });
+    const later = await make(officer('a'), 'After demotion');
+    expect((await db.user.findUniqueOrThrow({ where: { discordId: 'a' } })).role).toBe('MEMBER');
+    expect(await verifyHelperKey(made.key)).toEqual({ ok: false, status: 403 });
+    expect(await verifyHelperKey(later.key)).toEqual({ ok: false, status: 403 });
     await db.user.delete({ where: { discordId: 'a' } });
     expect(await verifyHelperKey(made.key)).toEqual({ ok: false, status: 401 });
   });

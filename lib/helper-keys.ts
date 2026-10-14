@@ -10,7 +10,6 @@ import 'server-only';
 import { createHash, randomBytes } from 'node:crypto';
 import { db } from '@/lib/db';
 import type { Session } from '@/lib/session';
-import { ensureUser } from '@/lib/users';
 
 export const HELPER_KEY_PREFIX = 'bfh_';
 export const HELPER_KEY_NAME_MAX = 40;
@@ -50,7 +49,14 @@ export async function createHelperKey(session: Session | null, name: unknown): P
   if (refused) return refused;
   const parsed = helperKeyName(name);
   if (!parsed.ok) return parsed;
-  const user = await ensureUser(session!);
+  // Not ensureUser: it copies the session's role onto the row, and an hour-old officer
+  // session would then undo a demotion the bot synced, reviving the user's keys.
+  const user = await db.user.upsert({
+    where: { discordId: session!.discordId },
+    create: { discordId: session!.discordId, discordName: session!.name, role: 'OFFICER' },
+    update: {},
+    select: { id: true },
+  });
   const key = newHelperKey();
   const row = await db.helperKey.create({ data: { userId: user.id, name: parsed.name, keyHash: hashHelperKey(key) }, select: SUMMARY });
   return { ok: true, key, ...row };
