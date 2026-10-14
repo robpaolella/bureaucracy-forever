@@ -11,3 +11,8 @@ function isOn(value: string | undefined): boolean {
 export function lootEnabled(env: Record<string, string | undefined> = process.env): boolean {
   return isOn(env.LOOT_ENABLED);
 }
+
+/** The loot helper's API (ADDON-SPEC section 7). Off unless ADDON_HELPER_ENABLED is set; staging first. */
+export function helperEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return isOn(env.ADDON_HELPER_ENABLED);
+}

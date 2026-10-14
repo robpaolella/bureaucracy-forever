@@ -13,7 +13,7 @@ sync messages, boss attribution and copy-out text.
 Words: **site** is this app; **add-on** runs inside the game; **helper** runs on an
 officer's computer and moves data between the two; **officer** is a member whose Discord
 roles give officer access (`lib/auth/roles.ts`). Times are UTC, written as Unix seconds
-in the add-on's data and ISO 8601 (`...Z`) in the helper API. The site shows guild time.
+in the add-on's data and in the helper API. The site shows guild time.
 
 ## 1. How the pieces talk
 
@@ -428,13 +428,20 @@ latest add-on version and link for this). The site accepts the versions it lists
 Routes under `/api/helper/`. JSON in and out, `Cache-Control: no-store`, errors as
 `{ "error": "<plain sentence>", "code": "<machine code>" }` like the loot log.
 
+The API sits behind the site's `ADDON_HELPER_ENABLED` switch: on for staging, off in
+production until the chain test passes. While it is off every route answers `404`
+`not-enabled`. Every request then passes the same checks, in this order: an address over
+the failed-authentication limit (`429`), the body size (`413` `too-large`), the key
+(7.2: `401` `bad-key`, `403` `not-officer`) and the key's request rate (`429`
+`rate-limited`). The limits are in 7.6.
+
 ### 7.1 Endpoints
 
 | Route | Purpose |
 | --- | --- |
-| `GET /api/helper/me` | Checks the key. Answers `{ officer, env, formatVersions, addon: { version, url } }`. |
+| `GET /api/helper/me` | Checks the key. Answers `{ officer, env, formatVersions, addon: { version, url } }`. `officer` is the key owner's Discord name, a string, for the helper's "Connected as <name>"; `env` is this site's environment (section 2). |
 | `GET /api/helper/raids` | The raids list (7.5). |
-| `GET /api/helper/raids/{raid}/snapshot` | The snapshot as a data tree in JSON (`{ "formatVersion": 1, ... }` with the fields of 3.1; `reserves` keyed by item id as strings). The helper writes the inbox file from it and its siblings (7.3) and can also show the pasted-text form. |
+| `GET /api/helper/raids/{raid}/snapshot` | The snapshot as a data tree in JSON (`{ "formatVersion": 1, ... }` with the fields of 3.1; `reserves` keyed by item id as strings). The helper writes the inbox file from it and its siblings (7.3) and can also show the pasted-text form. A raid the site doesn't hold is `404` `unknown-raid`; a cancelled one `409` `raid-cancelled`. |
 | `GET /api/helper/raids/{raid}/catchup` | The raid's catch-up (3.4) as JSON, with the same fields. The helper writes it into the inbox beside the snapshot (7.3). |
 | `POST /api/helper/operations` | Body `{ "operations": [ ... ] }`, each as in section 4. Answers `{ "results": [ { "id", "status", "code?" } ] }` in the same order. |
 | `GET /api/helper/raids/{raid}/problems` | Records the site rejected or is holding for this raid (7.4). |
@@ -462,6 +469,11 @@ if some operations were rejected or pending; the status words carry the outcome.
   recorded officer is the key's owner, always; `sender` is stored as a claim. The audit
   trail is the point, since awards are never deleted and any can be voided.
 - A key works in one environment: the one that issued it.
+- **The other site.** Keys and raid ids exist only in the database of the site that made
+  them, so the API needs no separate environment refusal: a key from the other site is
+  `401` `bad-key`, and a raid id the site doesn't hold, including one from the other site,
+  is `404` `unknown-raid`, each with the usual error body. Inside an upload, a record
+  whose `env` is not the site's is the per-operation `wrong-environment` (section 2, 4.2).
 
 ### 7.3 The inbox file
 
@@ -530,15 +542,16 @@ the same. Reporting is the whole response: nothing is auto-resolved.
 
 **soonest first** (`startsAt` ascending, so an under-way raid is first). The site has no
 per-officer raids, so it is every such raid for any officer. Each entry is
-`{ id, code, name, startsAt, durationMin, instance, hasLootTable }`, where `instance` is
-the integer of 3.1 (absent when the raid template has none). The helper writes a snapshot
+`{ id, code, name, startsAt, durationMin, instance, hasLootTable }`, where `startsAt` is
+Unix seconds as in the snapshot and `instance` is the integer of 3.1 (absent when the raid
+template has none). The helper writes a snapshot
 and catch-up into the inbox for every entry; which raid is active is the add-on's
 choice (2.1). A raid without a loot table is listed, flagged
 `hasLootTable: false`; its snapshot has no bosses.
 
-### 7.6 Limits (proposed — for Robert to confirm)
+### 7.6 Limits
 
-These numbers are the spec author's proposals, each with its reason.
+Robert accepted these numbers (addon#3 change log, 2026-10-13).
 
 | Limit | Value | Reason |
 | --- | --- | --- |
@@ -550,7 +563,9 @@ These numbers are the spec author's proposals, each with its reason.
 | Failed authentications | 10 per minute per address | Slows key guessing. Address from `clientAddress`. |
 
 Over a limit the site answers `413` (size) or `429` with `Retry-After` (rate), and the
-helper backs off. `rateLimited` is per server instance and best effort: the real guard
+helper backs off. After 10 failed authentications in a minute, every request from that
+address gets `429` until the minute is up, valid keys included, so a guess can't be
+confirmed. `rateLimited` is per server instance and best effort: the real guard
 against double recording is that every operation is idempotent (4.2).
 
 ## 8. Parsing
