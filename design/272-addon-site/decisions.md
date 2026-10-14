@@ -1,7 +1,7 @@
 # Design decisions: the site's pieces for the loot add-on and helper
 
-- Design issue: #272; covered build issues: #274, #275, #276, #280, #293 (added 2026-10-13 by the conductor after Robert's answer B on #289) (plus a not-yet-filed helper-download follow-up)
-- Revision: 1; replaces: none
+- Design issue: #272; covered build issues: #274, #275, #276, #280, #293 (added 2026-10-13 by the conductor after Robert's answer B on #289), #297, #298, #299 and #300 (added in revision 2) (plus a not-yet-filed helper-download follow-up)
+- Revision: 2; replaces: revision 1. Coverage only: adds split-off build issues #297–#300; no design changes. Robert's approval of version A on 2026-10-14 ("A looks good.") stands.
 - Maker: claude-bridge/claude-opus-5-5 (Opus 5.5), thinking medium; sessions design-272, design-272-2 and design-272-3
 
 ## Choice and approval
