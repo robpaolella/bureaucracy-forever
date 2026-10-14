@@ -24,6 +24,8 @@ export type Snapshot = {
   name: string;
   startsAt: number;
   durationMin: number;
+  /** The raid template's in-game instance id; absent when it has none (section 3.1). */
+  instance?: number;
   generated: number;
   addon: { version: string; url: string };
   bosses: SnapshotBoss[];
@@ -36,7 +38,7 @@ export type Snapshot = {
 export const ADDON_PLACEHOLDER = { version: '', url: `${ADDON_RELEASES_URL}/latest` };
 
 export type SnapshotInput = {
-  raid: { id: string; name: string; startsAt: Date; durationMin: number };
+  raid: { id: string; name: string; startsAt: Date; durationMin: number; /** From the template; null or absent when not set. */ instance?: number | null };
   env: SiteEnv;
   now: Date;
   /** The latest add-on version and where to get it; the placeholder when omitted. */
@@ -82,6 +84,7 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
     name: raid.name,
     startsAt: seconds(raid.startsAt),
     durationMin: raid.durationMin,
+    ...(raid.instance ? { instance: raid.instance } : {}),
     generated: seconds(now),
     addon: { ...(input.addon ?? ADDON_PLACEHOLDER) },
     bosses: input.bosses,
@@ -92,7 +95,7 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
 
 /** A raid's snapshot from the database, or null when the raid doesn't exist. */
 export async function loadSnapshot(raidId: string, now: Date = new Date()): Promise<Snapshot | null> {
-  const raid = await db.raid.findUnique({ where: { id: raidId }, select: { id: true, name: true, startsAt: true, durationMin: true, templateId: true } });
+  const raid = await db.raid.findUnique({ where: { id: raidId }, select: { id: true, name: true, startsAt: true, durationMin: true, templateId: true, template: { select: { instance: true } } } });
   if (!raid) return null;
   const [table, reserves, awards, addon] = await Promise.all([
     raid.templateId ? loadLootTable(raid.templateId) : null,
@@ -109,7 +112,7 @@ export async function loadSnapshot(raidId: string, now: Date = new Date()): Prom
     select: { characterId: true, itemId: true },
   });
   return buildSnapshot({
-    raid,
+    raid: { ...raid, instance: raid.template?.instance },
     env: isStagingDeployment() ? 'staging' : 'production',
     now,
     addon,

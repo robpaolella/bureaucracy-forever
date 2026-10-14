@@ -4,12 +4,28 @@
  */
 import { parseRequirements, totalCounts, type RoleCounts } from '@/lib/raids';
 
-export type TemplateInput = { name: string; short: string; size: number; durationMin: number; requirements: RoleCounts; active: boolean };
+export type TemplateInput = { name: string; short: string; size: number; durationMin: number; requirements: RoleCounts; active: boolean; /** The in-game instance id (GetInstanceInfo), or null when not set. */ instance: number | null };
 export type SeriesInput = { templateId: string; weekday: number; startTime: string; durationMin: number; notes: string; postAheadDays: number; lockMinutesBefore: number; horizonWeeks: number; active: boolean };
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
 const int = (v: unknown) => (typeof v === 'number' ? v : Number(v));
+/** The column is a 32-bit integer. */
+const INSTANCE_MAX = 2_147_483_647;
+export const INSTANCE_ERROR = 'The instance number is a whole number above 0, or leave it blank.';
+
+/** Blank (or missing) means not set; anything else must be a whole number from 1 up. */
+function parseInstance(v: unknown): { ok: true; value: number | null } | { ok: false } {
+  if (v === undefined || v === null) return { ok: true, value: null };
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (t === '') return { ok: true, value: null };
+    if (!/^\d+$/.test(t)) return { ok: false };
+    v = Number(t);
+  }
+  return typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= INSTANCE_MAX ? { ok: true, value: v } : { ok: false };
+}
+
 const inRange = (n: number, lo: number, hi: number) => Number.isInteger(n) && n >= lo && n <= hi;
 
 export function parseTemplateInput(body: unknown): Parsed<TemplateInput> {
@@ -24,7 +40,9 @@ export function parseTemplateInput(body: unknown): Parsed<TemplateInput> {
   if (!inRange(durationMin, 30, 480) || durationMin % 15 !== 0) return { ok: false, error: 'Length is 30 to 480 minutes, in quarter hours.' };
   const requirements = parseRequirements(b.requirements);
   if (totalCounts(requirements) !== size) return { ok: false, error: `The four requirements must add up to ${size}.` };
-  return { ok: true, value: { name, short, size, durationMin, requirements, active: b.active !== false } };
+  const instance = parseInstance(b.instance);
+  if (!instance.ok) return { ok: false, error: INSTANCE_ERROR };
+  return { ok: true, value: { name, short, size, durationMin, requirements, active: b.active !== false, instance: instance.value } };
 }
 
 export function parseSeriesInput(body: unknown): Parsed<SeriesInput> {
