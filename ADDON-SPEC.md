@@ -558,7 +558,7 @@ auto-resolved. The answer is JSON, not cached (section 7):
 | --- | --- |
 | `raid`, `generated` | The raid id; when the site built the answer, Unix seconds |
 | `rejected[]` | Operations the site refused for this raid, oldest first: `{ id, code, type?, key?, at }`. `code` is a section 4 code (most often `key-conflict`); a `wrong-environment` record for a raid this site holds is listed with the rest. `type` and `key` are the record's own, left out when it gave none. `at` is when the site received it, Unix seconds |
-| `pending[]` | Operations kept waiting for an award the site doesn't hold, oldest first: `{ id, type, key, at }`. `type` is `award`, `confirm`, `not-confirmed`, `void` or `replace`; `key` is the award it names |
+| `pending[]` | Operations kept waiting for an award the site doesn't hold, oldest first: `{ id, type, key, at }`. `type` is `award`, `confirm`, `not-confirmed`, `void` or `replace`; `key` is the award it names; `at` is the operation's own game time (section 4) |
 
 Both lists are empty for a raid with no problems. A cancelled raid still answers, since its
 refused uploads (`raid-cancelled`) are listed here; a raid the site doesn't hold is the usual

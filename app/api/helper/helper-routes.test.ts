@@ -224,7 +224,7 @@ describe('GET /api/helper/raids/[raid]/problems', () => {
       { opId: 'op_addon_0001', code: 'key-conflict', payload: { type: 'award', key: 'op_addon_0001' }, receivedAt: new Date(1_000_000) },
       { opId: 'op_addon_0002', code: 'wrong-environment', payload: { type: 'award', key: 'op_addon_0002' }, receivedAt: new Date(1_100_000) },
     ]);
-    mocks.ops.mockResolvedValue([{ opId: 'op_void_0001', type: 'VOID', key: 'op_gone_0001', receivedAt: new Date(2_000_000) }]);
+    mocks.ops.mockResolvedValue([{ opId: 'op_void_0001', type: 'VOID', key: 'op_gone_0001', at: new Date(1_900_000), receivedAt: new Date(2_000_000) }]);
     const res = await getProblems('r1');
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('private, no-store');
@@ -235,7 +235,7 @@ describe('GET /api/helper/raids/[raid]/problems', () => {
         { id: 'op_addon_0001', code: 'key-conflict', type: 'award', key: 'op_addon_0001', at: 1000 },
         { id: 'op_addon_0002', code: 'wrong-environment', type: 'award', key: 'op_addon_0002', at: 1100 },
       ],
-      pending: [{ id: 'op_void_0001', type: 'void', key: 'op_gone_0001', at: 2000 }],
+      pending: [{ id: 'op_void_0001', type: 'void', key: 'op_gone_0001', at: 1900 }],
     });
     expect(mocks.ops.mock.calls.at(-1)?.[0].where).toMatchObject({ raidId: 'r1', status: 'PENDING' });
     expect(mocks.rejections.mock.calls.at(-1)?.[0].where).toEqual({ raidId: 'r1' });

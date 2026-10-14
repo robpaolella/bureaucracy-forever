@@ -18,7 +18,7 @@ export type ProblemsInput = {
   /** Oldest first. */
   rejections: { opId: string; code: string; payload: unknown; receivedAt: Date }[];
   /** Oldest first. */
-  pending: { opId: string; type: 'AWARD' | 'CONFIRM' | 'NOT_CONFIRMED' | 'VOID' | 'REPLACE'; key: string; receivedAt: Date }[];
+  pending: { opId: string; type: 'AWARD' | 'CONFIRM' | 'NOT_CONFIRMED' | 'VOID' | 'REPLACE'; key: string; at: Date; receivedAt: Date }[];
 };
 
 const seconds = (d: Date) => Math.floor(d.getTime() / 1000);
@@ -40,7 +40,7 @@ export function buildProblems(input: ProblemsInput): Problems {
       const key = text(r.payload, 'key');
       return { id: r.opId, code: r.code, ...(type ? { type } : {}), ...(key ? { key } : {}), at: seconds(r.receivedAt) };
     }),
-    pending: input.pending.map((p): ProblemPending => ({ id: p.opId, type: TYPES[p.type], key: p.key, at: seconds(p.receivedAt) })),
+    pending: input.pending.map((p): ProblemPending => ({ id: p.opId, type: TYPES[p.type], key: p.key, at: seconds(p.at) })),
   };
 }
 
@@ -56,7 +56,7 @@ export async function loadProblems(raidId: string, now: Date = new Date()): Prom
     db.lootOperation.findMany({
       where: { raidId, status: 'PENDING' },
       orderBy: [{ receivedAt: 'asc' }, { id: 'asc' }],
-      select: { opId: true, type: true, key: true, receivedAt: true },
+      select: { opId: true, type: true, key: true, at: true, receivedAt: true },
     }),
   ]);
   if (!raid) return null;

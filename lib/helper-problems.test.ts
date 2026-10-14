@@ -33,17 +33,17 @@ describe('buildProblems', () => {
   it('lists pending operations by their kind', () => {
     const { pending } = build({
       pending: [
-        { opId: 'op_a', type: 'VOID', key: 'op_gone_0001', receivedAt: t(2000) },
-        { opId: 'op_b', type: 'CONFIRM', key: 'op_gone_0002', receivedAt: t(2100) },
-        { opId: 'op_c', type: 'NOT_CONFIRMED', key: 'op_gone_0003', receivedAt: t(2200) },
-        { opId: 'op_d', type: 'REPLACE', key: 'op_gone_0004', receivedAt: t(2300) },
+        { opId: 'op_a', type: 'VOID', key: 'op_gone_0001', at: t(1500), receivedAt: t(2000) },
+        { opId: 'op_b', type: 'CONFIRM', key: 'op_gone_0002', at: t(1600), receivedAt: t(2100) },
+        { opId: 'op_c', type: 'NOT_CONFIRMED', key: 'op_gone_0003', at: t(1700), receivedAt: t(2200) },
+        { opId: 'op_d', type: 'REPLACE', key: 'op_gone_0004', at: t(1800), receivedAt: t(2300) },
       ],
     });
     expect(pending.map((p) => [p.id, p.type, p.key, p.at])).toEqual([
-      ['op_a', 'void', 'op_gone_0001', 2000],
-      ['op_b', 'confirm', 'op_gone_0002', 2100],
-      ['op_c', 'not-confirmed', 'op_gone_0003', 2200],
-      ['op_d', 'replace', 'op_gone_0004', 2300],
+      ['op_a', 'void', 'op_gone_0001', 1500],
+      ['op_b', 'confirm', 'op_gone_0002', 1600],
+      ['op_c', 'not-confirmed', 'op_gone_0003', 1700],
+      ['op_d', 'replace', 'op_gone_0004', 1800],
     ]);
   });
 });
