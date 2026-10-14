@@ -32,8 +32,8 @@ beforeEach(() => {
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
-const render = async (t = table(), awards: Parameters<typeof LootLog>[0]['awards'] = []) =>
-  act(async () => root.render(<ToastHost><LootLog raidId="raid" templateId="tpl" templateName="Onyxia’s Lair" table={t} reserves={[]} candidates={candidates} raidAwards={[]} hrAwards={[]} awards={awards} /></ToastHost>));
+const render = async (t = table(), awards: Parameters<typeof LootLog>[0]['awards'] = [], reserves: Parameters<typeof LootLog>[0]['reserves'] = [], raidAwards: Parameters<typeof LootLog>[0]['raidAwards'] = []) =>
+  act(async () => root.render(<ToastHost><LootLog raidId="raid" templateId="tpl" templateName="Onyxia’s Lair" table={t} reserves={reserves} candidates={candidates} raidAwards={raidAwards} hrAwards={[]} awards={awards} /></ToastHost>));
 const select = (label: string) => [...host.querySelectorAll('select')].find((s) => host.querySelector(`label[for="${s.id}"]`)?.textContent === label)!;
 const choose = async (el: HTMLSelectElement, value: string) => act(async () => { el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); });
 const type = async (value: string) => act(async () => {
@@ -187,5 +187,26 @@ describe('LootLog unlisted drop', () => {
     expect(host.querySelector('a')!.textContent).toBe(copy.tableLink('Onyxia’s Lair'));
     expect(host.textContent).toContain(LOOT_LOG.listEmpty);
     expect(host.querySelector('select')).toBeNull();
+  });
+});
+
+describe('LootLog add-on bar', () => {
+  const holder = (n: number) => ({ userId: `u${n}`, name: `m${n}`, characterId: `c${n}`, characterName: `C${n}`, wowClass: 'shaman' as const, itemId: 1, kind: 'SR' as const, onTrial: n === 2 });
+
+  it('counts every holder entry and only live awards', async () => {
+    await render(table(), [], [holder(1), holder(2), holder(3)], [{ id: 'a1', itemId: 1, userId: 'u1' }, { id: 'a2', itemId: 2, userId: null }]);
+    expect(host.textContent).toContain('Includes 3 reserves and 2 awards so far.');
+  });
+
+  it('sits above the record form', async () => {
+    await render();
+    const bar = [...host.querySelectorAll('h3')].find((h) => h.textContent === LOOT_LOG.addon.heading)!;
+    expect(bar.compareDocumentPosition(host.querySelector('form')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('has no add-on controls when the tier has no bosses', async () => {
+    await render({ bosses: [], items: {}, blocked: [] });
+    expect(host.textContent).not.toContain(LOOT_LOG.addon.heading);
+    expect(host.textContent).toContain(LOOT_LOG.unlisted.noBosses);
   });
 });
