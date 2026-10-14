@@ -74,12 +74,13 @@ async function writeBatch(tx: Tx, { raidId, operations, env, officerId, received
     return award.user !== null && award.user !== character.userId ? 'user-mismatch' : null;
   };
 
-  // An award the batch itself carries; any other came from a replacement held by an earlier batch.
-  const carried = new Set(operations.flatMap((o) => (o.type === 'award' ? [o.id] : o.type === 'replace' ? [o.award.id] : [])));
+  // The awards this batch itself carries, by identity: another award with the same id (a refused clash) is not one, and a
+  // replacement held from an earlier batch comes from that batch's stored copy.
+  const carried = new Set(operations.flatMap((o) => (o.type === 'award' ? [o] : o.type === 'replace' ? [o.award] : [])));
   for (const op of operations) {
     const { outcome, changes } = applyOperation(state, op, { env, check }, { officerId, now: receivedAt });
     if (outcome.status === 'rejected') await keepRejection(tx, op, outcome.code, officerId, receivedAt);
-    for (const change of changes) await save(tx, raidId, change, names, receivedAt, change.kind === 'award' && !carried.has(change.award.id) ? null : via);
+    for (const change of changes) await save(tx, raidId, change, names, receivedAt, change.kind === 'award' && !carried.has(change.award) ? null : via);
     results.push({ id: op.id, ...outcome });
   }
   return results;

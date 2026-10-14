@@ -163,6 +163,12 @@ describe.skipIf(process.env.ADDON_BATCH_INTEGRATION !== '1')('writing add-on ope
     expect((await awards()).map((a) => [a.requestKey, a.recordedById, a.deliveredVia])).toEqual([[NEW_AWARD.id, 'officer-2', null], [AWARD.id, 'officer-1', 'HELPER']]);
   });
 
+  it('does the same when a clashing award with the held replacement\'s id arrives with the original', async () => {
+    await write([REPLACE], { via: 'import' });
+    expect(statuses(await write([AWARD, { ...NEW_AWARD, item: 17011 }], { via: 'helper' }))).toEqual(['voided', 'key-conflict']);
+    expect((await awards()).map((a) => [a.requestKey, a.deliveredVia])).toEqual([[NEW_AWARD.id, null], [AWARD.id, 'HELPER']]);
+  });
+
   it('does the same when one officer sent both batches', async () => {
     await write([REPLACE], { via: 'import' });
     await write([AWARD], { via: 'helper' });
