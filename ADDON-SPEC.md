@@ -546,10 +546,23 @@ loads no inbox raids.
 
 ### 7.4 Problems
 
-`GET .../problems` lists, for the raid: operations rejected with their code (most often
-`key-conflict`), pending voids/confirmations/replacements with no award yet, and awards
-held for a different environment. The helper shows them; the site's officer log shows
-the same. Reporting is the whole response: nothing is auto-resolved.
+`GET .../problems` lists, for the raid, what the site rejected or is holding. The helper
+shows it; the site's officer log shows the same. Reporting is the whole response: nothing is
+auto-resolved. The answer is JSON, not cached (section 7):
+
+```
+{ formatVersion, raid, generated, rejected: [ ... ], pending: [ ... ] }
+```
+
+| Field | Meaning |
+| --- | --- |
+| `raid`, `generated` | The raid id; when the site built the answer, Unix seconds |
+| `rejected[]` | Operations the site refused for this raid, oldest first: `{ id, code, type?, key?, at }`. `code` is a section 4 code (most often `key-conflict`); a `wrong-environment` record for a raid this site holds is listed with the rest. `type` and `key` are the record's own, left out when it gave none. `at` is when the site received it, Unix seconds |
+| `pending[]` | Operations kept waiting for an award the site doesn't hold, oldest first: `{ id, type, key, at }`. `type` is `award`, `confirm`, `not-confirmed`, `void` or `replace`; `key` is the award it names |
+
+Both lists are empty for a raid with no problems. A cancelled raid still answers, since its
+refused uploads (`raid-cancelled`) are listed here; a raid the site doesn't hold is the usual
+404 `unknown-raid`.
 
 ### 7.5 The raids list
 
