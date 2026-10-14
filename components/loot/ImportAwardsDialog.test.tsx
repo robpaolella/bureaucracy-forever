@@ -145,7 +145,11 @@ describe('ImportAwardsDialog failures', () => {
     expect(host.textContent).toContain(copy.failedDetail);
     expect(box().value).toBe('BFLOOT1 text');
     expect(button(copy.submit).disabled).toBe(false);
-    expect(onChanged).not.toHaveBeenCalled();
+  });
+
+  it('refreshes the log behind after a server error, since earlier batches may have been recorded', async () => {
+    await importIt(answer(500, { error: 'x' }));
+    expect(onChanged).toHaveBeenCalledTimes(1);
   });
 
   it('treats a network failure the same way, and can be pressed again', async () => {

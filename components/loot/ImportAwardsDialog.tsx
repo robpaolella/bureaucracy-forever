@@ -55,6 +55,8 @@ export function ImportAwardsDialog({ open, onClose, raidId, items, staging, onCh
     }
     setBusy(false);
     if (result.kind === 'failed') {
+      // A server error can come after earlier batches were recorded, so the log behind may have new rows.
+      onChanged();
       setOutcome(null);
       setToast({ tone: 'stop', title: copy.failedTitle, detail: copy.failedDetail });
       return;
