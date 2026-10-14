@@ -41,6 +41,7 @@ describe('isActive', () => {
       'Raid management',
       'Recruitment management',
       'Loot tables',
+      'In-game addon',
     ]);
   });
 });

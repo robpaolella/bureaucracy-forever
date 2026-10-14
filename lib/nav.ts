@@ -37,4 +37,6 @@ export const OFFICER_LINKS = {
   needs: { href: '/officers/needs', label: 'Recruitment management' },
   /** Shown only while LOOT_ENABLED is on (Session.loot). */
   lootTables: { href: '/officers/loot', label: 'Loot tables' },
+  /** Shown only while LOOT_ENABLED is on (Session.loot). */
+  addon: { href: '/officers/addon', label: 'In-game addon' },
 } satisfies Record<string, NavItem>;
