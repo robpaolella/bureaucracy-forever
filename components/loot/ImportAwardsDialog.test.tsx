@@ -139,16 +139,22 @@ describe('ImportAwardsDialog whole-paste refusals', () => {
 });
 
 describe('ImportAwardsDialog failures', () => {
-  it.each([['a server error', answer(500, { error: 'x' })], ['a missing raid', answer(404, { error: 'x' })]])('keeps the window and text after %s', async (_, reply) => {
-    await importIt(reply);
+  it('keeps the window and text after a missing raid, and refreshes nothing', async () => {
+    await importIt(answer(404, { error: 'x' }));
     expect(host.textContent).toContain(copy.failedTitle);
     expect(host.textContent).toContain(copy.failedDetail);
+    expect(onChanged).not.toHaveBeenCalled();
     expect(box().value).toBe('BFLOOT1 text');
     expect(button(copy.submit).disabled).toBe(false);
   });
 
-  it('refreshes the log behind after a server error, since earlier batches may have been recorded', async () => {
+  it('says a server error stopped part-way, keeps the text and refreshes the log behind', async () => {
     await importIt(answer(500, { error: 'x' }));
+    expect(host.textContent).toContain(copy.stoppedTitle);
+    expect(copy.stoppedTitle).toBe('The import stopped part-way. Awards already in the loot log were recorded; press Import again to finish.');
+    expect(host.textContent).not.toContain(copy.failedTitle);
+    expect(box().value).toBe('BFLOOT1 text');
+    expect(button(copy.submit).disabled).toBe(false);
     expect(onChanged).toHaveBeenCalledTimes(1);
   });
 

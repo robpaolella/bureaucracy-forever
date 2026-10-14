@@ -129,6 +129,7 @@ export const LOOT_LOG = {
     wrongRaid: 'For another raid.',
     otherSite: (env: string) => `From the other site (${env}).`,
     failedTitle: 'Nothing was imported.',
+    stoppedTitle: 'The import stopped part-way. Awards already in the loot log were recorded; press Import again to finish.',
     failedDetail: 'Press Import again. Nothing will be recorded twice.',
   },
 };

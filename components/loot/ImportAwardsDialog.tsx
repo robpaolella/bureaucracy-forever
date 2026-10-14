@@ -54,11 +54,13 @@ export function ImportAwardsDialog({ open, onClose, raidId, items, staging, onCh
       result = { kind: 'failed' };
     }
     setBusy(false);
-    if (result.kind === 'failed') {
-      // A server error can come after earlier batches were recorded, so the log behind may have new rows.
-      onChanged();
+    if (result.kind === 'failed' || result.kind === 'stopped') {
       setOutcome(null);
-      setToast({ tone: 'stop', title: copy.failedTitle, detail: copy.failedDetail });
+      if (result.kind === 'stopped') {
+        // Earlier batches of the paste were recorded, so the log behind may have new rows.
+        onChanged();
+        setToast({ tone: 'stop', title: copy.stoppedTitle });
+      } else setToast({ tone: 'stop', title: copy.failedTitle, detail: copy.failedDetail });
       return;
     }
     setOutcome(result);

@@ -38,7 +38,12 @@ describe('readImportResponse', () => {
     expect(readImportResponse(413, { error: 'big' })).toEqual({ kind: 'unreadable', code: 'too-large' });
   });
 
-  it.each([[404, { error: 'No such raid.' }], [500, { error: 'x' }], [400, { error: 'Send the copied text' }], [200, null]])('treats %s as a failure', (status, body) => {
+  it('treats a server error as stopped part-way', () => {
+    expect(readImportResponse(500, { error: 'x' })).toEqual({ kind: 'stopped' });
+    expect(readImportResponse(503, null)).toEqual({ kind: 'stopped' });
+  });
+
+  it.each([[404, { error: 'No such raid.' }], [400, { error: 'Send the copied text' }], [200, null]])('treats %s as a failure', (status, body) => {
     expect(readImportResponse(status, body)).toEqual({ kind: 'failed' });
   });
 });
