@@ -481,7 +481,7 @@ Rules for the serializer (the only code that writes this file):
    it).
 5. Depth is at most 8 (a holder inside the inbox is 7 deep), strings at most 200 bytes, one
    raid's entry (snapshot and catch-up) at most 200,000 bytes and the file at most
-   600,000 (room for three busy raids). Over a limit, the helper refuses to write, keeps
+   700,000 (three raids at the entry limit, plus the wrapper). Over a limit, the helper refuses to write, keeps
    the old file and shows the officer an error naming the raid or the size; it never
    truncates or leaves a raid out.
 6. The helper re-reads what it wrote with the parser of section 8 before replacing the
