@@ -182,6 +182,7 @@ model User {
   decisions       Application[] @relation("applicationDecidedBy")
   reserves        Reserve[]
   lootAwards      LootAward[]
+  helperKeys      HelperKey[]
   createdAt       DateTime      @default(now())
 }
 
@@ -612,4 +613,21 @@ model LootOperationRejection {
   receivedAt    DateTime @default(now())
 
   @@index([raidId])
+}
+
+/// An officer's key for the loot helper (ADDON-SPEC section 7.2). Only the key's SHA-256
+/// hash is stored; the key itself is shown once, at creation (lib/helper-keys.ts).
+/// Revoking keeps the row and sets `revokedAt`.
+model HelperKey {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  /// Hex SHA-256 of the whole key, `bfh_` prefix included. Lookup is by this.
+  keyHash    String    @unique
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  @@index([userId])
 }
