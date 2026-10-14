@@ -40,16 +40,17 @@ export type ImportOutcome =
   | { kind: 'results'; summary: ImportSummary }
   /** The whole paste was refused; nothing was recorded. */
   | { kind: 'unreadable'; code: string; line?: number }
-  /** Network or missing raid: nothing was recorded. */
+  /** The server's answer proves nothing was recorded (a missing raid, a bad request). */
   | { kind: 'failed' }
-  /** The server stopped part-way: earlier batches of the paste may be recorded. */
+  /** A server error, an unreadable answer or a dropped connection: earlier batches of the paste may be recorded. */
   | { kind: 'stopped' };
 
-/** Reads the import route's answer; anything it doesn't expect is a failure the officer can retry, a 5xx one that may have recorded part of the paste. */
+/** Reads the import route's answer; anything it doesn't expect is a failure the officer can retry, a 4xx one that recorded nothing, anything else one that may have recorded part of the paste. */
 export function readImportResponse(status: number, body: unknown): ImportOutcome {
   const json = (typeof body === 'object' && body !== null ? body : {}) as { results?: unknown; code?: unknown; line?: unknown };
   if (status === 200 && Array.isArray(json.results)) return { kind: 'results', summary: summarize(json.results as ImportResult[]) };
   if (status === 413) return { kind: 'unreadable', code: 'too-large' };
   if (status === 400 && typeof json.code === 'string') return { kind: 'unreadable', code: json.code, line: typeof json.line === 'number' ? json.line : undefined };
-  return status >= 500 ? { kind: 'stopped' } : { kind: 'failed' };
+  // A 4xx proves the paste was refused before anything was applied; anything else may have recorded part of it.
+  return status >= 400 && status < 500 ? { kind: 'failed' } : { kind: 'stopped' };
 }

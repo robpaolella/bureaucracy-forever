@@ -51,7 +51,8 @@ export function ImportAwardsDialog({ open, onClose, raidId, items, staging, onCh
       const res = await fetch(`/api/raids/${raidId}/loot/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ text }) });
       result = readImportResponse(res.status, await res.json().catch(() => null));
     } catch {
-      result = { kind: 'failed' };
+      // The connection can drop after the server recorded earlier batches.
+      result = { kind: 'stopped' };
     }
     setBusy(false);
     if (result.kind === 'failed' || result.kind === 'stopped') {

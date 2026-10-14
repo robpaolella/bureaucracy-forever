@@ -158,11 +158,14 @@ describe('ImportAwardsDialog failures', () => {
     expect(onChanged).toHaveBeenCalledTimes(1);
   });
 
-  it('treats a network failure the same way, and can be pressed again', async () => {
+  it('treats a dropped connection like a server error: stopped wording, text kept, log refreshed, and can be pressed again', async () => {
     fetcher.mockRejectedValueOnce(new Error('offline'));
     await render(); await type('BFLOOT1 text');
     await act(async () => { button(copy.submit).click(); });
-    expect(host.textContent).toContain(copy.failedTitle);
+    expect(host.textContent).toContain(copy.stoppedTitle);
+    expect(host.textContent).not.toContain(copy.failedTitle);
+    expect(box().value).toBe('BFLOOT1 text');
+    expect(onChanged).toHaveBeenCalledTimes(1);
     fetcher.mockResolvedValueOnce(answer(200, { results: [r('recorded')] }));
     await act(async () => { button(copy.submit).click(); });
     expect(host.textContent).toContain(copy.imported(1));

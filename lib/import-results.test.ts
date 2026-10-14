@@ -43,7 +43,11 @@ describe('readImportResponse', () => {
     expect(readImportResponse(503, null)).toEqual({ kind: 'stopped' });
   });
 
-  it.each([[404, { error: 'No such raid.' }], [400, { error: 'Send the copied text' }], [200, null]])('treats %s as a failure', (status, body) => {
+  it('treats a 200 that holds no results as stopped, since the server accepted the paste', () => {
+    expect(readImportResponse(200, null)).toEqual({ kind: 'stopped' });
+  });
+
+  it.each([[404, { error: 'No such raid.' }], [400, { error: 'Send the copied text' }], [403, null]])('treats %s as a failure that recorded nothing', (status, body) => {
     expect(readImportResponse(status, body)).toEqual({ kind: 'failed' });
   });
 });
