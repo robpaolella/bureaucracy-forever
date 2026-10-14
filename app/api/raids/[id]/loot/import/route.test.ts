@@ -83,6 +83,17 @@ describe('POST /api/raids/[id]/loot/import', () => {
     expect(mocks.write).not.toHaveBeenCalled();
   });
 
+  it('does not refuse a valid text under the limit whose JSON form is longer than 64 KiB', async () => {
+    const lines = Array.from({ length: 1200 }, (_, i) => `V;vd-${String(i).padStart(8, '0')};aw-00000001;${'"'.repeat(10)};${1792001200 + i};`);
+    const text = textOf(lines);
+    const body = JSON.stringify({ text });
+    expect(new TextEncoder().encode(text).length).toBeLessThan(64 * 1024);
+    expect(body.length).toBeGreaterThan(64 * 1024 + 1024);
+    const res = await POST(new Request('https://example.test', { method: 'POST', headers: { 'content-length': String(body.length) }, body }), { params: Promise.resolve({ id: RAID }) });
+    expect(res.status).toBe(200);
+    expect((await res.json()).results).toHaveLength(1200);
+  });
+
   it('refuses a body that is not { text }', async () => {
     expect((await send('nope')).status).toBe(400);
     expect((await send({ text: 5 })).status).toBe(400);

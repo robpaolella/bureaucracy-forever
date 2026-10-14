@@ -18,7 +18,7 @@ const EXAMPLE = [
   `BFOUT1;${RAID};SA0001;staging`,
   'A;aw-7f3k2m9q;lb_lucifron;16805;Ana Vale;u_ana;HR;91;;Rae Quill;1792001200;',
   'K;cf-1x8p4d2s;aw-7f3k2m9q;1792001204;',
-  'A;aw-8d3c5n2a;lb_lucifron;16805;Dee Holt;u_dee;OPEN_ROLL;64;;Rae Quill;1792001230;',
+  'A;aw-8d3c5n2a;lb_trash;17011;Dee Holt;u_dee;OPEN_ROLL;64;;Rae Quill;1792001230;',
   'V;vd-5b2n8c1w;aw-8d3c5n2a;wrong winner;1792001260;',
   'R;rp-9c4v6t0e;aw-7f3k2m9q;1792001300;;aw-2h6j9z4b;lb_lucifron;16805;Bo Marsh;u_bo;SR;77;;Rae Quill;1792001300',
   'E;5',
@@ -67,10 +67,13 @@ describe.skipIf(process.env.IMPORT_INTEGRATION !== '1')('importing copy-out text
     await db.raidTemplate.deleteMany();
     await db.lootItem.deleteMany();
     await db.user.deleteMany();
-    await db.lootItem.create({ data: { id: 16805, name: 'Item', quality: 4, icon: 'sample', tooltipHtml: '', source: 'CLASSIC', fetchedAt: new Date() } });
+    for (const id of [16805, 17011]) await db.lootItem.create({ data: { id, name: `Item ${id}`, quality: 4, icon: 'sample', tooltipHtml: '', source: 'CLASSIC', fetchedAt: new Date() } });
     await db.raidTemplate.create({ data: {
       id: 'tier', name: 'tier', short: 'tier', size: 40, requirements: {}, durationMin: 180,
-      lootBosses: { create: { id: 'lb_lucifron', name: 'Lucifron', position: 0, entries: { create: { itemId: 16805, position: 0 } } } },
+      lootBosses: { create: [
+        { id: 'lb_lucifron', name: 'Lucifron', position: 0, entries: { create: { itemId: 16805, position: 0 } } },
+        { id: 'lb_trash', name: 'Trash', position: 1, entries: { create: { itemId: 17011, position: 0 } } },
+      ] },
     } });
     await db.raid.create({ data: { id: RAID, name: 'Raid', startsAt: new Date(), locksAt: new Date(), requirements: {}, templateId: 'tier' } });
     // Dee Holt is not a known character.

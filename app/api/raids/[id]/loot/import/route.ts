@@ -11,6 +11,8 @@ import { NO_STORE } from '../../../../_officer';
 /** ADDON-SPEC 7.6: the text is at most 64 KiB, applied 100 operations at a time. */
 export const MAX_BYTES = 64 * 1024;
 const BATCH = 100;
+/** JSON can spell one byte of text as six (`\u00XX`), so that is the most a body may add before it can't fit. */
+const MAX_BODY = MAX_BYTES * 6 + 1024;
 
 const award = (op: Operation): AwardOperation | null => (op.type === 'award' ? op : op.type === 'replace' ? op.award : null);
 
@@ -34,7 +36,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!await db.raid.findUnique({ where: { id: raidId }, select: { id: true } })) return NextResponse.json({ error: 'No such raid.' }, { status: 404, headers: NO_STORE });
 
   const tooBig = () => NextResponse.json({ error: 'That text is too long to import.' }, { status: 413, headers: NO_STORE });
-  if (Number(request.headers.get('content-length')) > MAX_BYTES + 1024) return tooBig();
+  if (Number(request.headers.get('content-length')) > MAX_BODY) return tooBig();
   const body = await request.json().catch(() => null) as { text?: unknown } | null;
   if (typeof body?.text !== 'string') return NextResponse.json({ error: 'Send the copied text as { text }.' }, { status: 400, headers: NO_STORE });
   if (new TextEncoder().encode(body.text).length > MAX_BYTES) return tooBig();
