@@ -443,6 +443,19 @@ Routes under `/api/helper/`. JSON in and out, `Cache-Control: no-store`, errors 
 `rejected` (with a `code`). HTTP is always `200` when the request itself was valid, even
 if some operations were rejected or pending; the status words carry the outcome. Section 4.2 gives the per-record outcomes.
 
+The upload in detail:
+
+- One request may carry records for several raids. The site applies each raid's records
+  in the order sent, so a void listed before its award is held and then applied (4.2).
+- A record the site can't read (section 8.4) is answered alone: `rejected` with code
+  `bad-record`, or `unsupported-version` (section 6), and `id` as sent, or `null` when it
+  has no string id. It is not kept for the problems list, since the site can't tell which
+  raid it is for.
+- A body that isn't `{ "operations": [ ... ] }` is `400` `bad-request`; more than 100
+  records is `413` `too-large` (7.6). Neither records anything.
+- A failure on the site's side is `500` `server-error`. Records answered before it may
+  already be stored; the helper sends the same upload again, and those come back `replayed`.
+
 The API sits behind the site's `ADDON_HELPER_ENABLED` switch: on for staging, off in
 production until the chain test passes. While it is off every route answers `503` with
 `{ "error": "The helper connection isn't switched on for this site yet.", "code": "helper-off" }`,

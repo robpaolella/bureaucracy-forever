@@ -23,11 +23,11 @@ const sample = (): SnapshotInput => ({
   awards: [{ id: '0001abcd', requestKey: null, bossId: 'lb_trash', itemId: 18861, characterName: 'Dee Holt', userId: 'u_dee', method: 'OPEN_ROLL', roll: 64, voidedAt: null }],
 });
 
-const mocks = vi.hoisted(() => ({ release: vi.fn() }));
+const mocks = vi.hoisted(() => ({ release: vi.fn(), raidExtra: vi.fn(() => ({}) as object) }));
 vi.mock('@/lib/addon-release', async (original) => ({ ...(await original<typeof import('@/lib/addon-release')>()), getAddonRelease: mocks.release }));
 vi.mock('@/lib/db', () => ({
   db: {
-    raid: { findUnique: async () => ({ id: 'cm9xr2k4a0001', name: 'Molten Core - sample', startsAt: new Date(1792000000000), durationMin: 240, templateId: null }) },
+    raid: { findUnique: async () => ({ id: 'cm9xr2k4a0001', name: 'Molten Core - sample', startsAt: new Date(1792000000000), durationMin: 240, templateId: null, ...mocks.raidExtra() }) },
     lootAward: { findMany: async () => [] },
   },
 }));
@@ -60,6 +60,11 @@ describe('buildSnapshot', () => {
     expect(snap).toEqual(expected());
     expect('instance' in snap).toBe(false);
     expect(snap.addon).toEqual(ADDON_PLACEHOLDER);
+  });
+
+  it('carries the template instance number when set, and leaves it out when not', () => {
+    expect(buildSnapshot({ ...sample(), raid: { ...sample().raid, instance: 409 } }).instance).toBe(409);
+    expect('instance' in buildSnapshot({ ...sample(), raid: { ...sample().raid, instance: null } })).toBe(false);
   });
 
   it('carries the add-on version and url from the lookup', () => {
@@ -137,5 +142,14 @@ describe('loadSnapshot', () => {
   it('uses the placeholder when there is no release or none was seen', async () => {
     expect((await load({ status: 'none' })).addon).toEqual(placeholder);
     expect((await load({ status: 'unreachable' })).addon).toEqual(placeholder);
+  });
+
+  it('reads the instance from the raid\'s template, and has none without a template', async () => {
+    mocks.release.mockResolvedValue({ status: 'none' });
+    mocks.raidExtra.mockReturnValueOnce({ template: { instance: 409 } });
+    expect((await loadSnapshot('cm9xr2k4a0001'))!.instance).toBe(409);
+    mocks.raidExtra.mockReturnValueOnce({ template: { instance: null } });
+    expect('instance' in (await loadSnapshot('cm9xr2k4a0001'))!).toBe(false);
+    expect('instance' in (await loadSnapshot('cm9xr2k4a0001'))!).toBe(false);
   });
 });
