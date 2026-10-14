@@ -77,7 +77,7 @@ async function writeBatch(tx: Tx, { raidId, operations, env, officerId, received
   for (const op of operations) {
     const { outcome, changes } = applyOperation(state, op, { env, check }, { officerId, now: receivedAt });
     if (outcome.status === 'rejected') await keepRejection(tx, op, outcome.code, officerId, receivedAt);
-    for (const change of changes) await save(tx, raidId, change, names, receivedAt, via);
+    for (const change of changes) await save(tx, raidId, change, names, receivedAt, change.kind === 'award' && change.recordedById !== officerId ? null : via);
     results.push({ id: op.id, ...outcome });
   }
   return results;
@@ -130,7 +130,11 @@ async function loadNames(tx: Tx, templateId: string | null, operations: Operatio
   return { bosses: new Map(bosses.map((b) => [b.id, b.name])), characters: new Map(characters.map((c) => [c.name, c])), users: new Set(users.map((u) => u.id)) };
 }
 
-async function save(tx: Tx, raidId: string, change: Change, names: Names, now: Date, via: BatchInput['via']) {
+/**
+ * `via` is how this batch arrived. A replacement held from an earlier batch is recorded under the
+ * officer who delivered it then, and nothing stores how that went, so it gets null here.
+ */
+async function save(tx: Tx, raidId: string, change: Change, names: Names, now: Date, via: BatchInput['via'] | null) {
   switch (change.kind) {
     case 'receipt': {
       const { op, status, deliveredById, receivedAt } = change.receipt;
@@ -163,7 +167,7 @@ async function save(tx: Tx, raidId: string, change: Change, names: Names, now: D
         awardedAt: gameTime(award.at),
         handedOutByName: award.sender,
         handedOutById: names.characters.get(award.sender)?.userId ?? null,
-        deliveredVia: via === 'helper' ? 'HELPER' : 'IMPORT',
+        deliveredVia: via === null ? null : via === 'helper' ? 'HELPER' : 'IMPORT',
         confirmation: 'ANNOUNCED',
         practice: award.practice,
       } });

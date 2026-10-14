@@ -152,6 +152,17 @@ describe.skipIf(process.env.ADDON_BATCH_INTEGRATION !== '1')('writing add-on ope
     ]);
   });
 
+  it('reads an add-on award stored without a delivery way as unknown, not as either', async () => {
+    await db.lootAward.create({ data: { id: 'legacy-1', raidId: RAID, itemId: 16805, characterName: 'Ana Vale', method: 'OPEN_ROLL', recordedById: 'officer-1', source: 'ADDON', handedOutByName: 'Rae Quill' } });
+    expect(await db.lootAward.findUnique({ where: { id: 'legacy-1' }, select: { deliveredVia: true, recordedById: true } })).toEqual({ deliveredVia: null, recordedById: 'officer-1' });
+  });
+
+  it('does not claim a way of delivery for a replacement held from another officer\'s batch', async () => {
+    await write([REPLACE], { officerId: 'officer-2', via: 'import' });
+    await write([AWARD], { officerId: 'officer-1', via: 'helper' });
+    expect((await awards()).map((a) => [a.requestKey, a.recordedById, a.deliveredVia])).toEqual([[NEW_AWARD.id, 'officer-2', null], [AWARD.id, 'officer-1', 'HELPER']]);
+  });
+
   it('two helpers uploading overlapping batches at once record each award once and apply every void', async () => {
     for (let round = 0; round < 10; round++) {
       await db.lootOperation.deleteMany();
