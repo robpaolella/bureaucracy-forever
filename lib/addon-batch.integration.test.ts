@@ -148,14 +148,23 @@ describe.skipIf(process.env.ADDON_BATCH_INTEGRATION !== '1')('writing add-on ope
     expect(statuses(await write([{ ...AWARD, ...bad, sender: 'Ana Vale' }]))).toEqual([code]);
   });
 
-  it('refuses a replace whose new award has a sender who isn\'t a current officer, held original or not', async () => {
-    const bad = { ...REPLACE, award: { ...NEW_AWARD, sender: 'Bo Marsh' } };
-    expect(statuses(await write([bad]))).toEqual(['unknown-sender']);
-    await write([AWARD]);
-    expect(statuses(await write([bad]))).toEqual(['unknown-sender']);
+  it.each([
+    ['a non-officer', 'Bo Marsh', null],
+    ['no character', 'Nobody Here', null],
+    ['a former officer', 'Rae Quill', () => db.user.update({ where: { id: 'u_rae' }, data: { role: 'MEMBER' } })],
+    ['a renamed character\'s old name', 'Rae Quill', () => db.character.update({ where: { name: 'Rae Quill' }, data: { name: 'Rae Renamed' } })],
+  ] as const)('refuses a replace whose new award\'s sender is %s, held original or not', async (_case, sender, change) => {
+    const bad = { ...REPLACE, award: { ...NEW_AWARD, sender } };
+    // The original is recorded while Rae is a current officer under that name.
+    expect(statuses(await write([AWARD]))).toEqual(['recorded']);
+    await change?.();
+    const unheld = { ...bad, id: 'rp-unheld01', key: 'aw-nothing1' };
+    expect(statuses(await write([unheld, bad]))).toEqual(['unknown-sender', 'unknown-sender']);
     expect(await awards()).toMatchObject([{ requestKey: AWARD.id, voidedAt: null }]);
     expect(await db.lootOperation.findMany({ select: { opId: true } })).toEqual([{ opId: AWARD.id }]);
-    expect(await db.lootOperationRejection.findMany({ select: { opId: true, code: true } })).toEqual([{ opId: REPLACE.id, code: 'unknown-sender' }]);
+    expect(await db.lootOperationRejection.findMany({ select: { opId: true, code: true }, orderBy: { opId: 'asc' } })).toEqual([
+      { opId: REPLACE.id, code: 'unknown-sender' }, { opId: 'rp-unheld01', code: 'unknown-sender' },
+    ]);
   });
 
   it('records disenchant/bank with no winner', async () => {
