@@ -1,7 +1,7 @@
 # Design decisions: the site's pieces for the loot add-on and helper
 
-- Design issue: #272; covered build issues: #274, #275, #276, #280, #293 (added 2026-10-13 by the conductor after Robert's answer B on #289), #297, #298, #299 and #300 (added in revision 2) (plus a not-yet-filed helper-download follow-up)
-- Revision: 2; replaces: revision 1. Coverage only: adds split-off build issues #297–#300; no design changes. Robert's approval of version A on 2026-10-14 ("A looks good.") stands.
+- Design issue: #272; covered build issues: #274, #275, #276, #280, #293 (added 2026-10-13 by the conductor after Robert's answer B on #289), #297, #298, #299 and #300 (added in revision 2), and #313, the helper download part (added in revision 3)
+- Revision: 3; replaces: revision 2. Coverage only (design issue #325): adds #313; no design changes ([Revision 3](#revision-3)). Revision 2 was also coverage only, adding split-off build issues #297–#300. Robert's approval of version A on 2026-10-14 ("A looks good.") stands.
 - Maker: claude-bridge/claude-opus-5-5 (Opus 5.5), thinking medium; sessions design-272, design-272-2 and design-272-3
 
 ## Choice and approval
@@ -57,8 +57,18 @@ No Open Design comments were left on this design (`design.ts comments`: none ope
 ## Experiment
 None. No real-site experiment was needed. The build reuses no prototype code.
 
+## Revision 3
+Adds build issue #313 ("Get the helper card on the officers' In-game addon page") to `covers`. Only `design.json`, this file and the Covers row in `brief.md` changed; `index.html`, states, wording and screenshots are unchanged. The card and its states (`addon-page`, `addon-no-release`, `addon-github-down`) were already in revision 2.
+
+Robert's answers on #313 (site conductor chat, 2026-10-15, recorded in https://github.com/robpaolella/bureaucracy-forever/issues/313#issuecomment-6184886484):
+
+16. Coverage: a covers-only design revision 3 that adds #313 to this design, no visual change. "Yes."
+17. Mac download: one "Download for Mac" button, as designed, that links the Apple silicon installer, chosen by file name from the first real release. Intel users use the GitHub release page; no second Mac button. "A is fine."
+
+No new versions, critique or Open Design review: nothing visual changed. Revision 3 made by claude-bridge/claude-opus-5-5 (Opus 5.5), session design-325.
+
 ## Open items
-None affecting the approved scope. Deferred, out of scope: live helper status on the raid page and the hand-entered duplicate flag (both in `backlog.md`); a build issue for the helper download part, to be filed once the helper has releases (decision 9); format and result names stay placeholders until the spec (#271) settles them.
+None affecting the approved scope. Deferred, out of scope: live helper status on the raid page and the hand-entered duplicate flag (both in `backlog.md`); format and result names stay placeholders until the spec (#271) settles them.
 
 ## Build handoff
 Merged folder/revision is the feature authority; DESIGN.md/live site govern site-wide
