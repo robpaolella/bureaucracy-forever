@@ -150,7 +150,7 @@ function Results({ summary, items }: { summary: ImportSummary; items: Record<num
           <h4 className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">{copy.refusedHeading}</h4>
           <ul className="flex flex-col gap-1 text-sm text-fg-2">
             {summary.refused.map((r, i) => (
-              <li key={i}><Award award={r} items={items} />: {copy.refusals[r.code] ?? copy.refusedOther}</li>
+              <li key={i}><Award award={r} items={items} />{r.code === 'unknown-sender' && r.sender && copy.sentBy(r.sender)}: {copy.refusals[r.code] ?? copy.refusedOther}</li>
             ))}
           </ul>
         </section>

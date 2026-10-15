@@ -24,8 +24,8 @@ const award = (op: Operation): AwardOperation | null => (op.type === 'award' ? o
  * `{ error, code, line? }` with `code` 'unreadable-header' | 'wrong-raid' | 'wrong-environment' |
  * 'no-end-line' | 'count-mismatch' | 'malformed-line' (with `line`, the header being line 1).
  * More than 64 KiB answers 413. Otherwise 200 `{ results }`, one per operation in order:
- * `{ id, type, status: 'recorded' | 'replayed' | 'voided' | 'pending' | 'rejected', code?, item?, character? }`
- * with `item` and `character` (null for disenchant/bank) on an award, and on a replace for its new award.
+ * `{ id, type, status: 'recorded' | 'replayed' | 'voided' | 'pending' | 'rejected', code?, item?, character?, sender? }`
+ * with `item`, `character` (null for disenchant/bank) and `sender` on an award, and on a replace for its new award.
  * Batches are separate transactions: if a later one fails (500), the earlier ones stay recorded and
  * pasting the same text again finishes the job, since repeats are `replayed`.
  */
@@ -49,7 +49,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const officer = await ensureUser(auth.session);
-  const results: { id: string; type: Operation['type']; status: string; code?: string; item?: number; character?: string | null }[] = [];
+  const results: { id: string; type: Operation['type']; status: string; code?: string; item?: number; character?: string | null; sender?: string }[] = [];
   try {
     for (let from = 0; from < parsed.operations.length; from += BATCH) {
       const operations = parsed.operations.slice(from, from + BATCH);
@@ -57,7 +57,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       operations.forEach((op, i) => {
         const outcome = batch[i];
         const named = award(op);
-        results.push({ id: op.id, type: op.type, status: outcome.status, ...('code' in outcome ? { code: outcome.code } : {}), ...(named ? { item: named.item, character: named.char } : {}) });
+        results.push({ id: op.id, type: op.type, status: outcome.status, ...('code' in outcome ? { code: outcome.code } : {}), ...(named ? { item: named.item, character: named.char, sender: named.sender } : {}) });
       });
     }
   } catch (error) {

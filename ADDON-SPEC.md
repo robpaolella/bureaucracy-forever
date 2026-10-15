@@ -315,7 +315,9 @@ announced ──▶ confirmed ──▶ voided
 
 Records arrive late, twice and out of order (the helper retries, two officers upload the
 same raid). The site applies these rules per key. Outcomes are the per-operation `status` words of
-section 7.1, never separate HTTP codes:
+section 7.1, never separate HTTP codes. Any award in the table, including the new award
+inside a `replace`, may instead be `rejected` by section 5's checks (such as
+`unknown-sender`):
 
 | What arrives | Already held | Outcome |
 | --- | --- | --- |
@@ -388,8 +390,8 @@ records nothing.
 
 ## 5. What the site does with an operation
 
-For each operation the site, in order: checks the key and that the sender is a current
-officer (section 7); checks `formatVersion`, `env`, `raid` and `practice` (section 2);
+For each operation the site, in order: checks the key belongs to a current officer
+(section 7.2); checks `formatVersion`, `env`, `raid` and `practice` (section 2);
 checks the raid isn't cancelled (`raid-cancelled`, as the loot log does); applies the
 arrival rules (4.2); and answers per operation, so one bad record never blocks the rest
 of a batch. An award becomes a `LootAward` the way `POST /api/raids/[id]/loot` makes
@@ -397,7 +399,7 @@ one: the officer on the key is `recordedById`, names are copied, and the winner 
 re-checked against sign-ups or reserves — the officer in the game had the last word.
 
 A rejected operation changes nothing and is kept for the problems list (7.4). Besides
-`unsupported-version` (section 6) and the sender check (7.2), its `code` is one of:
+`unsupported-version` (section 6), its `code` is one of:
 
 | Code | Why |
 | --- | --- |
@@ -410,8 +412,10 @@ A rejected operation changes nothing and is kept for the problems list (7.4). Be
 | `unknown-boss` | The award's `boss` is not a boss of the raid's loot table. |
 | `unknown-character` | No character has the award's `char` name. |
 | `user-mismatch` | The award's `user` is given but doesn't own `char`. |
+| `unknown-sender` | The award's `sender` is not the exact name of a character whose account has officer access now (7.2). |
 
-The last five check an award, including the new award inside a `replace`. A `replace` is
+The last six check an award, including the new award inside a `replace`, in the order
+listed, so an award failing two of them gets the earlier code. A `replace` is
 checked when it arrives, even if it would otherwise be kept `pending`, and is rejected
 whole with its new award's code, so a held replacement never fails later. A pending void
 or confirmation carries no award and is kept as 4.2 says. A recorded award sent again is
@@ -480,10 +484,13 @@ the failed-authentication limit (`429`), the body size (`413` `too-large`), the 
   what it was when created. Failure is `401` for an unknown or revoked key, `403` for a
   former officer.
 - **Trust boundary.** Officer helpers are **trusted reporters**, not proven sources. The
-  site can check that `sender` is a character belonging to a current officer (`unknown-sender`
-  if not), but nothing proves the game said so: an officer could send false records. The
-  recorded officer is the key's owner, always; `sender` is stored as a claim. The audit
-  trail is the point, since awards are never deleted and any can be voided.
+  site checks that `sender` is the exact name of a character whose account has officer
+  access when the record arrives, and answers `unknown-sender` if not (section 5): an
+  alt not yet on the site, an old name after a rename and a former officer's queued
+  records are all refused, whoever delivers them. Nothing proves the game said so: an
+  officer could send false records. The recorded officer is the key's owner, always;
+  `sender` is stored as a claim. The audit trail is the point, since awards are never
+  deleted and any can be voided.
 - A key works in one environment: the one that issued it.
 - **The other site.** Keys and raid ids exist only in the database of the site that made
   them, so the API needs no separate environment refusal: a key from the other site is
@@ -748,8 +755,8 @@ the same key, so the second is `replayed` (4.2).
 ### 9.6 Who may post a line
 
 A chat line counts only if its sender's "First Last" equals the name of a `Character`
-whose `User` is an officer. The helper cannot check this (it has no roster), so it
-passes the sender on as `sender` and the **site** decides (section 7.2:
+whose `User` is an officer when the record reaches the site. The helper cannot check
+this (it has no roster), so it passes the sender on as `sender` and the **site** decides (section 7.2:
 `unknown-sender`). Chat names are not authenticated by the helper; the site's audit trail
 and voids are the safeguard, as for any operation.
 

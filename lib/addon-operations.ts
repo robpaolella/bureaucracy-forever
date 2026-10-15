@@ -121,7 +121,7 @@ export type Change =
 
 export type RejectCode =
   | 'wrong-environment' | 'unknown-raid' | 'practice-refused' | 'key-conflict'
-  | 'raid-cancelled' | 'item-not-in-table' | 'unknown-boss' | 'unknown-character' | 'user-mismatch';
+  | 'raid-cancelled' | 'item-not-in-table' | 'unknown-boss' | 'unknown-character' | 'user-mismatch' | 'unknown-sender';
 export type Outcome = { status: 'recorded' | 'replayed' | 'pending' | 'voided' } | { status: 'rejected'; code: RejectCode };
 
 /** Section 2: the site's own environment and raid; practice records only on staging. */
