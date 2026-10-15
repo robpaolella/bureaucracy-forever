@@ -87,7 +87,9 @@ rule here compares a name.
 - **The suggestion.** With exactly one candidate, it is the suggestion. With several, a
   raid under way beats one that has not started; among raids that have not started the
   soonest start wins, so back-to-back raids for one instance hand over when the first
-  ends. Two or more candidates **both under way** give no suggestion. With no candidate
+  ends. Two or more candidates **both under way** give no suggestion. Two or more candidates that have not started and
+  share the soonest start time give none either; a tie at a later start does not matter
+  (A and B both at 8pm, C at 9pm: none; A at 8pm, B and C both at 9pm: A). With no candidate
   there is none either. The suggestion only pre-selects a row in the question; it never
   becomes the active raid by itself.
 - **The question.** When an officer's add-on, as the *chooser* (below), sees its
@@ -142,6 +144,7 @@ rule here compares a name.
 
   The selection survives `/reload` while the player is still in the same group, and is
   cleared at login if the player is not in a group, and when the player leaves a group.
+  Where awards and operations are saved is in 4.4.
 - **Leaving a raid that has awards.** A change of the selected raid by this officer, in
   the Sync tab or by the question, asks first (keep or switch) when the current raid has
   awards. Awards already made stay with their raid either way. An add-on that follows a
@@ -156,6 +159,7 @@ rule here compares a name.
 | A raid whose template has no instance number | Never suggested; it can still be chosen from the list or by pasting. |
 | A raid cancelled after the inbox was written | Still in the file until the helper writes it again, which it does when the raids list changes; the next `/reload` drops it. Until then uploads for it are rejected `raid-cancelled` (section 5) and show in its problems list (7.4). |
 | The selected raid is no longer in the inbox (and not pasted) | The selection is cleared with a notice (`activeBy` becomes `none`) and the question is asked again on the next raid instance entry. The raid's saved awards stay in their list and still upload. The raid is gone, so there is nothing to ask about. |
+| Two raids for one instance, neither started, with the same soonest start | No suggestion, as for two under way. Nothing is pre-selected; the officer picks from the list. |
 | Back-to-back raids for one instance | The suggestion is the one under way, then the next once the first has ended. The question is not asked again for the same instance; an officer changes the raid in the Sync tab. |
 | A pasted snapshot | It loads one raid and selects it for the group (an `S` message, `activeBy` `chosen`). If the inbox holds the same raid, the snapshot with the later `generated` is the one used. It stays loaded until the officer removes it in the Sync tab. |
 | The answer is "No" and an officer later enters another raid instance | Still not a guild run; no question. Any officer can choose a raid in the Sync tab. |
@@ -442,6 +446,39 @@ Ana's reserve is back for the next copy.
 
 A production site answers that operation `rejected` with code `practice-refused` and
 records nothing.
+
+### 4.4 The add-on's saved data
+
+The add-on keeps its awards and operations in `BureaucracyForeverDB`, in four places. The
+helper reads them (section 7.3) and copy-out (section 12) is built from them. A list that
+is absent is the same as an empty one.
+
+| Saved as | Holds |
+| --- | --- |
+| `awards[raidId]` | The raid's award records, in their final state. Voided awards stay in the list; nothing is removed. |
+| `ops[raidId]` | The raid's operations in the shape of section 4, in the order they were made or received. Copy-out and the helper's upload read this list because they need the order, not only the final state. |
+| `noRaid` | The award records held as "no raid" (section 2): no `raid` or `env`. |
+| `noRaidOps` | Their operations, in the same order and shape as `ops`. |
+
+When an officer attaches the "no raid" awards to a raid, both lists move to that raid's
+`awards` and `ops`, each record gaining `raid` and `env` and keeping its key; discarding
+them deletes both lists (section 2).
+
+An **award record** holds the award's fields (`raid`, `env`, `practice`, `boss`, `item`,
+`char`, `user`, `method`, `roll`, `note`, `sender`, `at`, as in section 4) and:
+
+| Field | Meaning |
+| --- | --- |
+| `key` | The award's operation id (section 4). |
+| `state` | `announced`, `confirmed` or `not-confirmed` (4.1). |
+| `stateAt` | The `at` of the operation that set `state`; the award's own `at` while `announced`. |
+| `replaces` | On a replacement, the `key` of the award it replaced. |
+| `replacedBy` | On a replaced award, the `key` of its replacement. |
+| `voided` | `true` once voided or replaced. |
+| `voidReason`, `voidedAt` | The reason (optional) and `at` of the first void; later voids do not change them (4.2). |
+
+An operation that names an award not held yet stays in `ops` and takes effect when the
+award arrives (4.2). Each operation carries `formatVersion` (currently 1; section 6).
 
 ## 5. What the site does with an operation
 
