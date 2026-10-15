@@ -3,10 +3,11 @@
  * POST /api/raids/{id}/loot/import (ADDON-SPEC 12) read into counts and lists.
  */
 
-export type ImportResult = { id: string; type: string; status: string; code?: string; item?: number | null; character?: string | null };
+export type ImportResult = { id: string; type: string; status: string; code?: string; item?: number | null; character?: string | null; sender?: string | null };
 
 export type ImportedAward = { item: number | null; character: string | null };
-export type Refused = ImportedAward & { code: string };
+/** `sender` is who the add-on says handed it out, shown for an `unknown-sender` refusal. */
+export type Refused = ImportedAward & { code: string; sender: string | null };
 
 export type ImportSummary = {
   total: number;
@@ -31,7 +32,7 @@ export function summarize(results: ImportResult[]): ImportSummary {
     else if (r.status === 'voided') s.voided++;
     else if (r.status === 'pending') s.waiting++;
     else if (r.code === 'unknown-character') s.unknown.push(award);
-    else s.refused.push({ ...award, code: r.code ?? '' });
+    else s.refused.push({ ...award, code: r.code ?? '', sender: r.sender ?? null });
   }
   return s;
 }

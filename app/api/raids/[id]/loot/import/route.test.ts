@@ -29,13 +29,13 @@ beforeEach(() => {
 });
 
 describe('POST /api/raids/[id]/loot/import', () => {
-  it('imports as the officer and answers each operation with its outcome, item and character', async () => {
+  it('imports as the officer and answers each operation with its outcome, item, character and sender', async () => {
     mocks.write.mockResolvedValueOnce([{ id: 'aw-00000001', status: 'rejected', code: 'unknown-character' }, { id: 'aw-00000002', status: 'recorded' }]);
     const res = await importText(textOf([award(1), award(2)]));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ results: [
-      { id: 'aw-00000001', type: 'award', status: 'rejected', code: 'unknown-character', item: 16805, character: 'Ana Vale' },
-      { id: 'aw-00000002', type: 'award', status: 'recorded', item: 16805, character: 'Ana Vale' },
+      { id: 'aw-00000001', type: 'award', status: 'rejected', code: 'unknown-character', item: 16805, character: 'Ana Vale', sender: 'Rae Quill' },
+      { id: 'aw-00000002', type: 'award', status: 'recorded', item: 16805, character: 'Ana Vale', sender: 'Rae Quill' },
     ] });
     expect(mocks.write).toHaveBeenCalledWith(expect.objectContaining({ raidId: RAID, env: 'production', officerId: 'officer-user', via: 'import' }));
   });

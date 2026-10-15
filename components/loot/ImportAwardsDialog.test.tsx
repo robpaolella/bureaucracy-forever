@@ -80,10 +80,16 @@ describe('ImportAwardsDialog results', () => {
     expect(host.textContent).toContain(`Blade · Gravelstone: ${wording}`);
   });
 
-  it('words an unknown sender as Robert approved, not the generic line', async () => {
-    await importIt(answer(200, { results: [r('recorded'), r('rejected', { code: 'unknown-sender' })] }));
-    expect(host.textContent).toContain('Blade · Gravelstone: The sender isn’t a character of a current officer.');
+  it('words an unknown sender as Robert approved, naming the sender, not the generic line', async () => {
+    await importIt(answer(200, { results: [r('recorded'), r('rejected', { code: 'unknown-sender', sender: 'Memoranda' })] }));
+    expect(host.textContent).toContain('Blade · Gravelstone, sent by Memoranda: The sender isn’t a character of a current officer.');
     expect(host.textContent).not.toContain(copy.refusedOther);
+  });
+
+  it('names the sender only on an unknown-sender refusal', async () => {
+    await importIt(answer(200, { results: [r('recorded'), r('rejected', { code: 'key-conflict', sender: 'Memoranda' })] }));
+    expect(host.textContent).toContain(`Blade · Gravelstone: ${copy.refusals['key-conflict']}`);
+    expect(host.textContent).not.toContain('sent by');
   });
 
   it('says nothing new, and refreshes nothing, when every award was already there', async () => {
