@@ -6,6 +6,11 @@ It lives here only. `SYNC-SPEC.md` is the site–bot contract and is not part of
 Change this file in the same PR as any code that changes a format, and bump
 `formatVersion` when an old reader would misread the new one.
 
+The raid question's saved-data values (`activeBy`: `none`, `chosen`, `off`) and the `P`
+and `S` messages (section 10) replace the earlier `auto`/`override` and add to an
+add-on and helper that have not shipped, so no old reader exists and `formatVersion`
+stays 1. Once either ships, a change like this bumps it.
+
 **Format version: 1.** Sections 1–8 (part A) cover identity, the reserve snapshot,
 operations and the helper API. Sections 9–12 (part B) cover the raid chat line, officer
 sync messages, boss attribution and copy-out text.
@@ -46,65 +51,115 @@ carry the short **raid code** instead) and the **environment**: `production` or
   of the raid id, upper-case: raid `cm9xr2k4a0001` on staging is `SA0001`. It only picks
   the raid out of what an add-on has loaded; the full id is always in the data.
 - **The add-on's active raid** is the one raid its awards go to. The add-on holds the
-  snapshots of several raids (the inbox's, section 7.3, and any pasted, 3.2) and picks
-  the active one by the instance the officer is in and by time, or by the officer's own
-  override (2.1). The helper has no part in the choice. The add-on asks first before
-  moving off a raid that has awards.
-- **No active raid:** awards made with none are held as **no raid**. This is the one
-  exception to "every record carries a raid id and environment": they sit in a separate
-  `noRaid` list in the add-on's saved data, without `raid` or `env`, and are never
-  uploaded or sent as chat. An officer attaches them to a raid, which adds that raid's
-  `raid` and `env` (and moves them to the awards list) and keeps their keys.
+  snapshots of several raids (the inbox's, section 7.3, and any pasted, 3.2), and an
+  officer chooses the active one by answering a question when a run starts (2.1). The
+  choice is shared by every add-on in the group. A run that is *not a guild run* has no
+  active raid and records nothing. The helper has no part in the choice. The add-on
+  asks first before an officer moves off a raid that has awards.
+- **No active raid:** awards made with none (before the question is answered, or after
+  "Decide later") are held as **no raid**. This is the one exception to "every record
+  carries a raid id and environment": they sit in a separate `noRaid` list in the
+  add-on's saved data, without `raid` or `env`, and are never uploaded or sent as chat.
+  An officer attaches them to a raid, which adds that raid's `raid` and `env` (and moves
+  them to the awards list) and keeps their keys, or **discards** them after a
+  confirmation. A discarded award is deleted from the add-on's saved data; it was never
+  uploaded, so nothing reaches the site.
 - **The helper's raid list** (section 7.5) is every upcoming raid, so the inbox can carry
   the snapshot of each. It is not a choice: the helper only shows the add-on's current
   pick (2.1).
 
 ### 2.1 Choosing the active raid
 
-The add-on chooses; the officer can override. The choice rests on the **instance
-number**, never on a name. Zone and dungeon names are translated on other clients and
-spelled differently in game and on the site, so no rule here compares a name.
+An officer confirms the raid at the start of each run; the add-on never picks it silently.
+The question is built on the **instance number**, never on a name. Zone and dungeon names
+are translated on other clients and spelled differently in game and on the site, so no
+rule here compares a name.
 
 - **The instance number.** A raid's `instance` (3.1) is an integer taken from its raid
   template: the instance id that `GetInstanceInfo()` returns in game (its 8th return
   value, the same in every client language). **Unverified on the WoW Forever client
   (Interface 16001):** the add-on's task checks it before relying on this section.
   A template with no instance number gives a raid with no `instance` field (the field is
-  absent, 7.3 rule 2), and such a raid is never matched automatically.
-- **A candidate** for the instance the officer is in is a raid, from the inbox or pasted,
-  that has that `instance`, is not cancelled, and is **under way** or **starts within 12
-  hours** (the same test as section 7.5, using `startsAt` and `durationMin`).
-- **The automatic pick.** With exactly one candidate, it is the pick. With several, a
+  absent, 7.3 rule 2), and such a raid is never suggested.
+- **A candidate** for an instance is a raid, from the inbox or pasted, that has that
+  `instance`, is not cancelled, and is **under way** or **starts within 12 hours** (the
+  same test as section 7.5, using `startsAt` and `durationMin`).
+- **The suggestion.** With exactly one candidate, it is the suggestion. With several, a
   raid under way beats one that has not started; among raids that have not started the
   soonest start wins, so back-to-back raids for one instance hand over when the first
-  ends. Two candidates **both under way** are an overlap: the add-on asks the officer in game which one, and the
-  answer is kept as the override. With no candidate there is no match (below).
-- **When it is applied.** At login, `/reload` and whenever the officer enters a new zone;
-  not on a timer, so the active raid never changes under an officer's hands.
-- **The override.** The Sync tab lists the loaded raids and "Automatic". Choosing a raid
-  makes it the active raid whatever the instance or time; it lasts through `/reload`
-  until the officer chooses "Automatic" or another raid. Pasting a snapshot (3.2) counts
-  as choosing that raid. The Sync tab shows the active raid and whether it was picked
-  automatically or by override, and the add-on writes the same two facts into its saved
-  data (`activeRaid`, a raid id, and `activeBy`, `auto` or `override`) so the helper can
-  show them.
-- **The current instance is shown.** The Sync tab, and the prompt when nothing matches,
-  show the instance number and name from `GetInstanceInfo()` (the name is for people
-  only), so an officer can type the number into a custom raid's template on the site.
-- **Leaving a raid that has awards.** Any change of active raid, automatic or by
-  override, asks first (keep or switch) when the current raid has awards. Awards already
-  made stay with their raid either way.
+  ends. Two or more candidates **both under way** give no suggestion. With no candidate
+  there is none either. The suggestion only pre-selects a row in the question; it never
+  becomes the active raid by itself.
+- **The question.** When an officer's add-on, as the *chooser* (below), sees its
+  player enter a raid instance (`GetInstanceInfo()` instance type `raid`) while in a
+  raid group, it asks **"Is this a guild run?"** with three answers:
+  - **No.** The group is **not a guild run**. Every add-on in the group goes quiet: no
+    loot pop-up, no chat lines, nothing recorded, saved as an award or sent (not even as
+    "no raid"). It lasts until the add-on leaves the group.
+  - **Yes**, then **"Select the raid event"**, listing the loaded raids (inbox and
+    pasted) with the suggestion pre-selected, or none pre-selected when there is no
+    suggestion. With no candidate, the question shows the instance number and name
+    from `GetInstanceInfo()` (the name is for people only, so an officer can type the
+    number into a custom raid's template on the site) and lists the raids anyway.
+  - **Decide later.** The active raid stays as it was (none at the start, so awards are
+    held as no raid). The Sync tab says the raid is not chosen yet. The question comes
+    again on the next entry into a raid instance, the same instance included.
+  If master loot is off, the question says so.
+- **The chooser.** Exactly one add-on in the group asks, so add-ons never disagree: the
+  **loot master**, if master loot is on and they run the add-on; otherwise the **raid
+  leader**, if they run the add-on; otherwise the add-on user who comes first by name
+  order (the names as the game shows them, compared byte by byte). Anyone running the
+  add-on counts as an officer: the snapshot carries no roster, so the add-on can't tell
+  officers from other players. Each add-on knows who runs the add-on from the `P`
+  messages of section 10, so all reach the same answer without a race; it waits **5
+  seconds** after entering the instance or joining the group for them before it asks.
+  If the chooser leaves the group or logs out with the question open, the rule is run
+  again and the new chooser asks when their player is in the instance.
+- **Shared with the group.** The answer (a raid, or "not a guild run", and who chose it)
+  goes to every add-on in the group as an `S` message (section 10) and is applied by all
+  of them. Add-ons that join or reload receive it (10.4). The Sync tab shows who chose
+  it.
+- **Changing it.** Any officer can change the raid, or choose "not a guild run" or a
+  raid after one, in the Sync tab. It is shared the same way. When two changes cross, the
+  later wins: the later sender's time `at`, ties broken by name (10.4). Choosing a raid
+  makes it the active raid whatever the instance or time; pasting a snapshot (3.2) counts
+  as choosing that raid.
+- **Asked again** only on entering a raid instance **different** from the selected raid's
+  `instance`, for example Molten Core, then Onyxia the same night; that instance's
+  suggestion is pre-selected. Never after `/reload`, a corpse run or re-entering the same
+  instance, and never when the selection is "not a guild run" or the selected raid has no
+  `instance`. A new group asks fresh. Master loot being set later, or passing to another
+  officer, keeps the selection; the new loot master is not asked.
+- **Saved data.** The add-on writes the selection into its saved data so the helper can
+  show it: `activeRaid` (a raid id, or `nil`), `activeBy` and `chosenBy` (the officer's
+  name, or `nil`). `activeBy` is one of:
+  - `none`: not chosen yet (after "Decide later", or before any answer). `activeRaid` is
+    `nil`; awards are held as no raid.
+  - `chosen`: an officer chose the raid, by the question, the Sync tab or a pasted
+    snapshot. If the add-on has not loaded that raid yet, `activeRaid` stays `nil` and
+    the Sync tab says the raid is not loaded; it applies when the snapshot loads.
+  - `off`: not a guild run. `activeRaid` is `nil`.
+
+  The selection survives `/reload` while the player is still in the same group, and is
+  cleared at login if the player is not in a group, and when the player leaves a group.
+- **Leaving a raid that has awards.** A change of the selected raid by this officer, in
+  the Sync tab or by the question, asks first (keep or switch) when the current raid has
+  awards. Awards already made stay with their raid either way. An add-on that follows a
+  change made by someone else does not ask.
 
 | Case | Outcome |
 | --- | --- |
-| No raids in the inbox (and none pasted) | No match: awards are held as no raid. An empty inbox clears the inbox's raids; pasted ones remain. |
-| The instance has no raid, or only a raid with a different `instance` | No match: awards are held as no raid, and the prompt shows the instance number (above). If the current raid has awards the add-on asks first, and "keep" leaves it active. |
-| The officer is outside any instance (`GetInstanceInfo()` reports instance type `none`) | No automatic change: the active raid stays as it is, so awards after leaving go to the same raid. At login with none active and no override, no raid. |
-| A raid whose template has no instance number | Never matched automatically; it can still be the active raid by override or by pasting. |
+| Outside any instance (`GetInstanceInfo()` reports instance type `none`) | No question and no change: the selection stays, so awards after leaving go to the same raid. At login with none selected, no raid. |
+| Inside a dungeon or other non-raid instance, or in a party that is not a raid group | No question. A selection already made stays. |
+| No raids in the inbox (and none pasted) | The question can only be "No" or "Decide later"; "Yes" says there is no raid to choose and the officer can choose later when a snapshot arrives. An empty inbox clears the inbox's raids; pasted ones remain. |
+| The instance has no raid, or only a raid with a different `instance` | No suggestion: the question shows the instance number and lists the loaded raids anyway. |
+| A raid whose template has no instance number | Never suggested; it can still be chosen from the list or by pasting. |
 | A raid cancelled after the inbox was written | Still in the file until the helper writes it again, which it does when the raids list changes; the next `/reload` drops it. Until then uploads for it are rejected `raid-cancelled` (section 5) and show in its problems list (7.4). |
-| The override names a raid no longer in the inbox (and not pasted) | The override is cleared with a notice and the automatic pick applies; the raid's saved awards stay in their list and still upload. The raid is gone, so there is nothing to ask about. |
-| Back-to-back raids for one instance | As the automatic pick: the one under way, then the next once the first has ended. No question unless both are under way. |
-| A pasted snapshot | It loads one raid and makes it the override. If the inbox holds the same raid, the snapshot with the later `generated` is the one used. It stays loaded until the officer removes it in the Sync tab. |
+| The selected raid is no longer in the inbox (and not pasted) | The selection is cleared with a notice (`activeBy` becomes `none`) and the question is asked again on the next raid instance entry. The raid's saved awards stay in their list and still upload. The raid is gone, so there is nothing to ask about. |
+| Back-to-back raids for one instance | The suggestion is the one under way, then the next once the first has ended. The question is not asked again for the same instance; an officer changes the raid in the Sync tab. |
+| A pasted snapshot | It loads one raid and selects it for the group (an `S` message, `activeBy` `chosen`). If the inbox holds the same raid, the snapshot with the later `generated` is the one used. It stays loaded until the officer removes it in the Sync tab. |
+| The answer is "No" and an officer later enters another raid instance | Still not a guild run; no question. Any officer can choose a raid in the Sync tab. |
+| An add-on that has not yet received `S` | It holds the state it had; it takes `S` on arrival, so awards made in between go as no raid or to the old raid, and can be attached later. |
 
 ### Practice records
 
@@ -134,7 +189,7 @@ the site holds them now come separately, as the catch-up (3.4).
 | `env` | `production` or `staging` |
 | `name`, `startsAt` | Raid name; start in Unix seconds |
 | `durationMin` | Planned length in minutes, an integer; with `startsAt` it says when the raid is under way (2.1) |
-| `instance` | The raid's in-game instance number, an integer: the raid template's instance id as `GetInstanceInfo()` returns it (2.1). **Absent** when the template has none (for example a custom raid whose officer hasn't filled it in); never `nil`. A raid without it is never matched automatically. |
+| `instance` | The raid's in-game instance number, an integer: the raid template's instance id as `GetInstanceInfo()` returns it (2.1). **Absent** when the template has none (for example a custom raid whose officer hasn't filled it in); never `nil`. A raid without it is never suggested for the raid question (2.1). |
 | `generated` | When the site built this snapshot, Unix seconds |
 | `addon` | `{ version, url }`: the latest add-on version and where to download it |
 | `bosses` | In table order: `{ id, name, trash, items }`. `id` is the `LootBoss` id; `trash` is true for the Trash row; `items` are game item ids (the `LootTableEntry` rows, in position order). An item on several bosses appears under each. |
@@ -162,7 +217,7 @@ Undo (a void) gives the reserve back, with nothing to reload.
 
 ### 3.2 Pasted text
 
-A pasted snapshot loads one raid and becomes the override (2.1); it has no catch-up. The
+A pasted snapshot loads one raid and selects it for the group (2.1); it has no catch-up. The
 paste test proved about 7,400 characters in one box, so the text is cut into parts
 of at most **7,000** characters (a margin). Each part is one line:
 
@@ -831,9 +886,13 @@ Body (after the prefix and a tab), fields separated by `;`:
 | `H` | `H;raid;version;count;digest` | "Here is what I hold." Sent when an add-on loads the raid's snapshot, joins the group, or reloads. |
 | `C` | `C;reqid;raid;n/N;piece` | Catch-up request: the ids the sender holds (comma-separated), chunked like `O`. |
 | `D` | `D;reqid;count` | End of a reply to `C`: `count` operations were sent. |
+| `P` | `P;reply` | "I run the add-on." Needs no loaded raid. `reply` is `1` (broadcast, please answer) or `0` (an answer). |
+| `S` | `S;choice;at;by` | The group's raid selection (2.1). Needs no loaded raid. |
 
 - `msgid` and `reqid` are six lower-case letters or digits, chosen by the sender.
-- `raid` is the raid code. A message for a raid the receiver has not loaded is ignored.
+- `raid` is the raid code. A message for a raid the receiver has not loaded is ignored,
+  except `P` and `S`, which carry no raid id of their own and work without any raid
+  loaded (10.4).
 - `author` is the officer who made the operation: "First Last", the operation's
   `sender`. A direct message has the same name as the game's own sender of the message.
   A **forwarded** one (a reply to `C`) has the original author, and the game shows the
@@ -868,6 +927,29 @@ a chunk twice changes nothing.
   messages to the requester with `author` set to the original author, then a `D`. I never
   re-forward an operation I merely received unprompted, so a message cannot loop.
 - Duplicates from several officers replying to one `C` are harmless (idempotent).
+- **Who runs the add-on (`P`).** `H` is per raid and ignored for a raid the receiver has
+  not loaded, so it cannot say who runs the add-on. An add-on broadcasts `P;1` to the
+  group when it joins the group, reloads or logs in while in a group, and the roster is
+  the senders it has seen. On receiving `P;1` from a name it has not seen, an add-on
+  whispers `P;0` back, and, if it holds a selection, an `S` (below). It never answers
+  `P;0`, so nothing loops. A name leaves the roster when it leaves the group. The
+  chooser rule (2.1) runs on this roster, the loot master and the raid leader as the
+  game reports them. The `P` text carries no raid, so it works for an add-on with no
+  snapshot loaded; an officer without one can still be chosen and is told to load one.
+- **The selection (`S`).** `choice` is a raid code (9.1), or `-` for "not a guild run";
+  `at` is the sender's time in seconds; `by` is the officer who chose, as "First Last"
+  (escaped by 9.3). It is broadcast to the group when chosen, and whispered to a
+  newcomer as above, with the original `at` and `by`. An add-on applies an `S` only if
+  its `(at, by)` is later than the one it holds, comparing `at` and then `by` byte by
+  byte, so two changes that cross end up the same everywhere and a repeat changes
+  nothing. `S` is accepted only from group members. It always fits 255 bytes: at most
+  8 (prefix) + 2 + 6 + 1 + 10 + 1 and a name of up to 3 × 24 bytes once escaped,
+  about 100.
+- **Raid code with no snapshot.** An add-on that gets an `S` for a code it has not
+  loaded keeps it, shows "raid not loaded" in the Sync tab (2.1, `activeBy` `chosen` with
+  `activeRaid` `nil`) and applies it when the snapshot loads. If the code names two
+  loaded raids (a collision of the five characters) it uses neither and shows a notice.
+- **Leaving the group** clears the roster and the selection; a new group asks fresh.
 
 ### 10.5 Worked example: a chunked message
 
