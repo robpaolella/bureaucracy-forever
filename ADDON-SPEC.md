@@ -630,7 +630,7 @@ Rules for the serializer (the only code that writes this file):
    a newline is `\010`). Three digits mean a following digit can't be misread, and no
    input can close the string or start a comment (`]]`, `--`, `\z` are all inert inside
    it).
-5. Depth is at most 8 (a holder inside the inbox is 7 deep), strings at most 200 bytes, one
+5. These limits are the inbox's only; the add-on's saved file has its own (8.3). Depth is at most 8 (a holder inside the inbox is 7 deep), strings at most 200 bytes, one
    raid's entry (snapshot and catch-up) at most 200,000 bytes and the file at most
    700,000 (three raids at the entry limit, plus the wrapper). Over a limit, the helper refuses to write, keeps
    the old file and shows the officer an error naming the raid or the size; it never
@@ -712,12 +712,52 @@ against double recording is that every operation is idempotent (4.2).
    `table = "{" [ entry { "," entry } [ "," ] ] "}"`; `entry = [ key "=" ] value`;
    `key = identifier | "[" integer "]"`; string and integer as in 7.3 rules 2 and 4.
    Whitespace between tokens is ignored; anything else is a parse error.
-3. **The helper reading `SavedVariables`** (the add-on's saved data) uses the same
-   parser, in the helper's language, over the file's single assignment. It does not run
-   the file in a Lua interpreter.
+3. **The helper reading `SavedVariables`** (the add-on's saved data) uses a parser of the
+   same kind, in the helper's language, over the file's single assignment, with the
+   grammar extension and limits of 8.3 (not 8.2's and 7.3's). It does not run the file in
+   a Lua interpreter.
 4. **The site reading uploads** parses JSON, then validates every field's type, range and
    length (section 4) before use. Text from the add-on is never put into a database
    query, a path or markup unescaped.
+
+### 8.3 The add-on's saved file
+
+The file the game writes (section 4.4) is not the inbox, so 8.2's grammar and 7.3 rule 5's
+limits do not apply to it; this section does. The helper's reader is `savedvars.rs` and
+`savedvars/lua.rs`.
+
+**Grammar beyond 8.2.** The game writes the file in its own layout, so the reader also
+accepts:
+
+- keys `["string"]` as well as `[integer]` and identifiers (a number key that is not an
+  integer is read as text);
+- `--` line comments (the game adds `-- [1]` after list items), anywhere whitespace is
+  allowed;
+- decimal floats such as `-12.5` or `1e3`, and hexadecimal integers;
+- `nil` values (the entry is left out), `;` as well as `,` between entries, and single-quoted
+  strings.
+
+A table whose keys are 1, 2, 3… in order is read as a list, any other as an object. Still
+refused: a function call, an operator, a reference to a variable, a repeated key in one
+table, and anything after the one assignment (`BureaucracyForeverDB = { … }`) but whitespace
+and comments.
+
+**Limits.**
+
+| Limit | Value |
+| --- | --- |
+| File size | 8 MiB (8,388,608 bytes) |
+| String length | 1,000 bytes |
+| Nesting depth | 8 (the file's outer table is depth 1) |
+
+Strings are longer than the inbox's 200 because a `note` of 200 characters can take up to
+800 bytes. The size limit is checked before the file is read.
+
+**Over a limit or outside the grammar.** The helper refuses the file **whole**: nothing in it
+is used, and the officer sees a plain-English reason (with the line, for a syntax problem).
+A file over the size limit is refused unread. Code in the file, a syntax error, a repeated
+key, a limit and a file that is valid but not the layout of 4.4 are each refused whole in
+the same way. An operation that has no valid `id` is the exception: it is skipped and the rest go on.
 
 ## 9. Raid chat line
 
