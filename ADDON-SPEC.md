@@ -6,6 +6,11 @@ It lives here only. `SYNC-SPEC.md` is the site–bot contract and is not part of
 Change this file in the same PR as any code that changes a format, and bump
 `formatVersion` when an old reader would misread the new one.
 
+The raid question's saved-data values (`activeBy`: `none`, `chosen`, `off`) and the `P`
+and `S` messages (section 10) replace the earlier `auto`/`override` and add to an
+add-on and helper that have not shipped, so no old reader exists and `formatVersion`
+stays 1. Once either ships, a change like this bumps it.
+
 **Format version: 1.** Sections 1–8 (part A) cover identity, the reserve snapshot,
 operations and the helper API. Sections 9–12 (part B) cover the raid chat line, officer
 sync messages, boss attribution and copy-out text.
