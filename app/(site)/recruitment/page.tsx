@@ -3,7 +3,7 @@ import { ApplyButton } from '@/components/recruitment/ApplyModal';
 import { NeedsTable } from '@/components/recruitment/NeedsTable';
 import { EYEBROW } from '@/components/site/SectionHead';
 import { ButtonLink, Card } from '@/components/ui';
-import { APPLY_LINKS, EXPECTATIONS, NEED_LABEL, NEEDS_SECTION, NEXT_STEPS, QUESTIONS, RECRUITMENT_HEAD } from '@/content/recruitment';
+import { APPLY_LINKS, EXPECTATIONS, NEED_LABEL, NEEDS_SECTION, NEXT_STEPS, OPEN_RECRUITMENT, QUESTIONS, RECRUITMENT_HEAD } from '@/content/recruitment';
 import { getClassNeeds } from '@/lib/class-needs-data';
 import { DISCORD_INVITE_URL, SITE_NAME } from '@/lib/config';
 
@@ -51,6 +51,15 @@ export default async function RecruitmentPage() {
             </ApplyButton>
           </div>
         </Card>
+      </section>
+
+      <section className={`${GUTTER} pb-12`} aria-labelledby="open-recruitment-title">
+        <div className="rounded-card border border-teal-line bg-teal-wash px-6 py-5">
+          <div className="flex flex-col gap-1.5 text-[15px] leading-[1.6] text-teal-text">
+            <p id="open-recruitment-title" className="font-semibold text-fg">{OPEN_RECRUITMENT.title}</p>
+            <p>{OPEN_RECRUITMENT.text}</p>
+          </div>
+        </div>
       </section>
 
       <section id="needs" className={`${GUTTER} flex flex-col gap-5 pb-[72px]`}>
