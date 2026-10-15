@@ -449,7 +449,7 @@ records nothing.
 
 ### 4.4 The add-on's saved data
 
-The add-on keeps its awards and operations in `BureaucracyForeverDB`, in four places. The
+The add-on keeps its awards and operations in `BureaucracyForeverDB`, in five places. The
 helper reads them (section 7.3) and copy-out (section 12) is built from them. A list that
 is absent is the same as an empty one.
 
@@ -459,10 +459,28 @@ is absent is the same as an empty one.
 | `ops[raidId]` | The raid's operations in the shape of section 4, in the order they were made or received. Copy-out and the helper's upload read this list because they need the order, not only the final state. |
 | `noRaid` | The award records held as "no raid" (section 2): no `raid` or `env`. |
 | `noRaidOps` | Their operations, in the same order and shape as `ops`. |
+| `siteVoids` | The site's pending voids: voids from the catch-up (3.4) for awards the add-on does not hold yet. An object keyed by award key; each entry is described below. |
 
 When an officer attaches the "no raid" awards to a raid, both lists move to that raid's
 `awards` and `ops`, each record gaining `raid` and `env` and keeping its key; discarding
 them deletes both lists (section 2).
+
+**Pending site voids.** Each `siteVoids` entry, under the key of the award it voids, is
+`{ raid, env, reason, at }`:
+
+| Field | Meaning |
+| --- | --- |
+| `raid`, `env` | The raid and environment the catch-up named, so a stored void is checked against the active raid and environment as 3.4 does. |
+| `reason` | The void's reason; absent when none, as in 3.4. |
+| `at` | When the site voided the award, as in 3.4's pending void. |
+
+The field exists so a pending void survives a `/reload` or a new session; without it the
+add-on would lose the void before the award arrived. An entry is removed once its award
+arrives and the void applies (3.4, 4.2), and is dropped when its raid is discarded. Pending
+voids are never in `ops` or `noRaidOps` and are never uploaded or sent to other officers
+(section 10): the site already holds them and sends them again in its own catch-up. A
+missing `siteVoids` means no pending voids, as in saved data from before the field. The
+helper **ignores** the field (see 8.3).
 
 An **award record** holds the award's fields (`raid`, `env`, `practice`, `boss`, `item`,
 `char`, `user`, `method`, `roll`, `note`, `sender`, `at`, as in section 4) and:
@@ -758,6 +776,11 @@ is used, and the officer sees a plain-English reason (with the line, for a synta
 A file over the size limit is refused unread. Code in the file, a syntax error, a repeated
 key, a limit and a file that is valid but not the layout of 4.4 are each refused whole in
 the same way. An operation that has no valid `id` is the exception: it is skipped and the rest go on.
+
+**`siteVoids` is a known field.** A file that holds the add-on's `siteVoids` (4.4) is the
+layout of 4.4 and is accepted: the reader skips the field and uses nothing from it. The
+helper uploads from `ops`, and pending voids come from the site's own catch-up, so there is
+nothing to send. Its entries stay within the limits above like the rest of the file.
 
 ## 9. Raid chat line
 
