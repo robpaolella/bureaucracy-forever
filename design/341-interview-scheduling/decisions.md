@@ -108,6 +108,26 @@ repo at `~/d341-evidence/abcde-session3` (`manifest.json` included) and go into
 - Verdict: **PASS**, no fixes. Trade-off named for Robert: E is less precise when picking
   (a whole hour rather than a half-hour) but cleaner, and it keeps the half-hour contract.
 
+### Round 4: version F (session 4, 2026-10-16)
+- Maker: claude-bridge/claude-opus-5-5. Reviewer: openai/gpt-5.6-terra, medium thinking
+  (`route.ts role checker`), a different company. Same command; scope version F, E as
+  comparison. Evidence `/tmp/design-review-2rPTIk/v`: 112 images (2 versions × 28 states ×
+  390/1440) and `manifest.json`, all opened by the maker (contact sheets plus full-size
+  picker captures). E's captures match session 3's apart from the prototype bar's
+  wider state menu.
+- First run: exit 0, repo unchanged. Its table marked `f-pick-short` as "Fix 1", but the
+  maker cut the output to its last lines and lost the verdict and the fix text (it was
+  not saved anywhere). The maker's best reading of the capture: the full-page phone
+  capture's sticky footer covers two rows of the painter, the capture effect named in
+  the scope note.
+- Second run, same inputs, output saved in full: **PASS**, no fixes; checklist 1–6
+  pass. Trade-off named for Robert: F's painter makes "give us all your free time"
+  clearer; E's hour buttons are cleaner and more scannable.
+- After the critique the maker changed one style: painted hours now draw as one rounded
+  block inset from the column (as the member editor's blocks), where the first build
+  left a notched right edge. No behaviour changed; the offline interaction script was
+  re-run with the same results and no network requests.
+
 ## Comments and changes
 | ID / source | Version / element | Original note | Agreed change and verification | Resolved |
 | --- | --- | --- | --- | --- |
