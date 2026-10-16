@@ -14,12 +14,21 @@ vi.mock('@/lib/db', () => ({
     } },
     botRequest: {
       findUnique: async ({ where }: { where: { key: string } }) => store.requests.get(where.key) ?? null,
-      create: async ({ data }: { data: { key: string; statusCode: number; body: unknown } }) => { store.requests.set(data.key, data); },
+      create: async ({ data }: { data: { key: string; statusCode: number; body: unknown } }) => {
+        if (store.requests.has(data.key)) throw new Prisma.PrismaClientKnownRequestError('duplicate', { code: 'P2002', clientVersion: 'test' });
+        store.requests.set(data.key, data);
+      },
+      updateMany: async ({ where, data }: { where: { key: string }; data: { statusCode: number; body: unknown } }) => {
+        store.requests.set(where.key, { ...store.requests.get(where.key)!, ...data });
+        return { count: 1 };
+      },
+      deleteMany: async ({ where }: { where: { key: string } }) => ({ count: Number(store.requests.delete(where.key)) }),
     },
   },
 }));
 vi.mock('@/lib/interviews', () => ({ proposeTime: store.fn }));
 
+import { Prisma } from '@/lib/generated/prisma/client';
 import { POST } from './route';
 
 const OFFICER = '100000000000000001';
