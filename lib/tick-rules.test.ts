@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dueForClose, dueForLock, dueForNudge, dueForPost, reminderDue, type TickRaid } from './tick-rules';
+import { dueForClose, dueForLock, dueForNudge, dueForPost, interviewDone, interviewExpired, interviewHeadsUpDue, interviewReminderDue, joinNoticeDue, proposalLapsed, reminderDue, type TickInterview, type TickRaid } from './tick-rules';
 
 const startsAt = new Date('2026-10-16T03:00:00.000Z');
 const raid = (over: Partial<TickRaid> = {}): TickRaid => ({ status: 'SCHEDULED', startsAt, durationMin: 180, locksAt: new Date(startsAt.getTime() - 120 * 60_000), postedAt: null, remind72At: null, remind24At: null, ...over });
@@ -42,5 +42,54 @@ describe('tick rules', () => {
     expect(dueForNudge({ status: 'PENDING', createdAt: created, nudgedAt: null }, new Date('2026-10-02T00:01:00.000Z'))).toBe(true);
     expect(dueForNudge({ status: 'PENDING', createdAt: created, nudgedAt: created }, new Date('2026-10-03T00:00:00.000Z'))).toBe(false);
     expect(dueForNudge({ status: 'ACCEPTED', createdAt: created, nudgedAt: null }, new Date('2026-10-03T00:00:00.000Z'))).toBe(false);
+  });
+});
+
+describe('interview tick rules', () => {
+  const start = new Date('2026-10-20T20:00:00.000Z');
+  const at = (min: number) => new Date(start.getTime() + min * 60_000);
+  const iv = (over: Partial<TickInterview> = {}): TickInterview => ({ status: 'BOOKED', requestedAt: new Date('2026-10-10T00:00:00.000Z'), proposedStart: null, bookedStart: start, remindedAt: null, headsUpAt: null, joinedNotifiedAt: null, ...over });
+  const requested = iv().requestedAt;
+  const afterDays = (d: number, extraMs = 0) => new Date(requested.getTime() + d * 86_400_000 + extraMs);
+
+  it('reminds from 5 minutes ahead (a late restart at 2 minutes still does), never at or after the start', () => {
+    expect(interviewReminderDue(iv(), at(-6))).toBe(false);
+    expect(interviewReminderDue(iv(), at(-5))).toBe(true);
+    expect(interviewReminderDue(iv(), at(-2))).toBe(true);
+    expect(interviewReminderDue(iv(), at(0))).toBe(false);
+    expect(interviewReminderDue(iv(), at(1))).toBe(false);
+    expect(interviewReminderDue(iv({ remindedAt: at(-5) }), at(-2))).toBe(false);
+    expect(interviewReminderDue(iv({ status: 'PROPOSED' }), at(-2))).toBe(false);
+  });
+  it('expires unbooked requests at 7 days', () => {
+    expect(interviewExpired(iv({ status: 'AWAITING_TIMES' }), afterDays(7, -1))).toBe(false);
+    expect(interviewExpired(iv({ status: 'AWAITING_TIMES' }), afterDays(7))).toBe(true);
+    expect(interviewExpired(iv({ status: 'TIMES_RECEIVED' }), afterDays(7))).toBe(true);
+    expect(interviewExpired(iv({ status: 'PROPOSED' }), afterDays(8))).toBe(false);
+    expect(interviewExpired(iv(), afterDays(8))).toBe(false);
+  });
+  it('gives one heads-up at 3 days, only while still awaiting times', () => {
+    expect(interviewHeadsUpDue(iv({ status: 'AWAITING_TIMES' }), afterDays(3, -1))).toBe(false);
+    expect(interviewHeadsUpDue(iv({ status: 'AWAITING_TIMES' }), afterDays(3))).toBe(true);
+    expect(interviewHeadsUpDue(iv({ status: 'AWAITING_TIMES', headsUpAt: afterDays(3) }), afterDays(4))).toBe(false);
+    expect(interviewHeadsUpDue(iv({ status: 'TIMES_RECEIVED' }), afterDays(4))).toBe(false);
+  });
+  it('lapses a proposal when its start arrives', () => {
+    expect(proposalLapsed(iv({ status: 'PROPOSED', proposedStart: start }), at(-1))).toBe(false);
+    expect(proposalLapsed(iv({ status: 'PROPOSED', proposedStart: start }), at(0))).toBe(true);
+    expect(proposalLapsed(iv({ status: 'BOOKED', proposedStart: start }), at(5))).toBe(false);
+  });
+  it('finishes a booking 60 minutes after its start', () => {
+    expect(interviewDone(iv(), at(59))).toBe(false);
+    expect(interviewDone(iv(), at(60))).toBe(true);
+    expect(interviewDone(iv({ status: 'DONE' }), at(90))).toBe(false);
+  });
+  it('announces a join from 15 minutes ahead to 30 minutes ago, once', () => {
+    expect(joinNoticeDue(iv(), at(-16))).toBe(false);
+    expect(joinNoticeDue(iv(), at(-15))).toBe(true);
+    expect(joinNoticeDue(iv(), at(30))).toBe(true);
+    expect(joinNoticeDue(iv(), at(31))).toBe(false);
+    expect(joinNoticeDue(iv({ joinedNotifiedAt: at(-10) }), at(0))).toBe(false);
+    expect(joinNoticeDue(iv({ status: 'PROPOSED' }), at(0))).toBe(false);
   });
 });

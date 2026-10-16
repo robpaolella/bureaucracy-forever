@@ -2,6 +2,7 @@ import 'server-only';
 
 import { db } from '@/lib/db';
 import { enqueue } from '@/lib/outbox';
+import { closeActiveInterview } from '@/lib/interviews';
 import { decisionDm } from '@/content/dm-templates';
 import { rankRoleIdsFromEnv, roleChangesForAccept } from '@/lib/rank-rules';
 
@@ -13,7 +14,7 @@ export type DecisionOutcome = 'decided' | 'conflict' | 'missing';
  * Accept or decline an application from either surface (SYNC-SPEC §4 /decision, §5
  * application.decide). Updates only a still-pending row, so two officers deciding at once
  * cannot both win, and queues the job that posts the decision, DMs the applicant and, on
- * accept, moves their roles.
+ * accept, moves their roles. An active interview closes with it.
  */
 export async function decideApplication(id: string, status: DecisionStatus, by: DecisionActor, reason: string | null = null): Promise<DecisionOutcome> {
   const app = await db.application.findUnique({ where: { id }, select: { id: true, status: true, path: true, character: true, discordId: true, discordName: true } });
@@ -64,6 +65,8 @@ export async function decideApplication(id: string, status: DecisionStatus, by: 
       },
       tx,
     );
+    // Deciding ends any interview still in progress (SYNC-SPEC §12).
+    await closeActiveInterview(app.id, by.userId, now, tx);
     return 'decided' as const;
   });
   return outcome;

@@ -9,12 +9,21 @@ vi.mock('@/lib/db', () => ({
     user: { findUnique: async ({ where }: { where: { discordId: string } }) => (store.roles.has(where.discordId) ? { id: where.discordId, role: store.roles.get(where.discordId), characters: [] } : null) },
     botRequest: {
       findUnique: async ({ where }: { where: { key: string } }) => keys.get(where.key) ?? null,
-      create: async ({ data }: { data: { key: string; statusCode: number; body: unknown } }) => keys.set(data.key, data),
+      create: async ({ data }: { data: { key: string; statusCode: number; body: unknown } }) => {
+        if (keys.has(data.key)) throw new Prisma.PrismaClientKnownRequestError('duplicate', { code: 'P2002', clientVersion: 'test' });
+        keys.set(data.key, data);
+      },
+      updateMany: async ({ where, data }: { where: { key: string }; data: { statusCode: number; body: unknown } }) => {
+        keys.set(where.key, { ...keys.get(where.key)!, ...data });
+        return { count: 1 };
+      },
+      deleteMany: async ({ where }: { where: { key: string } }) => ({ count: Number(keys.delete(where.key)) }),
     },
   },
 }));
 vi.mock('@/lib/class-needs-data', () => ({ readNeedRowsUncached: async () => store.rows, setClassNeed: store.setNeed }));
 
+import { Prisma } from '@/lib/generated/prisma/client';
 import { GET, PUT } from './route';
 
 const OFFICER = '100000000000000001';
