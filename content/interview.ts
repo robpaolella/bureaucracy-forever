@@ -63,7 +63,21 @@ export const INTERVIEW = {
   proposed: {
     title: 'Could you do this time instead?',
     body: 'The officers couldn’t make any of your times.',
+    accept: 'Accept',
+    decline: 'Decline',
+    startsIn: (minutes: number) => `starts in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`,
+    tooSoon: 'This time starts in less than 15 minutes, so it can’t be accepted now. An officer will reach out to you directly to arrange another time.',
+    confirm: {
+      title: 'Decline this time?',
+      body: 'The officers won’t offer another time here. An officer will reach out to you directly to arrange one.',
+      keep: 'Keep it',
+      decline: 'Decline the time',
+    },
+    // Robert, 2026-10-16: the design words only the sending-times version.
+    offline: { title: 'Couldn’t send your answer.', detail: 'Check your connection and try again.', retry: 'Retry' },
   },
+  // One line for every way the interview can change under an open page (Robert, 2026-10-16).
+  stale: 'This changed while the page was open.',
   booked: {
     title: 'Your interview is booked',
     body: 'At that time, please join the Public Lounge voice channel in our Discord and an officer will bring you in.',
