@@ -36,7 +36,9 @@ const STATES: Record<string, InterviewGate> = {
   'pick-after-window': interview('AWAITING_TIMES', { slots: [], requestedAt: '2026-10-01T22:10:00.000Z' }),
   submitted: interview('TIMES_RECEIVED'),
   proposed: interview('PROPOSED', { proposedStart: BOOKED }),
+  'error-too-soon': interview('PROPOSED', { proposedStart: BOOKED }),
   booked: interview('BOOKED', { bookedStart: BOOKED }),
+  'error-stale': interview('BOOKED', { bookedStart: BOOKED }),
   'ended-cancelled': interview('CANCELLED', { bookedStart: BOOKED }),
   'ended-cancelled-unbooked': interview('CANCELLED'),
   'ended-no-time': interview('NO_TIME'),
@@ -46,5 +48,7 @@ const STATES: Record<string, InterviewGate> = {
 
 export default async function InterviewDevPage({ searchParams }: { searchParams: Promise<{ state?: string }> }) {
   const { state = 'submitted' } = await searchParams;
-  return <SqueezeLayout>{state === 'loading' ? <InterviewSkeleton /> : <InterviewView gate={STATES[state] ?? STATES.submitted} now={NOW} />}</SqueezeLayout>;
+  // error-too-soon is the proposal seen 10 minutes before it starts.
+  const now = state === 'error-too-soon' ? new Date(Date.parse(BOOKED) - 10 * 60_000) : NOW;
+  return <SqueezeLayout>{state === 'loading' ? <InterviewSkeleton /> : <InterviewView gate={STATES[state] ?? STATES.submitted} now={now} stale={state === 'error-stale'} />}</SqueezeLayout>;
 }
