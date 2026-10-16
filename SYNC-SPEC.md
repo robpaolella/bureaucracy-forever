@@ -25,7 +25,11 @@ note, auto-assign Guild Member on accept, no native Discord Events, any member m
    note). Changes are edits to existing messages, never re-posts.
 6. **Every bot write is idempotent.** `Idempotency-Key` header on every POST/PATCH/DELETE,
    set to the Discord interaction ID or message ID that caused it. The site stores keys and
-   replays the original response on a repeat.
+   replays the original response on a repeat. The first request claims its key before it
+   runs, so a key only ever executes once; a repeat that arrives while it is still running
+   waits up to 10 s for its reply, then gets `409 { reason: "in_progress", error }`, which
+   the bot retries with backoff under the **same** key (the reply is replayed once ready).
+   A 5xx or crash is not stored, so a retry with the same key runs again.
 7. **Fail loudly, retry quietly.** A job that fails is retried with backoff up to 5 times,
    then marked FAILED and posted to `#officers` by the bot. Nothing is silently dropped.
 
@@ -59,6 +63,7 @@ model Application {
   discordMessageId  String?                    // starter message id
   reopenedAt        DateTime?
   nudgedAt          DateTime?                  // 24h pending nudge sent
+  interviews        Interview[]
 }
 
 model OfficerNote {
@@ -127,6 +132,46 @@ model Signup {
   // @@unique([raidId, userId]) stays
 }
 
+enum InterviewStatus    { AWAITING_TIMES TIMES_RECEIVED PROPOSED BOOKED DONE CANCELLED NO_TIME CLOSED }
+enum InterviewEndReason { DECLINED EXPIRED PROPOSAL_LAPSED }   // only with NO_TIME
+
+/// One row per interview attempt (§12).
+model Interview {
+  id                String   @id @default(cuid())
+  applicationId     String
+  application       Application @relation(fields: [applicationId], references: [id])
+  attempt           Int                              // 1, 2, … per application
+  status            InterviewStatus @default(AWAITING_TIMES)
+  endReason         InterviewEndReason?
+  activeKey         String?  @unique                 // = applicationId while active, null once ended
+  requestedById     String                           // officer
+  requestedAt       DateTime @default(now())
+  windowStart       DateTime                         // earliest pick: requestedAt + 2 h, rounded up to the half hour
+  windowEnd         DateTime                         // latest pick: requestedAt + 7 d, rounded down
+  timeZone          String?                          // applicant's IANA zone, display only
+  slots             DateTime[]                       // absolute instants, half-hour starts
+  timesRevision     Int      @default(0)             // +1 on every submit that changes slots
+  timesSubmittedAt  DateTime?
+  timesUpdatedAt    DateTime?
+  proposedStart     DateTime?
+  proposedById      String?
+  proposedAt        DateTime?
+  bookedStart       DateTime?
+  bookedById        String?                          // for an accepted proposal, the proposer
+  bookedAt          DateTime?
+  endedAt           DateTime?
+  endedById         String?                          // null when the system ended it
+  remindedAt        DateTime?                        // 5-minute reminder enqueued
+  joinedNotifiedAt  DateTime?                        // voice-join notice enqueued
+  headsUpAt         DateTime?                        // 3-day heads-up enqueued
+  requestDmId       String?                          // DM message holding the link button
+  timesMessageId    String?                          // thread: the times message (embed + controls)
+  proposalMessageId String?                          // thread: the "proposed" line
+  proposalDmId      String?                          // DM message holding Accept / Decline
+  bookedMessageId   String?                          // thread: the booking confirmation
+  @@unique([applicationId, attempt])
+}
+
 /// Work for the bot. The site writes; the bot polls, runs, acks.
 model OutboxJob {
   id          String    @id @default(cuid())
@@ -193,13 +238,15 @@ Robert writes the real one.
 All under `/api/bot/`. JSON in, JSON out (204 has no body). 401 on bad secret. 409 on a state
 conflict with a `reason` string the bot shows verbatim to the user who clicked, except the
 character routes below: their `reason` is a stable code and `error` is the message to show.
+Any route that takes `Idempotency-Key` may also answer `409 { reason: "in_progress", error }`
+(§1.6): retry with backoff under the same key rather than showing it.
 
 | Method | Route | Purpose |
 |---|---|---|
 | GET | `/outbox?limit=20` | Next pending jobs whose `runAfter` has passed. Marks them RUNNING with `lockedAt`. Jobs locked > 5 min are returned again. |
 | POST | `/outbox/:id/ack` | `{ ok: true, result? }` → DONE, store result, apply it (see §5). `{ ok: false, error }` → attempts+1, PENDING with `runAfter = now + 2^attempts min`, FAILED after 5. |
 | POST | `/tick` | Runs everything due (§6). Idempotent. Returns counts of what it did. |
-| GET | `/applications/:id` | Full application + notes, for rendering. |
+| GET | `/applications/:id` | Full application + notes, for rendering, plus `interview`: the latest attempt in the `GET /interviews/:id` shape without `slots`, or `null` if there is none. |
 | POST | `/applications/:id/decision` | `{ status: ACCEPTED\|DECLINED, byDiscordId, reason? }`. 409 if not PENDING. |
 | POST | `/applications/:id/reopen` | `{ byDiscordId }`. 409 if PENDING. |
 | POST | `/applications/:id/notes` | `{ discordMessageId, authorDiscordId, body, createdAt }`. Author must resolve to an OFFICER; otherwise 403 and the bot ignores the message. |
@@ -219,6 +266,13 @@ character routes below: their `reason` is a stable code and `error` is the messa
 | GET | `/needs` | Recruitment needs for `/recruitment` (§9.8): `{ statuses: [high, medium, closed], classes: [{ key, label, specs: [{ name, status }] }] }`, every spec listed, closed unless an officer set it. A spec that fills two raid roles is listed once per role, each with its own status: Feral is `Feral Tank` and `Feral Melee DPS`. |
 | PUT | `/needs` | `{ wowClass, spec, status, byDiscordId }` from `/recruitment`; `spec` is a name from `GET /needs`. `byDiscordId` must be an OFFICER, else 403; 400 for an unknown class, spec or status. The same write as the web needs editor, so the recruitment page, the home teaser and the officer editor show it within a minute. Anything but high also takes the spec's home-page star away. Answers `{ wowClass, spec, status }`. |
 | POST | `/members/sync` | `{ members: [{ discordId, name, avatarUrl, roles }], full }`. Upserts every member's name, avatar, site role, `inGuild` and rank from their Discord roles (§3). With `full`, anyone not listed gets `inGuild = false`. Idempotent; no Idempotency-Key needed. |
+| POST | `/applications/:id/interview` | Start an interview (§12). `{ byDiscordId, confirmSecond? }`. 201 `{ interview }` (the read shape below). Enqueues `interview.request`. |
+| GET | `/interviews/:id` | Read an interview for rendering (§12): `{ id, applicationId, attempt, status, endReason, applicant: { discordId, characterName }, threadId, timeZone, timesRevision, slots: [ISO], requestedAt, requestedBy, proposedStart, proposedBy, bookedStart, bookedBy, endedAt, pageUrl, requestDmId, timesMessageId, proposalMessageId, proposalDmId, bookedMessageId }`. `requestedBy`, `proposedBy` and `bookedBy` are `{ discordId, name }` or `null`; `pageUrl` is `<site>/apply/interview`. 404 `{ error }` if unknown. |
+| POST | `/interviews/:id/book` | `{ startsAt, timesRevision, byDiscordId }`. 200 read shape. |
+| POST | `/interviews/:id/propose` | `{ startsAt, byDiscordId }`. 200 read shape. |
+| POST | `/interviews/:id/answer` | `{ discordId, answer: accept\|decline }`. 200 read shape. |
+| POST | `/interviews/:id/cancel` | `{ byDiscordId }`. 200 read shape. |
+| POST | `/interviews/voice-join` | `{ discordId, channelId }`. 200 `{ notified: boolean, interviewId? }`. |
 | GET | `/health` | `{ ok: true, version }` |
 
 Every write here that changes something Discord shows **also enqueues the matching
@@ -255,6 +309,14 @@ directly from the click; it may reply ephemerally ("You're set to Accept") immed
 | `member.roles.sync` | `{ discordId, add: [roleId], remove: [roleId] }`. Only ever touches Guild Member, Guest, Raider, Trial and Social. **Never Officer** — that role grants site access and is managed by humans. | — | — |
 | `officers.notify` | Free-text message to `#officers`. Used for FAILED jobs and reconcile findings. | — | — |
 | `trial.checkin` | `{ discordId, name, startedAt, extended }` (§3). Message in `#officers` mentioning the Officer role: whose trial is up and since when, with **Promote to Raider** (button) and **Extend trial** (menu, 1–7 days). Both call `POST /members/:discordId/trial` and survive restarts; the answer edits the message to the outcome and removes them. Entity `member:<discordId>`. | — | — |
+| `interview.request` | `{ applicationId, interviewId }` (all interview jobs carry these two; §12 has the rules, copy and preconditions). DM the request with the **Share my availability** link button, then one thread message. | `{ dmDelivered, dmMessageId? }` | store `requestDmId` |
+| `interview.times` | Post the times message pinging the Officer role and DM the thanks; on later revisions edit that message in place. | `{ messageId }` first time | store `timesMessageId` |
+| `interview.booked` | `+ startsAt`. DM the booking, post the confirmation in the thread. | `{ messageId, dmDelivered }` | store `bookedMessageId` |
+| `interview.proposed` | `+ startsAt`. DM the proposal with **Accept** / **Decline**, post the proposal line. | `{ messageId, dmMessageId?, dmDelivered }` | store `proposalMessageId`, `proposalDmId` |
+| `interview.ended` | `+ outcome: declined\|expired\|lapsed\|cancelled\|closed`. DM the outcome (none for `closed`), post the thread notice, remove live controls. | `{ dmDelivered? }` | — |
+| `interview.headsup` | One thread message: no times yet after 3 days. | — | — |
+| `interview.remind` | `+ startsAt`. DM the applicant and ping the booking officer in the thread, 5 minutes before. | — | — |
+| `interview.joined` | Thread notice with **Move to Raider Interviews**, pinging the booking officer. | — | — |
 
 The `raid.post` / `raid.update` / `raid.lock` / `raid.cancel` / `raid.close` rows describe
 the forum-era mechanism; since #raid-signups became a text channel (§8) the bot posts one
@@ -299,6 +361,21 @@ Runs every 60 s, called by the bot. Each step is idempotent and bounded.
 8. **Reconcile (once per hour).** For every raid and application with a thread id and
    status that implies archived/locked, enqueue `*.update` (the bot's update handler also
    fixes archive/lock/tag state). Cheap insurance against drift.
+9. **Interview reminder.** `BOOKED`, `bookedStart − 5 min ≤ now < bookedStart`, `remindedAt null` →
+   conditionally set `remindedAt` and enqueue `interview.remind`. A bot back from a restart
+   before the start still sends it; after the start, never.
+10. **Interview expiry.** `AWAITING_TIMES` or `TIMES_RECEIVED` with `requestedAt + 7 d ≤ now` →
+    `NO_TIME`/`EXPIRED`, enqueue `interview.ended` (`expired`).
+11. **Interview heads-up.** Still `AWAITING_TIMES`, `requestedAt + 3 d ≤ now`, `headsUpAt null` →
+    set `headsUpAt`, enqueue `interview.headsup`. Runs after step 10, so an expired one gets none.
+12. **Proposal lapse.** `PROPOSED` with `proposedStart ≤ now` → `NO_TIME`/`PROPOSAL_LAPSED`, enqueue
+    `interview.ended` (`lapsed`).
+13. **Interview done.** `BOOKED` with `bookedStart + 60 min ≤ now` → `DONE`, no job.
+
+Steps 9–13 are each a conditional update on status (and on the field that makes them due), so
+overlapping ticks do one thing once; ending an interview also sets `endedAt` and clears
+`activeKey`. The reply counts them as `interviewsReminded`, `interviewsExpired`,
+`interviewsHeadsUp`, `interviewsLapsed`, `interviewsDone`.
 
 New roster members: when a user's `rank` becomes a roster rank while `inGuild`, `tick` step 1 also
 adds them to every SCHEDULED future raid. Rank leaving the roster removes their unanswered
@@ -364,6 +441,33 @@ rows only; answered rows are kept.
   ("✅ Molten Core — Thu Nov 19 · 38 attended" or "❌ … · cancelled: <reason>"),
   remove all buttons, and archive the thread. The message is not deleted.
 
+### Interviews (§12)
+- Forum tag `Interview` joins `TAG_NAMES` (it already exists in Discord). `tags_for` adds it
+  while the application's latest attempt is `BOOKED` or `DONE` and the application is
+  `PENDING`, so `application.update` keeps it. The site enqueues `application.update` in the
+  same transaction whenever that condition can flip: an interview becoming `BOOKED`, a `BOOKED`
+  one being cancelled, and a new attempt starting after a `DONE` one. Ending by `CLOSED` rides
+  on the decision's own retag. Interview jobs never unarchive or unlock a
+  decided thread: in an archived thread they skip thread posts and edits.
+- **Times message** (`interview.times`): an embed with one field per day (in `GUILD_TZ`) of
+  time blocks as `<t:unix:t>` ranges so each officer sees their own zone, kept inside Discord's
+  field and embed limits with an overflow line ("and N more times, see the web"). Controls:
+  **Book a time**, **Propose another time**.
+- **Book a time:** a day menu, then a time menu of that day's applicant times (split into
+  several menus of at most 25 when there are more), then a private confirm showing the time in
+  the clicking officer's zone. The confirm sends `POST /interviews/:id/book` with the
+  `timesRevision` read when the menu opened.
+- **Propose another time:** a day menu over the next 7 days, then two time menus (9:00 AM to
+  3:30 PM, 4:00 PM to 10:30 PM; a menu holds 25 choices), then a confirm. Menu labels are in
+  Pacific: "Thu Oct 16 · 7:30 PM PT".
+- The reminder and joined notice ping `bookedBy`, the officer who booked or proposed, not the
+  Officer role. **Move to Raider Interviews** (on the joined notice) is answered by the bot
+  alone: the clicker must be an officer (`GET /members/:discordId`), the applicant must still be in
+  voice, then the bot moves them to `INTERVIEW_VOICE_CHANNEL_ID`.
+- Buttons and menus in DMs and threads carry the interview id (custom ids `interview:<id>:…`)
+  and survive restarts. A click on a stale control gets the 409 `error` ephemerally and the
+  bot removes the controls from that message.
+
 ### `#apply` message
 - Replace the two component buttons with **link buttons**: `Apply as a Raider` →
   `SITE_PUBLIC_URL/apply?path=raider`, `Apply as Social` → `SITE_PUBLIC_URL/apply?path=social`.
@@ -423,7 +527,11 @@ Bot (server env file): `DISCORD_TOKEN`, `GUILD_ID` (required by the sync now), `
 `RAID_SIGNUPS_CHANNEL_ID`, `OFFICERS_CHANNEL_ID`, `ROLE_GUILD_MEMBER_ID`, `ROLE_GUEST_ID`,
 `ROLE_RAIDER_ID`, `ROLE_TRIAL_ID`, `ROLE_SOCIAL_ID`, `ROLE_OFFICER_ID` (read only, for the snapshot),
 `RECRUITMENT_NEEDS_CHANNEL_ID` (where `/recruitment` runs; blank allows any channel),
-`POLL_SECONDS=5`, `TICK_SECONDS=60`, `SNAPSHOT_SECONDS=300`.
+`PUBLIC_LOUNGE_CHANNEL_ID` (production 1549095645153988698), `INTERVIEW_VOICE_CHANNEL_ID` (Raider
+Interviews, production 1560469424115290162), `POLL_SECONDS=5`, `TICK_SECONDS=60`,
+`SNAPSHOT_SECONDS=300`. The bot needs Move Members, Connect and View Channel on Raider
+Interviews. Interview hours (9:00 to 22:30) and the other interview constants (§12) sit beside
+`GUILD_TIMEZONE` in the site code, not in env.
 
 ---
 
@@ -439,3 +547,144 @@ Bot (server env file): `DISCORD_TOKEN`, `GUILD_ID` (required by the sync now), `
   web updates the embed. Lock at T−2h, reminders at 72 h and 24 h, close after the night.
 - The bot restarted mid-way loses nothing: jobs resume, buttons still work.
 - Both repos' Checks (listed in each `AGENTS.md`) pass; every PR reviewed.
+
+---
+
+## 12. Interviews
+
+An officer schedules a short interview with a pending applicant. The site owns every rule
+here; the bot renders and relays. A web action by an officer or applicant runs the same
+transition and enqueues the same job as the bot route that matches it (the bot's
+`byDiscordId` becomes the signed-in user).
+
+### Flow
+1. An officer runs `/interview` in the applicant's #applications thread (the bot resolves the
+   application as it does for notes) → `POST /applications/:id/interview`. The bot posts "I'll
+   reach out to set up an interview time with <character name>." and DMs the applicant the
+   **Share my availability** link button to `<site>/apply/interview`.
+2. There, signed in with Discord (the page finds the signed-in user's active interview; no id
+   in the URL), the applicant paints half-hour start times and submits them with their browser
+   time zone. `AWAITING_TIMES` → `TIMES_RECEIVED`, `timesRevision` +1, `interview.times`.
+3. The thread gets the times message pinging the Officer role. An officer **books a time** or
+   **proposes another time** (one proposal only). The applicant accepts or declines in the DM
+   or on the page.
+4. A booking DMs the applicant to join the Public Lounge voice channel at that time, posts the
+   confirmation in the thread, sends both a reminder 5 minutes before, and posts a thread
+   notice with **Move to Raider Interviews** when the applicant joins Public Lounge.
+
+### Lifecycle
+`Interview.status`. Active: `AWAITING_TIMES`, `TIMES_RECEIVED`, `PROPOSED`, `BOOKED`. Ended:
+`DONE`, `CANCELLED`, `NO_TIME` (with `endReason` `DECLINED`, `EXPIRED` or `PROPOSAL_LAPSED`),
+`CLOSED`. Only `PENDING` applications can start one (raider and social paths alike).
+
+| From | To | When |
+|---|---|---|
+| `AWAITING_TIMES` | `TIMES_RECEIVED` | applicant submits at least one time |
+| `TIMES_RECEIVED` | `TIMES_RECEIVED` | applicant changes times; each real change bumps `timesRevision` (an identical set changes nothing) |
+| `TIMES_RECEIVED` | `BOOKED` | officer books one of the current slots (`bookedBy` = that officer) |
+| `TIMES_RECEIVED` | `PROPOSED` | officer proposes a time |
+| `PROPOSED` | `BOOKED` | applicant accepts (`bookedBy` = the proposer) |
+| `PROPOSED` | `NO_TIME`/`DECLINED` | applicant declines |
+| `PROPOSED` | `NO_TIME`/`PROPOSAL_LAPSED` | tick step 12, the proposed start arrives unanswered |
+| `AWAITING_TIMES`, `TIMES_RECEIVED` | `NO_TIME`/`EXPIRED` | tick step 10, `requestedAt + 7 d` |
+| `BOOKED` | `DONE` | tick step 13, `bookedStart + 60 min`; no message |
+| any active | `CANCELLED` | an officer cancels |
+| any active | `CLOSED` | the application is decided, web or Discord, in the same transaction as the decision; reopening revives nothing |
+
+Ending sets `endedAt`, `endedById` (null for the system) and clears `activeKey`, and enqueues
+`interview.ended` except for `DONE`. Applicant times can only change in `AWAITING_TIMES` or
+`TIMES_RECEIVED`; in every other state the page is read-only and says where things stand.
+
+**One active attempt.** `activeKey` is set to the application id while active and is
+unique, so the database refuses a second active attempt. `attempt` counts from 1.
+`POST /applications/:id/interview` answers:
+- 201 `{ interview }`: created (`AWAITING_TIMES`, window set, `interview.request` enqueued).
+- 409 `{ reason: "not_pending", error }`.
+- 409 `{ reason: "already_active", error, interview }`: the bot shows that status from
+  `interview` with a **Cancel interview** button (`/interviews/:id/cancel`).
+- 409 `{ reason: "second_not_confirmed", error, earlierDate }` when there is no active attempt
+  but an earlier `DONE` one (`earlierDate` = its `bookedStart`, ISO). The bot asks "<name>
+  already had an interview on <date>. Schedule a second one?"; on yes it sends the same body
+  with `confirmSecond: true` under a **new** `Idempotency-Key` (the same key would replay the
+  409). Earlier `CANCELLED`, `NO_TIME` and `CLOSED` attempts never need confirming.
+
+### Time rules
+- **Slots** are half-hour start times from 9:00 AM to 10:30 PM wall clock in `GUILD_TZ`, every
+  day: 28 a day. A painted half-hour means "I can start an interview then". One shared slot
+  rule on the site generates, validates and renders them; it is tested across both DST changes
+  (the hours never touch the 2 AM change, so every day has 28 slots).
+- **Applicant picks** lie within `[windowStart, windowEnd]` = `[requestedAt + 2 h, requestedAt
+  + 7 d]` rounded inward to the half hour. **Proposals** are slots within `[now + 2 h, now + 7
+  d]`. **Booking a time or accepting a proposal** needs the start to be at least 15 minutes
+  away.
+- A submitted set with a pick outside the window or off the half hour is refused 400
+  `out_of_range`, like a proposal; an empty set is 400 `invalid`.
+- Slots are stored as absolute instants with the applicant's zone kept in `timeZone` for
+  display only. These are dated one-off times, so absolute instants are correct here, unlike
+  the weekly member availability (REVIEW.md), which is kept in member-local time.
+- A proposal in its last 15 minutes: accepting is refused with `reason: "too_soon"`, declining
+  still works, and the interview stays `PROPOSED` until step 12 lapses it at the proposed
+  start. The DM, the page and the bot all show the refusal's `error`; they do not remove the
+  Accept control early. The same `too_soon` refuses booking a slot less than 15 minutes away.
+
+### Bot API rules
+All routes are in §4, officer-checked like the others: `byDiscordId` must be an OFFICER, else
+403 `{ reason: "forbidden", error }`; unknown interview or application 404 `{ error }`. Every
+write takes `Idempotency-Key`, except voice-join (idempotent by `joinedNotifiedAt`, like
+`/members/sync`). Refusals are `{ reason, error }`, with `reason` a stable code and `error` the
+message to show. Every change of state is one conditional update on `status` (and `timesRevision`
+where it applies), so competing clicks get one winner and 409 `wrong_status` for the rest;
+its `error` names the current state ("Already booked for <time> by <officer>.").
+- **Book** `{ startsAt, timesRevision, byDiscordId }`, only from `TIMES_RECEIVED`: 409
+  `times_changed` ("<name> changed their times. Pick again.") when `timesRevision` differs, 409
+  `not_a_slot` when `startsAt` is not one of the current slots, 409 `too_soon`. Two officers
+  booking at once: one 200, the other 409 `wrong_status`. An applicant edit and a booking race
+  the same way: the booking wins only if `timesRevision` still matches, and an edit arriving
+  after the booking gets 409 on the page.
+- **Propose** `{ startsAt, byDiscordId }`, only from `TIMES_RECEIVED`: 400 `out_of_range` when
+  not a slot in `[now + 2 h, now + 7 d]`. Sets `proposedStart`, `proposedBy`, `proposedAt`.
+- **Answer** `{ discordId, answer }`, only from `PROPOSED`; `discordId` must be the
+  applicant's, else 403 `forbidden`. `accept` → `BOOKED` (or 409 `too_soon`), `decline` →
+  `NO_TIME`/`DECLINED`.
+- **Cancel** `{ byDiscordId }` from any active status, else 409 `not_active`.
+- **Voice join** `{ discordId, channelId }`, sent by the bot when a member joins Public Lounge
+  (the bot filters by `PUBLIC_LOUNGE_CHANNEL_ID`; the site does not check `channelId`). When that
+  member has a `BOOKED` interview with `bookedStart` from 15 minutes ahead to 30 minutes ago
+  and `joinedNotifiedAt` null, the site sets it and enqueues `interview.joined`; the reply is
+  `{ notified: true, interviewId }`, otherwise `{ notified: false }`. Rejoining notifies nothing.
+
+### Outbox jobs
+Payload always has `applicationId` and `interviewId`. `entityKey` maps `interview.*` to
+`application:<applicationId>`, so they run in order with that application's other jobs (today
+an unknown type falls to `officers`). `claimJobs` may hand out a newer job before an older
+one in backoff, so **every handler re-reads `GET /interviews/:id` and renders from it, never
+from the payload alone, and checks its precondition**. When it fails, ack `{ ok: true, result:
+{ skipped: "<reason>" } }` and show nothing. Each job sends at most one DM and one thread
+message; a duplicate after a lost ack is accepted as rare, as for `application.decide`. A DM
+Discord refuses (error 50007) counts as not delivered: the thread message says so and the ack
+carries `dmDelivered: false`. Any other error fails the job so it retries.
+
+| Job | Precondition | Does |
+|---|---|---|
+| `interview.request` | `AWAITING_TIMES` | DM the request (copy below) with the link button; then one thread message: the "I'll reach out" line, or if the DM was refused "I couldn't DM <name>, their DMs are closed. Send them this link another way: <page URL>" |
+| `interview.times` | `TIMES_RECEIVED` | `timesMessageId` unset: post the times message pinging the Officer role and DM the thanks. Set: edit that message in place, marked "updated", mentions suppressed, no DM |
+| `interview.booked` | `BOOKED` and `bookedStart` = `payload.startsAt` | DM the booking; thread confirmation with **Cancel interview**; strips controls from the times and proposal messages and the request DM |
+| `interview.proposed` | `PROPOSED` and `proposedStart` = `payload.startsAt` | DM the proposal with **Accept** / **Decline**; thread line naming the time and the proposer; strips the times message controls and the request DM's button. A refused DM: the thread line also gives the page URL |
+| `interview.ended` | status ended with the reason for `payload.outcome` (`declined`: `NO_TIME`/`DECLINED`; `expired`: `NO_TIME`/`EXPIRED`; `lapsed`: `NO_TIME`/`PROPOSAL_LAPSED`; `cancelled`: `CANCELLED`; `closed`: `CLOSED`) | DM the outcome copy and post a thread notice; every earlier interview message loses its controls. `closed` sends no DM (the decision DM goes anyway), posts nothing, and only strips controls |
+| `interview.headsup` | `AWAITING_TIMES` and `headsUpAt` set | thread message: no times from <name> after 3 days, 4 days left |
+| `interview.remind` | `BOOKED`, `bookedStart` = `payload.startsAt`, now before the start | DM the reminder; thread message pinging `bookedBy` |
+| `interview.joined` | `BOOKED` and `joinedNotifiedAt` set | thread notice pinging `bookedBy`, "<name> has joined Public Lounge.", with **Move to Raider Interviews** |
+
+Controls are removed or updated on the earlier messages so no live button outlasts its state.
+The ack results stored on the row are in §5.
+
+### Applicant DM copy
+Approved by Robert on 2026-10-15; times render in the applicant's zone (`<t:>`). Officer thread
+lines are plain, neutral in pronouns and have no exclamation marks.
+- Request: "Hi <name>. I'm following up on your application with Bureaucracy. The officers are reviewing it and would like to set up a quick 15–20 minute interview with you. Please share your availability over the next week and I'll schedule your interview." Button: **Share my availability**.
+- Thanks: "Thanks, <name>. I've passed your times to the officers. Keep an eye on your messages here; I'll let you know when your interview is booked."
+- Booked: "You're all set. Your interview is <time> (<relative>). At that time, please join the Public Lounge voice channel and an officer will bring you in."
+- Reminder: "Your Bureaucracy interview starts in 5 minutes. Please join Public Lounge now."
+- Proposal: "The officers couldn't make any of your times. Could you do <time> instead?" Buttons: **Accept**, **Decline**.
+- Declined: "Thanks for letting us know. Since we couldn't find a time, an officer will reach out to you directly to arrange one." Expired and lapsed: "Since we couldn't find a time, an officer will reach out to you directly to arrange one."
+- Cancelled: "Your interview on <time> has been cancelled. An officer will be in touch." (<time> is the booked or proposed start; with neither, "Your interview has been cancelled. An officer will be in touch.")

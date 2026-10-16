@@ -8,6 +8,13 @@ import { ATLASLOOT_DATA_URL } from './loot-import';
  */
 export const GUILD_TIMEZONE = 'America/Los_Angeles';
 
+/**
+ * Interview hours (SYNC-SPEC §12), in minutes after midnight guild time: half-hour starts from
+ * 9:00 AM to 10:30 PM every day, 28 a day. lib/interview-slots.ts is the one rule that uses them.
+ */
+export const INTERVIEW_FIRST_START_MIN = 9 * 60;
+export const INTERVIEW_LAST_START_MIN = 22 * 60 + 30;
+
 /** Public Discord invite. */
 export const DISCORD_INVITE_URL = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL ?? 'https://discord.gg/3Scxcv9w3V';
 
