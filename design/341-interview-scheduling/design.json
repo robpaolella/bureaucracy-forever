@@ -6,8 +6,7 @@
   ],
   "revision": 1,
   "versions": {
-    "e": "versions/e.html",
-    "f": "versions/f.html"
+    "approved": "index.html"
   },
   "states": [
     "signed-out",

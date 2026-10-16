@@ -2,11 +2,20 @@
 
 - Design issue: #341; covered build issues: #344 (applicant page), #345 (officer card)
 - Revision: 1; replaces: none
-- Maker: claude-bridge/claude-opus-5-5 (two sessions: `design-341`, then its successor), medium thinking
+- Maker: claude-bridge/claude-opus-5-5 (four sessions: `design-341` and its successors), medium thinking
 
 ## Choice and approval
-Not chosen yet. Versions A–D differ on these independent decisions, each asked as its own
-numbered question:
+**Chosen: version F**, now `index.html`. Robert, 2026-10-16, after leaving one copy
+change as an Open Design comment: "Alright, I made one copy change to F. I think it's
+ready to go. I don't need to see it with the new copy, just approve it and get it ready
+to build." Earlier, when asked to approve F, he was told it drops E (its hour buttons),
+which F replaces.
+
+Why F: it keeps E's squeeze page, calendar and officer card A, and answers Robert's
+worry that hour buttons read as "pick one time": a full-day paint column, a minimum of
+5 hours on 2 or more guild days, and Clear all.
+
+Picks per decision (F carries E's picks, with the picker reworked):
 
 | # | Decision | Options (version) | Robert's pick and why |
 | --- | --- | --- | --- |
@@ -16,6 +25,9 @@ numbered question:
 | 1 | Grid days when interview hours cross the viewer's midnight | a: the viewer's own calendar dates (8 columns for an Eastern viewer); every row of the day shows, and hours outside interview hours are hatched; b: one column per guild day (interview day), with 28 rows of starts labelled in the viewer's time, and a teal "Next day" line where the viewer's date rolls over | not applicable: A and B not chosen |
 | 2 | Time-zone control on the picker | a: the member editor's compact "Your time / Guild time" labels plus a "Change" link; b: the full `TimezoneBar` card from the Raiding page with "Use a different timezone" | not applicable: A and B not chosen |
 | 3 | Officer Interview card (C uses a's, D uses b's) | a: a compact card styled like Officer notes, with the pill beside the heading and times listed by day; b: definition rows like the answers list (Status / Where it stands / Their times), with times as chips | card A (carried by e). Robert, 2026-10-16: "I like E for all of them." |
+
+The approved picker is F's one-day paint column (Comments and changes, 2026-10-16), in
+place of decision 5's hour buttons; picks still save both half-hour starts of each hour.
 
 Design PR: linked on the design issue once created. Only Robert merging that PR
 approves it for building.
@@ -43,14 +55,15 @@ Versions C and D add (squeeze page):
 
 Version F adds:
 - The one-day paint column in the picker card (the member editor's day view with one row
-  per hour; a press on a painted hour clears), and the dashed break for a gap in the day.
+  per hour across the whole day; hours outside interview times hatched, with A's
+  "Outside interview hours" legend; a press on a painted hour clears).
 - The footer's minimum message, with Send disabled until 5 hours on 2 or more days.
 - The footer's **Clear all** text button and its confirm dialog (the site's existing
   dialog, as Decline's).
 
-The prototypes approximate block editing (paint, select, ×). The build keeps the member
-editor's existing resize handles and keyboard behaviour; the day list stays the
-keyboard route.
+The prototypes approximate block editing. In the approved F, each bookable hour is a
+toggle button (Tab, then Enter or Space), which is the keyboard route; the build may
+reuse the member editor's painting code but keeps that per-hour keyboard route.
 
 ## Alternatives
 **A, B, C and D removed, 2026-10-16** (Robert, to "Can I drop versions A to E once F is
@@ -61,9 +74,14 @@ What only they had, as listed to him:
   `TimezoneBar` card (B) and the compact "Change" link (A).
 - C: half-hour start buttons (half-hour precision when picking).
 - D: the week-at-a-glance compact paint grid on the squeeze page; officer card B.
-Their last captures (all 27 states at 390 and 1440, session 3) are kept outside the
-repo at `~/d341-evidence/abcde-session3` (`manifest.json` included) and go into
-`screenshots/all/` at freeze. E stays until Robert has seen F.
+Their last captures (all 27 states at 390 and 1440, session 3) are in
+`screenshots/all/` (files `a-…` to `d-…`; `pick-short` didn't exist yet).
+
+**E removed at approval, 2026-10-16.** What only E had: one tap-button per hour on the
+chosen day (no painting), and the shorter 540px card with no hidden hours. Robert was
+told approving F drops E and approved F (quote above). Captures of E and F, all 28
+states at 390 and 1440, are in `screenshots/all/` (`e-…`, `f-…`), with one
+`manifest.json` covering all six versions (328 images).
 
 ## Independent critique
 - Maker: claude-bridge/claude-opus-5-5. Reviewer: openai/gpt-5.6-terra, medium thinking
@@ -145,18 +163,19 @@ repo at `~/d341-evidence/abcde-session3` (`manifest.json` included) and go into
 ## Comments and changes
 | ID / source | Version / element | Original note | Agreed change and verification | Resolved |
 | --- | --- | --- | --- | --- |
-| herdr, 2026-10-15 (Robert) | A and B, whole applicant page | "I think the whole design needs to change. It needs to be a squeeze page, first of all. There's too much distraction on the page overall. We don't have to copy the raid time availability 1 for 1. Look at this example from Calendly [a Zoom Scheduler booking page: one centred card with an info panel, a month calendar and that day's times]. The scheduling portion is smaller and right in the center. It's obvious what you do and what you click to go to the next page. We need to shrink the grid down a bit, centralize it, get rid of the additional noise." | New versions C and D: applicant states as a squeeze page (logo only, no site nav or footer), one centred card. C: info panel, month calendar, the day's times as multi-select buttons. D: info panel and a compact paint grid. Both: a card-footer Send. A and B stay until Robert confirms what only they had can go. | open |
+| herdr, 2026-10-15 (Robert) | A and B, whole applicant page | "I think the whole design needs to change. It needs to be a squeeze page, first of all. There's too much distraction on the page overall. We don't have to copy the raid time availability 1 for 1. Look at this example from Calendly [a Zoom Scheduler booking page: one centred card with an info panel, a month calendar and that day's times]. The scheduling portion is smaller and right in the center. It's obvious what you do and what you click to go to the next page. We need to shrink the grid down a bit, centralize it, get rid of the additional noise." | New versions C and D: applicant states as a squeeze page (logo only, no site nav or footer), one centred card. C: info panel, month calendar, the day's times as multi-select buttons. D: info panel and a compact paint grid. Both: a card-footer Send. A and B stay until Robert confirms what only they had can go. | resolved: squeeze page chosen; A and B removed with his yes |
 | herdr, 2026-10-15 (Robert, session 3) | Plan for C and D | Asked: (1) go ahead with C and D as described? (2) keep "send several times, an officer books one" or switch to booking one time instantly like Calendly? | "1. Yes 2. Several times." Build C and D as planned; the applicant still picks several times and an officer books one (the approved flow in #340). | answered |
-| herdr, 2026-10-16 (Robert) | C, day times | "Can we try version C but with 60 minute increments, not 30 minutes? That might make it cleaner. Right now, it's a bit too busy." | New version E: C with hour buttons; each saves both half-hour starts, so SYNC-SPEC and the bot are unchanged. C kept for comparison. | answered: E chosen |
-| herdr, 2026-10-16 (Robert, session 4) | E, the day's picker | "I just don't know that it's obvious enough that a user needs to pick all available times since this UX looks like "Let me pick one availability time." And I certainly wouldn't want to accept any submissions with less than 5 1-hour slots selected. Maybe when they choose a day, it gives them the calendar painter instead of blocks. But fit within the existing design." | Asked 4 questions; answers "1. Sure. 2. Always needs 5 at least. 3. Yes. 4. Yes." New version F (E with a one-day paint column; at least 5 hours on 2 or more guild days to send or update; the footer says what's missing; new state `pick-short`). Details in brief.md, Version F. | answered: F built |
-| herdr, 2026-10-16 (Robert) | F, painter and footer | "There needs to be a clear all button that wipes out all times. We also need to show the full day, not just the times that we're available in. They can be darkened out like before, but they need to be there, otherwise the time jump is jarring and could be missed." | F's column shows all 24 hours with non-interview hours hatched (A's cell and legend); a footer **Clear all** with a confirm. Details in brief.md, Version F. | open |
+| herdr, 2026-10-16 (Robert) | C, day times | "Can we try version C but with 60 minute increments, not 30 minutes? That might make it cleaner. Right now, it's a bit too busy." | New version E: C with hour buttons; each saves both half-hour starts, so SYNC-SPEC and the bot are unchanged. C kept for comparison. | resolved: E chosen, then reworked as F |
+| herdr, 2026-10-16 (Robert, session 4) | E, the day's picker | "I just don't know that it's obvious enough that a user needs to pick all available times since this UX looks like "Let me pick one availability time." And I certainly wouldn't want to accept any submissions with less than 5 1-hour slots selected. Maybe when they choose a day, it gives them the calendar painter instead of blocks. But fit within the existing design." | Asked 4 questions; answers "1. Sure. 2. Always needs 5 at least. 3. Yes. 4. Yes." New version F (E with a one-day paint column; at least 5 hours on 2 or more guild days to send or update; the footer says what's missing; new state `pick-short`). Details in brief.md, Version F. | resolved: F built and approved |
+| herdr, 2026-10-16 (Robert) | F, painter and footer | "There needs to be a clear all button that wipes out all times. We also need to show the full day, not just the times that we're available in. They can be darkened out like before, but they need to be there, otherwise the time jump is jarring and could be missed." | F's column shows all 24 hours with non-interview hours hatched (A's cell and legend); a footer **Clear all** with a confirm. Details in brief.md, Version F. Verified offline at both widths; round-5 critique PASS. | resolved |
+| cmt_03ed3c1d (Open Design, Robert) | F, `p.iv-lede` (picker intro) | "Copy change: "Mark your availability for a 15-20 minute interview with an officer. Choose all times that you're available to make scheduling easier."" | The picker lede (new and Send-error states) now reads "Mark your availability for a 15–20 minute interview with an officer. Choose all times that you're available to make scheduling easier." (en dash, as elsewhere on the site). The minimum stays in the footer from the start ("Nothing picked yet · pick at least 5 hours on 2 or more days"). Checked in the approved captures. | resolved |
 
 ## Experiment
 None.
 
 ## Open items
-- Robert to pick per decision (0, 4, 3; 1 and 2 only if A or B stays) once C and D are
-  shown. Dropping A/B needs his yes on what only they had.
+None affecting the approved scope. For the build (#344): the server enforces the same
+minimum (5 hours on 2 or more guild days) when times are sent or updated.
 
 ## Build handoff
 Merged folder/revision is the feature authority; DESIGN.md/live site govern site-wide

@@ -125,6 +125,8 @@ Editable offline page snapshot, Cleanup PASS; evidence `/tmp/verify-guild-xwR8aw
   row's own page (renamed quillfeather/Quillfeather/QU, its ID replaced). The card goes
   after the article's `</header>`.
 
+The host snapshots were removed from the folder at freeze, once `index.html`'s own
+offline proof was kept (approved captures); the session keeps copies outside the repo.
 All three hosts were checked offline at 390×844 and 1440×900 against the running pages.
 Parts used: each host's `<head>`, `<header>` and `<footer>`; the application's `<main>`;
 the `StatusPage` mark `<img>`. Every captured `href="http…"` becomes `#`; the canonical
@@ -158,6 +160,8 @@ Robert, 2026-10-15, this session:
    it holds when the decision DM couldn't be delivered.
 
 ## Version questions
+**Final: version F approved (2026-10-16), now `index.html`; see `decisions.md`.**
+
 Versions A–D differ on these independent decisions (details in `decisions.md`):
 0. **Page layout.** A, B: the full site page with the editor. C, D: the squeeze page.
 4. **Picker (squeeze page).** C: month calendar and the day's times as buttons. D: a
@@ -243,9 +247,9 @@ least"); keep Pick all / Clear this day ("Yes").
   pick at least 5 hours on 2 or more days", "4 of 5 hours picked · add 1 more, on another
   day", "5 hours picked on 1 day · add an hour on another day") and Send stays disabled
   until it's met. The build enforces the same rule on the server (#344).
-- **Wording:** the lede asks for every free hour: "Paint every hour you're free this
-  week: at least 5 hours, on 2 or more days. The more you give us, the sooner we can book
-  one; we'll let you know on Discord once it's booked."
+- **Wording:** the lede asks for every free time. Final copy, Robert's Open Design
+  comment at approval: "Mark your availability for a 15–20 minute interview with an
+  officer. Choose all times that you're available to make scheduling easier."
 - Desktop picker card is 600px tall (E's 540).
 - **Full day and Clear all** (Robert, 2026-10-16, after seeing F: "There needs to be a
   clear all button that wipes out all times. We also need to show the full day, not just
