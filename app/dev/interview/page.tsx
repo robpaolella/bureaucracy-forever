@@ -11,6 +11,8 @@ import type { ApplicantInterview, InterviewGate } from '@/components/interview/s
 const NOW = new Date('2026-10-15T22:15:00Z');
 const REQUESTED = '2026-10-15T22:10:00.000Z';
 const BOOKED = '2026-10-18T02:00:00.000Z';
+// The design's proposed time: Wednesday 21 Oct, 5:00 PM guild time.
+const PROPOSED = '2026-10-22T00:00:00.000Z';
 const run = (from: string, hours: number) => Array.from({ length: hours * 2 }, (_, i) => new Date(Date.parse(from) + i * 30 * 60_000).toISOString());
 const SENT = [...run('2026-10-16T02:00:00Z', 2), ...run('2026-10-17T17:00:00Z', 3), ...run('2026-10-20T01:00:00Z', 3), ...run('2026-10-21T04:00:00Z', 2)];
 // The picker's sample picks (design 367): guild wall times, widened to whole hours like its buttons.
@@ -35,8 +37,8 @@ const STATES: Record<string, InterviewGate> = {
   'pick-max': interview('AWAITING_TIMES', { slots: MOST }),
   'pick-after-window': interview('AWAITING_TIMES', { slots: [], requestedAt: '2026-10-01T22:10:00.000Z' }),
   submitted: interview('TIMES_RECEIVED'),
-  proposed: interview('PROPOSED', { proposedStart: BOOKED }),
-  'error-too-soon': interview('PROPOSED', { proposedStart: BOOKED }),
+  proposed: interview('PROPOSED', { proposedStart: PROPOSED }),
+  'error-too-soon': interview('PROPOSED', { proposedStart: PROPOSED }),
   booked: interview('BOOKED', { bookedStart: BOOKED }),
   'error-stale': interview('BOOKED', { bookedStart: BOOKED }),
   'ended-cancelled': interview('CANCELLED', { bookedStart: BOOKED }),
@@ -49,6 +51,6 @@ const STATES: Record<string, InterviewGate> = {
 export default async function InterviewDevPage({ searchParams }: { searchParams: Promise<{ state?: string }> }) {
   const { state = 'submitted' } = await searchParams;
   // error-too-soon is the proposal seen 10 minutes before it starts.
-  const now = state === 'error-too-soon' ? new Date(Date.parse(BOOKED) - 10 * 60_000) : NOW;
+  const now = state === 'error-too-soon' ? new Date(Date.parse(PROPOSED) - 10 * 60_000) : NOW;
   return <SqueezeLayout>{state === 'loading' ? <InterviewSkeleton /> : <InterviewView gate={STATES[state] ?? STATES.submitted} now={now} stale={state === 'error-stale'} />}</SqueezeLayout>;
 }

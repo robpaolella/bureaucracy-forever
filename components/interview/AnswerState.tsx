@@ -1,9 +1,10 @@
 'use client';
 
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { INTERVIEW } from '@/content/interview';
 
-type AnswerState = { stale: boolean; moved: boolean; set: (next: { stale: boolean; moved: boolean }) => void };
+type Outcome = { stale: boolean; moved: boolean };
+type AnswerState = Outcome & { set: Dispatch<SetStateAction<Outcome>> };
 const AnswerContext = createContext<AnswerState | null>(null);
 
 /**
@@ -32,11 +33,12 @@ export function CardTitle({ children }: { children: string }) {
   const answer = useContext(AnswerContext);
   const ref = useRef<HTMLHeadingElement>(null);
   const moved = answer?.moved;
+  const set = answer?.set;
   useEffect(() => {
     if (!moved) return;
     ref.current?.focus();
-    answer.set({ stale: answer.stale, moved: false });
-  }, [moved, children, answer]);
+    set?.((state) => ({ ...state, moved: false }));
+  }, [moved, set, children]);
   return (
     <h1 ref={ref} tabIndex={-1} className="font-display text-[34px] font-medium leading-[1.05] tracking-[-0.02em] outline-none md:text-[44px]">
       {children}
