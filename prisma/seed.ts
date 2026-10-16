@@ -31,6 +31,8 @@ async function main() {
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
   const now = new Date();
   const random = rng(20261104);
+  // Sample interview moments are minutes from the next half hour.
+  const base = new Date(Math.ceil(now.getTime() / 1_800_000) * 1_800_000);
 
   // Wipe in dependency order.
   await db.botRequest.deleteMany();
@@ -145,6 +147,24 @@ async function main() {
         data: { applicationId: app.id, authorId: officers[2].id, body: 'Logs look clean. Deaths avoided more than damage done.', createdAt: new Date(createdAt.getTime() + 2 * 3600_000) },
       });
     }
+    // Sample interviews, written directly: no jobs for the bot, no Discord calls.
+    for (const [index, i] of (a.interviews ?? []).entries()) {
+      const at = (min: number) => new Date(base.getTime() + min * 60_000);
+      const requestedAt = at(i.requestedMin);
+      const active = ['AWAITING_TIMES', 'TIMES_RECEIVED', 'PROPOSED', 'BOOKED'].includes(i.status);
+      await db.interview.create({
+        data: {
+          applicationId: app.id, attempt: index + 1, status: i.status, endReason: i.endReason ?? null, activeKey: active ? app.id : null,
+          requestedById: officers[0].id, requestedAt,
+          windowStart: new Date(requestedAt.getTime() + 2 * 3600_000), windowEnd: new Date(requestedAt.getTime() + 7 * 86_400_000),
+          timeZone: i.slotMins ? 'America/New_York' : null, slots: (i.slotMins ?? []).map(at), timesRevision: i.slotMins ? 1 : 0,
+          timesSubmittedAt: i.timesUpdatedMin === undefined ? null : at(i.timesUpdatedMin), timesUpdatedAt: i.timesUpdatedMin === undefined ? null : at(i.timesUpdatedMin),
+          proposedStart: i.proposed ? at(i.proposed.startMin) : null, proposedById: i.proposed ? officers[i.proposed.by].id : null, proposedAt: i.proposed ? at(i.timesUpdatedMin ?? i.requestedMin) : null,
+          bookedStart: i.booked ? at(i.booked.startMin) : null, bookedById: i.booked ? officers[i.booked.by].id : null, bookedAt: i.booked ? at(i.timesUpdatedMin ?? i.requestedMin) : null,
+          endedAt: i.ended ? at(i.ended.min) : null, endedById: i.ended?.by == null ? null : officers[i.ended.by].id,
+        },
+      });
+    }
   }
 
   // Testers answer every raid, after all fake data, without consuming randomness.
@@ -168,6 +188,7 @@ async function main() {
     classNeeds: await db.classNeed.count(),
     applications: await db.application.count(),
     officerNotes: await db.officerNote.count(),
+    interviews: await db.interview.count(),
   };
   console.log('Seeded:', counts);
   await db.$disconnect();

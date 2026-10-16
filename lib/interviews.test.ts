@@ -48,7 +48,7 @@ const fake = vi.hoisted(() => ({
 vi.mock('@/lib/db', () => ({ db: { ...fake, $transaction: async (fn: (tx: typeof fake) => unknown) => fn(fake) } }));
 vi.mock('@/lib/outbox', () => ({ enqueue: async (type: string, payload: Record<string, unknown>) => { store.jobs.push([type, payload]); return 'job'; } }));
 vi.mock('@/lib/generated/prisma/client', () => ({ Prisma: { PrismaClientKnownRequestError: KnownError } }));
-import { answerProposal, applicantInterview, bookInterview, cancelInterview, closeActiveInterview, getInterview, latestInterview, proposeTime, startInterview, submitTimes } from './interviews';
+import { answerProposal, applicantInterview, bookInterview, cancelInterview, closeActiveInterview, getInterview, interviewCard, latestInterview, proposeTime, startInterview, submitTimes } from './interviews';
 
 const now = new Date('2026-10-16T17:00:00Z'); // 10:00 AM guild time
 const pick = (iso: string) => new Date(iso).toISOString();
@@ -297,6 +297,33 @@ describe('closing on a decision', () => {
     interview({ status: 'DONE' });
     expect(await closeActiveInterview('app', 'officer', now, fake as never)).toBeNull();
     expect(store.jobs).toEqual([]);
+  });
+});
+
+describe('the officer interview card', () => {
+  it('is null when the application never had an interview', async () => {
+    expect(await interviewCard('app')).toBeNull();
+  });
+
+  it('gives the latest attempt with times and names, and no earlier line for a first interview', async () => {
+    interview({ status: 'PROPOSED', slots: [new Date(SLOT)], proposedStart: new Date(SLOT2), proposedById: 'officer' });
+    expect(await interviewCard('app')).toMatchObject({ attempt: 1, status: 'PROPOSED', slots: [SLOT], proposedBy: 'Robert', proposedStart: SLOT2, requestedBy: 'Robert', earlier: null });
+  });
+
+  it.each([
+    ['DONE', { bookedStart: new Date(SLOT), endedAt: new Date('2026-10-18T00:00:00Z') }, SLOT],
+    ['CANCELLED', { endedAt: new Date('2026-10-14T00:00:00Z') }, '2026-10-14T00:00:00.000Z'],
+    ['NO_TIME', { endedAt: new Date('2026-10-13T00:00:00Z'), endReason: 'DECLINED' }, '2026-10-13T00:00:00.000Z'],
+    ['CLOSED', { endedAt: new Date('2026-10-12T00:00:00Z') }, '2026-10-12T00:00:00.000Z'],
+  ])('shows the latest attempt and how the earlier %s one ended', async (status, data, at) => {
+    interview({ status, ...data });
+    interview({ status: 'AWAITING_TIMES' });
+    expect(await interviewCard('app')).toMatchObject({ attempt: 2, status: 'AWAITING_TIMES', earlier: { status, at } });
+  });
+
+  it('names who cancelled, and keeps no booked time for a cancel before any booking', async () => {
+    interview({ status: 'CANCELLED', endedById: 'officer', endedAt: now });
+    expect(await interviewCard('app')).toMatchObject({ status: 'CANCELLED', endedBy: 'Robert', endedAt: now.toISOString(), bookedStart: null });
   });
 });
 

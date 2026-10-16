@@ -3,6 +3,7 @@ import 'server-only';
 import type { ApplicationPath } from '@/components/recruitment/form-state';
 import { type AppStatus, type InboxItem } from '@/lib/applications-inbox';
 import { db } from '@/lib/db';
+import { interviewCard, type InterviewCard } from '@/lib/interviews';
 import type { WowClass } from '@/lib/design/class-colors';
 
 const path = (p: 'RAIDER' | 'SOCIAL'): ApplicationPath => (p === 'SOCIAL' ? 'social' : 'raider');
@@ -38,6 +39,8 @@ export type ApplicationDetail = InboxItem & {
   decidedAt: string | null;
   decidedBy: string | null;
   discordThreadId: string | null;
+  /** Null when the application never had an interview. */
+  interview: InterviewCard | null;
   notes: { id: string; author: string; authorClass: WowClass | null; body: string; createdAt: string; source: 'web' | 'discord'; discordMessageId: string | null; editedAt: string | null }[];
 };
 
@@ -68,6 +71,7 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
     },
   });
   if (!r) return null;
+  const interview = await interviewCard(r.id);
   return {
     id: r.id,
     path: path(r.path),
@@ -84,6 +88,7 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
     decidedAt: r.decidedAt?.toISOString() ?? null,
     decidedBy: r.decidedBy?.discordName ?? null,
     discordThreadId: r.discordThreadId,
+    interview,
     notes: r.notes.map((n) => ({
       id: n.id,
       author: n.author.discordName,

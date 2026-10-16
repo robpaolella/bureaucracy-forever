@@ -239,6 +239,39 @@ export type SeedApplication = {
   answers: Record<string, string>;
   daysAgo: number;
   read: boolean;
+  /** Oldest attempt first. Sample interviews, one per state of the officer Interview card. */
+  interviews?: SeedInterview[];
+};
+
+const HOUR = 60;
+/** `count` consecutive half-hour starts from `startMin`. */
+const halfHours = (startMin: number, count: number) => Array.from({ length: count }, (_, i) => startMin + i * 30);
+/** The times an applicant sent: tomorrow evening and the day after, minutes from now. */
+const SAMPLE_TIMES = [...halfHours(26 * HOUR, 6), ...halfHours(50 * HOUR, 4)];
+
+/**
+ * An interview attempt with every moment as minutes from the seed's half-hour-rounded "now"
+ * (negative is the past) and officers as indexes into the seeded officers (Ledgerline,
+ * Redtape, Subclause). Sample data only; the rows enqueue nothing for the bot.
+ */
+export type SeedInterview = {
+  status: 'AWAITING_TIMES' | 'TIMES_RECEIVED' | 'PROPOSED' | 'BOOKED' | 'DONE' | 'CANCELLED' | 'NO_TIME' | 'CLOSED';
+  endReason?: 'DECLINED';
+  requestedMin: number;
+  slotMins?: number[];
+  timesUpdatedMin?: number;
+  proposed?: { startMin: number; by: number };
+  booked?: { startMin: number; by: number };
+  ended?: { min: number; by: number | null };
+};
+
+const SAMPLE_INTERVIEWS: Record<string, SeedInterview[]> = {
+  Loophole: [{ status: 'AWAITING_TIMES', requestedMin: -90 }],
+  Indexcard: [{ status: 'TIMES_RECEIVED', requestedMin: -26 * HOUR, slotMins: SAMPLE_TIMES, timesUpdatedMin: -5 * HOUR }],
+  Smallprint: [{ status: 'PROPOSED', requestedMin: -48 * HOUR, slotMins: SAMPLE_TIMES, timesUpdatedMin: -30 * HOUR, proposed: { startMin: 30 * HOUR, by: 1 } }],
+  Backlog: [{ status: 'BOOKED', requestedMin: -40 * HOUR, slotMins: SAMPLE_TIMES, timesUpdatedMin: -30 * HOUR, booked: { startMin: 26 * HOUR, by: 0 } }],
+  Redline: [{ status: 'DONE', requestedMin: -110 * HOUR, slotMins: SAMPLE_TIMES.map((m) => m - 100 * HOUR), timesUpdatedMin: -100 * HOUR, booked: { startMin: -74 * HOUR, by: 0 }, ended: { min: -73 * HOUR, by: null } }],
+  Fineprint: [{ status: 'DONE', requestedMin: -140 * HOUR, slotMins: SAMPLE_TIMES.map((m) => m - 125 * HOUR), timesUpdatedMin: -128 * HOUR, booked: { startMin: -99 * HOUR, by: 2 }, ended: { min: -98 * HOUR, by: null } }, { status: 'AWAITING_TIMES', requestedMin: -3 * HOUR }],
 };
 
 /** Seven pending applications (the officer stub's badge count) plus a few decided ones. */
@@ -263,11 +296,12 @@ export function buildApplications(): SeedApplication[] {
     answers: { availability: i % 5 === 4 ? 'One of them' : 'Both nights', pitch },
     daysAgo: i,
     read: i > 3,
+    interviews: SAMPLE_INTERVIEWS[character],
   }));
   apps.push(
-    { path: 'SOCIAL', status: 'PENDING', discordName: 'sidebar', character: 'Sidebar', wowClass: null, spec: null, logsUrl: null, answers: { note: 'Friend of Paperclip. Alt runs on weekends.' }, daysAgo: 2, read: true },
-    { path: 'RAIDER', status: 'ACCEPTED', discordName: 'stapler', character: 'Stapler', wowClass: 'mage', spec: 'Frost', logsUrl: 'https://logs.example.com/reports/stapler', answers: { availability: 'Both nights', pitch: 'I show up prepared and I stay out of the void zones.' }, daysAgo: 12, read: true },
-    { path: 'RAIDER', status: 'DECLINED', discordName: 'typo', character: 'Typo', wowClass: 'rogue', spec: 'Combat', logsUrl: 'https://logs.example.com/reports/typo', answers: { availability: 'Neither', pitch: 'n/a' }, daysAgo: 20, read: true },
+    { path: 'SOCIAL', status: 'PENDING', discordName: 'sidebar', character: 'Sidebar', wowClass: null, spec: null, logsUrl: null, answers: { note: 'Friend of Paperclip. Alt runs on weekends.' }, daysAgo: 2, read: true, interviews: [{ status: 'NO_TIME', endReason: 'DECLINED', requestedMin: -44 * HOUR, slotMins: SAMPLE_TIMES.map((m) => m - 60 * HOUR), timesUpdatedMin: -40 * HOUR, proposed: { startMin: -2 * HOUR, by: 1 }, ended: { min: -4 * HOUR, by: null } }] },
+    { path: 'RAIDER', status: 'ACCEPTED', discordName: 'stapler', character: 'Stapler', wowClass: 'mage', spec: 'Frost', logsUrl: 'https://logs.example.com/reports/stapler', answers: { availability: 'Both nights', pitch: 'I show up prepared and I stay out of the void zones.' }, daysAgo: 12, read: true, interviews: [{ status: 'CLOSED', requestedMin: -11 * 24 * HOUR, slotMins: SAMPLE_TIMES.map((m) => m - 10 * 24 * HOUR), timesUpdatedMin: -10 * 24 * HOUR, ended: { min: -10 * 24 * HOUR, by: 0 } }] },
+    { path: 'RAIDER', status: 'DECLINED', discordName: 'typo', character: 'Typo', wowClass: 'rogue', spec: 'Combat', logsUrl: 'https://logs.example.com/reports/typo', answers: { availability: 'Neither', pitch: 'n/a' }, daysAgo: 20, read: true, interviews: [{ status: 'CANCELLED', requestedMin: -19 * 24 * HOUR, slotMins: SAMPLE_TIMES.map((m) => m - 19 * 24 * HOUR), timesUpdatedMin: -19 * 24 * HOUR + 2 * HOUR, booked: { startMin: 26 * HOUR - 19 * 24 * HOUR, by: 0 }, ended: { min: -18 * 24 * HOUR - 2 * HOUR, by: 1 } }] },
   );
   return apps;
 }
