@@ -611,6 +611,8 @@ unique, so the database refuses a second active attempt. `attempt` counts from 1
   + 7 d]` rounded inward to the half hour. **Proposals** are slots within `[now + 2 h, now + 7
   d]`. **Booking a time or accepting a proposal** needs the start to be at least 15 minutes
   away.
+- A submitted set with a pick outside the window or off the half hour is refused 400
+  `out_of_range`, like a proposal; an empty set is 400 `invalid`.
 - Slots are stored as absolute instants with the applicant's zone kept in `timeZone` for
   display only. These are dated one-off times, so absolute instants are correct here, unlike
   the weekly member availability (REVIEW.md), which is kept in member-local time.

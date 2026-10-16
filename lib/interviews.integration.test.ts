@@ -1,10 +1,15 @@
 import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@/lib/generated/prisma/client';
 import { pickWindow } from './interview-slots';
+
+const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient }));
+vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
+import { cancelInterview, startInterview } from './interviews';
+import { decideApplication } from './decisions';
 
 // INTERVIEWS_INTEGRATION=1 npx vitest run lib/interviews.integration.test.ts
 // Like characters.integration.test.ts, owns a disposable loopback-only Postgres, never an existing DB.
@@ -32,6 +37,7 @@ describe.skipIf(process.env.INTERVIEWS_INTEGRATION !== '1')('one active intervie
       await pool.query(readFileSync(`prisma/migrations/${folder}/migration.sql`, 'utf8'));
     }
     db = new PrismaClient({ adapter: new PrismaPg(pool) });
+    state.db = db;
   }, 120_000);
   afterAll(async () => {
     await db?.$disconnect();
@@ -90,5 +96,44 @@ describe.skipIf(process.env.INTERVIEWS_INTEGRATION !== '1')('one active intervie
     await start('G', 1);
     await db.application.delete({ where: { id: 'G' } });
     expect(await db.interview.count({ where: { applicationId: 'G' } })).toBe(0);
+  });
+
+  describe('through the lifecycle functions', () => {
+    const officer = { userId: 'officer' };
+    const jobs = (applicationId: string) => db.outboxJob.findMany({ where: { payload: { path: ['applicationId'], equals: applicationId } }, orderBy: { createdAt: 'asc' } })
+      .then((rows) => rows.map((j) => j.type));
+    beforeAll(async () => {
+      await db.user.create({ data: { id: 'officer', discordId: 'officer-discord', discordName: 'Officer' } });
+    });
+
+    it('lets two simultaneous starts make one attempt and one request', async () => {
+      await application('Two');
+      const results = await Promise.all([startInterview('Two', officer), startInterview('Two', officer)]);
+      expect(results.map((r) => (r.ok ? 'ok' : r.reason)).sort()).toEqual(['already_active', 'ok']);
+      expect(await db.interview.count({ where: { applicationId: 'Two' } })).toBe(1);
+      expect(await jobs('Two')).toEqual(['interview.request']);
+    });
+
+    it('never leaves an interview active on a decided application when start and decide race', async () => {
+      for (let i = 0; i < 5; i++) {
+        const id = `Race${i}`;
+        await application(id);
+        const [start] = await Promise.all([startInterview(id, officer), decideApplication(id, 'declined', { userId: 'officer', name: 'Officer', source: 'web' })]);
+        expect(await db.interview.count({ where: { applicationId: id, activeKey: { not: null } } })).toBe(0);
+        // Either the start came first and the decision closed it, or the start saw the decision.
+        if (start.ok) expect(await db.interview.findFirstOrThrow({ where: { applicationId: id } })).toMatchObject({ status: 'CLOSED' });
+        else expect(start.reason).toBe('not_pending');
+      }
+    });
+
+    it('lets a cancel and a decision race with one ending', async () => {
+      await application('End');
+      const started = await startInterview('End', officer);
+      if (!started.ok) throw new Error(started.error);
+      const [cancel] = await Promise.all([cancelInterview(started.interview.id, officer), decideApplication('End', 'accepted', { userId: 'officer', name: 'Officer', source: 'discord' })]);
+      const row = await db.interview.findUniqueOrThrow({ where: { id: started.interview.id } });
+      expect(row.status).toBe(cancel.ok ? 'CANCELLED' : 'CLOSED');
+      expect((await jobs('End')).filter((t) => t === 'interview.ended')).toHaveLength(1);
+    });
   });
 });
