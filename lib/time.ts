@@ -192,6 +192,13 @@ export type ViewerTime = {
 };
 
 const SHORT_WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+const SHORT_MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+/** "Saturday 17 Oct": `date`'s calendar day in `zone`. */
+export function formatLongDate(date: Date, zone: string): string {
+  const p = zonedParts(date, zone);
+  return `${WEEKDAY_NAMES[p.weekday]} ${p.day} ${SHORT_MONTH[p.month - 1]}`;
+}
 
 export type ViewerTimeOptions = {
   /**
@@ -201,6 +208,8 @@ export type ViewerTimeOptions = {
   weekday?: 'differs' | 'always' | 'never' | 'guild';
   /** false drops the viewer's zone name from `text` (a column header names it); `label` keeps it. */
   zoneName?: boolean;
+  /** true leads each time with its own long date ("Saturday 17 Oct, 10:00 PM"), in place of a weekday. */
+  date?: boolean;
 };
 
 /**
@@ -212,13 +221,13 @@ export type ViewerTimeOptions = {
  * viewer's zone the way they know it, "BST" rather than "GMT+1" in en-GB; clocks stay en-US.
  */
 export function viewerTime(start: Date, durationMin: number, viewerZone: string | null, locale = 'en-US', options: ViewerTimeOptions = {}): ViewerTime {
-  const { weekday = 'differs', zoneName = true } = options;
+  const { weekday = 'differs', zoneName = true, date = false } = options;
   const end = new Date(start.getTime() + durationMin * 60_000);
-  const text = (zone: string) => (durationMin > 0 ? formatRange(start, end, zone) : formatClock(start, zone));
+  const text = (zone: string) => `${date ? `${formatLongDate(start, zone)}, ` : ''}${durationMin > 0 ? formatRange(start, end, zone) : formatClock(start, zone)}`;
   const sameAsGuild = (zone: string) => [start, end].every((d) => tzOffsetMs(d, zone) === tzOffsetMs(d, GUILD_TIMEZONE));
   const home = zonedParts(start, GUILD_TIMEZONE);
   const local = viewerZone ? zonedParts(start, viewerZone) : home;
-  const showDay = weekday === 'always' || ((weekday === 'differs' || weekday === 'guild') && local.day !== home.day);
+  const showDay = !date && (weekday === 'always' || ((weekday === 'differs' || weekday === 'guild') && local.day !== home.day));
   const day = (p: ZonedParts) => (showDay ? `${SHORT_WEEKDAY[p.weekday]} ` : '');
   if (!viewerZone || sameAsGuild(viewerZone)) {
     const guild = `${day(home)}${text(GUILD_TIMEZONE)} guild time`;

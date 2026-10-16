@@ -15,6 +15,8 @@ type Props = {
   /** Show this zone instead of the viewer's: an availability week shows the zone it was painted in. */
   zone?: string;
   weekday?: ViewerTimeOptions['weekday'];
+  /** Lead each time with its long date ("Saturday 17 Oct, 10:00 PM EDT"). */
+  date?: boolean;
   /**
    * For a row label in a grid, under a header that names the zone: no zone name, and the
    * popup is placed against the viewport so the grid's scroll box cannot clip it.
@@ -50,10 +52,10 @@ const HOVER_CLICK_MS = 400;
  * is guild time, it shows guild time once, labelled, with no popup. The popup is the item
  * tooltip's disclosure (ItemName): Escape, an outside press and tabbing away close it.
  */
-export function LocalTime({ startsAt, durationMin, className, zone, weekday, dense = false, hitHeight = 44 }: Props) {
+export function LocalTime({ startsAt, durationMin, className, zone, weekday, date, dense = false, hitHeight = 44 }: Props) {
   const viewer = useViewerTimeZone();
   // `viewer` is null on the server, so navigator is only read in the browser.
-  const time = viewerTime(new Date(startsAt), durationMin, zone ?? viewer?.zone ?? null, viewer ? navigator.language : undefined, { weekday, zoneName: !dense });
+  const time = viewerTime(new Date(startsAt), durationMin, zone ?? viewer?.zone ?? null, viewer ? navigator.language : undefined, { weekday, date, zoneName: !dense });
   const containerRef = useRef<HTMLSpanElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLSpanElement>(null);
