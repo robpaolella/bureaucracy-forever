@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { APPLY_GATE, APPLY_LINKS, EXPECTATIONS, FORM, NEEDS_SECTION, NEXT_STEPS, QUESTIONS, RECRUITMENT_HEAD, SUBMITTED } from './recruitment';
+import { APPLY_GATE, APPLY_LINKS, EXPECTATIONS, FORM, NEEDS_SECTION, NEXT_STEPS, OPEN_RECRUITMENT, QUESTIONS, RECRUITMENT_HEAD, SUBMITTED } from './recruitment';
 
 const everything = (o: unknown) => JSON.stringify(o);
 
@@ -19,6 +19,13 @@ describe('recruitment copy', () => {
     expect(SUBMITTED.body).toBe(
       "Thanks for applying. We'll get back to you on Discord within a few days. If you have a question in the meantime, ask an officer in our Discord.",
     );
+  });
+
+  it('keeps the approved open-recruitment call-out copy', () => {
+    expect(OPEN_RECRUITMENT).toEqual({
+      title: 'Open recruitment for every class and spec',
+      text: "WoW Forever is new, so every class and spec is open to raiders. If you're interested, apply. As raid tiers release and our composition takes shape, we'll recruit for specific roles.",
+    });
   });
 
   it('has no notes under the needs table or the expectations', () => {
