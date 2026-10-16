@@ -112,4 +112,41 @@ describe('raids, needs, applications', () => {
     expect(apps.some((a) => a.status === 'ACCEPTED')).toBe(true);
     expect(apps.some((a) => a.status === 'DECLINED')).toBe(true);
   });
+
+  describe('sample interviews', () => {
+    const apps = buildApplications();
+    const all = apps.flatMap((a) => (a.interviews ?? []).map((i) => ({ app: a, ...i })));
+
+    it('covers every state of the officer Interview card, with a second attempt and one application left without', () => {
+      expect(new Set(all.map((i) => i.status))).toEqual(new Set(['AWAITING_TIMES', 'TIMES_RECEIVED', 'PROPOSED', 'BOOKED', 'DONE', 'CANCELLED', 'NO_TIME', 'CLOSED']));
+      expect(apps.some((a) => (a.interviews?.length ?? 0) > 1 && a.interviews!.at(-1)!.status === 'AWAITING_TIMES')).toBe(true);
+      expect(apps.some((a) => a.status === 'PENDING' && !a.interviews)).toBe(true);
+    });
+
+    it('keeps the lifecycle consistent: one active attempt, last, on a pending application; bookings among the times', () => {
+      for (const a of apps) {
+        const list = a.interviews ?? [];
+        const active = list.filter((i) => ['AWAITING_TIMES', 'TIMES_RECEIVED', 'PROPOSED', 'BOOKED'].includes(i.status));
+        expect(active.length).toBeLessThanOrEqual(1);
+        if (active.length) {
+          expect(list.at(-1)).toBe(active[0]);
+          expect(a.status).toBe('PENDING');
+        }
+      }
+      for (const i of all) {
+        if (i.booked && i.slotMins) expect(i.slotMins).toContain(i.booked.startMin);
+        if (i.status === 'BOOKED' || i.status === 'DONE') expect(i.booked).toBeDefined();
+        if (i.status === 'PROPOSED') expect(i.proposed).toBeDefined();
+        if (!['AWAITING_TIMES', 'TIMES_RECEIVED', 'PROPOSED', 'BOOKED'].includes(i.status)) expect(i.ended).toBeDefined();
+        expect(-i.requestedMin).toBeLessThanOrEqual(i.app.daysAgo * 24 * 60);
+      }
+    });
+
+    it('uses half-hour moments and sample names only', () => {
+      for (const i of all) {
+        for (const m of [i.requestedMin, ...(i.slotMins ?? []), i.booked?.startMin, i.proposed?.startMin, i.ended?.min]) if (m !== undefined) expect(Math.abs(m) % 30).toBe(0);
+        expect(['Footnote', 'Loophole', 'Indexcard', 'Smallprint', 'Backlog', 'Redline', 'Fineprint', 'Sidebar', 'Stapler', 'Typo']).toContain(i.app.character);
+      }
+    });
+  });
 });
