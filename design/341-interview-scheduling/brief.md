@@ -89,7 +89,9 @@ Draft wording below; final wording comes from the versions Robert approves.
 | error-stale | Sent or answered after an officer acted (booked, cancelled) | Toast or banner: "This changed while the page was open." The page shows the current state | — |
 | error-offline | The site couldn't be reached on send or answer | Painted times kept. Toast: "Couldn't send your times. Check your connection and try again." | **Retry** |
 
-Not applicable: loading uses the site's existing route loading skeleton; no-permission
+Loading (state `loading`, added after critique in session 3): A and B show the site's
+existing `PageSkeleton` in the full page; C and D show the same skeleton bars inside the
+squeeze card, so loading never brings back the nav and footer. Not applicable: no-permission
 is `nothing` (a signed-in person only ever sees their own interview, so there's no
 "not allowed" view); there are no roles on this page beyond signed out / signed in.
 
@@ -133,6 +135,13 @@ offline with the network set to Offline at both widths: paint and drag, send, ch
 cancel, remove a block, day list, time-zone change (Eastern, Pacific, UK), decline with
 confirm and Escape, accept, retry after an error, and the phone day view keeping its
 scroll while painting. The only requests were inline `data:` images.
+Versions C and D were checked the same way (session 3, network Offline, 1440 and 390):
+toggle times (focus and the panel's scroll kept), pick a day on the calendar and the
+phone strip (strip scroll kept), Pick all / Clear this day, the Your/Guild switch keeping
+the same day, send, change, cancel, update, zone changes (UK, Pacific hides the switch),
+send error and Try again, decline dialog and Escape, D's drag-paint, block remove and day
+list, and the officer states keeping the full page. Regenerating also rewrote A and B;
+their 104 captures are pixel-identical to the critiqued ones.
 
 ## Confirmed decisions
 Robert, 2026-10-15, this session:
@@ -148,7 +157,12 @@ Robert, 2026-10-15, this session:
    it holds when the decision DM couldn't be delivered.
 
 ## Version questions
-Versions A and B differ on three independent decisions (details in `decisions.md`):
+Versions A–D differ on these independent decisions (details in `decisions.md`):
+0. **Page layout.** A, B: the full site page with the editor. C, D: the squeeze page.
+4. **Picker (squeeze page).** C: month calendar and the day's times as buttons. D: a
+   compact paint grid.
+
+The first three apply as follows (1 and 2 only matter if A or B is chosen):
 1. **Grid days.** A: the viewer's own calendar dates, all 48 rows when interview hours
    cross the viewer's midnight, outside hours hatched. B: one column per interview day
    (guild day), 28 rows of starts in the viewer's time, a "Next day" line at the rollover.
@@ -159,6 +173,40 @@ Versions A and B differ on three independent decisions (details in `decisions.md
 
 Everything else is the same in both: wording, states, the status pages and the phone
 day view.
+
+### Versions C and D: the squeeze page (Robert, 2026-10-15)
+Robert asked for a squeeze page in the style of a Calendly/Zoom Scheduler booking page:
+"too much distraction on the page overall… The scheduling portion is smaller and right in
+the center. It's obvious what you do and what you click." He confirmed the plan and kept
+the approved flow: the applicant sends **several** times and an officer books one.
+
+Boundary: every applicant state (signed-out through the error states) drops the site nav
+and footer. A top bar holds only the site logo (linking home), and the page is one card
+centred on `ink-950` with a `line` border, `ink-850` fill and card corners, and no resting
+shadow (DESIGN.md). Officer states keep the full site page, because only their card is new.
+- **Picker card (both):** an info panel (mark, "Interview" eyebrow, "Officer interview",
+  a short what-to-expect, then 15–20 minutes, Discord voice · Public Lounge, start times
+  in the viewer's zone with guild time on hover/tap/focus, the time-zone button that opens
+  the existing zone dialog, "Signed in as …"). A card footer across the full width holds
+  the status ("Nothing picked yet" / "19 times picked on 4 days · not sent yet" /
+  "… changes not sent") and **Send my times** (Cancel + **Update my times** when changing).
+  A failed send shows in the footer ("Couldn't send your times…") with **Try again**,
+  in place of the toast (the toast would cover the footer).
+- **C:** info | October month calendar (days with interview times enabled; the shown day
+  filled Sand; a Teal dot under days with picks) | that day's start times as toggle
+  buttons (3 columns, scrolling inside the panel; a dashed break where the day has a gap,
+  such as after the viewer's midnight), "Pick all" / "Clear this day", and a
+  "Your time | Guild time" switch that re-dates the calendar and times in that zone. Each
+  button's accessible name carries both times. Days are the viewer's own dates.
+- **D:** info | a compact paint grid (the B grid: one column per interview day in guild
+  days, 28 rows of 15px, the "Next day" rollover line, the day list as keyboard route).
+- **Phone (both):** one full-width card: a condensed info panel, a horizontal strip of
+  day chips, the day's time buttons, and a sticky footer with Send. D's phone matches C's,
+  because tap-painting a 28-row column is harder than tapping times.
+- **Status states:** the same squeeze page, with a 520px card holding today's StatusPage
+  content (sent times say "start times").
+- **Officer card:** C carries card A; D carries card B (question 3 stays independent).
+
 
 ## Real-site experiment
 None.

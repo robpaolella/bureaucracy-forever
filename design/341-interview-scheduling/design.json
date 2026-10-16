@@ -7,11 +7,14 @@
   "revision": 1,
   "versions": {
     "a": "versions/a.html",
-    "b": "versions/b.html"
+    "b": "versions/b.html",
+    "c": "versions/c.html",
+    "d": "versions/d.html"
   },
   "states": [
     "signed-out",
     "nothing",
+    "loading",
     "pick-empty",
     "pick-partial",
     "pick-max",

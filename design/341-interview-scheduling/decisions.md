@@ -5,14 +5,16 @@
 - Maker: claude-bridge/claude-opus-5-5 (two sessions: `design-341`, then its successor), medium thinking
 
 ## Choice and approval
-Not chosen yet. Versions A and B differ on three independent decisions, each asked as
-its own numbered question:
+Not chosen yet. Versions A–D differ on these independent decisions, each asked as its own
+numbered question:
 
 | # | Decision | Options (version) | Robert's pick and why |
 | --- | --- | --- | --- |
+| 0 | Page layout | a, b: the full site page (nav, footer, editor); c, d: a squeeze page (logo-only top bar, one centred card, no footer) for every applicant state | pending |
+| 4 | Picker on the squeeze page | c: info panel, a month calendar and the chosen day's start times as toggle buttons with a "Your time / Guild time" switch; d: info panel and a compact version of B's paint grid. Both use the same phone layout (day chips and time buttons) | pending |
 | 1 | Grid days when interview hours cross the viewer's midnight | a: the viewer's own calendar dates (8 columns for an Eastern viewer); every row of the day shows, and hours outside interview hours are hatched; b: one column per guild day (interview day), with 28 rows of starts labelled in the viewer's time, and a teal "Next day" line where the viewer's date rolls over | pending |
 | 2 | Time-zone control on the picker | a: the member editor's compact "Your time / Guild time" labels plus a "Change" link; b: the full `TimezoneBar` card from the Raiding page with "Use a different timezone" | pending |
-| 3 | Officer Interview card | a: a compact card styled like Officer notes, with the pill beside the heading and times listed by day; b: definition rows like the answers list (Status / Where it stands / Their times), with times as chips | pending |
+| 3 | Officer Interview card (C uses a's, D uses b's) | a: a compact card styled like Officer notes, with the pill beside the heading and times listed by day; b: definition rows like the answers list (Status / Where it stands / Their times), with times as chips | pending |
 
 Design PR: linked on the design issue once created. Only Robert merging that PR
 approves it for building.
@@ -26,6 +28,17 @@ For Robert's go-ahead through the approved design (AGENTS.md, Designs):
 - Time chips in the officer card (B only).
 - The "Change" link next to the compact time-zone labels (A only; the member editor
   has no zone control there today).
+
+Versions C and D add (squeeze page):
+- The squeeze page shell: a logo-only top bar and one centred bordered card, no footer.
+- Info-panel icons (clock, microphone, calendar, globe, person; 16px line icons).
+- The time-zone button in the info panel (opens the existing zone dialog).
+- The card footer with status and Send, sticky on phone; send errors shown in it.
+- The month calendar with Sand selected day and Teal "has picks" dots (C).
+- Start-time toggle buttons, "Pick all" / "Clear this day", and the "Your time / Guild
+  time" segmented switch (C, and both versions on phone).
+- The horizontal day-chip strip (phone, C and D).
+- The compact paint grid with two-line block labels (D).
 
 The prototypes approximate block editing (paint, select, ×). The build keeps the member
 editor's existing resize handles and keyboard behaviour; the day list stays the
@@ -52,18 +65,37 @@ To be filled at freeze.
   day labels wrapping, toast placement, wording ("Requested by … on …"), ended states
   following the brief (no actions), and the too-soon state's disabled Accept.
 
+### Round 2: versions C and D (session 3, 2026-10-16)
+- Maker: claude-bridge/claude-opus-5-5. Reviewer: openai/gpt-5.6-terra, medium thinking
+  (`route.ts role checker`), a different company.
+- Command: `node /git/maestro/scripts/read-only-run.ts /git/bureaucracy-forever review
+  /git/maestro/skills/design-feature/reviewer-prompt.md "<design folder, evidence, maker,
+  scope: new versions c and d; a and b as comparison>" -- --model openai/gpt-5.6-terra
+  --thinking medium`; exit 0, repo unchanged.
+- Evidence: `/tmp/d341-shots-oZnUck/v2`, 208 images (4 versions × 26 states × 1 theme ×
+  390/1440) and `manifest.json`, all opened by the maker and the reviewer.
+- Verdict: **FIXES**, one: loading is applicable but had no capture, so nothing showed
+  that loading keeps the squeeze shell. Checklist items 1, 2, 4, 5 and 6 passed.
+- Fix: a `loading` state in every version (A/B: the site's `PageSkeleton` in the full
+  page; C/D: the same bars inside the squeeze card). Evidence `/tmp/d341-shots-oZnUck/v3`,
+  216 images. Re-check of fix 1 only: **PASS**. A and B's other captures are
+  pixel-identical to round 1.
+- Reviewer's trade-offs for Robert (not fixes): C is the clearer first-time flow (date,
+  then several start times) and makes "send several, officers book one" obvious; D keeps
+  the faster paint and a week at a glance, with the phone switching to time buttons.
+
 ## Comments and changes
 | ID / source | Version / element | Original note | Agreed change and verification | Resolved |
 | --- | --- | --- | --- | --- |
 | herdr, 2026-10-15 (Robert) | A and B, whole applicant page | "I think the whole design needs to change. It needs to be a squeeze page, first of all. There's too much distraction on the page overall. We don't have to copy the raid time availability 1 for 1. Look at this example from Calendly [a Zoom Scheduler booking page: one centred card with an info panel, a month calendar and that day's times]. The scheduling portion is smaller and right in the center. It's obvious what you do and what you click to go to the next page. We need to shrink the grid down a bit, centralize it, get rid of the additional noise." | New versions C and D: applicant states as a squeeze page (logo only, no site nav or footer), one centred card. C: info panel, month calendar, the day's times as multi-select buttons. D: info panel and a compact paint grid. Both: a card-footer Send. A and B stay until Robert confirms what only they had can go. | open |
+| herdr, 2026-10-15 (Robert, session 3) | Plan for C and D | Asked: (1) go ahead with C and D as described? (2) keep "send several times, an officer books one" or switch to booking one time instantly like Calendly? | "1. Yes 2. Several times." Build C and D as planned; the applicant still picks several times and an officer books one (the approved flow in #340). | answered |
 
 ## Experiment
 None.
 
 ## Open items
-- The squeeze-page redesign (versions C and D), from Robert's 2026-10-15 feedback.
-- Questions 1 and 2 above are likely superseded by the redesign; question 3 (officer
-  card) still stands. Confirm with Robert once C and D are shown.
+- Robert to pick per decision (0, 4, 3; 1 and 2 only if A or B stays) once C and D are
+  shown. Dropping A/B needs his yes on what only they had.
 
 ## Build handoff
 Merged folder/revision is the feature authority; DESIGN.md/live site govern site-wide
