@@ -246,7 +246,20 @@ least"); keep Pick all / Clear this day ("Yes").
 - **Wording:** the lede asks for every free hour: "Paint every hour you're free this
   week: at least 5 hours, on 2 or more days. The more you give us, the sooner we can book
   one; we'll let you know on Discord once it's booked."
-- Desktop picker card is 600px tall (E's 540) so a full day's 14 hours fit unscrolled.
+- Desktop picker card is 600px tall (E's 540).
+- **Full day and Clear all** (Robert, 2026-10-16, after seeing F: "There needs to be a
+  clear all button that wipes out all times. We also need to show the full day, not just
+  the times that we're available in. They can be darkened out like before, but they need
+  to be there, otherwise the time jump is jarring and could be missed."):
+  - The column shows all 24 hours of the day (in the zone the switch shows). Hours with
+    no interview start are hatched, as A's "Outside interview hours" cells, with that
+    legend under the note; they can't be painted. No more dashed gap.
+  - On desktop the column scrolls inside the panel and opens on the day's first painted
+    hour, else its first bookable hour. On phone it's part of the page (36px rows).
+  - **Clear all** (a text button in the card footer, shown once anything is picked)
+    opens a confirm, "Clear all your times? This removes every hour you've picked, on
+    every day." with **Keep them** / **Clear all** (danger). When changing sent times
+    it adds "The times you sent stay with the officers unless you update them."
 
 ## Real-site experiment
 None.
