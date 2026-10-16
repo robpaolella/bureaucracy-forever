@@ -25,7 +25,11 @@ note, auto-assign Guild Member on accept, no native Discord Events, any member m
    note). Changes are edits to existing messages, never re-posts.
 6. **Every bot write is idempotent.** `Idempotency-Key` header on every POST/PATCH/DELETE,
    set to the Discord interaction ID or message ID that caused it. The site stores keys and
-   replays the original response on a repeat.
+   replays the original response on a repeat. The first request claims its key before it
+   runs, so a key only ever executes once; a repeat that arrives while it is still running
+   waits up to 10 s for its reply, then gets `409 { reason: "in_progress", error }`, which
+   the bot retries with backoff under the **same** key (the reply is replayed once ready).
+   A 5xx or crash is not stored, so a retry with the same key runs again.
 7. **Fail loudly, retry quietly.** A job that fails is retried with backoff up to 5 times,
    then marked FAILED and posted to `#officers` by the bot. Nothing is silently dropped.
 
@@ -234,6 +238,8 @@ Robert writes the real one.
 All under `/api/bot/`. JSON in, JSON out (204 has no body). 401 on bad secret. 409 on a state
 conflict with a `reason` string the bot shows verbatim to the user who clicked, except the
 character routes below: their `reason` is a stable code and `error` is the message to show.
+Any route that takes `Idempotency-Key` may also answer `409 { reason: "in_progress", error }`
+(§1.6): retry with backoff under the same key rather than showing it.
 
 | Method | Route | Purpose |
 |---|---|---|
@@ -611,6 +617,8 @@ unique, so the database refuses a second active attempt. `attempt` counts from 1
   + 7 d]` rounded inward to the half hour. **Proposals** are slots within `[now + 2 h, now + 7
   d]`. **Booking a time or accepting a proposal** needs the start to be at least 15 minutes
   away.
+- A submitted set with a pick outside the window or off the half hour is refused 400
+  `out_of_range`, like a proposal; an empty set is 400 `invalid`.
 - Slots are stored as absolute instants with the applicant's zone kept in `timeZone` for
   display only. These are dated one-off times, so absolute instants are correct here, unlike
   the weekly member availability (REVIEW.md), which is kept in member-local time.
