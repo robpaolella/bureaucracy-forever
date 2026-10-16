@@ -96,7 +96,12 @@ describe('InterviewCard', () => {
   it('words the second interview, with the earlier outcome in the pill’s words', async () => {
     await show({ attempt: 2, earlier: { status: 'NO_TIME', at: '2026-10-10T19:00:00.000Z' } });
     expect(text()).toContain('Second interview, requested by Ledgerline on');
-    expect(text()).toContain('Earlier interview: no time found, Saturday 10 Oct.');
+    expect(text()).toContain('Earlier interview: No time found, Saturday 10 Oct.');
+  });
+
+  it.each([['DONE', 'Done'], ['CANCELLED', 'Cancelled'], ['NO_TIME', 'No time found'], ['CLOSED', 'Closed']] as const)('names an earlier %s attempt with the pill’s capitalised word', async (status, word) => {
+    await show({ attempt: 2, earlier: { status, at: '2026-10-10T19:00:00.000Z' } });
+    expect(text()).toContain(`Earlier interview: ${word}, Saturday 10 Oct.`);
   });
 
   it('words each way an interview can end without a time', async () => {

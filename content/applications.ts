@@ -93,5 +93,5 @@ export const INTERVIEW = {
   cancelledUnknown: () => 'Cancelled on {day}.',
   wasBooked: ' It had been booked for {when}.',
   closed: (name: string, sent: string | null) => `Closed when the application was decided. ${sent ? `${name} had sent ${sent}.` : `${name} hadn’t sent any times.`}`,
-  earlier: (outcome: string) => `Earlier interview: ${outcome.toLowerCase()}, {day}.`,
+  earlier: (outcome: string) => `Earlier interview: ${outcome}, {day}.`,
 };
