@@ -46,8 +46,10 @@ revision changes), #364 (send and update), #365 (answer a proposal).
 4. **Officer card** (#345, Robert "Agreed", 2026-10-16): the "Earlier interview:
    <outcome>, <date>" line shows for any earlier attempt, with the status pill's outcome
    words (Done, Cancelled, No time found, Closed); a cancel with no booking drops "It had
-   been booked for…". New states `officer-cancelled-unbooked` and
-   `officer-second-cancelled`.
+   been booked for…". The outcome word is written exactly as the pill shows it:
+   "Earlier interview: Done, Saturday 10 Oct." (revision 1 showed lowercase "done").
+   New states `officer-cancelled-unbooked`, `officer-second-cancelled`,
+   `officer-second-no-time` and `officer-second-closed`.
 
 Everything else (states, wording, officer card A, layout, widths) is revision 1's.
 
@@ -66,12 +68,15 @@ revision 1 (applicant Quillfeather, officers Ledgerline and Redtape; request Thu
 3:10 PM guild time; viewer America/New_York, so interview hours cross the viewer's
 midnight).
 
-All 28 states of revision 1 (its `brief.md` tables and `design.json`), plus:
+All 28 states of revision 1 (33 here) (its `brief.md` tables and `design.json`), plus:
 | State slug | Situation | Content | Actions |
 | --- | --- | --- | --- |
 | ended-cancelled-unbooked | Officer cancelled before anything was booked | "Your interview has been cancelled. An officer will be in touch." | none |
 | officer-cancelled-unbooked | Card: cancelled, never booked | "Cancelled by Redtape on Friday 16 Oct." (no "It had been booked for…") | Open the thread |
-| officer-second-cancelled | Card: second attempt after an earlier cancelled one | Current attempt plus "Earlier interview: cancelled, Oct 9" | Open the thread |
+| officer-second | Card: second attempt after an earlier done one (revision 1's state, word now capitalised) | Current attempt plus "Earlier interview: Done, Saturday 10 Oct." | Open the thread |
+| officer-second-cancelled | Card: second attempt after an earlier cancelled one | "Earlier interview: Cancelled, Saturday 10 Oct." | Open the thread |
+| officer-second-no-time | Card: second attempt after an earlier one that found no time | "Earlier interview: No time found, Saturday 10 Oct." | Open the thread |
+| officer-second-closed | Card: second attempt after an earlier closed one | "Earlier interview: Closed, Saturday 10 Oct." | Open the thread |
 
 Picker states with the new buttons: pick-empty, pick-short (4 hours on one day), pick-partial
 (typical), pick-max (every bookable hour on most days), changing, error-offline.

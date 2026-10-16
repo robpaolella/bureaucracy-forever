@@ -39,7 +39,9 @@
     "officer-cancelled-unbooked",
     "officer-closed",
     "officer-second",
-    "officer-second-cancelled"
+    "officer-second-cancelled",
+    "officer-second-no-time",
+    "officer-second-closed"
   ],
   "themes": [
     "default"

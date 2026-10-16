@@ -101,8 +101,29 @@ pixel-identical to the critiqued set apart from the animated loading skeleton
 Final offline proof of `index.html` (network Offline, 390 and 1440): toggle hours with
 focus kept, minimum messages and disabled Send, Pick all, Clear all confirm and Keep
 them, send → submitted; no requests other than the file and `data:` URIs.
+**After freeze, from the pre-PR review** (below): the officer card's "Earlier interview"
+outcome word now matches the status pill ("Done", "Cancelled", as #345's agreed answer
+says) and two states show the remaining earlier outcomes (`officer-second-no-time`,
+`officer-second-closed`). `index.html` was regenerated from the same sources with only
+these changes; `screenshots/approved/` was recaptured: 66 images (33 states ×
+390/1440), all opened; against the previous approved set only `officer-second` and
+`officer-second-cancelled` differ (the capital letter) and the four new images are
+added. `screenshots/all/` stays the pre-freeze record of G and H (31 states, lowercase
+words). These follow Robert's agreed #345 answer, so no new decision was needed.
 Capture limitation: in full-page phone captures the sticky card footer shows part-way
 down the image (as in revision 1).
+
+## Pre-PR review (ship)
+- Reviewer: openai/gpt-5.6-terra, medium thinking, a different company; command
+  `node /git/maestro/scripts/read-only-run.ts . review
+  /git/maestro/skills/review/reviewer-prompt.md "<issue, base main, design folder and
+  evidence>" -- --model openai/gpt-5.6-terra --thinking medium`; exit 0, repo unchanged.
+- Verdict: **Blocking**, two:
+  1. The "Earlier interview" line for any earlier attempt had evidence only for Done and
+     Cancelled; No time found and Closed had none. Fix: states `officer-second-no-time`
+     and `officer-second-closed`.
+  2. The line used lowercase words, not the pill's ("Done", "Cancelled"), as #345's
+     agreed answer requires. Fix: capitalised.
 
 ## Comments and changes
 | ID / source | Version / element | Original note | Agreed change and verification | Resolved |

@@ -325,6 +325,8 @@ const STATES = [
   ['officer-closed', 'Officer card: closed'],
   ['officer-second', 'Officer card: second interview'],
   ['officer-second-cancelled', 'Officer card: second, earlier cancelled'],
+  ['officer-second-no-time', 'Officer card: second, earlier no time found'],
+  ['officer-second-closed', 'Officer card: second, earlier closed'],
 ];
 const THEMES = ['default'];
 
@@ -916,8 +918,10 @@ function officerCard(s) {
     'officer-cancelled': { tone: 'closed', word: 'Cancelled', line: `Cancelled by <b class="font-semibold text-fg">Redtape</b> on Friday 16 Oct. It had been booked for ${Twhen(BOOKED, 'text-fg')}.`, times: false },
     'officer-cancelled-unbooked': { tone: 'closed', word: 'Cancelled', line: `Cancelled by <b class="font-semibold text-fg">Redtape</b> on Friday 16 Oct.`, times: false },
     'officer-closed': { tone: 'closed', word: 'Closed', line: `Closed when the application was decided. ${NAME} had sent ${sentTimes.size} half-hours.`, times: false },
-    'officer-second': { tone: 'closed', word: 'Waiting for times', line: `Second interview, requested by <b class="font-semibold text-fg">Ledgerline</b> on ${Twhen(requested, 'text-fg')}. ${NAME} hasn’t sent times yet.`, times: false, earlier: 'done' },
-    'officer-second-cancelled': { tone: 'closed', word: 'Waiting for times', line: `Second interview, requested by <b class="font-semibold text-fg">Ledgerline</b> on ${Twhen(requested, 'text-fg')}. ${NAME} hasn’t sent times yet.`, times: false, earlier: 'cancelled' },
+    'officer-second': { tone: 'closed', word: 'Waiting for times', line: `Second interview, requested by <b class="font-semibold text-fg">Ledgerline</b> on ${Twhen(requested, 'text-fg')}. ${NAME} hasn’t sent times yet.`, times: false, earlier: 'Done' },
+    'officer-second-cancelled': { tone: 'closed', word: 'Waiting for times', line: `Second interview, requested by <b class="font-semibold text-fg">Ledgerline</b> on ${Twhen(requested, 'text-fg')}. ${NAME} hasn’t sent times yet.`, times: false, earlier: 'Cancelled' },
+    'officer-second-no-time': { tone: 'closed', word: 'Waiting for times', line: `Second interview, requested by <b class="font-semibold text-fg">Ledgerline</b> on ${Twhen(requested, 'text-fg')}. ${NAME} hasn’t sent times yet.`, times: false, earlier: 'No time found' },
+    'officer-second-closed': { tone: 'closed', word: 'Waiting for times', line: `Second interview, requested by <b class="font-semibold text-fg">Ledgerline</b> on ${Twhen(requested, 'text-fg')}. ${NAME} hasn’t sent times yet.`, times: false, earlier: 'Closed' },
   }[s];
   const earlier = C.earlier ? `<p class="text-[13px] text-fg-3">Earlier interview: ${C.earlier}, ${dayLong(pt(10, 19), zone)}.</p>` : '';
   const thread = `<a href="#" data-inert class="inline-flex min-h-11 items-center whitespace-nowrap text-sm text-teal-text underline-offset-4 hover:underline">Open the thread ↗</a>`;

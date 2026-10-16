@@ -619,6 +619,46 @@
       "height": 900,
       "pixelWidth": 1440,
       "pixelHeight": 1278
+    },
+    {
+      "image": "approved-officer-second-no-time-default-390.png",
+      "version": "approved",
+      "state": "officer-second-no-time",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 1623
+    },
+    {
+      "image": "approved-officer-second-no-time-default-1440.png",
+      "version": "approved",
+      "state": "officer-second-no-time",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1278
+    },
+    {
+      "image": "approved-officer-second-closed-default-390.png",
+      "version": "approved",
+      "state": "officer-second-closed",
+      "theme": "default",
+      "width": 390,
+      "height": 844,
+      "pixelWidth": 390,
+      "pixelHeight": 1623
+    },
+    {
+      "image": "approved-officer-second-closed-default-1440.png",
+      "version": "approved",
+      "state": "officer-second-closed",
+      "theme": "default",
+      "width": 1440,
+      "height": 900,
+      "pixelWidth": 1440,
+      "pixelHeight": 1278
     }
   ]
 }
