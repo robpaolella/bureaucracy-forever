@@ -105,4 +105,5 @@ start hatched and disabled (F's "show the full day" request, 2026-10-16).
 None.
 
 ## Open decisions
-1. G or H (which hours the day panel shows). Asked once the versions are built.
+None. Robert chose G, 2026-10-16 ("I like G. It makes more sense on this style design.
+Approved, go forward with it."); see `decisions.md`.

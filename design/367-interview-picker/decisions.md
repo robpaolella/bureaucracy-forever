@@ -45,7 +45,18 @@ stop, which Robert asked for in F ("otherwise the time jump is jarring and could
 missed"), at the cost of a busier panel.
 
 ## Choice and approval
-Pending: Robert picks G or H.
+**Chosen: version G**, now `index.html`. Robert, 2026-10-16: "1. I like G. It makes more
+sense on this style design. Approved, go forward with it."
+
+| # | Decision | Options (version) | Robert's pick and why |
+| --- | --- | --- | --- |
+| 1 | Which hours the day panel shows | g: only the bookable hours, dashed break at a gap; h: all 24 hours, outside hours hatched and disabled, collapsed into one bar on phone | g: "It makes more sense on this style design." |
+
+The maker had recommended H (it keeps F's full-day boundary); Robert chose G knowing
+what H offered (both were described to him in the same question).
+
+Design PR: linked on the design issue once created. Only Robert merging that PR
+approves it for building.
 
 ## New kinds of element shown
 None new to the site's approved designs: the hour toggle buttons, dashed run break,
@@ -77,12 +88,42 @@ H's hatched, disabled hour button and phone gap bar are those cells in button fo
 - Re-check of fixes 1 and 2 only, same reviewer and command: **PASS**, exit 0, repo
   unchanged.
 
+## Alternatives
+| Version | What differs / why rejected or chosen | Only this version had (lost) | Robert's OK to drop | Evidence |
+| --- | --- | --- | --- | --- |
+| h | Full day of hour buttons; not chosen | The whole day shown in order, with hatched, unclickable hours outside interview times and the "Outside interview hours" legend; desktop panel scrolling to the first pick; the phone's collapsed "… · outside interview hours" bar | Robert chose G over it in the question that described exactly these features, 2026-10-16: "I like G. … Approved, go forward with it." | [All-version manifest](screenshots/all/manifest.json), files `h-…` |
+
+All-version captures were completed and inspected before pruning `versions/`:
+`screenshots/all/`, 124 images (2 versions × 31 states × 390/1440) and `manifest.json`,
+pixel-identical to the critiqued set apart from the animated loading skeleton
+(3 images). Approved evidence: [manifest](screenshots/approved/manifest.json),
+62 images (31 states × 390/1440), pixel-identical to G's all-version captures.
+Final offline proof of `index.html` (network Offline, 390 and 1440): toggle hours with
+focus kept, minimum messages and disabled Send, Pick all, Clear all confirm and Keep
+them, send → submitted; no requests other than the file and `data:` URIs.
+Capture limitation: in full-page phone captures the sticky card footer shows part-way
+down the image (as in revision 1).
+
 ## Comments and changes
 | ID / source | Version / element | Original note | Agreed change and verification | Resolved |
 | --- | --- | --- | --- | --- |
+| herdr, 2026-10-16 (Robert) | Day panel note | Interview 1 | The note reads "Pick every hour you’re available. The more you pick, the easier it is to schedule." Checked in the approved captures. | resolved |
+| herdr, 2026-10-16 (Robert) | G vs H | "I like G. It makes more sense on this style design." | G frozen as `index.html`. | resolved |
+
+No Open Design comments were left on this revision.
 
 ## Experiment
 None.
 
 ## Open items
-1. G or H.
+None affecting the approved scope. Carried unchanged from revision 1 (not asked here):
+the officer card's "sent N half-hours" counts in Times received and Closed; Robert said
+to keep F's officer card as it was.
+
+## Build handoff
+Merged folder/revision is the feature authority for #344 (and its split parts via
+`Covered via parent #344`) and #345; DESIGN.md/live site govern site-wide look. For the
+build: each hour button saves both of its half-hour starts (one at a window edge); the
+footer and server use one counting function (5 hours on 2 or more guild days). #363's
+brief describes F's paint column and needs re-prep against this revision. Later
+revisions use new issues/PRs.
