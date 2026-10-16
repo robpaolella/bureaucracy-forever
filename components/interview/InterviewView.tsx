@@ -63,13 +63,14 @@ function InterviewState({ gate, now }: { gate: InterviewGate; now: Date }) {
       return <InterviewCard title={INTERVIEW.submitted.title} extra={<SentTimes slots={slots} />} body={INTERVIEW.submitted.body} />;
     case 'PROPOSED': {
       if (!proposedStart) return <InterviewCard title={INTERVIEW.proposed.title} body={INTERVIEW.proposed.body} />;
-      // Under 15 minutes away it can't be accepted (answerProposal), and the line counts minutes.
+      // Under 15 minutes away it can't be accepted (answerProposal), and the line counts minutes;
+      // once started (until the tick lapses it) the line is left out rather than miscounted.
       const left = Date.parse(proposedStart) - now.getTime();
       const tooSoon = left < MIN_NOTICE_MS;
       return (
         <InterviewCard
           title={INTERVIEW.proposed.title}
-          extra={<TimeLine start={proposedStart} now={now} relative={tooSoon ? INTERVIEW.proposed.startsIn(Math.max(1, Math.ceil(left / 60_000))) : undefined} />}
+          extra={<TimeLine start={proposedStart} now={now} relative={!tooSoon ? undefined : left > 0 ? INTERVIEW.proposed.startsIn(Math.ceil(left / 60_000)) : null} />}
           body={INTERVIEW.proposed.body}
           answer={<ProposalAnswer proposedStart={proposedStart} tooSoon={tooSoon} />}
         />

@@ -123,6 +123,12 @@ describe('answering a proposed time', () => {
     expect(byText('Decline').disabled).toBe(false);
   });
 
+  it('leaves out the countdown once the time has started', async () => {
+    await render(undefined, new Date(Date.parse(START) + 60_000));
+    expect(host.textContent).not.toMatch(/starts in \d/);
+    expect(byText('Accept').getAttribute('aria-disabled')).toBe('true');
+  });
+
   it('shows the too-soon reason and disables Accept when the server refuses it', async () => {
     mocks.answer.mockResolvedValue('too_soon');
     await render();
