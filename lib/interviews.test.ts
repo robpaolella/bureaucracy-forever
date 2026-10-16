@@ -197,9 +197,47 @@ describe('the applicant submitting times', () => {
     expect(await submitTimes('i1', 'applicant', [SLOT2], 'UTC', now)).toMatchObject({ ok: false, status: 409, reason: 'wrong_status', error: 'This interview is already booked.' });
     expect(store.jobs).toEqual([]);
   });
+  it('lets one of two competing edits win and refuses the other', async () => {
+    interview({ status: 'TIMES_RECEIVED', slots: [new Date(SLOT)], timesRevision: 1 });
+    const original = fake.interview.updateMany;
+    // Another tab's edit lands between this one's read and its write.
+    fake.interview.updateMany = async (args) => {
+      Object.assign(store.rows[0], { slots: [new Date(SLOT2)], timesRevision: 2 });
+      fake.interview.updateMany = original;
+      return original(args);
+    };
+    expect(await submitTimes('i1', 'applicant', [SLOT, SLOT2], 'UTC', now)).toMatchObject({ ok: false, status: 409, reason: 'wrong_status', error: /changed while you were editing/ });
+    expect(store.rows[0]).toMatchObject({ timesRevision: 2, slots: [new Date(SLOT2)] });
+    expect(store.jobs).toEqual([]);
+  });
+
+  it('treats the same times arriving twice at once as one change', async () => {
+    interview({ status: 'TIMES_RECEIVED', slots: [new Date(SLOT)], timesRevision: 1 });
+    const original = fake.interview.updateMany;
+    fake.interview.updateMany = async (args) => {
+      Object.assign(store.rows[0], { slots: [new Date(SLOT2)], timesRevision: 2 });
+      fake.interview.updateMany = original;
+      return original(args);
+    };
+    expect(await submitTimes('i1', 'applicant', [SLOT2], 'UTC', now)).toMatchObject({ ok: true, interview: { timesRevision: 2 } });
+    expect(store.jobs).toEqual([]);
+  });
 });
 
 describe('cancelling', () => {
+  it('refuses a cancel that loses to a booking, naming the new state', async () => {
+    interview({ status: 'TIMES_RECEIVED' });
+    const original = fake.interview.updateMany;
+    fake.interview.updateMany = async (args) => {
+      Object.assign(store.rows[0], { status: 'BOOKED' });
+      fake.interview.updateMany = original;
+      return original(args);
+    };
+    expect(await cancelInterview('i1', { userId: 'officer' }, now)).toMatchObject({ ok: false, status: 409, reason: 'wrong_status', error: 'This interview is already booked.' });
+    expect(store.rows[0]).toMatchObject({ status: 'BOOKED', activeKey: 'app' });
+    expect(store.jobs).toEqual([]);
+  });
+
   it.each(['AWAITING_TIMES', 'TIMES_RECEIVED', 'PROPOSED', 'BOOKED'])('ends a %s interview', async (status) => {
     interview({ status });
     expect(await cancelInterview('i1', { userId: 'officer' }, now)).toMatchObject({ ok: true, interview: { status: 'CANCELLED', endedAt: now.toISOString() } });

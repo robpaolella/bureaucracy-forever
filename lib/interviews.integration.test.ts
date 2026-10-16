@@ -8,7 +8,7 @@ import { pickWindow } from './interview-slots';
 
 const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient }));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
-import { cancelInterview, startInterview } from './interviews';
+import { cancelInterview, startInterview, submitTimes } from './interviews';
 import { decideApplication } from './decisions';
 
 // INTERVIEWS_INTEGRATION=1 npx vitest run lib/interviews.integration.test.ts
@@ -134,6 +134,19 @@ describe.skipIf(process.env.INTERVIEWS_INTEGRATION !== '1')('one active intervie
       const row = await db.interview.findUniqueOrThrow({ where: { id: started.interview.id } });
       expect(row.status).toBe(cancel.ok ? 'CANCELLED' : 'CLOSED');
       expect((await jobs('End')).filter((t) => t === 'interview.ended')).toHaveLength(1);
+    });
+    it('lets one of two competing edits win, with one times job', async () => {
+      await application('Edit');
+      const started = await startInterview('Edit', officer, { now: new Date('2026-06-10T16:00:00Z') });
+      if (!started.ok) throw new Error(started.error);
+      const at = (iso: string) => [iso];
+      const results = await Promise.all([
+        submitTimes(started.interview.id, 'Edit', at('2026-06-11T02:00:00.000Z'), 'UTC', new Date('2026-06-10T17:00:00Z')),
+        submitTimes(started.interview.id, 'Edit', at('2026-06-11T02:30:00.000Z'), 'UTC', new Date('2026-06-10T17:00:00Z')),
+      ]);
+      expect(results.map((r) => (r.ok ? 'ok' : r.reason)).sort()).toEqual(['ok', 'wrong_status']);
+      expect(await db.interview.findUniqueOrThrow({ where: { id: started.interview.id } })).toMatchObject({ timesRevision: 1 });
+      expect((await jobs('Edit')).filter((t) => t === 'interview.times')).toHaveLength(1);
     });
   });
 });

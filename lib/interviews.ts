@@ -168,45 +168,47 @@ function parsePicks(picks: unknown, timeZone: unknown, window: { windowStart: Da
  * identical set changes nothing and enqueues nothing.
  */
 export async function submitTimes(interviewId: string, applicantDiscordId: string, picks: unknown, timeZone: unknown, now = new Date()): Promise<InterviewResult> {
-  for (;;) {
-    const row = await db.interview.findUnique({ where: { id: interviewId }, include });
-    if (!row) return notFound();
-    if (row.application.discordId !== applicantDiscordId) return refuse(403, 'forbidden', 'This interview belongs to someone else.');
-    if (!EDITABLE.includes(row.status)) return refuse(409, 'wrong_status', stateMessage(row.status));
-    const parsed = parsePicks(picks, timeZone, row);
-    if (!parsed.ok) return parsed;
-    const same = row.slots.length === parsed.slots.length && row.slots.every((s, i) => s.getTime() === parsed.slots[i].getTime());
-    if (row.status === 'TIMES_RECEIVED' && same) return { ok: true, interview: await toView(row, db) };
-    const updated = await db.$transaction(async (tx) => {
-      const won = await tx.interview.updateMany({
-        where: { id: row.id, status: row.status, timesRevision: row.timesRevision },
-        data: { status: 'TIMES_RECEIVED', slots: parsed.slots, timeZone: parsed.timeZone, timesRevision: row.timesRevision + 1, timesSubmittedAt: row.timesSubmittedAt ?? now, timesUpdatedAt: now },
-      });
-      if (won.count === 0) return false;
-      await enqueue('interview.times', { applicationId: row.applicationId, interviewId: row.id }, tx);
-      return true;
+  const row = await db.interview.findUnique({ where: { id: interviewId }, include });
+  if (!row) return notFound();
+  if (row.application.discordId !== applicantDiscordId) return refuse(403, 'forbidden', 'This interview belongs to someone else.');
+  if (!EDITABLE.includes(row.status)) return refuse(409, 'wrong_status', stateMessage(row.status));
+  const parsed = parsePicks(picks, timeZone, row);
+  if (!parsed.ok) return parsed;
+  const sameAs = (slots: Date[]) => slots.length === parsed.slots.length && slots.every((s, i) => s.getTime() === parsed.slots[i].getTime());
+  if (row.status === 'TIMES_RECEIVED' && sameAs(row.slots)) return { ok: true, interview: await toView(row, db) };
+  const won = await db.$transaction(async (tx) => {
+    const updated = await tx.interview.updateMany({
+      where: { id: row.id, status: row.status, timesRevision: row.timesRevision },
+      data: { status: 'TIMES_RECEIVED', slots: parsed.slots, timeZone: parsed.timeZone, timesRevision: row.timesRevision + 1, timesSubmittedAt: row.timesSubmittedAt ?? now, timesUpdatedAt: now },
     });
-    // Lost to another change: read again, which refuses if it is no longer editable.
-    if (updated) return { ok: true, interview: (await viewById(row.id))! };
-  }
+    if (updated.count === 0) return false;
+    await enqueue('interview.times', { applicationId: row.applicationId, interviewId: row.id }, tx);
+    return true;
+  });
+  const latest = (await db.interview.findUnique({ where: { id: row.id }, include }))!;
+  if (won) return { ok: true, interview: await toView(latest, db) };
+  // Lost to another change. The same times arriving twice is not a conflict.
+  if (latest.status === 'TIMES_RECEIVED' && sameAs(latest.slots)) return { ok: true, interview: await toView(latest, db) };
+  return refuse(409, 'wrong_status', EDITABLE.includes(latest.status) ? 'Your times changed while you were editing. Check them and submit again.' : stateMessage(latest.status));
 }
 
 /** An officer cancels an active interview (`POST /interviews/:id/cancel`). */
 export async function cancelInterview(interviewId: string, by: { userId: string }, now = new Date()): Promise<InterviewResult> {
-  for (;;) {
-    const row = await db.interview.findUnique({ where: { id: interviewId }, select: { id: true, applicationId: true, status: true } });
-    if (!row) return notFound();
-    if (!ACTIVE.includes(row.status)) return refuse(409, 'not_active', stateMessage(row.status));
-    const done = await db.$transaction(async (tx) => {
-      const won = await tx.interview.updateMany({ where: { id: row.id, status: row.status }, data: { status: 'CANCELLED', activeKey: null, endedAt: now, endedById: by.userId } });
-      if (won.count === 0) return false;
-      await enqueue('interview.ended', { applicationId: row.applicationId, interviewId: row.id, outcome: 'cancelled' }, tx);
-      // Cancelling a booking takes the Interview tag off (SYNC-SPEC §8).
-      if (row.status === 'BOOKED') await enqueue('application.update', { applicationId: row.applicationId }, tx);
-      return true;
-    });
-    if (done) return { ok: true, interview: (await viewById(row.id))! };
-  }
+  const row = await db.interview.findUnique({ where: { id: interviewId }, select: { id: true, applicationId: true, status: true } });
+  if (!row) return notFound();
+  if (!ACTIVE.includes(row.status)) return refuse(409, 'not_active', stateMessage(row.status));
+  const won = await db.$transaction(async (tx) => {
+    const updated = await tx.interview.updateMany({ where: { id: row.id, status: row.status }, data: { status: 'CANCELLED', activeKey: null, endedAt: now, endedById: by.userId } });
+    if (updated.count === 0) return false;
+    await enqueue('interview.ended', { applicationId: row.applicationId, interviewId: row.id, outcome: 'cancelled' }, tx);
+    // Cancelling a booking takes the Interview tag off (SYNC-SPEC §8).
+    if (row.status === 'BOOKED') await enqueue('application.update', { applicationId: row.applicationId }, tx);
+    return true;
+  });
+  const latest = (await viewById(row.id))!;
+  if (won) return { ok: true, interview: latest };
+  // Lost to another change: name where it stands now rather than acting on it.
+  return refuse(409, ACTIVE.includes(latest.status) ? 'wrong_status' : 'not_active', stateMessage(latest.status));
 }
 
 /**
