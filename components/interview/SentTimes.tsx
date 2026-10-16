@@ -12,7 +12,8 @@ export function SentTimes({ slots }: { slots: string[] }) {
   const days = timesByDay(slots, viewer?.zone ?? GUILD_TIMEZONE);
   return (
     <div className="flex w-full flex-col gap-2">
-      <p className="text-left text-label font-semibold uppercase tracking-[0.12em] text-fg-3">{INTERVIEW.submitted.timesLabel(countHours(slots))}</p>
+      {/* fg-muted, not the design's fg-3: fg-3 on the ink-850 card is 4.4:1, under the 4.5:1 floor. */}
+      <p className="text-left text-label font-semibold uppercase tracking-[0.12em] text-fg-muted">{INTERVIEW.submitted.timesLabel(countHours(slots))}</p>
       <ul className="flex w-full flex-col divide-y divide-line-faint rounded-card border border-line bg-ink-900 text-left">
         {days.map(({ day, runs }) => (
           <li key={day} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-baseline sm:gap-4">
