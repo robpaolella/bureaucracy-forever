@@ -130,6 +130,18 @@ repo at `~/d341-evidence/abcde-session3` (`manifest.json` included) and go into
   left a notched right edge. No behaviour changed; the offline interaction script was
   re-run with the same results and no network requests.
 
+### Round 5: F's full day and Clear all (session 4, 2026-10-16)
+- Reviewer: openai/gpt-5.6-terra, medium thinking (`route.ts role checker`); same
+  command, scope F's two new changes, E as comparison. Evidence
+  `/tmp/design-review-KkZsm0/v`, 112 images and `manifest.json`, all opened by the maker
+  (full-size picker states at both widths). Exit 0, repo unchanged; output saved in full.
+- Before the run the maker fixed its own finding: desktop captures opened the column at
+  midnight, hiding the picks, because the column was scrolled while the desktop panel
+  was hidden; it now also scrolls when the panel first shows.
+- Verdict: **PASS**, no fixes; checklist 1–6 pass. Trade-off named for Robert: F is
+  taller and denser than E because it shows unavailable hours, which makes the day's
+  boundaries and "give us all your free time" clearer; E is faster to scan and tap.
+
 ## Comments and changes
 | ID / source | Version / element | Original note | Agreed change and verification | Resolved |
 | --- | --- | --- | --- | --- |
