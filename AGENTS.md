@@ -73,9 +73,14 @@ if either blocks you, follow the message rather than looking for a way around it
 
 ## PR links and staging
 Use the per-PR Vercel **Preview** link from Vercel's PR comment in every PR's "How to
-verify" section. It appears a minute or two after the push. Previews need Vercel login, and
-Discord login does not work there because preview addresses change. Verify public pages on a
-preview; say clearly when signed-in pages need staging instead.
+verify" section. It appears a minute or two after the push. Previews and staging open without a
+Vercel login, so plain requests (`curl`) work on them. Discord login does not work on previews
+because preview addresses change. Verify public pages on a preview; say clearly when signed-in
+pages need staging instead.
+
+Every non-production deployment (previews and staging) sends `X-Robots-Tag: noindex, nofollow`,
+and its robots.txt has no sitemap line. Confirm with `curl -sI <url>`; production must not send
+that header.
 
 Use `https://staging.bureauguild.com` only when the issue requires a database change or a
 real Discord login. After checks and review pass, check `gh pr list --label on-staging`; if

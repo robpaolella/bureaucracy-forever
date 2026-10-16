@@ -57,7 +57,7 @@ Decided by Robert on 2026-10-12 in the planning for [issue #90](https://github.c
 5. Robert's own home and About copy (Sept 27, 2026) is the reference for the voice (commits `6baa2cc` home, `456206d` About, `c13b3f8` Naxxramas claim fix).
 6. Confident and plain. No exclamation marks or emoji.
 7. Avoid patterns that read as AI-written: "not X, but Y" contrasts, dashes used for drama, lists of three for rhythm.
-8. Nothing that goes stale with time ("forming now", "before launch", "first lockout"), except in spots built to be updated, such as the home page's announcement bar. One deliberate exception: the Raiding page intro "We'll post our raid days and times here soon…" until the days and times are set.
+8. Nothing that goes stale with time ("forming now", "before launch", "first lockout"), except in spots built to be updated, such as the home page's announcement bar. Two deliberate exceptions: the Raiding page intro "We'll post our raid days and times here soon…" until the days and times are set; and the Recruitment page's open-recruitment call-out, which is time-bound and changed over time (Robert, 2026-10-15).
 9. Public pages say what the reader gets, not how officers run things behind the scenes. For example, "Officers pick raid nights from members' availability" stays off public pages, and no page says an officer "claims" an application.
 10. Explanations sound like a person talking to the reader ("will be set", "we'll post"; not "get set", "when they land"). On the recruitment page, expectations address the reader directly: "We expect every raider to …".
 

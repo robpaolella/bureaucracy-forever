@@ -100,6 +100,25 @@ enum JobStatus {
   FAILED
 }
 
+/// SYNC-SPEC §12. Active: AWAITING_TIMES, TIMES_RECEIVED, PROPOSED, BOOKED. The rest are ended.
+enum InterviewStatus {
+  AWAITING_TIMES
+  TIMES_RECEIVED
+  PROPOSED
+  BOOKED
+  DONE
+  CANCELLED
+  NO_TIME
+  CLOSED
+}
+
+/// Only with NO_TIME.
+enum InterviewEndReason {
+  DECLINED
+  EXPIRED
+  PROPOSAL_LAPSED
+}
+
 /// Hard reserve: the holder rolls before anyone else. Soft reserve: rolls when nobody hard-reserved.
 enum ReserveKind {
   HR
@@ -365,8 +384,60 @@ model Application {
   reopenedAt       DateTime?
   /// The 24 h pending nudge was sent.
   nudgedAt         DateTime?
+  interviews       Interview[]
 
   @@index([status, createdAt])
+}
+
+/// One row per interview attempt (SYNC-SPEC §12). Times are absolute instants; `timeZone` is
+/// the applicant's zone, for display only.
+model Interview {
+  id                String              @id @default(cuid())
+  applicationId     String
+  application       Application         @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  /// 1, 2, … per application.
+  attempt           Int
+  status            InterviewStatus     @default(AWAITING_TIMES)
+  endReason         InterviewEndReason?
+  /// The application id while active, null once ended: the database refuses a second active attempt.
+  activeKey         String?             @unique
+  requestedById     String
+  requestedAt       DateTime            @default(now())
+  /// Earliest pick: requestedAt + 2 h, rounded up to the half hour.
+  windowStart       DateTime
+  /// Latest pick: requestedAt + 7 d, rounded down to the half hour.
+  windowEnd         DateTime
+  timeZone          String?
+  /// Half-hour starts the applicant can do.
+  slots             DateTime[]
+  /// +1 on every submit that changes `slots`.
+  timesRevision     Int                 @default(0)
+  timesSubmittedAt  DateTime?
+  timesUpdatedAt    DateTime?
+  proposedStart     DateTime?
+  proposedById      String?
+  proposedAt        DateTime?
+  bookedStart       DateTime?
+  /// For an accepted proposal, the proposer.
+  bookedById        String?
+  bookedAt          DateTime?
+  endedAt           DateTime?
+  /// Null when the system ended it.
+  endedById         String?
+  /// 5-minute reminder enqueued.
+  remindedAt        DateTime?
+  /// Voice-join notice enqueued.
+  joinedNotifiedAt  DateTime?
+  /// 3-day heads-up enqueued.
+  headsUpAt         DateTime?
+  /// Discord ids the bot reports back (SYNC-SPEC §5).
+  requestDmId       String?
+  timesMessageId    String?
+  proposalMessageId String?
+  proposalDmId      String?
+  bookedMessageId   String?
+
+  @@unique([applicationId, attempt])
 }
 
 /// Private to officers. Never exposed on any applicant-facing surface.

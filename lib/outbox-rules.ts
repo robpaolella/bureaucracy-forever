@@ -25,6 +25,14 @@ export type JobType =
   | 'raid.delete'
   | 'member.roles.sync'
   | 'trial.checkin'
+  | 'interview.request'
+  | 'interview.times'
+  | 'interview.booked'
+  | 'interview.proposed'
+  | 'interview.ended'
+  | 'interview.headsup'
+  | 'interview.remind'
+  | 'interview.joined'
   | 'officers.notify';
 
 /** `{ ok: false }` acks: PENDING again after 2^attempts minutes, FAILED after the fifth try. */
@@ -67,7 +75,8 @@ export function oneJobPerEntity<T extends { entity: string }>(candidates: T[], b
 
 /** The entity a job belongs to, so the bot can order work per entity. */
 export function entityKey(type: JobType, payload: Record<string, unknown>): string {
-  if (type.startsWith('application.')) return `application:${String(payload.applicationId ?? '')}`;
+  // Interview jobs run in order with their application's other jobs (SYNC-SPEC §12).
+  if (type.startsWith('application.') || type.startsWith('interview.')) return `application:${String(payload.applicationId ?? '')}`;
   if (type.startsWith('raid.')) return `raid:${String(payload.raidId ?? '')}`;
   if (type === 'member.roles.sync' || type === 'trial.checkin') return `member:${String(payload.discordId ?? '')}`;
   return 'officers';

@@ -49,6 +49,11 @@ export const RECRUITMENT_HEAD = {
   },
 };
 
+export const OPEN_RECRUITMENT = {
+  title: 'Open recruitment for every class and spec',
+  text: "WoW Forever is new, so every class and spec is open to raiders. If you're interested, apply. As raid tiers release and our composition takes shape, we'll recruit for specific roles.",
+};
+
 export const NEEDS_SECTION = {
   title: 'Open needs by class and role',
 };

@@ -8,3 +8,8 @@ export const STAGING_BRANCH = 'staging';
 export function isStagingDeployment(env: Record<string, string | undefined> = process.env): boolean {
   return env.VERCEL_ENV === 'preview' && env.VERCEL_GIT_COMMIT_REF === STAGING_BRANCH;
 }
+
+/** The live site. Every other deployment (previews, staging, a local build) is kept out of search results. */
+export function isProductionDeployment(env: Record<string, string | undefined> = process.env): boolean {
+  return env.VERCEL_ENV === 'production';
+}
