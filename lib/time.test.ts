@@ -160,6 +160,16 @@ describe('viewerTime', () => {
     expect(viewerTime(start, 0, NY).text).toBe('8:00 PM EDT');
   });
 
+  it('leads each time with its own date, across the midnight between the zones', () => {
+    const late = zonedTimeToUtc(2026, 10, 17, 22, 0, LA);
+    expect(viewerTime(late, 0, NY, 'en-US', { date: true })).toEqual({
+      text: 'Sunday 18 Oct, 1:00 AM EDT',
+      guild: 'Saturday 17 Oct, 10:00 PM guild time (PDT)',
+      label: 'Sunday 18 Oct, 1:00 AM EDT, Saturday 17 Oct, 10:00 PM guild time (PDT)',
+    });
+    expect(viewerTime(late, 0, null, 'en-US', { date: true }).text).toBe('Saturday 17 Oct, 10:00 PM guild time');
+  });
+
   it('shows guild time once when the viewer is in guild time', () => {
     const once = { text: '5:00 – 8:00 PM guild time', guild: null, label: '5:00 – 8:00 PM guild time' };
     expect(viewerTime(start, 180, LA)).toEqual(once);
