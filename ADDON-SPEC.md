@@ -196,7 +196,7 @@ the site holds them now come separately, as the catch-up (3.4).
 | `instance` | The raid's in-game instance number, an integer: the raid template's instance id as `GetInstanceInfo()` returns it (2.1). **Absent** when the template has none (for example a custom raid whose officer hasn't filled it in); never `nil`. A raid without it is never suggested for the raid question (2.1). |
 | `generated` | When the site built this snapshot, Unix seconds |
 | `addon` | `{ version, url }`: the latest add-on version and where to download it |
-| `bosses` | In table order: `{ id, name, trash, items }`. `id` is the `LootBoss` id; `trash` is true for the Trash row; `items` are game item ids (the `LootTableEntry` rows, in position order). An item on several bosses appears under each. |
+| `bosses` | In table order: `{ id, name, trash, items, encounter }`. `id` is the `LootBoss` id; `trash` is true for the Trash row; `items` are game item ids (the `LootTableEntry` rows, in position order). An item on several bosses appears under each. `encounter` is the game's encounter id, an integer: the number `ENCOUNTER_END` reports for that boss's kill, so the add-on can match a kill in any client language. It is **absent** (never `nil`) on the Trash row, on a boss the site's table doesn't know (an officer-added or renamed boss, for example), and on every boss of a raid whose `instance` is absent. The add-on matches a kill by `encounter` when the row has one and falls back to the name (ignoring case and spacing) when it doesn't. The site looks the id up by the raid's `instance` and the boss name (case and spacing ignored) in a table checked in at `lib/encounter-ids.ts`, taken from wago.tools' DungeonEncounter table (`https://wago.tools/db2/DungeonEncounter/csv?build=1.60.1.70374`), WoW Forever client build 1.60.1.70374; `instance` is that table's `MapID`. Added without a format change: no reader has shipped (section 6), and a reader that ignores an unknown field is unaffected. |
 | `reserves` | Per item id, every holder: `{ user, char, kind, trial, blocked }` |
 | `awards` | The baseline: this raid's awards so far, voided ones included |
 
@@ -247,8 +247,8 @@ line breaks for reading; the real text has none that matter.
   addon = { version = "0.1.0",
     url = "https://github.com/robpaolella/bureaucracy-forever-addon/releases/latest" },
   bosses = {
-    { id = "lb_lucifron", name = "Lucifron", trash = false, items = { 16800, 16805 } },
-    { id = "lb_magmadar", name = "Magmadar", trash = false, items = { 16796, 16805 } },
+    { id = "lb_lucifron", name = "Lucifron", trash = false, items = { 16800, 16805 }, encounter = 663 },
+    { id = "lb_magmadar", name = "Magmadar", trash = false, items = { 16796, 16805 }, encounter = 664 },
     { id = "lb_trash", name = "Trash", trash = true, items = { 17011, 18861 } },
   },
   reserves = {
@@ -538,6 +538,8 @@ refuse the data and say the add-on or helper needs updating (the snapshot carrie
 latest add-on version and link for this). The site accepts the versions it lists in
 `GET /api/helper/me` (section 7.1) and answers `unsupported-version` otherwise.
 
+Adding an optional field does not change the version: the `encounter` field on a boss row (3.1) was added while version 1 was still unshipped, so no old reader exists.
+
 ## 7. The helper API
 
 Routes under `/api/helper/`. JSON in and out, `Cache-Control: no-store`, errors as
@@ -690,7 +692,7 @@ refused uploads (`raid-cancelled`) are listed here; a raid the site doesn't hold
 - is not cancelled (`cancelledAt` is null),
 
 **soonest first** (`startsAt` ascending, so an under-way raid is first). The site has no
-per-officer raids, so it is every such raid for any officer. Each entry is
+per-officer raids, so it is every such raid for any officer. The response body is a bare JSON array of entries, not an object. Each entry is
 `{ id, code, name, startsAt, durationMin, instance, hasLootTable }`, where `startsAt` is
 Unix seconds as in the snapshot and `instance` is the integer of 3.1 (absent when the raid
 template has none). The helper writes a snapshot
