@@ -12,13 +12,14 @@ export const MIN_DAYS = 2;
 /**
  * Count the blocks and guild days a set of picked half-hour starts covers. A block is a
  * guild-clock hour holding at least one pick, so the two starts of one hour count once, and a
- * window-edge block with only one start still counts. A guild day is a date in `GUILD_TIMEZONE`.
+ * window-edge block with only one start still counts. A guild day is a date in `zone`, which is the guild's
+ * zone for the server rule.
  */
-export function countBlocks(picks: Date[]): { blocks: number; days: number } {
+export function countBlocks(picks: Date[], zone: string = GUILD_TIMEZONE): { blocks: number; days: number } {
   const blocks = new Set<string>();
   const days = new Set<string>();
   for (const pick of picks) {
-    const p = zonedParts(pick, GUILD_TIMEZONE);
+    const p = zonedParts(pick, zone);
     const day = `${p.year}-${p.month}-${p.day}`;
     days.add(day);
     blocks.add(`${day}-${p.hour}`);

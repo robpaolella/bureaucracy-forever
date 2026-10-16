@@ -24,6 +24,12 @@ describe('countBlocks', () => {
     expect(countBlocks([at('2026-10-18T06:00:00Z'), at('2026-10-18T07:00:00Z')])).toEqual({ blocks: 2, days: 2 });
   });
 
+  it('counts days in the zone it is given', () => {
+    const picks = [at('2026-10-18T06:00:00Z'), at('2026-10-18T07:00:00Z')];
+    expect(countBlocks(picks, 'UTC')).toEqual({ blocks: 2, days: 1 });
+    expect(countBlocks(picks)).toEqual({ blocks: 2, days: 2 });
+  });
+
   it('counts nothing for no picks', () => {
     expect(countBlocks([])).toEqual({ blocks: 0, days: 0 });
   });
