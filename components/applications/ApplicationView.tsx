@@ -5,6 +5,7 @@ import { rolesOfSpec } from '@/lib/class-needs';
 import { CLASS_COLORS, ROLE_LABELS } from '@/lib/design/class-colors';
 import { relativeDate } from '@/lib/time';
 import { DETAIL } from '@/content/applications';
+import { InterviewCard } from './InterviewCard';
 import { DecisionBar } from './DecisionBar';
 import { NoteComposer } from './NoteComposer';
 
@@ -59,6 +60,8 @@ export function ApplicationView({ app, now, threadUrl = null, standaloneUrl = nu
             {!app.discordId && <span className="text-fg-3"> · {DETAIL.noAccount}</span>}
           </p>
         </header>
+
+        {app.interview && <InterviewCard card={app.interview} applicant={app.discordName} threadUrl={threadUrl} />}
 
         <dl className="flex flex-col divide-y divide-line-faint border-t border-line-faint">
           {app.logsUrl && host && (

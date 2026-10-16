@@ -95,6 +95,33 @@ export async function latestInterview(applicationId: string): Promise<Omit<Inter
   return view as Omit<InterviewView, 'slots'>;
 }
 
+/** What the officer page's Interview card shows: the latest attempt, and how the one before it ended. */
+export type InterviewCard = {
+  attempt: number; status: InterviewStatus; endReason: 'DECLINED' | 'EXPIRED' | 'PROPOSAL_LAPSED' | null;
+  requestedBy: string | null; requestedAt: string; windowEnd: string; slots: string[]; timesUpdatedAt: string | null;
+  proposedBy: string | null; proposedStart: string | null; bookedBy: string | null; bookedStart: string | null;
+  endedBy: string | null; endedAt: string | null;
+  earlier: { status: InterviewStatus; at: string } | null;
+};
+
+/** An application's interview for the officer page, or null when it never had one. */
+export async function interviewCard(applicationId: string): Promise<InterviewCard | null> {
+  const [row, before] = await db.interview.findMany({ where: { applicationId }, orderBy: { attempt: 'desc' }, take: 2 });
+  if (!row) return null;
+  const ids = [row.requestedById, row.proposedById, row.bookedById, row.endedById].filter((id): id is string => !!id);
+  const users = await db.user.findMany({ where: { id: { in: ids } }, select: { id: true, discordName: true } });
+  const name = (id: string | null) => users.find((u) => u.id === id)?.discordName ?? null;
+  return {
+    attempt: row.attempt, status: row.status, endReason: row.endReason,
+    requestedBy: name(row.requestedById), requestedAt: row.requestedAt.toISOString(), windowEnd: row.windowEnd.toISOString(),
+    slots: row.slots.map((s) => s.toISOString()), timesUpdatedAt: iso(row.timesUpdatedAt),
+    proposedBy: name(row.proposedById), proposedStart: iso(row.proposedStart), bookedBy: name(row.bookedById), bookedStart: iso(row.bookedStart),
+    endedBy: name(row.endedById), endedAt: iso(row.endedAt),
+    // A finished interview is dated by when it took place; any other by when it ended.
+    earlier: before ? { status: before.status, at: (before.status === 'DONE' ? before.bookedStart ?? before.endedAt ?? before.requestedAt : before.endedAt ?? before.requestedAt).toISOString() } : null,
+  };
+}
+
 /**
  * The signed-in applicant's interview for their page: the active attempt on any of their
  * applications, else the most recently requested ended one, else null.
