@@ -121,6 +121,29 @@ describe('buildSnapshot', () => {
     expect(snap.awards).toHaveLength(1);
   });
 
+  it('gives a boss its encounter id from the raid template\'s instance, and Trash and unknown bosses none', () => {
+    const input = sample();
+    input.raid.instance = 3065;
+    input.bosses = [
+      { id: 'b1', name: 'faldrim  anvilmar', trash: false, items: [1] },
+      { id: 'b2', name: 'Renamed Boss', trash: false, items: [2] },
+      { id: 'b3', name: 'Plunder', trash: true, items: [3] },
+    ];
+    const [known, unknown, trash] = buildSnapshot(input).bosses;
+    expect(known.encounter).toBe(3493);
+    expect('encounter' in unknown).toBe(false);
+    expect('encounter' in trash).toBe(false);
+  });
+
+  it('gives no encounter ids when the template has no instance', () => {
+    const input = sample();
+    input.bosses = [{ id: 'b1', name: 'Plunder', trash: false, items: [1] }];
+    for (const instance of [undefined, null]) {
+      const [boss] = buildSnapshot({ ...input, raid: { ...input.raid, instance } }).bosses;
+      expect('encounter' in boss).toBe(false);
+    }
+  });
+
   it('gives no bosses for a raid with no loot table', () => {
     expect(buildSnapshot({ ...sample(), bosses: [] }).bosses).toEqual([]);
   });
