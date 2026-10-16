@@ -144,7 +144,7 @@ export function LocalTime({ startsAt, durationMin, className, zone, weekday, dat
           open ? 'block' : 'hidden',
         )}
       >
-        <span className="block whitespace-nowrap font-normal rounded-card border border-line-strong bg-ink-800 px-3 py-2 text-[13px] text-fg shadow-pop">{time.guild}</span>
+        <span className="block whitespace-nowrap font-sans font-normal rounded-card border border-line-strong bg-ink-800 px-3 py-2 text-[13px] text-fg shadow-pop">{time.guild}</span>
       </span>
     </span>
   );
