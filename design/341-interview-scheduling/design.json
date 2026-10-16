@@ -9,7 +9,8 @@
     "a": "versions/a.html",
     "b": "versions/b.html",
     "c": "versions/c.html",
-    "d": "versions/d.html"
+    "d": "versions/d.html",
+    "e": "versions/e.html"
   },
   "states": [
     "signed-out",

@@ -160,7 +160,8 @@ Robert, 2026-10-15, this session:
 Versions A–D differ on these independent decisions (details in `decisions.md`):
 0. **Page layout.** A, B: the full site page with the editor. C, D: the squeeze page.
 4. **Picker (squeeze page).** C: month calendar and the day's times as buttons. D: a
-   compact paint grid.
+   compact paint grid. E: C with hour buttons (question 5).
+5. **Button size (C or E).** C: half-hour buttons. E: hour buttons.
 
 The first three apply as follows (1 and 2 only matter if A or B is chosen):
 1. **Grid days.** A: the viewer's own calendar dates, all 48 rows when interview hours
@@ -205,7 +206,18 @@ shadow (DESIGN.md). Officer states keep the full site page, because only their c
   because tap-painting a 28-row column is harder than tapping times.
 - **Status states:** the same squeeze page, with a 520px card holding today's StatusPage
   content (sent times say "start times").
-- **Officer card:** C carries card A; D carries card B (question 3 stays independent).
+- **Officer card:** C carries card A; D carries card B; E carries card A (question 3 stays independent).
+
+### Version E: C with hour buttons (Robert, 2026-10-16)
+Robert: "Can we try version C but with 60 minute increments, not 30 minutes? That might
+make it cleaner. Right now, it's a bit too busy." E is C with one button per hour. A
+picked hour means "I could start any time in it" and saves both of its half-hour starts,
+so SYNC-SPEC's half-hour starts, the officers' list and the bot's Book/Propose stay
+unchanged; officers can still book 8:00 or 8:30. At the window's edges an hour may hold
+one start (the first button on Thursday 15 Oct reads "8:30 PM"). A note above the buttons
+says "Pick an hour if you could start any time in it."; each button's accessible name
+gives the hour in both zones. Counts say "hours" ("10 hours picked on 4 days"). Hours
+follow guild hours, which are whole hours in every sample zone.
 
 
 ## Real-site experiment
