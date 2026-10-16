@@ -150,7 +150,7 @@ describe('changing sent times', () => {
     await click(hourButtons()[1]);
     await click(byText('Cancel'));
     expect(host.querySelector('h1')!.textContent).toBe('Your times are with the officers');
-    expect(document.activeElement).toBe(host.querySelector('h1'));
+    expect(document.activeElement).toBe(byText('Change my times'));
     expect(host.textContent).toContain('Your times · 10 hours');
     expect(mocks.send).not.toHaveBeenCalled();
   });
@@ -192,5 +192,23 @@ describe('changing sent times', () => {
     expect(hourButtons()[1].getAttribute('aria-pressed')).toBe('true');
     expect(byText('Try again')).toBeDefined();
     expect(byText('Cancel')).toBeDefined();
+    // Back to the sent times: nothing to send, so the footer says so rather than offering Try again.
+    await click(hourButtons()[1]);
+    expect(footer().textContent).toBe('10 hours picked on 4 days · no changes yet');
+    expect(byText('Try again')).toBeUndefined();
+    expect((byText('Update my times') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('holds the picks while a send is on its way', async () => {
+    let finish: (value: unknown) => void = () => {};
+    mocks.send.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    await render(gate('TIMES_RECEIVED', { slots: SENT }));
+    await click(byText('Change my times'));
+    await click(hourButtons()[1]);
+    await click(byText('Update my times'));
+    await click(hourButtons()[0]);
+    expect(hourButtons()[0].getAttribute('aria-pressed')).toBe('false');
+    await act(async () => finish({ kind: 'sent' }));
+    expect(mocks.refresh).toHaveBeenCalledOnce();
   });
 });

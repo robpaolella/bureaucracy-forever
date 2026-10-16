@@ -44,8 +44,8 @@ type Props = {
   name: string;
   /** The times already sent, which the picker opens with. */
   initial?: string[];
-  /** Present when changing sent times: Cancel calls it, as does a finished send. */
-  onClose?: () => void;
+  /** Present when changing sent times: a finished send calls it, and Cancel with `cancelled`. */
+  onClose?: (cancelled: boolean) => void;
   /** The dev page's error-offline: open as if a send had failed. */
   offline?: boolean;
 };
@@ -97,7 +97,9 @@ export function InterviewPicker({ requestedAt, now, name, initial = [], onClose,
   const pickedOn = new Map(days.map((d) => [d.key, hourButtons(d.starts, shownZone).filter(isPicked).length]));
   const current = days.find((d) => pickAt !== null && d.key === pickerDays([pickAt], shownZone)[0].key) ?? days.find((d) => pickedOn.get(d.key)) ?? days[0];
   const summary = pickerSummary(picks, changing ? sent : undefined);
-  const status = failure ? { text: failure.offline ? COPY.offline : failure.error, tone: 'stop' as const } : summary;
+  // An offline failure stays for Try again, unless the picks can't be sent anyway: then the footer says why.
+  const shown = failure?.offline && !summary.canSend ? null : failure;
+  const status = shown ? { text: shown.offline ? COPY.offline : shown.error, tone: 'stop' as const } : summary;
 
   const send = () =>
     startTransition(async () => {
@@ -112,7 +114,7 @@ export function InterviewPicker({ requestedAt, now, name, initial = [], onClose,
         // One transition with the refresh, so the notice and focus land on the new card.
         startTransition(() => {
           setAnswerState({ stale: outcome.kind === 'stale', moved: true });
-          onClose?.();
+          onClose?.(false);
           router.refresh();
         });
       } catch {
@@ -120,12 +122,11 @@ export function InterviewPicker({ requestedAt, now, name, initial = [], onClose,
         setFailure({ offline: true });
       }
     });
-  const cancel = () => {
-    setAnswerState((state) => ({ ...state, moved: true }));
-    onClose?.();
-  };
+  const cancel = () => onClose?.(true);
 
   const toggle = (toggled: number[]) => {
+    // The picks being sent stay as they are until the page refreshes.
+    if (pending) return;
     // A refusal was for the times sent; the footer counts the new ones instead.
     setFailure((f) => (f?.offline ? f : null));
     setPicks((before) => {
@@ -243,11 +244,14 @@ export function InterviewPicker({ requestedAt, now, name, initial = [], onClose,
         <div className="z-10 flex flex-wrap items-center justify-between gap-3 border-t border-line bg-ink-900 px-4 py-3 min-[600px]:rounded-b-card min-[600px]:px-5 max-[959px]:sticky max-[959px]:bottom-0">
           <span className={cn('flex items-center gap-2 text-[13px] max-[959px]:min-w-0 max-[959px]:flex-[1_1_160px] max-[959px]:text-xs', TONE[status.tone].text)}>
             <span aria-hidden className={cn('h-[7px] w-[7px] shrink-0 rounded-full', TONE[status.tone].dot)} />
-            <span role={status.tone === 'stop' ? 'alert' : 'status'}>{status.text}</span>
+            {/* A fresh node per role, so an error is announced as an alert. */}
+            <span key={status.tone === 'stop' ? 'alert' : 'status'} role={status.tone === 'stop' ? 'alert' : 'status'}>
+              {status.text}
+            </span>
           </span>
           <span className="ml-auto flex items-center gap-2">
             {picks.size > 0 && (
-              <button type="button" onClick={() => setConfirmOpen(true)} className={cn(TEXT_BUTTON, 'mr-1 text-sm')}>
+              <button type="button" disabled={pending} onClick={() => setConfirmOpen(true)} className={cn(TEXT_BUTTON, 'mr-1 text-sm')}>
                 {COPY.clearAll}
               </button>
             )}
@@ -257,7 +261,7 @@ export function InterviewPicker({ requestedAt, now, name, initial = [], onClose,
               </Button>
             )}
             <Button disabled={!summary.canSend} loading={pending} onClick={send} className="font-bold">
-              {failure?.offline ? COPY.tryAgain : changing ? COPY.change.update : COPY.send}
+              {shown?.offline ? COPY.tryAgain : changing ? COPY.change.update : COPY.send}
             </Button>
           </span>
         </div>

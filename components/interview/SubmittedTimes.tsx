@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui';
 import { INTERVIEW } from '@/content/interview';
 import { useSetAnswerState } from './AnswerState';
 import { InterviewCard } from './InterviewCard';
 import { InterviewPicker } from './InterviewPicker';
 import { SentTimes } from './SentTimes';
+
+const CHANGE_ID = 'interview-change-times';
 
 type Props = { requestedAt: string; now: string; name: string; slots: string[]; changing?: boolean };
 
@@ -18,7 +20,18 @@ type Props = { requestedAt: string; now: string; name: string; slots: string[]; 
 export function SubmittedTimes({ requestedAt, now, name, slots, changing: initial = false }: Props) {
   const [changing, setChanging] = useState(initial);
   const setAnswerState = useSetAnswerState();
-  if (changing) return <InterviewPicker requestedAt={requestedAt} now={now} name={name} initial={slots} onClose={() => setChanging(false)} />;
+  const cancelled = useRef(false);
+  // Cancel hands focus back to the button that opened the picker; a send moves it to the new title.
+  useEffect(() => {
+    if (changing || !cancelled.current) return;
+    cancelled.current = false;
+    document.getElementById(CHANGE_ID)?.focus();
+  }, [changing]);
+  const close = (wasCancelled: boolean) => {
+    cancelled.current = wasCancelled;
+    setChanging(false);
+  };
+  if (changing) return <InterviewPicker requestedAt={requestedAt} now={now} name={name} initial={slots} onClose={close} />;
   return (
     <InterviewCard
       title={INTERVIEW.submitted.title}
@@ -26,6 +39,7 @@ export function SubmittedTimes({ requestedAt, now, name, slots, changing: initia
       body={INTERVIEW.submitted.body}
       actions={
         <Button
+          id={CHANGE_ID}
           variant="secondary"
           onClick={() => {
             // A notice from an earlier send is done with once the applicant changes again.
