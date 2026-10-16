@@ -59,6 +59,6 @@ export async function interviewOfficer(body: Record<string, unknown>): Promise<{
  */
 export function interviewReply(result: InterviewResult, okStatus: 200 | 201): Reply {
   if (result.ok) return reply(okStatus, okStatus === 201 ? { interview: result.interview } : result.interview);
-  const { ok: _ok, status, ...body } = result;
-  return reply(status, body);
+  return reply(result.status, { ...(result.reason ? { reason: result.reason } : {}), error: result.error,
+    ...(result.interview ? { interview: result.interview } : {}), ...(result.earlierDate !== undefined ? { earlierDate: result.earlierDate } : {}) });
 }
