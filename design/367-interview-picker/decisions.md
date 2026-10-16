@@ -124,6 +124,8 @@ down the image (as in revision 1).
      and `officer-second-closed`.
   2. The line used lowercase words, not the pill's ("Done", "Cancelled"), as #345's
      agreed answer requires. Fix: capitalised.
+- Re-check of those two only, same reviewer and command, after the checks passed again:
+  **PASS**, exit 0, repo unchanged.
 
 ## Comments and changes
 | ID / source | Version / element | Original note | Agreed change and verification | Resolved |
