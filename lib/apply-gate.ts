@@ -31,6 +31,6 @@ export async function interviewGate(): Promise<InterviewGate> {
   if (!session) return { kind: 'signin' };
   const view = await applicantInterview(session.discordId);
   if (!view) return { kind: 'nothing' };
-  const { status, slots, proposedStart, bookedStart } = view;
-  return { kind: 'interview', interview: { status, slots, proposedStart, bookedStart } };
+  const { status, requestedAt, slots, proposedStart, bookedStart } = view;
+  return { kind: 'interview', interview: { status, requestedAt, slots, proposedStart, bookedStart }, name: session.name };
 }
