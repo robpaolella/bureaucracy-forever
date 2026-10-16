@@ -68,3 +68,6 @@
 - Unlisted drop (#243 critique): "Item not on the table…" sits last in a long Item list; if officers miss it, consider a visible link beside the list (design version B's idea).
 - Unlisted drop (#243 critique): when a lookup moves Boss to match an item already on the table, nothing highlights the changed field beyond the note.
 - The error page's Try again re-renders on the client but does not re-fetch, so an error thrown by a server component stays on screen until the page is reloaded (found in #257; baseline behaviour).
+- Contrast (#362 critique): `fg-3` labels on the `ink-850` card surface measure 4.43:1, under the 4.5:1 floor (tokens.css says fg-3 is for ink-950); used ~160 times site-wide, e.g. the interview page's "Your times · N hours". Decide a site-wide fix.
+- Interview page (#362 critique): on a phone the booked/proposed time wraps left-aligned under a centred "in 2 days" (same in the approved design); consider centring it.
+- Interview page (#362 critique): the loading skeleton is picker-shaped, so visitors whose interview is already submitted, booked or ended see a big card snap to a small one (approved loading state).
