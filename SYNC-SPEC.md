@@ -619,6 +619,13 @@ unique, so the database refuses a second active attempt. `attempt` counts from 1
   away.
 - A submitted set with a pick outside the window or off the half hour is refused 400
   `out_of_range`, like a proposal; an empty set is 400 `invalid`.
+- **Minimum.** Sending or changing times needs at least 5 one-hour blocks on at least 2
+  different guild days. A **block** is a guild-clock hour holding at least one picked half-hour
+  start (the two starts of one hour count once; a window-edge block with one start still
+  counts). A **guild day** is a date in `GUILD_TZ`, so an evening that crosses the viewer's
+  midnight is one day. A set below it is refused 400 `{ reason: "too_few_times", error }`
+  before anything is stored or enqueued; `error` says what is missing. Changing already-sent
+  times is held to the same rule. One shared function counts it (`lib/interview-minimum.ts`).
 - Slots are stored as absolute instants with the applicant's zone kept in `timeZone` for
   display only. These are dated one-off times, so absolute instants are correct here, unlike
   the weekly member availability (REVIEW.md), which is kept in member-local time.

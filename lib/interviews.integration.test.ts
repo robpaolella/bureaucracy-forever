@@ -13,6 +13,9 @@ import { decideApplication } from './decisions';
 
 // INTERVIEWS_INTEGRATION=1 npx vitest run lib/interviews.integration.test.ts
 // Like characters.integration.test.ts, owns a disposable loopback-only Postgres, never an existing DB.
+// Three more one-hour blocks (with a slot at 7 PM on the 10th): the picks meet SYNC-SPEC §12's minimum of 5 blocks on 2 days.
+const REST = ['2026-06-11T03:00:00.000Z', '2026-06-11T04:00:00.000Z', '2026-06-11T17:00:00.000Z', '2026-06-11T18:00:00.000Z'];
+
 describe.skipIf(process.env.INTERVIEWS_INTEGRATION !== '1')('one active interview per application on PostgreSQL', () => {
   let container: string, pool: Pool, db: PrismaClient;
   const docker = (...args: string[]) => execFileSync('docker', args, { encoding: 'utf8', timeout: 120_000 }).trim();
@@ -139,10 +142,9 @@ describe.skipIf(process.env.INTERVIEWS_INTEGRATION !== '1')('one active intervie
       await application('Edit');
       const started = await startInterview('Edit', officer, { now: new Date('2026-06-10T16:00:00Z') });
       if (!started.ok) throw new Error(started.error);
-      const at = (iso: string) => [iso];
       const results = await Promise.all([
-        submitTimes(started.interview.id, 'Edit', at('2026-06-11T02:00:00.000Z'), 'UTC', new Date('2026-06-10T17:00:00Z')),
-        submitTimes(started.interview.id, 'Edit', at('2026-06-11T02:30:00.000Z'), 'UTC', new Date('2026-06-10T17:00:00Z')),
+        submitTimes(started.interview.id, 'Edit', ['2026-06-11T02:00:00.000Z', ...REST], 'UTC', new Date('2026-06-10T17:00:00Z')),
+        submitTimes(started.interview.id, 'Edit', ['2026-06-11T02:30:00.000Z', ...REST], 'UTC', new Date('2026-06-10T17:00:00Z')),
       ]);
       expect(results.map((r) => (r.ok ? 'ok' : r.reason)).sort()).toEqual(['ok', 'wrong_status']);
       expect(await db.interview.findUniqueOrThrow({ where: { id: started.interview.id } })).toMatchObject({ timesRevision: 1 });
@@ -159,7 +161,7 @@ describe.skipIf(process.env.INTERVIEWS_INTEGRATION !== '1')('one active intervie
         await application(id);
         const started = await startInterview(id, officer, { now: requested });
         if (!started.ok) throw new Error(started.error);
-        const times = await submitTimes(started.interview.id, id, [SLOT, SLOT2], 'UTC', at);
+        const times = await submitTimes(started.interview.id, id, [SLOT, SLOT2, ...REST], 'UTC', at);
         if (!times.ok) throw new Error(times.error);
         return times.interview.id;
       };
@@ -177,7 +179,7 @@ describe.skipIf(process.env.INTERVIEWS_INTEGRATION !== '1')('one active intervie
         for (let i = 0; i < 5; i++) {
           const app = `Shift${i}`;
           const id = await withTimes(app);
-          const [book, edit] = await Promise.all([bookInterview(id, officer, SLOT, 1, at), submitTimes(id, app, [SLOT2], 'UTC', at)]);
+          const [book, edit] = await Promise.all([bookInterview(id, officer, SLOT, 1, at), submitTimes(id, app, [SLOT2, ...REST], 'UTC', at)]);
           const row = await db.interview.findUniqueOrThrow({ where: { id } });
           // Either the booking held the revision and the edit was refused, or the edit landed and the booking must pick again.
           if (book.ok) expect([outcome(edit), row.status, row.timesRevision]).toEqual(['wrong_status', 'BOOKED', 1]);
