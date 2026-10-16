@@ -40,3 +40,10 @@ export const GET_ADDON = {
   unreachable: 'Couldn’t check for the latest version just now.',
   allReleases: 'See all releases on GitHub',
 };
+
+export const GET_HELPER = {
+  heading: 'Get the helper',
+  lede: 'The desktop helper delivers reserves and awards for you. Create a key for it below.',
+  mac: 'Download for Mac',
+  windows: 'Download for Windows',
+};
