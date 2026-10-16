@@ -55,12 +55,15 @@ To be filled at freeze.
 ## Comments and changes
 | ID / source | Version / element | Original note | Agreed change and verification | Resolved |
 | --- | --- | --- | --- | --- |
+| herdr, 2026-10-15 (Robert) | A and B, whole applicant page | "I think the whole design needs to change. It needs to be a squeeze page, first of all. There's too much distraction on the page overall. We don't have to copy the raid time availability 1 for 1. Look at this example from Calendly [a Zoom Scheduler booking page: one centred card with an info panel, a month calendar and that day's times]. The scheduling portion is smaller and right in the center. It's obvious what you do and what you click to go to the next page. We need to shrink the grid down a bit, centralize it, get rid of the additional noise." | New versions C and D: applicant states as a squeeze page (logo only, no site nav or footer), one centred card. C: info panel, month calendar, the day's times as multi-select buttons. D: info panel and a compact paint grid. Both: a card-footer Send. A and B stay until Robert confirms what only they had can go. | open |
 
 ## Experiment
 None.
 
 ## Open items
-The three version questions above.
+- The squeeze-page redesign (versions C and D), from Robert's 2026-10-15 feedback.
+- Questions 1 and 2 above are likely superseded by the redesign; question 3 (officer
+  card) still stands. Confirm with Robert once C and D are shown.
 
 ## Build handoff
 Merged folder/revision is the feature authority; DESIGN.md/live site govern site-wide
