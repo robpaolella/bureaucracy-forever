@@ -6,7 +6,7 @@ import { enqueue } from '@/lib/outbox';
 import { locksAtFor, parseRequirements } from '@/lib/raids';
 import { instanceName, isRosterRank, missingOccurrences, occurrences } from '@/lib/series';
 import { trialCheckInDue } from '@/lib/rank-rules';
-import { dueForClose, dueForLock, dueForNudge, dueForPost, HOUR_MS, reminderDue } from '@/lib/tick-rules';
+import { dueForClose, dueForLock, dueForNudge, dueForPost, HOUR_MS, interviewDone, interviewExpired, interviewHeadsUpDue, interviewReminderDue, joinNoticeDue, proposalLapsed, reminderDue, INTERVIEW_JOIN_EARLY_MS, INTERVIEW_JOIN_LATE_MS } from '@/lib/tick-rules';
 import { lootEnabled } from '@/lib/flags';
 import { RESERVE_LOCK_MINUTES, reservesLockAt } from '@/lib/loot-rules';
 import { reserveReminderDue, reserveReminderRecipients } from '@/lib/reserve-reminder';
@@ -26,6 +26,11 @@ export type TickCounts = {
   closed: number;
   nudged: number;
   trialsRaised: number;
+  interviewsReminded: number;
+  interviewsExpired: number;
+  interviewsHeadsUp: number;
+  interviewsLapsed: number;
+  interviewsDone: number;
   reconciled: number;
 };
 
@@ -86,7 +91,7 @@ function isUniqueViolation(error: unknown): boolean {
  * missed or doubled tick changes nothing but timing.
  */
 export async function runTick(now = new Date()): Promise<TickCounts> {
-  const counts: TickCounts = { generated: 0, rosterAdded: 0, rosterRemoved: 0, posted: 0, reminded: 0, reservesReminded: 0, locked: 0, closed: 0, nudged: 0, trialsRaised: 0, reconciled: 0 };
+  const counts: TickCounts = { generated: 0, rosterAdded: 0, rosterRemoved: 0, posted: 0, reminded: 0, reservesReminded: 0, locked: 0, closed: 0, nudged: 0, trialsRaised: 0, interviewsReminded: 0, interviewsExpired: 0, interviewsHeadsUp: 0, interviewsLapsed: 0, interviewsDone: 0, reconciled: 0 };
   const roster = await rosterUserIds();
 
   // 1. Generate instances for every active series.
@@ -210,6 +215,57 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
     if (raised) counts.trialsRaised += 1;
   }
 
+  // 9–13. Interview timers. Each is one conditional update on the status and the field that
+  // makes it due, with its job in the same transaction, so overlapping ticks do it once.
+  const interviews = await db.interview.findMany({
+    where: { activeKey: { not: null } },
+    select: { id: true, applicationId: true, status: true, requestedAt: true, proposedStart: true, bookedStart: true, remindedAt: true, headsUpAt: true, joinedNotifiedAt: true },
+  });
+  const ended = { activeKey: null, endedAt: now };
+  for (const i of interviews) {
+    const job = { applicationId: i.applicationId, interviewId: i.id };
+    if (interviewReminderDue(i, now)) {
+      const sent = await db.$transaction(async (tx) => {
+        const marked = await tx.interview.updateMany({ where: { id: i.id, status: 'BOOKED', remindedAt: null, bookedStart: i.bookedStart }, data: { remindedAt: now } });
+        if (marked.count === 0) return false;
+        await enqueue('interview.remind', { ...job, startsAt: i.bookedStart?.toISOString() }, tx);
+        return true;
+      });
+      if (sent) counts.interviewsReminded += 1;
+    }
+    if (interviewExpired(i, now)) {
+      const won = await db.$transaction(async (tx) => {
+        const marked = await tx.interview.updateMany({ where: { id: i.id, status: i.status }, data: { status: 'NO_TIME', endReason: 'EXPIRED', ...ended } });
+        if (marked.count === 0) return false;
+        await enqueue('interview.ended', { ...job, outcome: 'expired' }, tx);
+        return true;
+      });
+      if (won) { counts.interviewsExpired += 1; i.status = 'NO_TIME'; }
+    }
+    if (interviewHeadsUpDue(i, now)) {
+      const sent = await db.$transaction(async (tx) => {
+        const marked = await tx.interview.updateMany({ where: { id: i.id, status: 'AWAITING_TIMES', headsUpAt: null }, data: { headsUpAt: now } });
+        if (marked.count === 0) return false;
+        await enqueue('interview.headsup', job, tx);
+        return true;
+      });
+      if (sent) counts.interviewsHeadsUp += 1;
+    }
+    if (proposalLapsed(i, now)) {
+      const won = await db.$transaction(async (tx) => {
+        const marked = await tx.interview.updateMany({ where: { id: i.id, status: 'PROPOSED', proposedStart: i.proposedStart }, data: { status: 'NO_TIME', endReason: 'PROPOSAL_LAPSED', ...ended } });
+        if (marked.count === 0) return false;
+        await enqueue('interview.ended', { ...job, outcome: 'lapsed' }, tx);
+        return true;
+      });
+      if (won) counts.interviewsLapsed += 1;
+    }
+    if (interviewDone(i, now)) {
+      const marked = await db.interview.updateMany({ where: { id: i.id, status: 'BOOKED', bookedStart: i.bookedStart }, data: { status: 'DONE', ...ended } });
+      if (marked.count > 0) counts.interviewsDone += 1;
+    }
+  }
+
   // 8. Reconcile once an hour: re-render everything the bot has posted whose state implies
   // archived or locked, so drift in Discord is corrected. The marker is one well-known row
   // in BotRequest (a primary-key read), and the same hour also trims old jobs and keys.
@@ -228,4 +284,31 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
   }
 
   return counts;
+}
+
+/**
+ * SYNC-SPEC §4 voice join: the member joined Public Lounge. Announces their booked interview
+ * once, if it starts within 15 minutes ahead to 30 minutes ago. The conditional update on
+ * `joinedNotifiedAt` makes a repeat, or two joins at once, notify nothing more.
+ */
+export async function notifyVoiceJoin(discordId: string, now = new Date()): Promise<{ notified: true; interviewId: string } | { notified: false }> {
+  const candidates = await db.interview.findMany({
+    where: {
+      status: 'BOOKED', joinedNotifiedAt: null, application: { discordId },
+      bookedStart: { gte: new Date(now.getTime() - INTERVIEW_JOIN_LATE_MS), lte: new Date(now.getTime() + INTERVIEW_JOIN_EARLY_MS) },
+    },
+    orderBy: { bookedStart: 'asc' },
+    select: { id: true, applicationId: true, status: true, requestedAt: true, proposedStart: true, bookedStart: true, remindedAt: true, headsUpAt: true, joinedNotifiedAt: true },
+  });
+  for (const i of candidates) {
+    if (!joinNoticeDue(i, now)) continue;
+    const sent = await db.$transaction(async (tx) => {
+      const marked = await tx.interview.updateMany({ where: { id: i.id, status: 'BOOKED', joinedNotifiedAt: null }, data: { joinedNotifiedAt: now } });
+      if (marked.count === 0) return false;
+      await enqueue('interview.joined', { applicationId: i.applicationId, interviewId: i.id }, tx);
+      return true;
+    });
+    if (sent) return { notified: true, interviewId: i.id };
+  }
+  return { notified: false };
 }
