@@ -438,7 +438,10 @@ rows only; answered rows are kept.
 ### Interviews (§12)
 - Forum tag `Interview` joins `TAG_NAMES` (it already exists in Discord). `tags_for` adds it
   while the application's latest attempt is `BOOKED` or `DONE` and the application is
-  `PENDING`, so `application.update` keeps it. Interview jobs never unarchive or unlock a
+  `PENDING`, so `application.update` keeps it. The site enqueues `application.update` in the
+  same transaction whenever that condition can flip: an interview becoming `BOOKED`, a `BOOKED`
+  one being cancelled, and a new attempt starting after a `DONE` one. Ending by `CLOSED` rides
+  on the decision's own retag. Interview jobs never unarchive or unlock a
   decided thread: in an archived thread they skip thread posts and edits.
 - **Times message** (`interview.times`): an embed with one field per day (in `GUILD_TZ`) of
   time blocks as `<t:unix:t>` ranges so each officer sees their own zone, kept inside Discord's
