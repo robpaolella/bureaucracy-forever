@@ -8,7 +8,7 @@ import { pickWindow } from './interview-slots';
 
 const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient }));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
-import { cancelInterview, startInterview, submitTimes } from './interviews';
+import { answerProposal, bookInterview, cancelInterview, proposeTime, startInterview, submitTimes } from './interviews';
 import { decideApplication } from './decisions';
 
 // INTERVIEWS_INTEGRATION=1 npx vitest run lib/interviews.integration.test.ts
@@ -147,6 +147,63 @@ describe.skipIf(process.env.INTERVIEWS_INTEGRATION !== '1')('one active intervie
       expect(results.map((r) => (r.ok ? 'ok' : r.reason)).sort()).toEqual(['ok', 'wrong_status']);
       expect(await db.interview.findUniqueOrThrow({ where: { id: started.interview.id } })).toMatchObject({ timesRevision: 1 });
       expect((await jobs('Edit')).filter((t) => t === 'interview.times')).toHaveLength(1);
+    });
+
+    describe('booking, proposing and answering', () => {
+      const requested = new Date('2026-06-10T16:00:00Z');
+      const at = new Date('2026-06-10T17:00:00Z');
+      const SLOT = '2026-06-11T02:00:00.000Z';
+      const SLOT2 = '2026-06-11T02:30:00.000Z';
+      const outcome = (r: { ok: boolean; reason?: string }) => (r.ok ? 'ok' : r.reason);
+      const withTimes = async (id: string) => {
+        await application(id);
+        const started = await startInterview(id, officer, { now: requested });
+        if (!started.ok) throw new Error(started.error);
+        const times = await submitTimes(started.interview.id, id, [SLOT, SLOT2], 'UTC', at);
+        if (!times.ok) throw new Error(times.error);
+        return times.interview.id;
+      };
+
+      it('lets one of two officers booking at once win, with one booking job', async () => {
+        const id = await withTimes('Book');
+        const results = await Promise.all([bookInterview(id, officer, SLOT, 1, at), bookInterview(id, officer, SLOT2, 1, at)]);
+        expect(results.map(outcome).sort()).toEqual(['ok', 'wrong_status']);
+        const loser = results.find((r) => !r.ok);
+        expect(loser).toMatchObject({ status: 409, error: 'This interview is already booked.' });
+        expect((await jobs('Book')).filter((t) => t === 'interview.booked')).toHaveLength(1);
+      });
+
+      it('lets a booking and the applicant changing times race with one winner', async () => {
+        for (let i = 0; i < 5; i++) {
+          const app = `Shift${i}`;
+          const id = await withTimes(app);
+          const [book, edit] = await Promise.all([bookInterview(id, officer, SLOT, 1, at), submitTimes(id, app, [SLOT2], 'UTC', at)]);
+          const row = await db.interview.findUniqueOrThrow({ where: { id } });
+          // Either the booking held the revision and the edit was refused, or the edit landed and the booking must pick again.
+          if (book.ok) expect([outcome(edit), row.status, row.timesRevision]).toEqual(['wrong_status', 'BOOKED', 1]);
+          else expect([outcome(book), outcome(edit), row.status, row.timesRevision]).toEqual(['times_changed', 'ok', 'TIMES_RECEIVED', 2]);
+          const types = await jobs(app);
+          expect(types.filter((t) => t === 'interview.booked')).toHaveLength(book.ok ? 1 : 0);
+          expect(types.filter((t) => t === 'interview.times')).toHaveLength(book.ok ? 1 : 2);
+        }
+      });
+
+      it('lets a cancel and an accept race with one ending', async () => {
+        for (let i = 0; i < 5; i++) {
+          const app = `Accept${i}`;
+          const id = await withTimes(app);
+          const proposed = await proposeTime(id, officer, '2026-06-11T03:00:00.000Z', at);
+          expect(proposed).toMatchObject({ ok: true, interview: { status: 'PROPOSED' } });
+          const [cancel, accept] = await Promise.all([cancelInterview(id, officer, at), answerProposal(id, app, 'accept', at)]);
+          expect([cancel.ok, accept.ok].filter(Boolean)).toHaveLength(1);
+          const row = await db.interview.findUniqueOrThrow({ where: { id } });
+          expect(row.status).toBe(cancel.ok ? 'CANCELLED' : 'BOOKED');
+          const loser = cancel.ok ? accept : cancel;
+          expect(loser).toMatchObject({ status: 409, reason: 'wrong_status' });
+          const types = await jobs(app);
+          expect(types.filter((t) => t === 'interview.booked' || t === 'interview.ended')).toEqual([cancel.ok ? 'interview.ended' : 'interview.booked']);
+        }
+      });
     });
   });
 });
