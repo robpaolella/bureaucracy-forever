@@ -74,7 +74,8 @@ describe('interviewGate', () => {
     interviews.applicantInterview.mockResolvedValue(view);
     expect(await interviewGate()).toEqual({
       kind: 'interview',
-      interview: { status: 'BOOKED', slots: ['2026-10-18T02:00:00.000Z'], proposedStart: null, bookedStart: '2026-10-18T02:00:00.000Z' },
+      interview: { status: 'BOOKED', requestedAt: '2026-10-15T22:10:00.000Z', slots: ['2026-10-18T02:00:00.000Z'], proposedStart: null, bookedStart: '2026-10-18T02:00:00.000Z' },
+      name: 'Quillfeather',
     });
     expect(interviews.applicantInterview).toHaveBeenCalledExactlyOnceWith('1');
     expect(guild.lookup).not.toHaveBeenCalled();

@@ -79,3 +79,9 @@ export function slotStartsBetween(from: Date, to: Date): Date[] {
     }
   }
 }
+
+/** The starts an applicant can pick: every slot in the interview's window that hasn't started yet. */
+export function pickerStarts(requestedAt: Date, now: Date): Date[] {
+  const { windowStart, windowEnd } = pickWindow(requestedAt);
+  return slotStartsBetween(windowStart, windowEnd).filter((start) => start.getTime() > now.getTime());
+}

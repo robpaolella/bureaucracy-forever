@@ -1,6 +1,7 @@
 /**
- * The applicant's interview page (/apply/interview). Wording from the approved design,
- * design/341-interview-scheduling (revision 1, version F).
+ * The applicant's interview page (/apply/interview). Wording from the approved designs:
+ * design/367-interview-picker (revision 2, version G) for the time picker, design/341-interview-scheduling
+ * (revision 1) for the rest.
  */
 export const INTERVIEW = {
   eyebrow: 'Interview',
@@ -17,10 +18,42 @@ export const INTERVIEW = {
     body: 'There’s no interview waiting for this Discord account. If an officer asked you to pick times, check you’re signed in with the account you applied with.',
     action: 'Back to the home page',
   },
-  // Until the time picker lands: the picker's own heading and lede.
   pick: {
     title: 'Officer interview',
     body: 'Mark your availability for a 15–20 minute interview with an officer. Choose all times that you’re available to make scheduling easier.',
+    detecting: 'Detecting…',
+    noTimes: 'There are no times left to pick. An officer will reach out to you directly to arrange one.',
+    length: '15–20 minutes',
+    where: 'Discord voice · Public Lounge',
+    startTimes: 'Start times',
+    signedInAs: (name: string) => `Signed in as ${name}`,
+    zoneButton: (zone: string) => `Time zone: ${zone}. Change it`,
+    month: { previous: 'Previous month', next: 'Next month', legend: 'Days you’ve picked times on', days: 'Days with interview times' },
+    switchLabel: 'Show times in',
+    yourTime: 'Your time',
+    guildTime: 'Guild time',
+    hoursIn: (zone: string) => `Hours in ${zone}`,
+    pickedOnDay: (n: number) => `${n} picked`,
+    note: 'Pick every hour you’re available. The more you pick, the easier it is to schedule.',
+    pickAll: 'Pick all',
+    clearDay: 'Clear this day',
+    clearAll: 'Clear all',
+    send: 'Send my times',
+    dayLabel: (day: string, picked: number) => (picked ? `${day}, ${picked} picked` : day),
+    hourLabel: (yours: string, guild: string, inGuildTime: boolean) => (inGuildTime ? `Could start any time ${guild}, ${yours} your time` : `Could start any time ${yours}, ${guild}`),
+    guildOnlyHourLabel: (guild: string) => `Could start any time ${guild}`,
+    confirm: {
+      title: 'Clear all your times?',
+      body: 'This removes every hour you’ve picked, on every day.',
+      keep: 'Keep them',
+      clear: 'Clear all',
+    },
+    footer: {
+      empty: (blocks: number, days: number) => `Nothing picked yet · pick at least ${blocks} hours on ${days} or more days`,
+      needMore: (picked: number, blocks: number, more: number, otherDay: boolean) => `${picked} of ${blocks} hours picked · add ${more} more${otherDay ? ', on another day' : ''}`,
+      needDay: (picked: number) => `${picked} hours picked on 1 day · add an hour on another day`,
+      ready: (hours: number, days: number) => `${hours} hours picked on ${days} days · not sent yet`,
+    },
   },
   submitted: {
     title: 'Your times are with the officers',

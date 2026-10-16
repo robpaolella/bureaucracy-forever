@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSlotStart, isValidStart, pickWindow, proposalRange, slotStartsBetween } from './interview-slots';
+import { isSlotStart, isValidStart, pickerStarts, pickWindow, proposalRange, slotStartsBetween } from './interview-slots';
 import { formatClock } from './time';
 
 const at = (iso: string) => new Date(iso);
@@ -125,5 +125,32 @@ describe('slotStartsBetween', () => {
       expect(starts.map((s) => s.toISOString())).toContain(new Date(iso).toISOString());
       expect(isSlotStart(at(iso))).toBe(true);
     }
+  });
+});
+
+describe('pickerStarts', () => {
+  it('offers every slot from the window start to its end, none outside guild hours', () => {
+    // Thu 15 Oct 3:10 PM guild time: first start is 5:30 PM, window ends Thu 22 Oct 3:00 PM.
+    const starts = pickerStarts(at('2026-10-15T22:10:00Z'), at('2026-10-15T22:15:00Z'));
+    expect(starts[0]).toEqual(at('2026-10-16T00:30:00Z'));
+    expect(starts.at(-1)).toEqual(at('2026-10-22T22:00:00Z'));
+    expect(starts.every((s) => isSlotStart(s))).toBe(true);
+  });
+
+  it('drops starts that have already begun, and keeps the rest', () => {
+    const request = at('2026-10-15T22:10:00Z');
+    const starts = pickerStarts(request, at('2026-10-16T17:00:00Z'));
+    expect(starts[0]).toEqual(at('2026-10-16T17:30:00Z'));
+    expect(pickerStarts(request, at('2026-10-30T00:00:00Z'))).toEqual([]);
+  });
+
+  it('holds across a DST change: guild days keep their 28 starts and the offset shifts', () => {
+    // US clocks fall back on Sun 1 Nov 2026. Request Fri 30 Oct 9:00 AM PDT.
+    const starts = pickerStarts(at('2026-10-30T16:00:00Z'), at('2026-10-30T16:00:00Z'));
+    const sat = starts.filter((s) => s >= at('2026-10-31T07:00:00Z') && s < at('2026-11-01T07:00:00Z'));
+    expect(sat).toHaveLength(28);
+    const mon = starts.filter((s) => pacific(s) === '9:00 AM');
+    expect(mon.map((s) => s.toISOString())).toContain('2026-11-02T17:00:00.000Z'); // PST: UTC-8
+    expect(mon.map((s) => s.toISOString())).toContain('2026-10-31T16:00:00.000Z'); // PDT: UTC-7
   });
 });

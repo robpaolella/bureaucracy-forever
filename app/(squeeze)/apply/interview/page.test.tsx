@@ -8,7 +8,7 @@ vi.mock('@/lib/interviews', () => ({ applicantInterview: mocks.applicantIntervie
 
 import InterviewPage, { metadata } from './page';
 
-const base = { id: 'iv1', applicationId: 'app1', endReason: null, slots: [] as string[], proposedStart: null, bookedStart: null };
+const base = { id: 'iv1', applicationId: 'app1', endReason: null, requestedAt: '2026-10-15T22:10:00.000Z', slots: [] as string[], proposedStart: null, bookedStart: null };
 const render = async (props?: unknown) => renderToStaticMarkup(await (InterviewPage as (p?: unknown) => Promise<React.ReactElement>)(props));
 
 beforeEach(() => {
@@ -34,6 +34,16 @@ describe('/apply/interview', () => {
     const html = await render({ searchParams: Promise.resolve({ id: 'someone-else', discordId: '2' }), params: Promise.resolve({}) });
     expect(html).toContain('Thanks for talking with us');
     expect(mocks.applicantInterview).toHaveBeenCalledExactlyOnceWith('1');
+  });
+
+  it('shows the time picker to an applicant awaiting times, with the account’s name', async () => {
+    mocks.session = { discordId: '1', name: 'Quillfeather', role: 'social' };
+    mocks.applicantInterview.mockResolvedValue({ ...base, status: 'AWAITING_TIMES' });
+    const html = await render();
+    expect(html).toContain('Officer interview');
+    expect(html).toContain('Choose all times that you’re available to make scheduling easier.');
+    expect(html).toContain('Signed in as Quillfeather');
+    expect(html).toContain('Send my times');
   });
 
   it('shows nothing to schedule to an account with no interview', async () => {
