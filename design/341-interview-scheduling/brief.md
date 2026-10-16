@@ -111,10 +111,28 @@ time carries its zone and guild time in its accessible name; status pills carry 
 44px targets except paint cells.
 
 ## Host snapshot and offline proof
-To be filled in at capture: `/members/availability` (member), `/apply` signed out
-(StatusPage), `/officers/applications/<id>` (officer), via
-`.pi/skills/verify-guild/SKILL.md` Launch, Doctor, Editable offline page snapshot and
-Cleanup. Hosts in `hosts/`.
+Captured on commit 25fbf92 with `.pi/skills/verify-guild/SKILL.md` (Launch, Doctor,
+Editable offline page snapshot, Cleanup PASS; evidence `/tmp/verify-guild-xwR8aw`):
+- `hosts/availability.html`: `/dev/session?as=member&back=/members/availability`
+  (seeded member Redtape). Used for the applicant's header (renamed Quillfeather/QU, the
+  members menu's "My availability" link removed, as a social doesn't get it).
+- `hosts/apply-out.html`: `/dev/session?as=out&back=/apply` (signed-out `StatusPage`).
+  Used for the signed-out header and the mark image.
+- `hosts/application.html`: officer, from `/officers/applications`, the seeded "backlog"
+  row's own page (renamed quillfeather/Quillfeather/QU, its ID replaced). The card goes
+  after the article's `</header>`.
+
+All three hosts were checked offline at 390×844 and 1440×900 against the running pages.
+Parts used: each host's `<head>`, `<header>` and `<footer>`; the application's `<main>`;
+the `StatusPage` mark `<img>`. Every captured `href="http…"` becomes `#`; the canonical
+link and URL-bearing meta tags are removed.
+
+The versions are generated outside the repo from the hosts plus a prototype stylesheet
+and script (the editor, states, sample data and controls). Both versions were checked
+offline with the network set to Offline at both widths: paint and drag, send, change and
+cancel, remove a block, day list, time-zone change (Eastern, Pacific, UK), decline with
+confirm and Escape, accept, retry after an error, and the phone day view keeping its
+scroll while painting. The only requests were inline `data:` images.
 
 ## Confirmed decisions
 Robert, 2026-10-15, this session:
@@ -130,8 +148,17 @@ Robert, 2026-10-15, this session:
    it holds when the decision DM couldn't be delivered.
 
 ## Version questions
-To be listed with the versions (for example: how the grid's days handle interview hours
-that cross the viewer's midnight).
+Versions A and B differ on three independent decisions (details in `decisions.md`):
+1. **Grid days.** A: the viewer's own calendar dates, all 48 rows when interview hours
+   cross the viewer's midnight, outside hours hatched. B: one column per interview day
+   (guild day), 28 rows of starts in the viewer's time, a "Next day" line at the rollover.
+2. **Time-zone control.** A: compact "Your time / Guild time" labels plus "Change".
+   B: the full `TimezoneBar` card.
+3. **Officer card.** A: compact, like Officer notes, times listed by day. B: definition
+   rows like the answers list, times as chips.
+
+Everything else is the same in both: wording, states, the status pages and the phone
+day view.
 
 ## Real-site experiment
 None.

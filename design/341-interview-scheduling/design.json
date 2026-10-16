@@ -1,0 +1,43 @@
+{
+  "design_issue": 341,
+  "covers": [
+    344,
+    345
+  ],
+  "revision": 1,
+  "versions": {
+    "a": "versions/a.html",
+    "b": "versions/b.html"
+  },
+  "states": [
+    "signed-out",
+    "nothing",
+    "pick-empty",
+    "pick-partial",
+    "pick-max",
+    "submitted",
+    "changing",
+    "proposed",
+    "booked",
+    "ended-cancelled",
+    "ended-no-time",
+    "ended-closed",
+    "ended-done",
+    "error-too-soon",
+    "error-stale",
+    "error-offline",
+    "officer-none",
+    "officer-awaiting",
+    "officer-times",
+    "officer-proposed",
+    "officer-booked",
+    "officer-done",
+    "officer-no-time",
+    "officer-cancelled",
+    "officer-closed",
+    "officer-second"
+  ],
+  "themes": [
+    "default"
+  ]
+}
