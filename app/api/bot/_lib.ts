@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { verifyBearer } from '@/lib/bot-auth';
 import { db } from '@/lib/db';
+import { reply, type Reply } from '@/lib/idempotency';
+import type { InterviewResult } from '@/lib/interviews';
 import { MAIN_CHARACTER } from '@/lib/signup-character';
 
 export function botCharacter(character: { id: string; name: string; class: string; spec: string; raidRole: string; isMain: boolean }) {
@@ -41,4 +43,22 @@ export async function userByDiscordId(discordId: string) {
     where: { discordId },
     select: { id: true, discordName: true, role: true, rank: true, inGuild: true, characters: MAIN_CHARACTER },
   });
+}
+
+/** The acting officer for an interview route (SYNC-SPEC §12): 400 for a bad id, 403 `forbidden` unless an OFFICER. */
+export async function interviewOfficer(body: Record<string, unknown>): Promise<{ officer: { userId: string } } | { deny: Reply }> {
+  if (!isSnowflake(body.byDiscordId)) return { deny: reply(400, { error: 'byDiscordId must be a Discord id.' }) };
+  const officer = await userByDiscordId(body.byDiscordId);
+  if (!officer || officer.role !== 'OFFICER') return { deny: reply(403, { reason: 'forbidden', error: 'Only officers can do this.' }) };
+  return { officer: { userId: officer.id } };
+}
+
+/**
+ * An interview result as a reply: on success `{ interview }` for a start (201) and the bare
+ * read shape otherwise (SYNC-SPEC §4); a refusal is its `{ reason, error, … }` at its status.
+ */
+export function interviewReply(result: InterviewResult, okStatus: 200 | 201): Reply {
+  if (result.ok) return reply(okStatus, okStatus === 201 ? { interview: result.interview } : result.interview);
+  const { ok: _ok, status, ...body } = result;
+  return reply(status, body);
 }
