@@ -82,6 +82,25 @@ describe('pickerSummary', () => {
     const edge = [at('2026-10-16T00:30:00Z'), ...hours(17, 10, 4)];
     expect(pickerSummary(edge)).toMatchObject({ canSend: true });
   });
+
+  describe('when changing sent times', () => {
+    const sent = new Set([...hours(17, 10, 4), ...hours(18, 10, 1)]);
+
+    it('keeps Update closed until the picks differ from the sent ones, in any order', () => {
+      expect(pickerSummary([...sent].reverse(), sent)).toEqual({ text: '5 hours picked on 2 days · no changes yet', tone: 'closed', canSend: false });
+      expect(pickerSummary([...sent, ...hours(19, 10, 1)], sent)).toEqual({ text: '6 hours picked on 3 days · changes not sent', tone: 'warn', canSend: true });
+    });
+
+    it('applies the minimum to a change', () => {
+      expect(pickerSummary(hours(17, 10, 4), sent)).toMatchObject({ text: '4 of 5 hours picked · add 1 more, on another day', canSend: false });
+      expect(pickerSummary([], sent)).toMatchObject({ text: 'Nothing picked yet · pick at least 5 hours on 2 or more days', canSend: false });
+    });
+
+    it('names one hour, and leaves out the days when there is only one', () => {
+      const one = new Set(hours(17, 10, 1));
+      expect(pickerSummary(one, one).text).toBe('1 hour picked · no changes yet');
+    });
+  });
 });
 
 describe('zoneLabel', () => {

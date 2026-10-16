@@ -2,6 +2,10 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+vi.mock('@/app/(squeeze)/apply/interview/actions', () => ({ sendTimes: vi.fn() }));
+
 import { InterviewPicker } from './InterviewPicker';
 
 // The approved design's sample: requested Thu 15 Oct 3:10 PM guild time, viewed from New York.
@@ -67,7 +71,7 @@ describe('InterviewPicker', () => {
     expect(status()).toBe('2 of 5 hours picked · add 3 more, on another day');
   });
 
-  it('keeps Send disabled until 5 hours on 2 guild days, then opens it without sending anything', async () => {
+  it('keeps Send disabled until 5 hours on 2 guild days, then opens it', async () => {
     await render();
     await click(byText('Pick all')); // four hours on Thu 15
     expect(status()).toBe('4 of 5 hours picked · add 1 more, on another day');
