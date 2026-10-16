@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { INTERVIEW } from '@/content/interview';
 import { cn } from '@/lib/cn';
 import { formatLongDate, WEEKDAY_NAMES } from '@/lib/time';
@@ -88,7 +89,7 @@ export function MonthCalendar({ days, current, zone, picked, onPick, month, onMo
           );
         })}
       </div>
-      <p className="mt-4 flex items-center gap-2 pl-2 text-xs text-fg-3">
+      <p className="mt-4 flex items-center gap-2 pl-2 text-xs text-fg-muted">
         <Dot />
         {COPY.legend}
       </p>
@@ -98,6 +99,11 @@ export function MonthCalendar({ days, current, zone, picked, onPick, month, onMo
 
 /** The phone's row of days, one chip each. */
 export function DayStrip({ days, current, zone, picked, onPick }: Props) {
+  const selectedRef = useRef<HTMLButtonElement>(null);
+  // The strip scrolls sideways: bring the chosen day into view when it changes (a zone switch can move it).
+  useEffect(() => {
+    selectedRef.current?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  }, [current.key]);
   return (
     <div role="group" aria-label={COPY.days} className="flex gap-2 overflow-x-auto border-t border-line-faint px-4 pb-3 pt-2 [scrollbar-width:none] min-[600px]:px-5">
       {days.map((day) => {
@@ -106,6 +112,7 @@ export function DayStrip({ days, current, zone, picked, onPick }: Props) {
         return (
           <button
             key={day.key}
+            ref={selected ? selectedRef : undefined}
             type="button"
             aria-pressed={selected}
             aria-label={dayName(day, zone, count)}

@@ -16,6 +16,7 @@ import { DayStrip, MonthCalendar } from './PickerCalendar';
 
 const { pick: COPY } = INTERVIEW;
 
+// Small captions use fg-muted, not the design's fg-3: fg-3 on the ink-850 card is 4.4:1, under the 4.5:1 floor.
 const TEXT_BUTTON = 'flex min-h-11 items-center font-semibold text-teal underline decoration-teal-dim underline-offset-4';
 const META = 'flex min-h-[34px] items-center gap-2.5 text-sm text-fg-2 max-[959px]:min-h-7 max-[959px]:gap-[7px] max-[959px]:text-[13px]';
 
@@ -268,7 +269,7 @@ function DayPanel({ day, zone, shownZone, picks, picked, guildClock, showGuild, 
       onClick={() => onShowGuild(guild)}
       className={cn(
         "relative h-9 rounded-[3px] px-2.5 text-xs font-semibold transition-colors duration-[120ms] after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']",
-        showGuild === guild ? cn('bg-ink-700', guild ? 'text-sand' : 'text-teal') : 'text-fg-3 hover:text-fg-2',
+        showGuild === guild ? cn('bg-ink-700', guild ? 'text-sand' : 'text-teal') : 'text-fg-muted hover:text-fg-2',
       )}
     >
       {label}
@@ -286,7 +287,7 @@ function DayPanel({ day, zone, shownZone, picks, picked, guildClock, showGuild, 
           </div>
         )}
       </div>
-      <div className={cn('flex items-center justify-between gap-3 pb-2 text-xs text-fg-3', pad)}>
+      <div className={cn('flex items-center justify-between gap-3 pb-2 text-xs text-fg-muted', pad)}>
         <span>
           {picked > 0 && `${COPY.pickedOnDay(picked)} · `}
           {COPY.hoursIn(inGuild ? `guild time (${zoneAbbreviation(at, GUILD_TIMEZONE)})` : zoneAbbreviation(at, zone))}
@@ -296,7 +297,7 @@ function DayPanel({ day, zone, shownZone, picks, picked, guildClock, showGuild, 
         </button>
       </div>
       <div className={cn('pb-5 pt-1 min-[960px]:min-h-0 min-[960px]:flex-1 min-[960px]:overflow-y-auto', pad)}>
-        <p className="mb-2.5 text-xs text-fg-3">{COPY.note}</p>
+        <p className="mb-2.5 text-xs text-fg-muted">{COPY.note}</p>
         {runs.map((run, i) => (
           <div key={run[0][0]} className={cn('grid grid-cols-3 gap-2', i > 0 && 'mt-3.5 border-t border-dashed border-line-strong pt-3.5')}>
             {run.map((hour) => {
