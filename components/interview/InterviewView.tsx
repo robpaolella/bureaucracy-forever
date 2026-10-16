@@ -3,6 +3,7 @@ import { ButtonLink } from '@/components/ui';
 import { INTERVIEW } from '@/content/interview';
 import { DISCORD_INVITE_URL, LOGIN_URL } from '@/lib/config';
 import { InterviewCard } from './InterviewCard';
+import { InterviewPicker } from './InterviewPicker';
 import { SentTimes } from './SentTimes';
 import { relativeDays, type InterviewGate } from './state';
 
@@ -20,9 +21,9 @@ function TimeLine({ start, now }: { start: string; now: Date }) {
 }
 
 /**
- * Every read-only state of the applicant's interview page (approved design 341). The time
- * picker (AWAITING_TIMES) and answering a proposal arrive in later parts; until then those
- * states show their heading without actions.
+ * Every state of the applicant's interview page (approved designs 341 and 367). Sending times
+ * and answering a proposal arrive in later parts; until then the picker's Send does nothing and
+ * a proposal shows its heading without actions.
  */
 export function InterviewView({ gate, now }: { gate: InterviewGate; now: Date }) {
   if (gate.kind === 'signin') {
@@ -44,10 +45,10 @@ export function InterviewView({ gate, now }: { gate: InterviewGate; now: Date })
     );
   }
 
-  const { status, slots, proposedStart, bookedStart } = gate.interview;
+  const { status, requestedAt, slots, proposedStart, bookedStart } = gate.interview;
   switch (status) {
     case 'AWAITING_TIMES':
-      return <InterviewCard title={INTERVIEW.pick.title} body={INTERVIEW.pick.body} />;
+      return <InterviewPicker requestedAt={requestedAt} now={now.toISOString()} name={gate.name} initial={slots} />;
     case 'TIMES_RECEIVED':
       return <InterviewCard title={INTERVIEW.submitted.title} extra={<SentTimes slots={slots} />} body={INTERVIEW.submitted.body} />;
     case 'PROPOSED':
