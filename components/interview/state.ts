@@ -7,13 +7,16 @@ import { formatLongDate } from '@/lib/time';
  */
 export type ApplicantInterview = {
   status: InterviewStatus;
+  /** When the interview was requested, ISO: the picker's window runs from it. */
+  requestedAt: string;
   /** Half-hour starts the applicant sent, ISO. */
   slots: string[];
   proposedStart: string | null;
   bookedStart: string | null;
 };
 
-export type InterviewGate = { kind: 'signin' } | { kind: 'nothing' } | { kind: 'interview'; interview: ApplicantInterview };
+/** `name` is the signed-in account's, for the picker's "Signed in as" line. */
+export type InterviewGate = { kind: 'signin' } | { kind: 'nothing' } | { kind: 'interview'; interview: ApplicantInterview; name: string };
 
 const HALF_HOUR = 30 * 60_000;
 const HOUR = 60 * 60_000;
