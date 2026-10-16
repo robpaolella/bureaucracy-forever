@@ -237,6 +237,20 @@ describe('the applicant submitting times', () => {
     expect(store.jobs).toEqual([]);
   });
 
+  it('refuses, writing nothing, when the times moved past the revision the caller saw', async () => {
+    // Another tab saved revision 2 after this page checked revision 1.
+    interview({ status: 'TIMES_RECEIVED', slots: [new Date(SLOT2)], timesRevision: 2 });
+    expect(await submitTimes('i1', 'applicant', ENOUGH, 'UTC', now, 1)).toMatchObject({ ok: false, status: 409, reason: 'wrong_status', error: /changed while you were editing/ });
+    expect(store.rows[0]).toMatchObject({ timesRevision: 2, slots: [new Date(SLOT2)] });
+    expect(store.jobs).toEqual([]);
+  });
+
+  it('writes when the revision the caller saw is still current', async () => {
+    interview({ status: 'TIMES_RECEIVED', slots: [new Date(SLOT)], timesRevision: 1 });
+    expect(await submitTimes('i1', 'applicant', ENOUGH, 'UTC', now, 1)).toMatchObject({ ok: true, interview: { timesRevision: 2 } });
+    expect(store.jobs.map(([type]) => type)).toEqual(['interview.times']);
+  });
+
   it('treats the same times arriving twice at once as one change', async () => {
     interview({ status: 'TIMES_RECEIVED', slots: [new Date(SLOT)], timesRevision: 1 });
     const original = fake.interview.updateMany;

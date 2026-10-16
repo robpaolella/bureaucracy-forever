@@ -64,8 +64,8 @@ describe('sendTimes', () => {
   const REQUESTED = '2026-10-15T22:10:00.000Z';
   const SENT = ['2026-10-16T02:00:00.000Z', '2026-10-16T02:30:00.000Z'];
   const PICKS = ['2026-10-17T17:00:00.000Z', '2026-10-17T17:30:00.000Z'];
-  const awaiting = { id: 'iv-mine', status: 'AWAITING_TIMES', requestedAt: REQUESTED, slots: [] as string[] };
-  const received = { ...awaiting, status: 'TIMES_RECEIVED', slots: SENT };
+  const awaiting = { id: 'iv-mine', status: 'AWAITING_TIMES', requestedAt: REQUESTED, slots: [] as string[], timesRevision: 0 };
+  const received = { ...awaiting, status: 'TIMES_RECEIVED', slots: SENT, timesRevision: 3 };
   const TOO_FEW = 'Pick at least 5 one-hour blocks on 2 or more different days. You need 4 more one-hour blocks.';
 
   beforeEach(() => {
@@ -76,13 +76,14 @@ describe('sendTimes', () => {
   it('sends the times to the session’s own interview, found from the session', async () => {
     expect(await sendTimes(PICKS, 'America/New_York', { requestedAt: REQUESTED, slots: [] })).toEqual({ kind: 'sent' });
     expect(mocks.applicantInterview).toHaveBeenCalledExactlyOnceWith('1');
-    expect(mocks.submitTimes).toHaveBeenCalledExactlyOnceWith('iv-mine', '1', PICKS, 'America/New_York');
+    expect(mocks.submitTimes).toHaveBeenCalledExactlyOnceWith('iv-mine', '1', PICKS, 'America/New_York', undefined, 0);
   });
 
   it('changes sent times when the page showed the ones still stored, in any order', async () => {
     mocks.applicantInterview.mockResolvedValue(received);
     expect(await sendTimes(PICKS, 'America/New_York', { requestedAt: REQUESTED, slots: [...SENT].reverse() })).toEqual({ kind: 'sent' });
-    expect(mocks.submitTimes).toHaveBeenCalledExactlyOnceWith('iv-mine', '1', PICKS, 'America/New_York');
+    // The revision it checked goes with the write, so a save landing in between is refused.
+    expect(mocks.submitTimes).toHaveBeenCalledExactlyOnceWith('iv-mine', '1', PICKS, 'America/New_York', undefined, 3);
   });
 
   it('reads and writes nothing when signed out', async () => {
@@ -98,7 +99,7 @@ describe('sendTimes', () => {
     const forged = { requestedAt: REQUESTED, slots: [], interviewId: 'iv-mine', applicationId: 'app-mine', discordId: '1' };
     await (sendTimes as (...args: unknown[]) => Promise<unknown>)(PICKS, 'America/New_York', forged, 'iv-mine');
     expect(mocks.applicantInterview).toHaveBeenCalledExactlyOnceWith('2');
-    expect(mocks.submitTimes).toHaveBeenCalledExactlyOnceWith('iv-redtape', '2', PICKS, 'America/New_York');
+    expect(mocks.submitTimes).toHaveBeenCalledExactlyOnceWith('iv-redtape', '2', PICKS, 'America/New_York', undefined, 0);
   });
 
   it.each([

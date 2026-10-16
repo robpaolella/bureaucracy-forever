@@ -46,7 +46,8 @@ export async function sendTimes(picks: string[], timeZone: string, shown: ShownT
   const view = await applicantInterview(session.discordId);
   if (!view || (view.status !== 'AWAITING_TIMES' && view.status !== 'TIMES_RECEIVED')) return { kind: 'stale' };
   if (view.requestedAt !== shown?.requestedAt || !Array.isArray(shown.slots) || !sameTimes(view.slots, shown.slots)) return { kind: 'stale' };
-  const result = await submitTimes(view.id, session.discordId, picks, timeZone);
+  // The revision checked here: times saved elsewhere after this check are refused, not overwritten.
+  const result = await submitTimes(view.id, session.discordId, picks, timeZone, undefined, view.timesRevision);
   if (result.ok) return { kind: 'sent' };
   if (result.reason === 'too_few_times' || result.reason === 'out_of_range' || result.reason === 'invalid') return { kind: 'refused', error: result.error };
   // Lost a race to an officer, Discord or another tab.
