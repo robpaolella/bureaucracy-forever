@@ -117,6 +117,18 @@ describe('sending times', () => {
     expect(host.querySelector('h1')!.textContent).toBe('Your interview is booked');
     expect(document.activeElement).toBe(host.querySelector('h1'));
   });
+
+  it('shows the notice over a fresh picker when a new attempt replaced the one the page showed', async () => {
+    mocks.send.mockResolvedValueOnce({ kind: 'stale' });
+    await render(gate('AWAITING_TIMES'));
+    await pickEnough();
+    await click(byText('Send my times'));
+    await render(gate('AWAITING_TIMES', { requestedAt: '2026-10-16T18:00:00.000Z' }));
+    expect(notice()).toBeDefined();
+    expect(host.querySelector('h1')!.textContent).toBe('Officer interview');
+    // A fresh picker: nothing carried over from the old attempt.
+    expect(hourButtons().some((b) => b.getAttribute('aria-pressed') === 'true')).toBe(false);
+  });
 });
 
 describe('changing sent times', () => {
@@ -133,6 +145,14 @@ describe('changing sent times', () => {
     expect((byText('Update my times') as HTMLButtonElement).disabled).toBe(false);
     await click(hourButtons()[1]);
     expect(footer().textContent).toBe('10 hours picked on 4 days · no changes yet');
+  });
+
+  it('says the sent times stay put when clearing all while changing', async () => {
+    await render(gate('TIMES_RECEIVED', { slots: SENT }));
+    await click(byText('Change my times'));
+    await click(byText('Clear all'));
+    const dialog = [...document.querySelectorAll('dialog')].find((d) => d.textContent?.includes('Clear all your times?'))!;
+    expect(dialog.textContent).toContain('This removes every hour you’ve picked, on every day. The times you sent stay with the officers unless you update them.');
   });
 
   it('applies the minimum to a change', async () => {

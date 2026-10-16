@@ -13,7 +13,7 @@ import { cn } from '@/lib/cn';
 import { GUILD_TIMEZONE } from '@/lib/config';
 import { pickerStarts } from '@/lib/interview-slots';
 import { formatClock, formatLongDate, formatRange, tzOffsetMs, zonedParts, zonedTimeToUtc, zoneAbbreviation } from '@/lib/time';
-import { useSetAnswerState } from './AnswerState';
+import { StaleNotice, useSetAnswerState } from './AnswerState';
 import { hourButtons, hourRuns, pickerDays, pickerSummary, zoneLabel, type PickerDay } from './picker';
 import { DayStrip, MonthCalendar } from './PickerCalendar';
 
@@ -209,6 +209,8 @@ export function InterviewPicker({ requestedAt, now, name, initial = [], onClose,
   return (
     <div className="flex flex-1 items-stretch justify-center min-[600px]:items-center min-[600px]:px-4 min-[600px]:pb-14 min-[600px]:pt-6 min-[960px]:px-6 min-[960px]:pb-[72px] min-[960px]:pt-8">
       <div className="w-full max-w-[560px] min-[600px]:rounded-card min-[600px]:border min-[600px]:border-line min-[600px]:bg-ink-850 min-[960px]:max-w-[1040px]">
+        {/* A send found a newer attempt: its fresh picker opens under the notice, as a card does. */}
+        <StaleNotice className="mx-4 mt-4 w-auto min-[960px]:mx-7 min-[960px]:mt-7" />
         {current ? (
           <div className="flex flex-col min-[960px]:grid min-[960px]:h-[600px] min-[960px]:grid-cols-[300px_380px_1fr]">
             <div className="min-[960px]:overflow-y-auto">{info}</div>
@@ -290,7 +292,7 @@ export function InterviewPicker({ requestedAt, now, name, initial = [], onClose,
           </>
         }
       >
-        <p className="pb-2">{COPY.confirm.body}</p>
+        <p className="pb-2">{changing ? `${COPY.confirm.body} ${COPY.confirm.sentStay}` : COPY.confirm.body}</p>
       </Modal>
     </div>
   );

@@ -56,6 +56,8 @@ export const INTERVIEW = {
     confirm: {
       title: 'Clear all your times?',
       body: 'This removes every hour you’ve picked, on every day.',
+      // Added when changing sent times.
+      sentStay: 'The times you sent stay with the officers unless you update them.',
       keep: 'Keep them',
       clear: 'Clear all',
     },

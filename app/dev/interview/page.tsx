@@ -44,6 +44,8 @@ const STATES: Record<string, InterviewGate> = {
   'error-too-soon': interview('PROPOSED', { proposedStart: PROPOSED }),
   booked: interview('BOOKED', { bookedStart: BOOKED }),
   'error-stale': interview('BOOKED', { bookedStart: BOOKED }),
+  // A send found a newer attempt waiting for times: its fresh picker, under the notice.
+  'error-stale-picker': interview('AWAITING_TIMES', { slots: [] }),
   'ended-cancelled': interview('CANCELLED', { bookedStart: BOOKED }),
   'ended-cancelled-unbooked': interview('CANCELLED'),
   'ended-no-time': interview('NO_TIME'),
@@ -55,5 +57,5 @@ export default async function InterviewDevPage({ searchParams }: { searchParams:
   const { state = 'submitted' } = await searchParams;
   // error-too-soon is the proposal seen 10 minutes before it starts.
   const now = state === 'error-too-soon' ? new Date(Date.parse(PROPOSED) - 10 * 60_000) : NOW;
-  return <SqueezeLayout>{state === 'loading' ? <InterviewSkeleton /> : <InterviewView gate={STATES[state] ?? STATES.submitted} now={now} stale={state === 'error-stale'} start={state === 'changing' ? 'changing' : state === 'error-offline' ? 'offline' : undefined} />}</SqueezeLayout>;
+  return <SqueezeLayout>{state === 'loading' ? <InterviewSkeleton /> : <InterviewView gate={STATES[state] ?? STATES.submitted} now={now} stale={state.startsWith('error-stale')} start={state === 'changing' ? 'changing' : state === 'error-offline' ? 'offline' : undefined} />}</SqueezeLayout>;
 }
