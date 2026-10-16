@@ -10,12 +10,12 @@ numbered question:
 
 | # | Decision | Options (version) | Robert's pick and why |
 | --- | --- | --- | --- |
-| 0 | Page layout | a, b: the full site page (nav, footer, editor); c, d: a squeeze page (logo-only top bar, one centred card, no footer) for every applicant state | pending |
-| 4 | Picker on the squeeze page (e is c with question 5's hour buttons) | c: info panel, a month calendar and the chosen day's start times as toggle buttons with a "Your time / Guild time" switch; d: info panel and a compact version of B's paint grid. Both use the same phone layout (day chips and time buttons) | pending |
-| 5 | Start-time buttons (C or E) | c: one button per half-hour start; e: one button per hour, saving both of its half-hour starts | pending |
-| 1 | Grid days when interview hours cross the viewer's midnight | a: the viewer's own calendar dates (8 columns for an Eastern viewer); every row of the day shows, and hours outside interview hours are hatched; b: one column per guild day (interview day), with 28 rows of starts labelled in the viewer's time, and a teal "Next day" line where the viewer's date rolls over | pending |
-| 2 | Time-zone control on the picker | a: the member editor's compact "Your time / Guild time" labels plus a "Change" link; b: the full `TimezoneBar` card from the Raiding page with "Use a different timezone" | pending |
-| 3 | Officer Interview card (C uses a's, D uses b's) | a: a compact card styled like Officer notes, with the pill beside the heading and times listed by day; b: definition rows like the answers list (Status / Where it stands / Their times), with times as chips | pending |
+| 0 | Page layout | a, b: the full site page (nav, footer, editor); c, d: a squeeze page (logo-only top bar, one centred card, no footer) for every applicant state | e (squeeze page). Robert, 2026-10-16: "I like E for all of them." |
+| 4 | Picker on the squeeze page (e is c with question 5's hour buttons) | c: info panel, a month calendar and the chosen day's start times as toggle buttons with a "Your time / Guild time" switch; d: info panel and a compact version of B's paint grid. Both use the same phone layout (day chips and time buttons) | e (calendar), with the day's picker reworked: see Comments, 2026-10-16. Robert, 2026-10-16: "I like E for all of them." |
+| 5 | Start-time buttons (C or E) | c: one button per half-hour start; e: one button per hour, saving both of its half-hour starts | e (hours). Robert, 2026-10-16: "I like E for all of them." |
+| 1 | Grid days when interview hours cross the viewer's midnight | a: the viewer's own calendar dates (8 columns for an Eastern viewer); every row of the day shows, and hours outside interview hours are hatched; b: one column per guild day (interview day), with 28 rows of starts labelled in the viewer's time, and a teal "Next day" line where the viewer's date rolls over | not applicable: A and B not chosen |
+| 2 | Time-zone control on the picker | a: the member editor's compact "Your time / Guild time" labels plus a "Change" link; b: the full `TimezoneBar` card from the Raiding page with "Use a different timezone" | not applicable: A and B not chosen |
+| 3 | Officer Interview card (C uses a's, D uses b's) | a: a compact card styled like Officer notes, with the pill beside the heading and times listed by day; b: definition rows like the answers list (Status / Where it stands / Their times), with times as chips | card A (carried by e). Robert, 2026-10-16: "I like E for all of them." |
 
 Design PR: linked on the design issue once created. Only Robert merging that PR
 approves it for building.
@@ -41,12 +41,27 @@ Versions C and D add (squeeze page):
 - The horizontal day-chip strip (phone, C and D).
 - The compact paint grid with two-line block labels (D).
 
+Version F adds:
+- The one-day paint column in the picker card (the member editor's day view with one row
+  per hour; a press on a painted hour clears), and the dashed break for a gap in the day.
+- The footer's minimum message, with Send disabled until 5 hours on 2 or more days.
+
 The prototypes approximate block editing (paint, select, ×). The build keeps the member
 editor's existing resize handles and keyboard behaviour; the day list stays the
 keyboard route.
 
 ## Alternatives
-To be filled at freeze.
+**A, B, C and D removed, 2026-10-16** (Robert, to "Can I drop versions A to E once F is
+built? … I recommend dropping A to D now and keeping E until you've seen F": "Yes").
+What only they had, as listed to him:
+- A and B: the full site page with nav and footer; the week-at-a-glance paint grid; the
+  hatched "outside interview hours" cells; the "Next day" rollover line; the full
+  `TimezoneBar` card (B) and the compact "Change" link (A).
+- C: half-hour start buttons (half-hour precision when picking).
+- D: the week-at-a-glance compact paint grid on the squeeze page; officer card B.
+Their last captures (all 27 states at 390 and 1440, session 3) are kept outside the
+repo at `~/d341-evidence/abcde-session3` (`manifest.json` included) and go into
+`screenshots/all/` at freeze. E stays until Robert has seen F.
 
 ## Independent critique
 - Maker: claude-bridge/claude-opus-5-5. Reviewer: openai/gpt-5.6-terra, medium thinking
@@ -98,7 +113,8 @@ To be filled at freeze.
 | --- | --- | --- | --- | --- |
 | herdr, 2026-10-15 (Robert) | A and B, whole applicant page | "I think the whole design needs to change. It needs to be a squeeze page, first of all. There's too much distraction on the page overall. We don't have to copy the raid time availability 1 for 1. Look at this example from Calendly [a Zoom Scheduler booking page: one centred card with an info panel, a month calendar and that day's times]. The scheduling portion is smaller and right in the center. It's obvious what you do and what you click to go to the next page. We need to shrink the grid down a bit, centralize it, get rid of the additional noise." | New versions C and D: applicant states as a squeeze page (logo only, no site nav or footer), one centred card. C: info panel, month calendar, the day's times as multi-select buttons. D: info panel and a compact paint grid. Both: a card-footer Send. A and B stay until Robert confirms what only they had can go. | open |
 | herdr, 2026-10-15 (Robert, session 3) | Plan for C and D | Asked: (1) go ahead with C and D as described? (2) keep "send several times, an officer books one" or switch to booking one time instantly like Calendly? | "1. Yes 2. Several times." Build C and D as planned; the applicant still picks several times and an officer books one (the approved flow in #340). | answered |
-| herdr, 2026-10-16 (Robert) | C, day times | "Can we try version C but with 60 minute increments, not 30 minutes? That might make it cleaner. Right now, it's a bit too busy." | New version E: C with hour buttons; each saves both half-hour starts, so SYNC-SPEC and the bot are unchanged. C kept for comparison. | open |
+| herdr, 2026-10-16 (Robert) | C, day times | "Can we try version C but with 60 minute increments, not 30 minutes? That might make it cleaner. Right now, it's a bit too busy." | New version E: C with hour buttons; each saves both half-hour starts, so SYNC-SPEC and the bot are unchanged. C kept for comparison. | answered: E chosen |
+| herdr, 2026-10-16 (Robert, session 4) | E, the day's picker | "I just don't know that it's obvious enough that a user needs to pick all available times since this UX looks like "Let me pick one availability time." And I certainly wouldn't want to accept any submissions with less than 5 1-hour slots selected. Maybe when they choose a day, it gives them the calendar painter instead of blocks. But fit within the existing design." | Asked 4 questions; answers "1. Sure. 2. Always needs 5 at least. 3. Yes. 4. Yes." New version F (E with a one-day paint column; at least 5 hours on 2 or more guild days to send or update; the footer says what's missing; new state `pick-short`). Details in brief.md, Version F. | open |
 
 ## Experiment
 None.

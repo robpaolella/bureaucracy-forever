@@ -6,11 +6,8 @@
   ],
   "revision": 1,
   "versions": {
-    "a": "versions/a.html",
-    "b": "versions/b.html",
-    "c": "versions/c.html",
-    "d": "versions/d.html",
-    "e": "versions/e.html"
+    "e": "versions/e.html",
+    "f": "versions/f.html"
   },
   "states": [
     "signed-out",
@@ -18,6 +15,7 @@
     "loading",
     "pick-empty",
     "pick-partial",
+    "pick-short",
     "pick-max",
     "submitted",
     "changing",

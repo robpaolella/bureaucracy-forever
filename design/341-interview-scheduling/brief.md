@@ -75,6 +75,7 @@ Draft wording below; final wording comes from the versions Robert approves.
 | signed-out | Opened the link without a site session | StatusPage. Eyebrow "Interview". Title "Sign in to share your times". Body: "Sign in with the Discord account you applied with, and we'll bring you back here." | **Sign in with Discord** → returns to this page |
 | nothing | Signed in, no interview for this account (forwarded link, wrong account, never requested) | StatusPage. Title "Nothing to schedule". Body: "There's no interview waiting for this Discord account. If an officer asked you to pick times, check you're signed in with the account you applied with." | **Back to the home page** |
 | pick-empty | Interview requested, nothing painted | Editor. Eyebrow "Interview". Title "When could you talk?" Lede: "Paint the half-hours you could start a 15–20 minute interview over the next week. Pick as many as you can; we'll book one." Dated grid, unpaintable times marked | **Send my times** disabled until at least one half-hour is painted |
+| pick-short | (F) Under the minimum: four hours on one day | Status "4 of 5 hours picked · add 1 more, on another day" | **Send my times** disabled until the minimum is met |
 | pick-partial | Some painted, not sent | Typical: three evenings. Status "Not sent yet" | **Send my times**; leaving warns |
 | pick-max | Many painted | Every paintable half-hour on most days | Labels never overflow |
 | submitted | Times sent, no booking yet | StatusPage-style. Title "Your times are with the officers". Body: "We'll let you know on Discord when your interview is booked. You can change your times until then." Then the sent times grouped by day, in the viewer's zone | **Change my times** reopens the grid with them painted |
@@ -219,6 +220,33 @@ says "Pick an hour if you could start any time in it."; each button's accessible
 gives the hour in both zones. Counts say "hours" ("10 hours picked on 4 days"). Hours
 follow guild hours, which are whole hours in every sample zone.
 
+
+### Version F: E with a one-day paint column and a minimum (Robert, 2026-10-16)
+Robert chose E for layout, picker, hour buttons and officer card ("I like E for all of
+them"), then: "I just don't know that it's obvious enough that a user needs to pick all
+available times since this UX looks like 'Let me pick one availability time.' And I
+certainly wouldn't want to accept any submissions with less than 5 1-hour slots
+selected. Maybe when they choose a day, it gives them the calendar painter instead of
+blocks. But fit within the existing design." His answers: the 5 hours must fall on at
+least 2 days ("Sure"); changing times always needs the minimum too ("Always needs 5 at
+least"); keep Pick all / Clear this day ("Yes").
+- **Painter:** the chosen day's panel is one paint column, one row per hour (the member
+  editor's day view: hour labels in a gutter with guild time on hover/tap/focus, Teal
+  "Available" blocks labelled with their range). Press and drag paints; starting on a
+  painted hour clears instead. Each hour is a toggle button, so Tab and Enter/Space are
+  the keyboard route and each carries both zones in its name. A dashed break marks a gap
+  in the day (the viewer's midnight). Phone rows are 40px and the column takes the drag
+  (`touch-action: none`), while the hour labels still scroll the page.
+- **Minimum:** at least 5 hours on at least 2 days, for sending and for updating. Days
+  are **guild days** (an evening across the viewer's midnight is one day), so the
+  server can check the same rule. The footer says what's missing ("Nothing picked yet ·
+  pick at least 5 hours on 2 or more days", "4 of 5 hours picked · add 1 more, on another
+  day", "5 hours picked on 1 day · add an hour on another day") and Send stays disabled
+  until it's met. The build enforces the same rule on the server (#344).
+- **Wording:** the lede asks for every free hour: "Paint every hour you're free this
+  week: at least 5 hours, on 2 or more days. The more you give us, the sooner we can book
+  one; we'll let you know on Discord once it's booked."
+- Desktop picker card is 600px tall (E's 540) so a full day's 14 hours fit unscrolled.
 
 ## Real-site experiment
 None.
