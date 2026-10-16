@@ -92,6 +92,25 @@ describe('answering a proposed time', () => {
     await act(async () => finish('answered'));
   });
 
+  it('cannot be kept once a decline is on its way', async () => {
+    let finish!: (outcome: string) => void;
+    mocks.answer.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    await render();
+    await click(byText('Decline'));
+    await click(byText('Decline the time'));
+    expect(byText('Keep it').disabled).toBe(true);
+    await act(async () => dialog()!.dispatchEvent(new Event('cancel', { cancelable: true })));
+    expect(dialog()?.open).toBe(true);
+    await act(async () => finish('answered'));
+  });
+
+  it('moves focus to the new state’s title after answering', async () => {
+    await render();
+    await click(byText('Accept'));
+    await render(gate('BOOKED', { bookedStart: START }));
+    expect(document.activeElement?.textContent).toBe('Your interview is booked');
+  });
+
   it('under 15 minutes away, disables Accept with the reason and keeps Decline', async () => {
     await render(undefined, new Date(Date.parse(START) - 10 * 60_000));
     expect(host.textContent).toContain('starts in 10 minutes');

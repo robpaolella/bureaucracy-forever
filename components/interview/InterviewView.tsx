@@ -7,7 +7,7 @@ import { InterviewCard } from './InterviewCard';
 import { InterviewPicker } from './InterviewPicker';
 import { ProposalAnswer } from './ProposalAnswer';
 import { SentTimes } from './SentTimes';
-import { StaleNoticeHost } from './StaleNotice';
+import { AnswerStateHost } from './AnswerState';
 import { relativeDays, type InterviewGate } from './state';
 
 const PAGE = '/apply/interview';
@@ -29,9 +29,9 @@ function TimeLine({ start, now, relative = relativeDays(start, now) }: { start: 
  */
 export function InterviewView({ gate, now, stale }: { gate: InterviewGate; now: Date; stale?: boolean }) {
   return (
-    <StaleNoticeHost stale={stale}>
+    <AnswerStateHost stale={stale}>
       <InterviewState gate={gate} now={now} />
-    </StaleNoticeHost>
+    </AnswerStateHost>
   );
 }
 

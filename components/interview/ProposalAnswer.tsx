@@ -5,11 +5,12 @@ import { useCallback, useState, useTransition } from 'react';
 import { answerShownProposal } from '@/app/(squeeze)/apply/interview/actions';
 import { Button, buttonClassName, Modal, Toast, type ToastData } from '@/components/ui';
 import { INTERVIEW } from '@/content/interview';
+import { useSetAnswerState } from './AnswerState';
 import { ACTIONS_ROW } from './InterviewCard';
-import { useSetStale } from './StaleNotice';
 
 const { proposed: COPY } = INTERVIEW;
 const SOON_ID = 'interview-too-soon';
+type Answer = 'accept' | 'decline';
 
 /**
  * Accept or Decline on a proposed time (approved design 367): Decline confirms first. Either
@@ -18,24 +19,31 @@ const SOON_ID = 'interview-too-soon';
  */
 export function ProposalAnswer({ proposedStart, tooSoon: soonAtRender }: { proposedStart: string; tooSoon: boolean }) {
   const router = useRouter();
-  const setStale = useSetStale();
+  const setAnswerState = useSetAnswerState();
   const [pending, startTransition] = useTransition();
+  const [sending, setSending] = useState<Answer | null>(null);
   const [refusedSoon, setRefusedSoon] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [toast, setToast] = useState<ToastData | null>(null);
   const tooSoon = soonAtRender || refusedSoon;
   const dismiss = useCallback(() => setToast(null), []);
+  // A decline on its way can't be taken back by closing the dialog.
+  const closeConfirm = () => !pending && setConfirming(false);
 
-  const send = (answer: 'accept' | 'decline') =>
+  const send = (answer: Answer) =>
     startTransition(async () => {
+      setSending(answer);
       setToast(null);
-      setStale(false);
       try {
         const outcome = await answerShownProposal(answer, proposedStart);
-        if (outcome === 'too_soon') setRefusedSoon(true);
-        if (outcome === 'stale') setStale(true);
+        // Closed first: closing hands focus back to Decline, before the title takes it.
         setConfirming(false);
-        router.refresh();
+        // One transition with the refresh, so the notice and focus land on the new card.
+        startTransition(() => {
+          if (outcome === 'too_soon') setRefusedSoon(true);
+          setAnswerState({ stale: outcome === 'stale', moved: outcome !== 'too_soon' });
+          router.refresh();
+        });
       } catch {
         // The site couldn't be reached: nothing changed, so the buttons stay for another try.
         setConfirming(false);
@@ -56,7 +64,7 @@ export function ProposalAnswer({ proposedStart, tooSoon: soonAtRender }: { propo
             {COPY.accept}
           </button>
         ) : (
-          <Button loading={pending && !confirming} disabled={pending} onClick={() => send('accept')}>
+          <Button loading={pending && sending === 'accept'} disabled={pending} onClick={() => send('accept')}>
             {COPY.accept}
           </Button>
         )}
@@ -64,24 +72,28 @@ export function ProposalAnswer({ proposedStart, tooSoon: soonAtRender }: { propo
           {COPY.decline}
         </Button>
       </div>
-      <Modal
-        open={confirming}
-        onClose={() => setConfirming(false)}
-        title={COPY.confirm.title}
-        actions={
-          <>
-            <Button variant="ghost" onClick={() => setConfirming(false)}>
-              {COPY.confirm.keep}
-            </Button>
-            <Button variant="danger" loading={pending} onClick={() => send('decline')}>
-              {COPY.confirm.decline}
-            </Button>
-          </>
-        }
-      >
-        <p className="pb-2">{COPY.confirm.body}</p>
-      </Modal>
-      <Toast toast={toast} onDismiss={dismiss} />
+      {/* The dialog and toast sit in the card's markup; they keep their own left-aligned text. */}
+      <div className="contents text-left">
+        <Modal
+          open={confirming}
+          onClose={closeConfirm}
+          title={COPY.confirm.title}
+          actions={
+            <>
+              <Button variant="ghost" disabled={pending} onClick={closeConfirm}>
+                {COPY.confirm.keep}
+              </Button>
+              <Button variant="danger" loading={pending} onClick={() => send('decline')}>
+                {COPY.confirm.decline}
+              </Button>
+            </>
+          }
+        >
+          <p className="pb-2">{COPY.confirm.body}</p>
+        </Modal>
+        {/* Longer than the usual 4s: it carries Retry. */}
+        <Toast toast={toast} onDismiss={dismiss} duration={10_000} />
+      </div>
     </>
   );
 }

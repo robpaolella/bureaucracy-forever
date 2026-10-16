@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import type { ReactNode } from 'react';
 import { INTERVIEW } from '@/content/interview';
-import { StaleNotice } from './StaleNotice';
+import { CardTitle, StaleNotice } from './AnswerState';
 
 type Props = { eyebrow?: string; title: string; body: ReactNode; extra?: ReactNode; actions?: ReactNode; answer?: ReactNode };
 
@@ -20,7 +20,7 @@ export function InterviewCard({ eyebrow = INTERVIEW.eyebrow, title, body, extra,
         <StaleNotice />
         <Image src="/brand/mark.png" alt="" width={42} height={48} className="w-10 opacity-40 md:w-12" />
         <span className="font-eyebrow text-label font-semibold uppercase tracking-[0.28em] text-sand">{eyebrow}</span>
-        <h1 className="font-display text-[34px] font-medium leading-[1.05] tracking-[-0.02em] md:text-[44px]">{title}</h1>
+        <CardTitle>{title}</CardTitle>
         {extra}
         <p className="text-[15px] leading-[1.7] text-fg-2">{body}</p>
         {answer}
