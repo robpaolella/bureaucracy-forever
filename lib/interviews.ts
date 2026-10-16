@@ -7,8 +7,8 @@ import { SITE_URL } from '@/lib/config';
 import { isValidStart, pickWindow } from '@/lib/interview-slots';
 
 /**
- * The interview lifecycle (SYNC-SPEC §12): start, the applicant's times, cancel, and the
- * reads. Every change of state is one conditional update on `status` (and `timesRevision`
+ * The interview lifecycle (SYNC-SPEC §12): start, the applicant's times, book, propose and
+ * answer, cancel, and the reads. Every change of state is one conditional update on `status` (and `timesRevision`
  * for times) with its jobs in the same transaction, so competing calls get one winner.
  * Callers check who may act: officers in the routes, the applicant by passing their own
  * Discord id from the session or the clicking Discord user.
@@ -209,6 +209,98 @@ export async function cancelInterview(interviewId: string, by: { userId: string 
   if (won) return { ok: true, interview: latest };
   // Lost to another change: name where it stands now rather than acting on it.
   return refuse(409, ACTIVE.includes(latest.status) ? 'wrong_status' : 'not_active', stateMessage(latest.status));
+}
+
+const instant = (value: unknown): Date | null => {
+  const t = typeof value === 'string' ? new Date(value) : null;
+  return t && !Number.isNaN(t.getTime()) ? t : null;
+};
+const TOO_SOON = 'That time starts in less than 15 minutes.';
+
+/** A booking enqueues the booking and puts the Interview tag on (SYNC-SPEC §8). */
+async function enqueueBooked(row: { id: string; applicationId: string }, startsAt: Date, tx: Prisma.TransactionClient) {
+  await enqueue('interview.booked', { applicationId: row.applicationId, interviewId: row.id, startsAt: startsAt.toISOString() }, tx);
+  await enqueue('application.update', { applicationId: row.applicationId }, tx);
+}
+
+/**
+ * An officer books one of the applicant's current times (`POST /interviews/:id/book`). The
+ * booking wins only if the times are still the revision the officer picked from.
+ */
+export async function bookInterview(interviewId: string, by: { userId: string }, startsAt: unknown, timesRevision: unknown, now = new Date()): Promise<InterviewResult> {
+  const row = await db.interview.findUnique({ where: { id: interviewId }, include });
+  if (!row) return notFound();
+  const start = instant(startsAt);
+  if (!start || !Number.isInteger(timesRevision)) return refuse(400, 'invalid', 'Send a start time and the times revision.');
+  if (row.status !== 'TIMES_RECEIVED') return refuse(409, 'wrong_status', stateMessage(row.status));
+  const timesChanged = () => refuse(409, 'times_changed', `${row.application.character} changed their times. Pick again.`);
+  if (timesRevision !== row.timesRevision) return timesChanged();
+  if (!row.slots.some((s) => s.getTime() === start.getTime())) return refuse(409, 'not_a_slot', `That isn't one of ${row.application.character}'s times.`);
+  if (!isValidStart(start, { kind: 'book', now })) return refuse(409, 'too_soon', `${TOO_SOON} Pick a later one.`);
+  const won = await db.$transaction(async (tx) => {
+    const updated = await tx.interview.updateMany({
+      where: { id: row.id, status: 'TIMES_RECEIVED', timesRevision: row.timesRevision },
+      data: { status: 'BOOKED', bookedStart: start, bookedById: by.userId, bookedAt: now },
+    });
+    if (updated.count === 0) return false;
+    await enqueueBooked(row, start, tx);
+    return true;
+  });
+  const latest = (await viewById(row.id))!;
+  if (won) return { ok: true, interview: latest };
+  // Lost to another change: the applicant's edit, or another officer's click.
+  return latest.status === 'TIMES_RECEIVED' ? timesChanged() : refuse(409, 'wrong_status', stateMessage(latest.status));
+}
+
+/** An officer proposes another time (`POST /interviews/:id/propose`); one proposal per attempt. */
+export async function proposeTime(interviewId: string, by: { userId: string }, startsAt: unknown, now = new Date()): Promise<InterviewResult> {
+  const row = await db.interview.findUnique({ where: { id: interviewId }, select: { id: true, applicationId: true, status: true } });
+  if (!row) return notFound();
+  const start = instant(startsAt);
+  if (!start) return refuse(400, 'invalid', 'Send a start time.');
+  if (row.status !== 'TIMES_RECEIVED') return refuse(409, 'wrong_status', stateMessage(row.status));
+  if (!isValidStart(start, { kind: 'propose', now })) return refuse(400, 'out_of_range', 'Propose a half-hour start time from 2 hours to 7 days ahead.');
+  const won = await db.$transaction(async (tx) => {
+    const updated = await tx.interview.updateMany({
+      where: { id: row.id, status: 'TIMES_RECEIVED' },
+      data: { status: 'PROPOSED', proposedStart: start, proposedById: by.userId, proposedAt: now },
+    });
+    if (updated.count === 0) return false;
+    await enqueue('interview.proposed', { applicationId: row.applicationId, interviewId: row.id, startsAt: start.toISOString() }, tx);
+    return true;
+  });
+  const latest = (await viewById(row.id))!;
+  return won ? { ok: true, interview: latest } : refuse(409, 'wrong_status', stateMessage(latest.status));
+}
+
+/**
+ * The applicant accepts or declines the proposal (`POST /interviews/:id/answer`). Accepting
+ * books the proposed start with the proposer as the booking officer.
+ */
+export async function answerProposal(interviewId: string, applicantDiscordId: string, answer: unknown, now = new Date()): Promise<InterviewResult> {
+  const row = await db.interview.findUnique({ where: { id: interviewId }, include });
+  if (!row) return notFound();
+  if (row.application.discordId !== applicantDiscordId) return refuse(403, 'forbidden', 'This interview belongs to someone else.');
+  if (answer !== 'accept' && answer !== 'decline') return refuse(400, 'invalid', 'Answer accept or decline.');
+  if (row.status !== 'PROPOSED' || !row.proposedStart) return refuse(409, 'wrong_status', stateMessage(row.status));
+  const start = row.proposedStart;
+  // Declining still works in the last 15 minutes; the tick lapses an unanswered one at the start.
+  if (answer === 'accept' && !isValidStart(start, { kind: 'book', now })) return refuse(409, 'too_soon', `${TOO_SOON} An officer will reach out to arrange another.`);
+  const applicant = answer === 'decline' ? await db.user.findUnique({ where: { discordId: applicantDiscordId }, select: { id: true } }) : null;
+  const won = await db.$transaction(async (tx) => {
+    const updated = await tx.interview.updateMany({
+      where: { id: row.id, status: 'PROPOSED' },
+      data: answer === 'accept'
+        ? { status: 'BOOKED', bookedStart: start, bookedById: row.proposedById, bookedAt: now }
+        : { status: 'NO_TIME', endReason: 'DECLINED', activeKey: null, endedAt: now, endedById: applicant?.id ?? null },
+    });
+    if (updated.count === 0) return false;
+    if (answer === 'accept') await enqueueBooked(row, start, tx);
+    else await enqueue('interview.ended', { applicationId: row.applicationId, interviewId: row.id, outcome: 'declined' }, tx);
+    return true;
+  });
+  const latest = (await viewById(row.id))!;
+  return won ? { ok: true, interview: latest } : refuse(409, 'wrong_status', stateMessage(latest.status));
 }
 
 /**
