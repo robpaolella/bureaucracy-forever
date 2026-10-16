@@ -1,8 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const store = vi.hoisted(() => ({ user: vi.fn(), character: vi.fn(), add: vi.fn(), remove: vi.fn(), seen: vi.fn(), save: vi.fn() }));
-vi.mock('@/lib/db', () => ({ db: { user: { findUnique: store.user }, character: { findUnique: store.character }, botRequest: { findUnique: store.seen, create: store.save } } }));
+const store = vi.hoisted(() => ({ user: vi.fn(), character: vi.fn(), add: vi.fn(), remove: vi.fn(), keys: new Map<string, object>() }));
+vi.mock('@/lib/db', () => ({ db: { user: { findUnique: store.user }, character: { findUnique: store.character }, botRequest: {
+  findUnique: async ({ where }: { where: { key: string } }) => store.keys.get(where.key) ?? null,
+  create: async ({ data }: { data: { key: string } }) => {
+    if (store.keys.has(data.key)) throw new Prisma.PrismaClientKnownRequestError('duplicate', { code: 'P2002', clientVersion: 'test' });
+    store.keys.set(data.key, data);
+  },
+  updateMany: async ({ where, data }: { where: { key: string }; data: object }) => { store.keys.set(where.key, { ...store.keys.get(where.key)!, ...data }); return { count: 1 }; },
+  deleteMany: async ({ where }: { where: { key: string } }) => ({ count: Number(store.keys.delete(where.key)) }),
+} } }));
 vi.mock('@/lib/characters', () => ({ addAlt: store.add, removeCharacter: store.remove }));
+import { Prisma } from '@/lib/generated/prisma/client';
 import { GET } from '../route';
 import { POST } from './route';
 import { DELETE } from './[characterId]/route';
@@ -23,6 +32,7 @@ function call(method: 'GET' | 'POST' | 'DELETE', options: { id?: string; secret?
 
 beforeEach(() => {
   vi.resetAllMocks();
+  store.keys.clear();
   vi.stubEnv('BOT_SHARED_SECRET', 'test-secret');
   store.user.mockResolvedValue({ id: 'member', discordName: 'Sample', role: 'MEMBER', rank: 'RAIDER', inGuild: true, characters: [main, alt] });
   store.character.mockResolvedValue(alt);
@@ -113,8 +123,6 @@ describe('member characters bot API', () => {
 
   it.each(['POST', 'DELETE'] as const)('%s stores and replays the response without a second mutation', async (method) => {
     const first = await call(method, { key: 'interaction' });
-    const saved = store.save.mock.calls[0][0].data;
-    store.seen.mockResolvedValue(saved);
     const replay = await call(method, { key: 'interaction' });
     expect(replay.status).toBe(first.status);
     expect(await replay.text()).toBe(await first.text());
