@@ -54,6 +54,9 @@ const now = new Date('2026-10-16T17:00:00Z'); // 10:00 AM guild time
 const pick = (iso: string) => new Date(iso).toISOString();
 const SLOT = pick('2026-10-17T02:00:00Z'); // 7:00 PM guild time, the 16th
 const SLOT2 = pick('2026-10-17T02:30:00Z');
+// With SLOT: five one-hour blocks on two guild days (the 16th at 7, 8 and 9 PM; the 17th at 10 and 11 AM).
+const REST = [pick('2026-10-17T03:00:00Z'), pick('2026-10-17T04:00:00Z'), pick('2026-10-17T17:00:00Z'), pick('2026-10-17T18:00:00Z')];
+const ENOUGH = [SLOT, ...REST];
 const interview = (data: Partial<Row> = {}) => {
   const row = { id: `i${store.rows.length + 1}`, applicationId: 'app', attempt: store.rows.length + 1, status: 'AWAITING_TIMES', endReason: null, activeKey: null as string | null, requestedById: 'officer', requestedAt: now, windowStart: new Date('2026-10-16T19:00:00Z'), windowEnd: new Date('2026-10-23T17:00:00Z'), timeZone: null, slots: [] as Date[], timesRevision: 0, timesSubmittedAt: null, timesUpdatedAt: null, proposedStart: null, proposedById: null, bookedStart: null, bookedById: null, endedAt: null, endedById: null, requestDmId: null, timesMessageId: null, proposalMessageId: null, proposalDmId: null, bookedMessageId: null, ...data };
   if (['AWAITING_TIMES', 'TIMES_RECEIVED', 'PROPOSED', 'BOOKED'].includes(row.status as string) && data.activeKey === undefined) row.activeKey = row.applicationId;
@@ -129,18 +132,18 @@ describe('starting an interview', () => {
 describe('the applicant submitting times', () => {
   it('moves to TIMES_RECEIVED, stores sorted unique slots and the zone, and enqueues the times', async () => {
     interview();
-    const result = await submitTimes('i1', 'applicant', [SLOT2, SLOT, SLOT], 'Europe/London', now);
-    expect(result).toMatchObject({ ok: true, interview: { status: 'TIMES_RECEIVED', timesRevision: 1, timeZone: 'Europe/London', slots: [SLOT, SLOT2] } });
+    const result = await submitTimes('i1', 'applicant', [SLOT2, ...ENOUGH, SLOT], 'Europe/London', now);
+    expect(result).toMatchObject({ ok: true, interview: { status: 'TIMES_RECEIVED', timesRevision: 1, timeZone: 'Europe/London', slots: [SLOT, SLOT2, ...REST] } });
     expect(store.rows[0]).toMatchObject({ timesSubmittedAt: now, timesUpdatedAt: now });
     expect(store.jobs).toEqual([['interview.times', { applicationId: 'app', interviewId: 'i1' }]]);
   });
 
   it('bumps the revision on a real change and does nothing for an identical set', async () => {
     const first = new Date('2026-10-16T12:00:00Z');
-    interview({ status: 'TIMES_RECEIVED', slots: [new Date(SLOT)], timesRevision: 1, timeZone: 'Europe/London', timesSubmittedAt: first });
-    expect(await submitTimes('i1', 'applicant', [SLOT], 'America/New_York', now)).toMatchObject({ ok: true, interview: { timesRevision: 1, timeZone: 'Europe/London' } });
+    interview({ status: 'TIMES_RECEIVED', slots: ENOUGH.map((t) => new Date(t)), timesRevision: 1, timeZone: 'Europe/London', timesSubmittedAt: first });
+    expect(await submitTimes('i1', 'applicant', ENOUGH, 'America/New_York', now)).toMatchObject({ ok: true, interview: { timesRevision: 1, timeZone: 'Europe/London' } });
     expect(store.jobs).toEqual([]);
-    expect(await submitTimes('i1', 'applicant', [SLOT, SLOT2], 'Europe/London', now)).toMatchObject({ ok: true, interview: { timesRevision: 2, slots: [SLOT, SLOT2] } });
+    expect(await submitTimes('i1', 'applicant', [...ENOUGH, SLOT2], 'Europe/London', now)).toMatchObject({ ok: true, interview: { timesRevision: 2, slots: [SLOT, SLOT2, ...REST] } });
     expect(store.rows[0]).toMatchObject({ timesSubmittedAt: first, timesUpdatedAt: now });
     expect(jobTypes()).toEqual(['interview.times']);
   });
@@ -159,7 +162,27 @@ describe('the applicant submitting times', () => {
 
   it('accepts picks on both window edges', async () => {
     interview();
-    expect(await submitTimes('i1', 'applicant', ['2026-10-16T19:00:00Z', '2026-10-23T17:00:00Z'], 'UTC', now)).toMatchObject({ ok: true });
+    expect(await submitTimes('i1', 'applicant', ['2026-10-16T19:00:00Z', '2026-10-23T17:00:00Z', SLOT, REST[0], REST[1]], 'UTC', now)).toMatchObject({ ok: true });
+  });
+
+  it.each([
+    ['4 blocks on 2 days', [SLOT, SLOT2, REST[0], REST[2], REST[3]], /1 more one-hour block\./],
+    ['5 blocks on 1 day', ['2026-10-16T19:00:00Z', '2026-10-16T20:00:00Z', '2026-10-16T21:00:00Z', '2026-10-16T22:00:00Z', '2026-10-16T23:00:00Z'], /at least 2 different days/],
+    ['one pick', [SLOT], /4 more one-hour blocks and at least 2 different days/],
+  ])('refuses %s as too_few_times and writes nothing', async (_case, picks, message) => {
+    interview();
+    const result = await submitTimes('i1', 'applicant', picks, 'UTC', now);
+    expect(result).toMatchObject({ ok: false, status: 400, reason: 'too_few_times' });
+    expect(result.ok ? '' : result.error).toMatch(message);
+    expect(store.rows[0]).toMatchObject({ status: 'AWAITING_TIMES', timesRevision: 0, slots: [] });
+    expect(store.jobs).toEqual([]);
+  });
+
+  it('holds a change of sent times to the same minimum', async () => {
+    interview({ status: 'TIMES_RECEIVED', slots: ENOUGH.map((t) => new Date(t)), timesRevision: 1 });
+    expect(await submitTimes('i1', 'applicant', ENOUGH.slice(0, 4), 'UTC', now)).toMatchObject({ ok: false, status: 400, reason: 'too_few_times' });
+    expect(store.rows[0]).toMatchObject({ timesRevision: 1, slots: ENOUGH.map((t) => new Date(t)) });
+    expect(store.jobs).toEqual([]);
   });
 
   it.each([
@@ -197,7 +220,7 @@ describe('the applicant submitting times', () => {
       fake.interview.updateMany = original;
       return original(args);
     };
-    expect(await submitTimes('i1', 'applicant', [SLOT2], 'UTC', now)).toMatchObject({ ok: false, status: 409, reason: 'wrong_status', error: 'This interview is already booked.' });
+    expect(await submitTimes('i1', 'applicant', ENOUGH, 'UTC', now)).toMatchObject({ ok: false, status: 409, reason: 'wrong_status', error: 'This interview is already booked.' });
     expect(store.jobs).toEqual([]);
   });
   it('lets one of two competing edits win and refuses the other', async () => {
@@ -209,7 +232,7 @@ describe('the applicant submitting times', () => {
       fake.interview.updateMany = original;
       return original(args);
     };
-    expect(await submitTimes('i1', 'applicant', [SLOT, SLOT2], 'UTC', now)).toMatchObject({ ok: false, status: 409, reason: 'wrong_status', error: /changed while you were editing/ });
+    expect(await submitTimes('i1', 'applicant', ENOUGH, 'UTC', now)).toMatchObject({ ok: false, status: 409, reason: 'wrong_status', error: /changed while you were editing/ });
     expect(store.rows[0]).toMatchObject({ timesRevision: 2, slots: [new Date(SLOT2)] });
     expect(store.jobs).toEqual([]);
   });
@@ -218,11 +241,11 @@ describe('the applicant submitting times', () => {
     interview({ status: 'TIMES_RECEIVED', slots: [new Date(SLOT)], timesRevision: 1 });
     const original = fake.interview.updateMany;
     fake.interview.updateMany = async (args) => {
-      Object.assign(store.rows[0], { slots: [new Date(SLOT2)], timesRevision: 2 });
+      Object.assign(store.rows[0], { slots: ENOUGH.map((t) => new Date(t)), timesRevision: 2 });
       fake.interview.updateMany = original;
       return original(args);
     };
-    expect(await submitTimes('i1', 'applicant', [SLOT2], 'UTC', now)).toMatchObject({ ok: true, interview: { timesRevision: 2 } });
+    expect(await submitTimes('i1', 'applicant', ENOUGH, 'UTC', now)).toMatchObject({ ok: true, interview: { timesRevision: 2 } });
     expect(store.jobs).toEqual([]);
   });
 });

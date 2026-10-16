@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { enqueue } from '@/lib/outbox';
 import { SITE_URL } from '@/lib/config';
 import { isValidStart, pickWindow } from '@/lib/interview-slots';
+import { minimumShortfall } from '@/lib/interview-minimum';
 
 /**
  * The interview lifecycle (SYNC-SPEC §12): start, the applicant's times, book, propose and
@@ -160,7 +161,10 @@ function parsePicks(picks: unknown, timeZone: unknown, window: { windowStart: Da
     if (!isValidStart(t, { kind: 'pick', ...window })) return refuse(400, 'out_of_range', 'Pick half-hour start times within the next week.');
     times.add(t.getTime());
   }
-  return { ok: true, slots: [...times].sort((a, b) => a - b).map((t) => new Date(t)), timeZone };
+  const slots = [...times].sort((a, b) => a - b).map((t) => new Date(t));
+  const short = minimumShortfall(slots);
+  if (short) return refuse(400, 'too_few_times', short);
+  return { ok: true, slots, timeZone };
 }
 
 /**
