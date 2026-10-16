@@ -39,13 +39,16 @@ const fake = vi.hoisted(() => ({
       return { count: hits.length };
     },
   },
-  user: { findMany: async ({ where }: { where: { id: { in: string[] } } }) => store.users.filter((u) => where.id.in.includes(u.id as string)) },
+  user: {
+    findMany: async ({ where }: { where: { id: { in: string[] } } }) => store.users.filter((u) => where.id.in.includes(u.id as string)),
+    findUnique: async ({ where }: { where: { discordId: string } }) => store.users.find((u) => u.discordId === where.discordId) ?? null,
+  },
   $queryRaw: async (_sql: TemplateStringsArray, id: string) => store.apps.filter((a) => a.id === id),
 }));
 vi.mock('@/lib/db', () => ({ db: { ...fake, $transaction: async (fn: (tx: typeof fake) => unknown) => fn(fake) } }));
 vi.mock('@/lib/outbox', () => ({ enqueue: async (type: string, payload: Record<string, unknown>) => { store.jobs.push([type, payload]); return 'job'; } }));
 vi.mock('@/lib/generated/prisma/client', () => ({ Prisma: { PrismaClientKnownRequestError: KnownError } }));
-import { applicantInterview, cancelInterview, closeActiveInterview, getInterview, latestInterview, startInterview, submitTimes } from './interviews';
+import { answerProposal, applicantInterview, bookInterview, cancelInterview, closeActiveInterview, getInterview, latestInterview, proposeTime, startInterview, submitTimes } from './interviews';
 
 const now = new Date('2026-10-16T17:00:00Z'); // 10:00 AM guild time
 const pick = (iso: string) => new Date(iso).toISOString();
@@ -299,5 +302,184 @@ describe('reading', () => {
     interview({ status: 'DONE', requestedAt: new Date('2026-10-05T00:00:00Z') });
     expect(await applicantInterview('applicant')).toMatchObject({ id: 'i2', status: 'CANCELLED' });
     expect(await applicantInterview('someone-else')).toBeNull();
+  });
+});
+
+describe('booking a time', () => {
+  const received = (data: Partial<Row> = {}) => interview({ status: 'TIMES_RECEIVED', slots: [new Date(SLOT), new Date(SLOT2)], timesRevision: 2, ...data });
+
+  it('books one of the current slots, tags the application and enqueues the booking', async () => {
+    received();
+    const result = await bookInterview('i1', { userId: 'officer' }, SLOT2, 2, now);
+    expect(result).toMatchObject({ ok: true, interview: { status: 'BOOKED', bookedStart: SLOT2, bookedBy: { discordId: 'officer-discord' } } });
+    expect(store.rows[0]).toMatchObject({ activeKey: 'app', bookedById: 'officer', bookedAt: now });
+    expect(store.jobs).toEqual([['interview.booked', { applicationId: 'app', interviewId: 'i1', startsAt: SLOT2 }], ['application.update', { applicationId: 'app' }]]);
+  });
+
+  it.each([
+    ['a stale times revision', SLOT, 1, 'times_changed', 'Thrall changed their times. Pick again.'],
+    ['a time that is not one of the slots', pick('2026-10-17T03:00:00Z'), 2, 'not_a_slot', /Thrall's times/],
+  ])('refuses %s', async (_case, startsAt, revision, reason, error) => {
+    received();
+    expect(await bookInterview('i1', { userId: 'officer' }, startsAt, revision, now)).toMatchObject({ ok: false, status: 409, reason, error });
+    expect(store.rows[0]).toMatchObject({ status: 'TIMES_RECEIVED', bookedStart: null });
+    expect(store.jobs).toEqual([]);
+  });
+
+  it('refuses a slot under 15 minutes away, and books one exactly 15 minutes away', async () => {
+    received();
+    const start = new Date(SLOT).getTime();
+    expect(await bookInterview('i1', { userId: 'officer' }, SLOT, 2, new Date(start - 14 * 60_000))).toMatchObject({ ok: false, status: 409, reason: 'too_soon' });
+    expect(store.jobs).toEqual([]);
+    expect(await bookInterview('i1', { userId: 'officer' }, SLOT, 2, new Date(start - 15 * 60_000))).toMatchObject({ ok: true });
+  });
+
+  it.each(['AWAITING_TIMES', 'PROPOSED', 'BOOKED', 'CANCELLED', 'NO_TIME'])('refuses a %s interview, naming the state', async (status) => {
+    received({ status });
+    const result = await bookInterview('i1', { userId: 'officer' }, SLOT, 2, now);
+    expect(result).toMatchObject({ ok: false, status: 409, reason: 'wrong_status' });
+    expect(result.ok ? '' : result.error).toMatch(status === 'BOOKED' ? /already booked/ : /./);
+    expect(store.jobs).toEqual([]);
+  });
+
+  it('refuses a malformed body and an unknown interview', async () => {
+    received();
+    expect(await bookInterview('i1', { userId: 'officer' }, 'tomorrow', 2, now)).toMatchObject({ ok: false, status: 400, reason: 'invalid' });
+    expect(await bookInterview('i1', { userId: 'officer' }, SLOT, '2', now)).toMatchObject({ ok: false, status: 400, reason: 'invalid' });
+    expect(await bookInterview('nope', { userId: 'officer' }, SLOT, 2, now)).toMatchObject({ ok: false, status: 404 });
+  });
+
+  it.each([
+    ['another officer booking first', { status: 'BOOKED' }, 'wrong_status'],
+    ['the applicant changing their times first', { timesRevision: 3 }, 'times_changed'],
+  ])('loses to %s', async (_case, change, reason) => {
+    received();
+    const original = fake.interview.updateMany;
+    fake.interview.updateMany = async (args) => {
+      Object.assign(store.rows[0], change);
+      fake.interview.updateMany = original;
+      return original(args);
+    };
+    expect(await bookInterview('i1', { userId: 'officer' }, SLOT, 2, now)).toMatchObject({ ok: false, status: 409, reason });
+    expect(store.jobs).toEqual([]);
+  });
+});
+
+describe('proposing a time', () => {
+  const OTHER = pick('2026-10-17T03:00:00Z');
+
+  it('proposes a slot in range and enqueues the proposal', async () => {
+    interview({ status: 'TIMES_RECEIVED', slots: [new Date(SLOT)], timesRevision: 1 });
+    const result = await proposeTime('i1', { userId: 'officer' }, OTHER, now);
+    expect(result).toMatchObject({ ok: true, interview: { status: 'PROPOSED', proposedStart: OTHER, proposedBy: { discordId: 'officer-discord' }, bookedStart: null } });
+    expect(store.rows[0]).toMatchObject({ proposedById: 'officer', proposedAt: now });
+    expect(store.jobs).toEqual([['interview.proposed', { applicationId: 'app', interviewId: 'i1', startsAt: OTHER }]]);
+  });
+
+  it.each([
+    ['under 2 hours ahead', '2026-10-16T18:30:00Z'],
+    ['over 7 days ahead', '2026-10-23T17:30:00Z'],
+    ['off the half hour', '2026-10-17T02:15:00Z'],
+    ['outside interview hours', '2026-10-17T10:00:00Z'],
+  ])('refuses a time %s as out_of_range', async (_case, bad) => {
+    interview({ status: 'TIMES_RECEIVED' });
+    expect(await proposeTime('i1', { userId: 'officer' }, bad, now)).toMatchObject({ ok: false, status: 400, reason: 'out_of_range' });
+    expect(store.rows[0]).toMatchObject({ status: 'TIMES_RECEIVED', proposedStart: null });
+    expect(store.jobs).toEqual([]);
+  });
+
+  it('accepts both range edges', async () => {
+    interview({ status: 'TIMES_RECEIVED' });
+    interview({ applicationId: 'app2', status: 'TIMES_RECEIVED' });
+    expect(await proposeTime('i1', { userId: 'officer' }, '2026-10-16T19:00:00Z', now)).toMatchObject({ ok: true });
+    expect(await proposeTime('i2', { userId: 'officer' }, '2026-10-23T17:00:00Z', now)).toMatchObject({ ok: true });
+  });
+
+  it('refuses a second proposal', async () => {
+    interview({ status: 'TIMES_RECEIVED' });
+    expect(await proposeTime('i1', { userId: 'officer' }, OTHER, now)).toMatchObject({ ok: true });
+    expect(await proposeTime('i1', { userId: 'officer' }, SLOT, now)).toMatchObject({ ok: false, status: 409, reason: 'wrong_status', error: /proposed a time/ });
+    expect(store.rows[0]).toMatchObject({ proposedStart: new Date(OTHER) });
+    expect(jobTypes()).toEqual(['interview.proposed']);
+  });
+
+  it.each(['AWAITING_TIMES', 'BOOKED', 'CANCELLED'])('refuses a %s interview', async (status) => {
+    interview({ status });
+    expect(await proposeTime('i1', { userId: 'officer' }, OTHER, now)).toMatchObject({ ok: false, status: 409, reason: 'wrong_status' });
+    expect(store.jobs).toEqual([]);
+  });
+
+  it('refuses a malformed time, an unknown interview, and a proposal that loses to a booking', async () => {
+    interview({ status: 'TIMES_RECEIVED' });
+    expect(await proposeTime('i1', { userId: 'officer' }, 42, now)).toMatchObject({ ok: false, status: 400, reason: 'invalid' });
+    expect(await proposeTime('nope', { userId: 'officer' }, OTHER, now)).toMatchObject({ ok: false, status: 404 });
+    const original = fake.interview.updateMany;
+    fake.interview.updateMany = async (args) => {
+      Object.assign(store.rows[0], { status: 'BOOKED' });
+      fake.interview.updateMany = original;
+      return original(args);
+    };
+    expect(await proposeTime('i1', { userId: 'officer' }, OTHER, now)).toMatchObject({ ok: false, status: 409, reason: 'wrong_status', error: 'This interview is already booked.' });
+    expect(store.jobs).toEqual([]);
+  });
+});
+
+describe('answering a proposal', () => {
+  const proposed = (data: Partial<Row> = {}) => interview({ status: 'PROPOSED', proposedStart: new Date(SLOT), proposedById: 'officer', ...data });
+
+  it('books the proposed time on accept, with the proposer as the booking officer', async () => {
+    proposed();
+    expect(await answerProposal('i1', 'applicant', 'accept', now)).toMatchObject({ ok: true, interview: { status: 'BOOKED', bookedStart: SLOT, bookedBy: { discordId: 'officer-discord' } } });
+    expect(store.rows[0]).toMatchObject({ bookedById: 'officer', bookedAt: now, activeKey: 'app' });
+    expect(store.jobs).toEqual([['interview.booked', { applicationId: 'app', interviewId: 'i1', startsAt: SLOT }], ['application.update', { applicationId: 'app' }]]);
+  });
+
+  it('ends the interview on decline, recording the applicant', async () => {
+    store.users.push({ id: 'applicant-user', discordId: 'applicant', discordName: 'Thrall' });
+    proposed();
+    expect(await answerProposal('i1', 'applicant', 'decline', now)).toMatchObject({ ok: true, interview: { status: 'NO_TIME', endReason: 'DECLINED', endedAt: now.toISOString() } });
+    expect(store.rows[0]).toMatchObject({ activeKey: null, endedById: 'applicant-user' });
+    expect(store.jobs).toEqual([['interview.ended', { applicationId: 'app', interviewId: 'i1', outcome: 'declined' }]]);
+  });
+
+  it('refuses accepting under 15 minutes before the start, but still takes a decline', async () => {
+    proposed();
+    const late = new Date(new Date(SLOT).getTime() - 10 * 60_000);
+    expect(await answerProposal('i1', 'applicant', 'accept', late)).toMatchObject({ ok: false, status: 409, reason: 'too_soon' });
+    expect(store.rows[0]).toMatchObject({ status: 'PROPOSED' });
+    expect(store.jobs).toEqual([]);
+    expect(await answerProposal('i1', 'applicant', 'decline', late)).toMatchObject({ ok: true, interview: { status: 'NO_TIME' } });
+    expect(store.rows[0]).toMatchObject({ endedById: null });
+  });
+
+  it("refuses answering someone else's proposal", async () => {
+    proposed();
+    expect(await answerProposal('i1', 'someone-else', 'accept', now)).toMatchObject({ ok: false, status: 403, reason: 'forbidden' });
+    expect(store.rows[0]).toMatchObject({ status: 'PROPOSED' });
+    expect(store.jobs).toEqual([]);
+  });
+
+  it.each(['TIMES_RECEIVED', 'BOOKED', 'CANCELLED', 'NO_TIME'])('refuses answering a %s interview', async (status) => {
+    proposed({ status });
+    expect(await answerProposal('i1', 'applicant', 'decline', now)).toMatchObject({ ok: false, status: 409, reason: 'wrong_status' });
+    expect(store.jobs).toEqual([]);
+  });
+
+  it('refuses an unknown answer and an unknown interview', async () => {
+    proposed();
+    expect(await answerProposal('i1', 'applicant', 'maybe', now)).toMatchObject({ ok: false, status: 400, reason: 'invalid' });
+    expect(await answerProposal('nope', 'applicant', 'accept', now)).toMatchObject({ ok: false, status: 404 });
+  });
+
+  it('loses an accept to a cancel that lands first', async () => {
+    proposed();
+    const original = fake.interview.updateMany;
+    fake.interview.updateMany = async (args) => {
+      Object.assign(store.rows[0], { status: 'CANCELLED', activeKey: null });
+      fake.interview.updateMany = original;
+      return original(args);
+    };
+    expect(await answerProposal('i1', 'applicant', 'accept', now)).toMatchObject({ ok: false, status: 409, reason: 'wrong_status', error: 'This interview was cancelled.' });
+    expect(store.jobs).toEqual([]);
   });
 });
