@@ -71,3 +71,6 @@
 - Loot add-on (#272 design, Robert 2026-10-13: "a good feature to have"): during a raid, show live helper status on the raid page ("Live from Ledgerline's helper, last update 2 min ago"); needs the helper's live upload (#277, #278) first.
 - Loot add-on (#272 design, Robert 2026-10-14): flag likely duplicates between hand-entered and add-on awards. When the same item goes to the same character on the same raid both by hand and from the add-on, tell the officer ("There is another entry for <item> to <character> on this raid. Is this a duplicate?") and let them void one. Add-on IDs only stop the add-on's own repeats.
 - Fill each raid template's instance number so bosses get encounter ids (#335).
+- Contrast (#362 critique): `fg-3` labels on the `ink-850` card surface measure 4.43:1, under the 4.5:1 floor (tokens.css says fg-3 is for ink-950); used ~160 times site-wide, e.g. the interview page's "Your times · N hours". Decide a site-wide fix.
+- Interview page (#362 critique): on a phone the booked/proposed time wraps left-aligned under a centred "in 2 days" (same in the approved design); consider centring it.
+- Interview page (#362 critique): the loading skeleton is picker-shaped, so visitors whose interview is already submitted, booked or ended see a big card snap to a small one (approved loading state).

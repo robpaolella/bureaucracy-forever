@@ -1,7 +1,9 @@
 import 'server-only';
 
+import type { InterviewGate } from '@/components/interview/state';
 import type { ApplyGate } from '@/components/recruitment/form-state';
 import { isGuildMember } from '@/lib/guild-check';
+import { applicantInterview } from '@/lib/interviews';
 import { getDevStubSession, getSession } from '@/lib/session';
 
 /**
@@ -17,4 +19,18 @@ export async function applyGate(): Promise<ApplyGate> {
   const lookup = stub && stub.discordId === session.discordId ? { kind: 'member' as const } : await isGuildMember(session.discordId);
   if (lookup.kind === 'absent') return { kind: 'join' };
   return { kind: 'form', name: session.name };
+}
+
+/**
+ * The /apply/interview gate and loader. It reads only the signed-in account's own latest
+ * interview, so nothing a visitor sends can select another person's; any role may open it
+ * (applicants are usually Discord Guests, site role `social`). Signed out reads nothing.
+ */
+export async function interviewGate(): Promise<InterviewGate> {
+  const session = await getSession();
+  if (!session) return { kind: 'signin' };
+  const view = await applicantInterview(session.discordId);
+  if (!view) return { kind: 'nothing' };
+  const { status, slots, proposedStart, bookedStart } = view;
+  return { kind: 'interview', interview: { status, slots, proposedStart, bookedStart } };
 }
