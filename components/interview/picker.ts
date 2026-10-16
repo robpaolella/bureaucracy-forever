@@ -53,14 +53,21 @@ export function hourRuns(hours: number[][]): number[][][] {
 
 export type PickerSummary = { text: string; tone: 'closed' | 'warn'; canSend: boolean };
 
-/** The footer's status line and whether Send is open. Counts with `countBlocks`, as the server does. */
-export function pickerSummary(picks: Iterable<number>): PickerSummary {
+/**
+ * The footer's status line and whether Send is open. Counts with `countBlocks`, as the server
+ * does. `sent` is the times a change started from: Update opens only once the picks differ.
+ */
+export function pickerSummary(picked: Iterable<number>, sent?: ReadonlySet<number>): PickerSummary {
+  const picks = new Set(picked);
   const { blocks, days } = countBlocks([...picks].map((t) => new Date(t)));
   const { footer } = INTERVIEW.pick;
+  const changed = !!sent && (picks.size !== sent.size || [...picks].some((t) => !sent.has(t)));
   if (blocks === 0) return { text: footer.empty(MIN_BLOCKS, MIN_DAYS), tone: 'closed', canSend: false };
+  // Unchanged sent times say so, even if the window has since dropped some below the minimum.
+  if (sent && !changed) return { text: footer.unchanged(blocks, days), tone: 'closed', canSend: false };
   if (blocks < MIN_BLOCKS) return { text: footer.needMore(blocks, MIN_BLOCKS, MIN_BLOCKS - blocks, days < MIN_DAYS), tone: 'warn', canSend: false };
   if (days < MIN_DAYS) return { text: footer.needDay(blocks), tone: 'warn', canSend: false };
-  return { text: footer.ready(blocks, days), tone: 'warn', canSend: true };
+  return { text: sent ? footer.changed(blocks, days) : footer.ready(blocks, days), tone: 'warn', canSend: true };
 }
 
 /** "Eastern time · EDT (UTC−4)": the zone's own name, its short name and its offset at `at`. */

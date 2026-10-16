@@ -194,15 +194,20 @@ function parsePicks(picks: unknown, timeZone: unknown, window: { windowStart: Da
   return { ok: true, slots, timeZone };
 }
 
+const TIMES_CHANGED = 'Your times changed while you were editing. Check them and submit again.';
+
 /**
  * The applicant submits or changes their times. Only that interview's applicant may; an
- * identical set changes nothing and enqueues nothing.
+ * identical set changes nothing and enqueues nothing. `expectedRevision`, when given, is the
+ * times revision the caller last saw: any other refuses, so times sent elsewhere are never
+ * overwritten unseen.
  */
-export async function submitTimes(interviewId: string, applicantDiscordId: string, picks: unknown, timeZone: unknown, now = new Date()): Promise<InterviewResult> {
+export async function submitTimes(interviewId: string, applicantDiscordId: string, picks: unknown, timeZone: unknown, now = new Date(), expectedRevision?: number): Promise<InterviewResult> {
   const row = await db.interview.findUnique({ where: { id: interviewId }, include });
   if (!row) return notFound();
   if (row.application.discordId !== applicantDiscordId) return refuse(403, 'forbidden', 'This interview belongs to someone else.');
   if (!EDITABLE.includes(row.status)) return refuse(409, 'wrong_status', stateMessage(row.status));
+  if (expectedRevision !== undefined && row.timesRevision !== expectedRevision) return refuse(409, 'wrong_status', TIMES_CHANGED);
   const parsed = parsePicks(picks, timeZone, row);
   if (!parsed.ok) return parsed;
   const sameAs = (slots: Date[]) => slots.length === parsed.slots.length && slots.every((s, i) => s.getTime() === parsed.slots[i].getTime());
@@ -220,7 +225,7 @@ export async function submitTimes(interviewId: string, applicantDiscordId: strin
   if (won) return { ok: true, interview: await toView(latest, db) };
   // Lost to another change. The same times arriving twice is not a conflict.
   if (latest.status === 'TIMES_RECEIVED' && sameAs(latest.slots)) return { ok: true, interview: await toView(latest, db) };
-  return refuse(409, 'wrong_status', EDITABLE.includes(latest.status) ? 'Your times changed while you were editing. Check them and submit again.' : stateMessage(latest.status));
+  return refuse(409, 'wrong_status', EDITABLE.includes(latest.status) ? TIMES_CHANGED : stateMessage(latest.status));
 }
 
 /** An officer cancels an active interview (`POST /interviews/:id/cancel`). */

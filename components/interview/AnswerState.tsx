@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { INTERVIEW } from '@/content/interview';
+import { cn } from '@/lib/cn';
 
 type Outcome = { stale: boolean; moved: boolean };
 type AnswerState = Outcome & { set: Dispatch<SetStateAction<Outcome>> };
@@ -23,9 +24,9 @@ export function useSetAnswerState(): AnswerState['set'] {
 }
 
 /** The teal notice at the top of the card (approved design 367, error-stale). */
-export function StaleNotice() {
+export function StaleNotice({ className }: { className?: string }) {
   if (!useContext(AnswerContext)?.stale) return null;
-  return <div role="status" className="w-full rounded-card border border-teal-line bg-teal-wash px-5 py-4 text-left text-sm text-teal-text">{INTERVIEW.stale}</div>;
+  return <div role="status" className={cn('w-full rounded-card border border-teal-line bg-teal-wash px-5 py-4 text-left text-sm text-teal-text', className)}>{INTERVIEW.stale}</div>;
 }
 
 /** The card's title. After an answer it takes focus, so a screen reader hears the new state. */

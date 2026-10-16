@@ -3,6 +3,8 @@
  * design/367-interview-picker (revision 2, version G) for the time picker, design/341-interview-scheduling
  * (revision 1) for the rest.
  */
+const picked = (hours: number, days: number) => `${hours} ${hours === 1 ? 'hour' : 'hours'} picked${days > 1 ? ` on ${days} days` : ''}`;
+
 export const INTERVIEW = {
   eyebrow: 'Interview',
   pageTitle: 'Interview',
@@ -39,12 +41,23 @@ export const INTERVIEW = {
     clearDay: 'Clear this day',
     clearAll: 'Clear all',
     send: 'Send my times',
+    tryAgain: 'Try again',
+    // The site couldn't be reached: shown in the footer, in place of its status line.
+    offline: 'Couldn’t send your times. Check your connection and try again; your picks are still here.',
+    change: {
+      title: 'Change your times',
+      body: 'Add or remove times, then update. The officers see your new times straight away.',
+      cancel: 'Cancel',
+      update: 'Update my times',
+    },
     dayLabel: (day: string, picked: number) => (picked ? `${day}, ${picked} picked` : day),
     hourLabel: (yours: string, guild: string, inGuildTime: boolean) => (inGuildTime ? `Could start any time ${guild}, ${yours} your time` : `Could start any time ${yours}, ${guild}`),
     guildOnlyHourLabel: (guild: string) => `Could start any time ${guild}`,
     confirm: {
       title: 'Clear all your times?',
       body: 'This removes every hour you’ve picked, on every day.',
+      // Added when changing sent times.
+      sentStay: 'The times you sent stay with the officers unless you update them.',
       keep: 'Keep them',
       clear: 'Clear all',
     },
@@ -53,12 +66,15 @@ export const INTERVIEW = {
       needMore: (picked: number, blocks: number, more: number, otherDay: boolean) => `${picked} of ${blocks} hours picked · add ${more} more${otherDay ? ', on another day' : ''}`,
       needDay: (picked: number) => `${picked} hours picked on 1 day · add an hour on another day`,
       ready: (hours: number, days: number) => `${hours} hours picked on ${days} days · not sent yet`,
+      changed: (hours: number, days: number) => `${picked(hours, days)} · changes not sent`,
+      unchanged: (hours: number, days: number) => `${picked(hours, days)} · no changes yet`,
     },
   },
   submitted: {
     title: 'Your times are with the officers',
     body: 'We’ll let you know on Discord when your interview is booked. You can change your times until then.',
     timesLabel: (hours: number) => `Your times · ${hours} ${hours === 1 ? 'hour' : 'hours'}`,
+    change: 'Change my times',
   },
   proposed: {
     title: 'Could you do this time instead?',
