@@ -70,6 +70,7 @@ describe('/apply/interview', () => {
     mocks.applicantInterview.mockResolvedValue({ ...base, status, ...extra });
     const html = await render();
     for (const text of texts) expect(html).toContain(text);
-    expect(html).not.toContain('Change my times');
+    // Only sent times can be changed.
+    expect(html.includes('Change my times')).toBe(status === 'TIMES_RECEIVED');
   });
 });

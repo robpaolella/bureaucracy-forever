@@ -21,6 +21,7 @@ const OFFERED = pickerStarts(new Date(REQUESTED), NOW).map((d) => d.getTime());
 const guild = (day: number, hour: number, minute = 0) => Date.UTC(2026, 9, day, hour + 7, minute);
 const picked = (...runs: number[][]) => OFFERED.filter((t) => runs.some((r) => r.some((p) => Math.floor(p / HOUR) === Math.floor(t / HOUR)))).map((t) => new Date(t).toISOString());
 const span = (day: number, hour: number, minute: number, halves: number) => Array.from({ length: halves }, (_, i) => guild(day, hour, minute) + i * 30 * 60_000);
+const PARTIAL = picked(span(15, 19, 0, 4), span(17, 10, 0, 6), span(19, 18, 0, 6), span(20, 21, 30, 3));
 const MOST = OFFERED.filter((t) => ![18, 21].includes(new Date(t - 7 * HOUR).getUTCDate())).map((t) => new Date(t).toISOString());
 const interview = (status: ApplicantInterview['status'], extra: Partial<ApplicantInterview> = {}): InterviewGate => ({
   kind: 'interview',
@@ -33,10 +34,12 @@ const STATES: Record<string, InterviewGate> = {
   nothing: { kind: 'nothing' },
   pick: interview('AWAITING_TIMES', { slots: [] }),
   'pick-short': interview('AWAITING_TIMES', { slots: picked(span(19, 10, 0, 8)) }),
-  'pick-partial': interview('AWAITING_TIMES', { slots: picked(span(15, 19, 0, 4), span(17, 10, 0, 6), span(19, 18, 0, 6), span(20, 21, 30, 3)) }),
+  'pick-partial': interview('AWAITING_TIMES', { slots: PARTIAL }),
   'pick-max': interview('AWAITING_TIMES', { slots: MOST }),
+  'error-offline': interview('AWAITING_TIMES', { slots: PARTIAL }),
   'pick-after-window': interview('AWAITING_TIMES', { slots: [], requestedAt: '2026-10-01T22:10:00.000Z' }),
   submitted: interview('TIMES_RECEIVED'),
+  changing: interview('TIMES_RECEIVED'),
   proposed: interview('PROPOSED', { proposedStart: PROPOSED }),
   'error-too-soon': interview('PROPOSED', { proposedStart: PROPOSED }),
   booked: interview('BOOKED', { bookedStart: BOOKED }),
@@ -52,5 +55,5 @@ export default async function InterviewDevPage({ searchParams }: { searchParams:
   const { state = 'submitted' } = await searchParams;
   // error-too-soon is the proposal seen 10 minutes before it starts.
   const now = state === 'error-too-soon' ? new Date(Date.parse(PROPOSED) - 10 * 60_000) : NOW;
-  return <SqueezeLayout>{state === 'loading' ? <InterviewSkeleton /> : <InterviewView gate={STATES[state] ?? STATES.submitted} now={now} stale={state === 'error-stale'} />}</SqueezeLayout>;
+  return <SqueezeLayout>{state === 'loading' ? <InterviewSkeleton /> : <InterviewView gate={STATES[state] ?? STATES.submitted} now={now} stale={state === 'error-stale'} start={state === 'changing' ? 'changing' : state === 'error-offline' ? 'offline' : undefined} />}</SqueezeLayout>;
 }

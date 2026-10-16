@@ -1,7 +1,9 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
+import { sendTimes } from '@/app/(squeeze)/apply/interview/actions';
 import { LocalTime } from '@/components/time/LocalTime';
 import { TimezoneDialog } from '@/components/time/TimezoneDialog';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
@@ -11,6 +13,7 @@ import { cn } from '@/lib/cn';
 import { GUILD_TIMEZONE } from '@/lib/config';
 import { pickerStarts } from '@/lib/interview-slots';
 import { formatClock, formatLongDate, formatRange, tzOffsetMs, zonedParts, zonedTimeToUtc, zoneAbbreviation } from '@/lib/time';
+import { useSetAnswerState } from './AnswerState';
 import { hourButtons, hourRuns, pickerDays, pickerSummary, zoneLabel, type PickerDay } from './picker';
 import { DayStrip, MonthCalendar } from './PickerCalendar';
 
@@ -18,6 +21,7 @@ const { pick: COPY } = INTERVIEW;
 
 // Small captions use fg-muted, not the design's fg-3: fg-3 on the ink-850 card is 4.4:1, under the 4.5:1 floor.
 const TEXT_BUTTON = 'flex min-h-11 items-center font-semibold text-teal underline decoration-teal-dim underline-offset-4';
+const TONE = { closed: { text: 'text-fg-3', dot: 'bg-fg-3' }, warn: { text: 'text-warn', dot: 'bg-warn' }, stop: { text: 'text-stop', dot: 'bg-stop' } };
 const META = 'flex min-h-[34px] items-center gap-2.5 text-sm text-fg-2 max-[959px]:min-h-7 max-[959px]:gap-[7px] max-[959px]:text-[13px]';
 
 const Icon = ({ children }: { children: ReactNode }) => (
@@ -31,16 +35,39 @@ function sameClockAsGuild(zone: string, starts: number[]): boolean {
   return [starts[0], starts.at(-1)].every((t) => t === undefined || tzOffsetMs(new Date(t), zone) === tzOffsetMs(new Date(t), GUILD_TIMEZONE));
 }
 
+/** Why the last send failed: the site couldn't be reached, or the server refused the times (its words). */
+type Failure = { offline: true } | { offline: false; error: string };
+
+type Props = {
+  requestedAt: string;
+  now: string;
+  name: string;
+  /** The times already sent, which the picker opens with. */
+  initial?: string[];
+  /** Present when changing sent times: Cancel calls it, as does a finished send. */
+  onClose?: () => void;
+  /** The dev page's error-offline: open as if a send had failed. */
+  offline?: boolean;
+};
+
 /**
  * The time picker (approved design 367, revision 2, version G): the hours an applicant could
- * start an interview, as one-hour buttons on a day of the month calendar. Local state only; a
- * later part sends the picks. `initial` is the starts to open with.
+ * start an interview, as one-hour buttons on a day of the month calendar. Send (or Update, when
+ * changing sent times) refreshes the page into its new state; an unreachable site keeps the
+ * picks and offers Try again.
  */
-export function InterviewPicker({ requestedAt, now, name, initial = [] }: { requestedAt: string; now: string; name: string; initial?: string[] }) {
+export function InterviewPicker({ requestedAt, now, name, initial = [], onClose, offline = false }: Props) {
   const viewer = useViewerTimeZone();
+  const router = useRouter();
+  const setAnswerState = useSetAnswerState();
+  const [pending, startTransition] = useTransition();
+  const [failure, setFailure] = useState<Failure | null>(offline ? { offline: true } : null);
+  const changing = !!onClose;
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const starts = useMemo(() => pickerStarts(new Date(requestedAt), new Date(now)).map((d) => d.getTime()), [requestedAt, now]);
   // Starts already sent, if any; ones the window no longer offers are dropped.
-  const [picks, setPicks] = useState<ReadonlySet<number>>(() => new Set(initial.map((s) => Date.parse(s)).filter((t) => starts.includes(t))));
+  const [sent] = useState<ReadonlySet<number>>(() => new Set(initial.map((s) => Date.parse(s)).filter((t) => starts.includes(t))));
+  const [picks, setPicks] = useState(sent);
   const [pickAt, setPickAt] = useState<number | null>(null);
   const [showGuild, setShowGuild] = useState(false);
   const [month, setMonth] = useState<{ year: number; month: number } | null>(null);
@@ -57,6 +84,11 @@ export function InterviewPicker({ requestedAt, now, name, initial = [] }: { requ
     }
   }, [confirmOpen]);
 
+  // Changing opens on its title, so a screen reader hears the new mode.
+  useEffect(() => {
+    if (changing) titleRef.current?.focus();
+  }, [changing]);
+
   const zone = viewer?.zone ?? GUILD_TIMEZONE;
   const guildClock = sameClockAsGuild(zone, starts);
   const shownZone = showGuild || guildClock ? GUILD_TIMEZONE : zone;
@@ -64,9 +96,38 @@ export function InterviewPicker({ requestedAt, now, name, initial = [] }: { requ
   const isPicked = (hour: number[]) => hour.every((t) => picks.has(t));
   const pickedOn = new Map(days.map((d) => [d.key, hourButtons(d.starts, shownZone).filter(isPicked).length]));
   const current = days.find((d) => pickAt !== null && d.key === pickerDays([pickAt], shownZone)[0].key) ?? days.find((d) => pickedOn.get(d.key)) ?? days[0];
-  const summary = pickerSummary(picks);
+  const summary = pickerSummary(picks, changing ? sent : undefined);
+  const status = failure ? { text: failure.offline ? COPY.offline : failure.error, tone: 'stop' as const } : summary;
 
-  const toggle = (toggled: number[]) =>
+  const send = () =>
+    startTransition(async () => {
+      try {
+        // The page names only what it showed (the attempt's request time and the times it had sent), never an interview.
+        const outcome = await sendTimes(
+          [...picks].sort((a, b) => a - b).map((t) => new Date(t).toISOString()),
+          zone,
+          { requestedAt, slots: initial },
+        );
+        if (outcome.kind === 'refused') return setFailure({ offline: false, error: outcome.error });
+        // One transition with the refresh, so the notice and focus land on the new card.
+        startTransition(() => {
+          setAnswerState({ stale: outcome.kind === 'stale', moved: true });
+          onClose?.();
+          router.refresh();
+        });
+      } catch {
+        // The site couldn't be reached: nothing changed, and the picks stay for another try.
+        setFailure({ offline: true });
+      }
+    });
+  const cancel = () => {
+    setAnswerState((state) => ({ ...state, moved: true }));
+    onClose?.();
+  };
+
+  const toggle = (toggled: number[]) => {
+    // A refusal was for the times sent; the footer counts the new ones instead.
+    setFailure((f) => (f?.offline ? f : null));
     setPicks((before) => {
       const next = new Set(before);
       const on = toggled.every((t) => before.has(t));
@@ -76,6 +137,7 @@ export function InterviewPicker({ requestedAt, now, name, initial = [] }: { requ
       }
       return next;
     });
+  };
   const choose = (day: PickerDay) => {
     setPickAt(day.starts[0]);
     setMonth(null);
@@ -86,8 +148,10 @@ export function InterviewPicker({ requestedAt, now, name, initial = [] }: { requ
     <div className="flex flex-col gap-3 p-7 max-[959px]:gap-2.5 max-[959px]:px-5 max-[959px]:pb-3 max-[959px]:pt-5 max-[599px]:px-4 max-[599px]:pb-2 max-[599px]:pt-4">
       <Image src="/brand/mark.png" alt="" width={42} height={48} className="w-8 opacity-40 max-[959px]:hidden" />
       <span className="font-eyebrow text-label font-semibold uppercase tracking-[0.28em] text-sand">{INTERVIEW.eyebrow}</span>
-      <h1 className="font-display text-[30px] font-medium leading-[1.1] tracking-[-0.015em] max-[959px]:text-[28px]">{COPY.title}</h1>
-      <p className="text-sm leading-[1.65] text-fg-2 max-[959px]:text-[13px] max-[959px]:leading-[1.6]">{COPY.body}</p>
+      <h1 ref={titleRef} tabIndex={-1} className="font-display text-[30px] font-medium leading-[1.1] tracking-[-0.015em] outline-none max-[959px]:text-[28px]">
+        {changing ? COPY.change.title : COPY.title}
+      </h1>
+      <p className="text-sm leading-[1.65] text-fg-2 max-[959px]:text-[13px] max-[959px]:leading-[1.6]">{changing ? COPY.change.body : COPY.body}</p>
       <ul className="mt-1 flex flex-col max-[959px]:mt-0 max-[959px]:flex-row max-[959px]:flex-wrap max-[959px]:gap-x-4">
         <li className={META}>
           <Icon>
@@ -177,9 +241,9 @@ export function InterviewPicker({ requestedAt, now, name, initial = [] }: { requ
           </div>
         )}
         <div className="z-10 flex flex-wrap items-center justify-between gap-3 border-t border-line bg-ink-900 px-4 py-3 min-[600px]:rounded-b-card min-[600px]:px-5 max-[959px]:sticky max-[959px]:bottom-0">
-          <span className={cn('flex items-center gap-2 text-[13px] max-[959px]:min-w-0 max-[959px]:flex-[1_1_160px] max-[959px]:text-xs', summary.tone === 'warn' ? 'text-warn' : 'text-fg-3')}>
-            <span aria-hidden className={cn('h-[7px] w-[7px] shrink-0 rounded-full', summary.tone === 'warn' ? 'bg-warn' : 'bg-fg-3')} />
-            <span role="status">{summary.text}</span>
+          <span className={cn('flex items-center gap-2 text-[13px] max-[959px]:min-w-0 max-[959px]:flex-[1_1_160px] max-[959px]:text-xs', TONE[status.tone].text)}>
+            <span aria-hidden className={cn('h-[7px] w-[7px] shrink-0 rounded-full', TONE[status.tone].dot)} />
+            <span role={status.tone === 'stop' ? 'alert' : 'status'}>{status.text}</span>
           </span>
           <span className="ml-auto flex items-center gap-2">
             {picks.size > 0 && (
@@ -187,9 +251,13 @@ export function InterviewPicker({ requestedAt, now, name, initial = [] }: { requ
                 {COPY.clearAll}
               </button>
             )}
-            {/* Part 4 sends the picks; until then an open Send does nothing. */}
-            <Button disabled={!summary.canSend} className="font-bold">
-              {COPY.send}
+            {changing && (
+              <Button variant="ghost" disabled={pending} onClick={cancel}>
+                {COPY.change.cancel}
+              </Button>
+            )}
+            <Button disabled={!summary.canSend} loading={pending} onClick={send} className="font-bold">
+              {failure?.offline ? COPY.tryAgain : changing ? COPY.change.update : COPY.send}
             </Button>
           </span>
         </div>

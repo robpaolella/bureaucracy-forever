@@ -6,7 +6,7 @@ import { MIN_NOTICE_MS } from '@/lib/interview-slots';
 import { InterviewCard } from './InterviewCard';
 import { InterviewPicker } from './InterviewPicker';
 import { ProposalAnswer } from './ProposalAnswer';
-import { SentTimes } from './SentTimes';
+import { SubmittedTimes } from './SubmittedTimes';
 import { AnswerStateHost } from './AnswerState';
 import { relativeDays, type InterviewGate } from './state';
 
@@ -22,20 +22,23 @@ function TimeLine({ start, now, relative = relativeDays(start, now) }: { start: 
   );
 }
 
+/** The dev page's states that need a click on the real page: the picker reopened on sent times, or a failed send. */
+export type StartAs = 'changing' | 'offline';
+
 /**
- * Every state of the applicant's interview page (approved designs 341 and 367). Sending times
- * arrives in a later part; until then the picker's Send does nothing. `stale` starts with the
- * "changed while the page was open" notice showing (the dev page's error-stale).
+ * Every state of the applicant's interview page (approved designs 341 and 367). `stale` starts
+ * with the "changed while the page was open" notice showing (the dev page's error-stale);
+ * `start` opens as `StartAs` describes.
  */
-export function InterviewView({ gate, now, stale }: { gate: InterviewGate; now: Date; stale?: boolean }) {
+export function InterviewView({ gate, now, stale, start }: { gate: InterviewGate; now: Date; stale?: boolean; start?: StartAs }) {
   return (
     <AnswerStateHost stale={stale}>
-      <InterviewState gate={gate} now={now} />
+      <InterviewState gate={gate} now={now} start={start} />
     </AnswerStateHost>
   );
 }
 
-function InterviewState({ gate, now }: { gate: InterviewGate; now: Date }) {
+function InterviewState({ gate, now, start }: { gate: InterviewGate; now: Date; start?: StartAs }) {
   if (gate.kind === 'signin') {
     const { title, body, action } = INTERVIEW.signedOut;
     return <InterviewCard title={title} body={body} actions={<ButtonLink href={`${LOGIN_URL}?back=${encodeURIComponent(PAGE)}`}>{action}</ButtonLink>} />;
@@ -57,10 +60,11 @@ function InterviewState({ gate, now }: { gate: InterviewGate; now: Date }) {
 
   const { status, requestedAt, slots, proposedStart, bookedStart } = gate.interview;
   switch (status) {
+    // Keyed by attempt, so a new attempt arriving on refresh starts a fresh picker.
     case 'AWAITING_TIMES':
-      return <InterviewPicker requestedAt={requestedAt} now={now.toISOString()} name={gate.name} initial={slots} />;
+      return <InterviewPicker key={requestedAt} requestedAt={requestedAt} now={now.toISOString()} name={gate.name} initial={slots} offline={start === 'offline'} />;
     case 'TIMES_RECEIVED':
-      return <InterviewCard title={INTERVIEW.submitted.title} extra={<SentTimes slots={slots} />} body={INTERVIEW.submitted.body} />;
+      return <SubmittedTimes key={requestedAt} requestedAt={requestedAt} now={now.toISOString()} name={gate.name} slots={slots} changing={start === 'changing'} />;
     case 'PROPOSED': {
       if (!proposedStart) return <InterviewCard title={INTERVIEW.proposed.title} body={INTERVIEW.proposed.body} />;
       // Under 15 minutes away it can't be accepted (answerProposal), and the line counts minutes;
