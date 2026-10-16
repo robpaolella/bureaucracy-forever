@@ -67,3 +67,31 @@ export const NOTE_COMPOSER = {
   post: 'Post',
   posted: 'Note added',
 };
+
+/**
+ * The Interview card on an application (design/341-interview-scheduling, card A). `{who}`
+ * is an officer's name, `{when}` a time, `{day}` a date, `{end}` the window's end; `fill`
+ * puts them in as rich pieces.
+ */
+export const INTERVIEW = {
+  title: 'Interview',
+  openThread: 'Open the thread',
+  actionsNote: 'Book, propose and cancel in the Discord thread.',
+  anOfficer: 'an officer',
+  words: { AWAITING_TIMES: 'Waiting for times', TIMES_RECEIVED: 'Times received', PROPOSED: 'Proposed', BOOKED: 'Booked', DONE: 'Done', CANCELLED: 'Cancelled', NO_TIME: 'No time found', CLOSED: 'Closed' },
+  halfHours: (n: number) => `${n} half-hour${n === 1 ? '' : 's'}`,
+  awaiting: (name: string) => `Requested by {who} on {when}. ${name} hasn’t sent times yet. If none arrive by {end}, it ends with no time found.`,
+  second: (name: string) => `Second interview, requested by {who} on {when}. ${name} hasn’t sent times yet.`,
+  received: (name: string, count: string, who: string) => `${name} sent ${count}, last changed on {when}. Requested by ${who}.`,
+  proposed: (name: string) => `{who} proposed {when}. Waiting for ${name} to accept or decline.`,
+  booked: () => 'Booked for {when} by {who}.',
+  done: (who: string) => `Interviewed on {when}. Booked by ${who}.`,
+  declined: (name: string, who: string) => `${name} declined ${who}’s proposed time, {when}. Officers arrange a time with them directly.`,
+  lapsed: (name: string, who: string) => `${name} didn’t answer ${who}’s proposed time, {when}, before it started. Officers arrange a time with them directly.`,
+  expired: (name: string) => `${name} didn’t send times by {end}. Officers arrange a time with them directly.`,
+  cancelled: () => 'Cancelled by {who} on {day}.',
+  cancelledUnknown: () => 'Cancelled on {day}.',
+  wasBooked: ' It had been booked for {when}.',
+  closed: (name: string, sent: string | null) => `Closed when the application was decided. ${sent ? `${name} had sent ${sent}.` : `${name} hadn’t sent any times.`}`,
+  earlier: (outcome: string) => `Earlier interview: ${outcome.toLowerCase()}, {day}.`,
+};
