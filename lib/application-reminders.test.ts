@@ -8,7 +8,7 @@ import { applyNudgeAck, loadReminder, parseReminderKey, pacificDay, pendingRemin
 const ACTIVITY = new Date('2026-10-12T23:00:00Z');
 const KEY = `${ACTIVITY.toISOString()}@2026-10-13`;
 const app = (over: Record<string, unknown> = {}) => ({
-  status: 'PENDING', createdAt: ACTIVITY, reopenedAt: null, reminderKey: KEY, notes: [], interviews: [], ...over,
+  status: 'PENDING', createdAt: ACTIVITY, reopenedAt: null, reminderKey: KEY, notes: [], messages: [], interviews: [], ...over,
 }) as Parameters<typeof pendingReminder>[0];
 const EVENING = new Date('2026-10-14T02:00:00Z'); // Tue Oct 13, 7 PM Pacific
 
@@ -43,6 +43,11 @@ describe('pendingReminder', () => {
   it('is null once activity moved past the key', () => {
     expect(pendingReminder(app({ notes: [{ createdAt: new Date('2026-10-13T20:00:00Z') }] }), EVENING)).toBeNull();
   });
+  it('is null once an officer relay message moved activity past the key, but not for an applicant message', () => {
+    const at = new Date('2026-10-13T20:00:00Z');
+    expect(pendingReminder(app({ messages: [{ direction: 'TO_APPLICANT', createdAt: at }] }), EVENING)).toBeNull();
+    expect(pendingReminder(app({ messages: [{ direction: 'FROM_APPLICANT', createdAt: at }] }), EVENING)).not.toBeNull();
+  });
   it('is null once quiet', () => {
     const i = { id: 'i1', attempt: 1, status: 'AWAITING_TIMES' as const, requestedAt: ACTIVITY, timesUpdatedAt: null, proposedAt: null, bookedAt: null, bookedStart: null, endedAt: null };
     expect(pendingReminder(app({ interviews: [i] }), EVENING)).toBeNull();
@@ -73,6 +78,7 @@ describe('loadReminder', () => {
     mocks.findUnique.mockResolvedValue(row);
     await loadReminder('a', EVENING);
     expect(mocks.findUnique.mock.calls[0][0].select.notes).toEqual({ select: { createdAt: true } });
+    expect(mocks.findUnique.mock.calls[0][0].select.messages).toEqual({ where: { direction: 'TO_APPLICANT' }, select: { direction: true, createdAt: true } });
   });
 });
 

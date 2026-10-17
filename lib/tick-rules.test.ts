@@ -89,7 +89,19 @@ describe('interview tick rules', () => {
 describe('application reminder rules', () => {
   const t = (iso: string) => new Date(`2026-10-${iso}Z`);
   const attempt = (over: Partial<ReminderInterview> = {}): ReminderInterview => ({ attempt: 1, status: 'AWAITING_TIMES', requestedAt: t('12T18:00:00'), timesUpdatedAt: null, proposedAt: null, bookedAt: null, bookedStart: null, endedAt: null, ...over });
-  const app = (over: Partial<ReminderApplication> = {}): ReminderApplication => ({ createdAt: t('10T18:00:00'), reopenedAt: null, notes: [], interviews: [], ...over });
+  const app = (over: Partial<ReminderApplication> = {}): ReminderApplication => ({ createdAt: t('10T18:00:00'), reopenedAt: null, notes: [], messages: [], interviews: [], ...over });
+
+  it('takes every officer relay message, whatever its status, and never an applicant message', () => {
+    const sent = { direction: 'TO_APPLICANT', status: 'SENT', createdAt: t('11T09:00:00') };
+    expect(reminderActivityTime(app({ messages: [sent] }))).toEqual(t('11T09:00:00'));
+    const reply = { direction: 'FROM_APPLICANT', status: null, createdAt: t('12T09:00:00') };
+    expect(reminderActivityTime(app({ messages: [sent, reply] }))).toEqual(t('11T09:00:00'));
+    expect(reminderActivityTime(app({ messages: [reply] }))).toEqual(t('10T18:00:00'));
+    for (const status of ['QUEUED', 'NOT_DELIVERED', 'NOT_SENT']) {
+      const later = { ...sent, status, createdAt: t('13T09:00:00') };
+      expect(reminderActivityTime(app({ messages: [later] }))).toEqual(t('13T09:00:00'));
+    }
+  });
 
   it('starts at creation and takes the latest note, soft-deleted or not, ignoring edits', () => {
     expect(reminderActivityTime(app())).toEqual(t('10T18:00:00'));
@@ -158,7 +170,7 @@ describe('applicationReminderDue', () => {
   // Pacific is UTC-7 until 2026-11-01, UTC-8 after; spring forward was 2026-03-08.
   const u = (iso: string) => new Date(`${iso}Z`);
   const base = (over: Partial<ReminderApplication & ReminderSchedule> = {}): ReminderApplication & ReminderSchedule => ({
-    createdAt: u('2026-10-10T00:00:00'), reopenedAt: null, notes: [], interviews: [],
+    createdAt: u('2026-10-10T00:00:00'), reopenedAt: null, notes: [], messages: [], interviews: [],
     status: 'PENDING', reminderTriedOn: null, reminderCount: 0, reminderActivityAt: null, reminderLastOn: null, ...over,
   });
   const interview = (status: ReminderInterview['status'], over: Partial<ReminderInterview> = {}): ReminderInterview => ({ attempt: 1, status, requestedAt: u('2026-10-01T00:00:00'), timesUpdatedAt: null, proposedAt: null, bookedAt: null, bookedStart: null, endedAt: null, ...over });
@@ -173,6 +185,21 @@ describe('applicationReminderDue', () => {
   it('is due exactly 24 h after activity at 5 PM, not a minute less', () => {
     expect(applicationReminderDue(base({ createdAt: u('2026-10-16T00:00:00') }), five)).toBe(true);
     expect(applicationReminderDue(base({ createdAt: u('2026-10-16T00:01:00') }), five)).toBe(false);
+  });
+
+  it('restarts the 24 h on an officer relay message, delivered or not, but not on an applicant reply', () => {
+    const sent = { direction: 'TO_APPLICANT', createdAt: u('2026-10-16T12:00:00') };
+    expect(applicationReminderDue(base({ messages: [sent] }), five)).toBe(false);
+    expect(applicationReminderDue(base({ messages: [{ ...sent, status: 'NOT_DELIVERED' } as typeof sent] }), five)).toBe(false);
+    expect(applicationReminderDue(base({ messages: [{ direction: 'FROM_APPLICANT', createdAt: u('2026-10-16T12:00:00') }] }), five)).toBe(true);
+    // The applicant's reply after the officer's message doesn't move the activity time on.
+    const earlier = { direction: 'TO_APPLICANT', createdAt: u('2026-10-15T12:00:00') };
+    const reply = { direction: 'FROM_APPLICANT', createdAt: u('2026-10-16T12:00:00') };
+    expect(applicationReminderDue(base({ messages: [earlier, reply] }), five)).toBe(true);
+    // A new officer message restarts a count made under an older activity time.
+    const counted = { reminderCount: 5, reminderActivityAt: u('2026-10-10T00:00:00'), reminderLastOn: '2026-10-15' };
+    expect(applicationReminderDue(base(counted), five)).toBe(false);
+    expect(applicationReminderDue(base({ ...counted, messages: [earlier] }), five)).toBe(true);
   });
 
   it('only runs from 5 PM until midnight Pacific', () => {

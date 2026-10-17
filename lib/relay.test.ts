@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { APPLICANT_DM_MAX, inRelayWindow, parseApplicantDm, parseApplicantEdit, relayPing } from './relay';
+import { APPLICANT_DM_MAX, inRelayWindow, OFFICER_MESSAGE_MAX, parseApplicantDm, parseApplicantEdit, parseOfficerMessage, relayPing, sendOutcome } from './relay';
 
 // SYNC-SPEC §13 worked examples: Thrall's application was created Mon 3:30 PM.
 const at = (s: string) => new Date(`2026-10-${s}`);
@@ -127,5 +127,36 @@ describe('parseApplicantEdit', () => {
   });
   it('refuses non-text', () => {
     expect(parseApplicantEdit({ body: 7 }, 1).ok).toBe(false);
+  });
+});
+
+describe('parseOfficerMessage', () => {
+  it('trims and accepts 1 to 1,500 characters', () => {
+    expect(parseOfficerMessage('  Hi Thrall  ')).toEqual({ ok: true, text: 'Hi Thrall' });
+    expect(parseOfficerMessage('a')).toEqual({ ok: true, text: 'a' });
+    expect(parseOfficerMessage('a'.repeat(OFFICER_MESSAGE_MAX))).toEqual({ ok: true, text: 'a'.repeat(1500) });
+    // Trimming happens first, so padding never pushes a 1,500-character message over.
+    expect(parseOfficerMessage(` ${'a'.repeat(1500)} `)).toMatchObject({ ok: true });
+  });
+
+  it('refuses empty, whitespace-only, 1,501 characters and non-text', () => {
+    for (const body of ['', '   \n\t ', 'a'.repeat(1501), undefined, 42]) expect(parseOfficerMessage(body)).toMatchObject({ ok: false, error: expect.any(String) });
+  });
+
+  it('counts an emoji as one character', () => {
+    expect(parseOfficerMessage('😀'.repeat(1500))).toMatchObject({ ok: true });
+    expect(parseOfficerMessage('😀'.repeat(1501))).toMatchObject({ ok: false });
+  });
+});
+
+describe('sendOutcome', () => {
+  it('maps each of the three acks to its status', () => {
+    expect(sendOutcome({ dmChannelId: '100000000000000002', dmMessageId: '100000000000000003' })).toEqual({ status: 'SENT', dmChannelId: '100000000000000002', dmMessageId: '100000000000000003' });
+    expect(sendOutcome({ dmDelivered: false })).toEqual({ status: 'NOT_DELIVERED' });
+    expect(sendOutcome({ notSent: true })).toEqual({ status: 'NOT_SENT' });
+  });
+
+  it('changes nothing for a skip or anything else', () => {
+    for (const result of [{ skipped: 'SENT' }, {}, { dmChannelId: '100000000000000002' }, { dmChannelId: 5, dmMessageId: 6 }, { dmDelivered: true }, { notSent: 'yes' }]) expect(sendOutcome(result)).toBeNull();
   });
 });

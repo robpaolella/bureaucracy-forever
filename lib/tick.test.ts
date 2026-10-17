@@ -135,7 +135,7 @@ describe('tick application reminders', () => {
   // Fri Oct 16 2026, 6 PM PDT: inside the evening window.
   const evening = new Date('2026-10-17T01:00:00Z');
   const created = new Date('2026-10-14T20:00:00Z');
-  const app = (over: object = {}) => ({ id: 'app', status: 'PENDING', createdAt: created, reopenedAt: null, reminderTriedOn: null, reminderCount: 0, reminderActivityAt: null, reminderLastOn: null, notes: [], interviews: [], ...over });
+  const app = (over: object = {}) => ({ id: 'app', status: 'PENDING', createdAt: created, reopenedAt: null, reminderTriedOn: null, reminderCount: 0, reminderActivityAt: null, reminderLastOn: null, notes: [], messages: [], interviews: [], ...over });
   const unclaimed = { status: 'PENDING', OR: [{ reminderTriedOn: null }, { reminderTriedOn: { not: '2026-10-16' } }] };
   const tickAt = (at: Date, rows: object[], won = 1) => {
     mocks.enabled.mockReturnValue(false);
@@ -152,6 +152,11 @@ describe('tick application reminders', () => {
     expect(mocks.application.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: unclaimed }));
     expect(mocks.application.updateMany).toHaveBeenCalledExactlyOnceWith({ where: { id: 'app', ...unclaimed }, data: { reminderTriedOn: '2026-10-16', reminderKey: '2026-10-14T20:00:00.000Z@2026-10-16' } });
     expect(mocks.enqueue).toHaveBeenCalledExactlyOnceWith('application.nudge', { applicationId: 'app', key: '2026-10-14T20:00:00.000Z@2026-10-16' }, mocks);
+  });
+  it("loads officers' relay messages, so a recent one keeps the reminder back", async () => {
+    expect((await tickAt(evening, [app({ messages: [{ direction: 'TO_APPLICANT', createdAt: new Date('2026-10-16T12:00:00Z') }] })])).remindersQueued).toBe(0);
+    const pendingQuery = mocks.application.findMany.mock.calls.find(([args]) => args.where.status === 'PENDING')![0];
+    expect(pendingQuery.select.messages).toEqual({ where: { direction: 'TO_APPLICANT' }, select: { direction: true, createdAt: true } });
   });
   it('queues nothing when an overlapping tick already claimed the day', async () => {
     expect((await tickAt(evening, [app()], 0)).remindersQueued).toBe(0);
