@@ -15,6 +15,7 @@ export type JobType =
   | 'application.decide'
   | 'application.reopen'
   | 'application.nudge'
+  | 'application.message.copy'
   | 'raid.post'
   | 'raid.update'
   | 'raid.remind'

@@ -359,7 +359,10 @@ model Application {
   /// The live reminder's channel (thread or #officers) and message.
   reminderChannelId  String?
   reminderMessageId  String?
+  /// The last relay ping (SYNC-SPEC §13); null until one is sent.
+  relayPingAt        DateTime?
   interviews       Interview[]
+  messages         ApplicantMessage[]
 
   @@index([status, createdAt])
 }
@@ -432,6 +435,48 @@ model OfficerNote {
   deletedAt        DateTime?
 
   @@index([applicationId])
+}
+
+enum MessageDirection {
+  TO_APPLICANT
+  FROM_APPLICANT
+}
+
+/// TO_APPLICANT only.
+enum MessageStatus {
+  QUEUED
+  SENT
+  NOT_DELIVERED
+  NOT_SENT
+}
+
+/// The officer–applicant relay (SYNC-SPEC §13). Separate from OfficerNote, which stays officers-only.
+model ApplicantMessage {
+  id            String            @id @default(cuid())
+  applicationId String
+  application   Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  direction     MessageDirection
+  /// The officer; TO_APPLICANT only.
+  authorUserId  String?
+  /// May be "" for FROM_APPLICANT with attachments.
+  body          String
+  /// FROM_APPLICANT: the DM's Discord send time.
+  createdAt     DateTime          @default(now())
+  /// TO_APPLICANT only; null for FROM_APPLICANT.
+  status        MessageStatus?
+  /// The DM (set when sent or received).
+  dmChannelId   String?
+  dmMessageId   String?           @unique
+  /// The thread (or #officers) copy.
+  copyChannelId String?
+  copyMessageId String?
+  /// [{ id, filename, size, spoiler }], metadata only.
+  attachments   Json              @default("[]")
+  editedAt      DateTime?
+  /// FROM_APPLICANT: the text is kept and the copy says deleted.
+  deletedAt     DateTime?
+
+  @@index([applicationId, createdAt])
 }
 
 /// One row per class+need spec. Drives the recruitment table, the home teaser and the bot's
