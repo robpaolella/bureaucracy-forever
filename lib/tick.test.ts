@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   raid: { findMany: vi.fn(), updateMany: vi.fn() },
   signup: { findMany: vi.fn() }, reserve: { findMany: vi.fn() },
   user: { findMany: vi.fn() }, raidSeries: { findMany: vi.fn() },
-  application: { findMany: vi.fn() }, interview: { findMany: vi.fn(), updateMany: vi.fn() }, botRequest: { findUnique: vi.fn() },
+  application: { findMany: vi.fn(), updateMany: vi.fn() }, interview: { findMany: vi.fn(), updateMany: vi.fn() }, botRequest: { findUnique: vi.fn() },
   enqueue: vi.fn(), enabled: vi.fn(),
 }));
 vi.mock('server-only', () => ({}));
@@ -128,5 +128,51 @@ describe('tick interview steps', () => {
     const counts = await tickAt('2026-10-16T19:58:00Z', [row({ remindedAt: new Date('2026-10-16T19:55:00Z') })]);
     expect(counts).toMatchObject(zero);
     expect(mocks.interview.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('tick application reminders', () => {
+  // Fri Oct 16 2026, 6 PM PDT: inside the evening window.
+  const evening = new Date('2026-10-17T01:00:00Z');
+  const created = new Date('2026-10-14T20:00:00Z');
+  const app = (over: object = {}) => ({ id: 'app', status: 'PENDING', createdAt: created, reopenedAt: null, reminderTriedOn: null, reminderCount: 0, reminderActivityAt: null, reminderLastOn: null, notes: [], interviews: [], ...over });
+  const unclaimed = { status: 'PENDING', OR: [{ reminderTriedOn: null }, { reminderTriedOn: { not: '2026-10-16' } }] };
+  const tickAt = (at: Date, rows: object[], won = 1) => {
+    mocks.enabled.mockReturnValue(false);
+    mocks.raid.findMany.mockResolvedValue([]);
+    mocks.application.findMany.mockImplementation(async (args) => args.where.status === 'PENDING' ? rows : []);
+    mocks.application.updateMany.mockResolvedValue({ count: won });
+    mocks.botRequest.findUnique.mockResolvedValue({ body: { at: '2099-01-01T00:00:00Z' } });
+    return runTick(at);
+  };
+  const nudges = () => mocks.enqueue.mock.calls.filter(([type]) => type === 'application.nudge');
+
+  it("queues one keyed reminder for a due application and records today's try in the same transaction", async () => {
+    expect((await tickAt(evening, [app()])).remindersQueued).toBe(1);
+    expect(mocks.application.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: unclaimed }));
+    expect(mocks.application.updateMany).toHaveBeenCalledExactlyOnceWith({ where: { id: 'app', ...unclaimed }, data: { reminderTriedOn: '2026-10-16', reminderKey: '2026-10-14T20:00:00.000Z@2026-10-16' } });
+    expect(mocks.enqueue).toHaveBeenCalledExactlyOnceWith('application.nudge', { applicationId: 'app', key: '2026-10-14T20:00:00.000Z@2026-10-16' }, mocks);
+  });
+  it('queues nothing when an overlapping tick already claimed the day', async () => {
+    expect((await tickAt(evening, [app()], 0)).remindersQueued).toBe(0);
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+  it('queues nothing for an application that is not due', async () => {
+    const notDue = [app({ reminderTriedOn: '2026-10-16' }), app({ createdAt: new Date('2026-10-16T12:00:00Z') }), app({ interviews: [{ attempt: 1, status: 'AWAITING_TIMES', requestedAt: created, timesUpdatedAt: null, proposedAt: null, bookedAt: null, bookedStart: null, endedAt: null }] })];
+    expect((await tickAt(evening, notDue)).remindersQueued).toBe(0);
+    // Before 5 PM Pacific nothing is due at all.
+    expect((await tickAt(new Date('2026-10-16T23:59:00Z'), [app()])).remindersQueued).toBe(0);
+    expect(mocks.application.updateMany).not.toHaveBeenCalled();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+  it('no longer sends the old once-only nudge', async () => {
+    // Pending for two days, never nudged, empty counters: before 5 PM nothing is queued, and in
+    // the window the only nudge carries a key.
+    const legacy = app({ nudgedAt: null });
+    expect(await tickAt(new Date('2026-10-16T17:00:00Z'), [legacy])).not.toHaveProperty('nudged');
+    expect(nudges()).toEqual([]);
+    await tickAt(evening, [legacy]);
+    expect(nudges()).toHaveLength(1);
+    expect(nudges().every(([, payload]) => typeof (payload as { key?: unknown }).key === 'string')).toBe(true);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applicationReminderDue, pacificDay, dueForClose, dueForLock, dueForNudge, dueForPost, interviewDone, interviewExpired, interviewHeadsUpDue, interviewReminderDue, joinNoticeDue, latestAttempt, proposalLapsed, reminderActivityTime, reminderDue, reminderLine, reminderQuiet, type ReminderApplication, type ReminderInterview, type ReminderSchedule, type TickInterview, type TickRaid } from './tick-rules';
+import { applicationReminderDue, pacificDay, dueForClose, dueForLock, dueForPost, interviewDone, interviewExpired, interviewHeadsUpDue, interviewReminderDue, joinNoticeDue, latestAttempt, proposalLapsed, reminderActivityTime, reminderDue, reminderLine, reminderQuiet, type ReminderApplication, type ReminderInterview, type ReminderSchedule, type TickInterview, type TickRaid } from './tick-rules';
 
 const startsAt = new Date('2026-10-16T03:00:00.000Z');
 const raid = (over: Partial<TickRaid> = {}): TickRaid => ({ status: 'SCHEDULED', startsAt, durationMin: 180, locksAt: new Date(startsAt.getTime() - 120 * 60_000), postedAt: null, remind72At: null, remind24At: null, ...over });
@@ -34,14 +34,6 @@ describe('tick rules', () => {
     expect(dueForClose(locked, new Date(startsAt.getTime() + 3.9 * 3_600_000))).toBe(false);
     expect(dueForClose(locked, new Date(startsAt.getTime() + 4 * 3_600_000))).toBe(true);
     expect(dueForClose(raid(), new Date(startsAt.getTime() + 5 * 3_600_000))).toBe(false);
-  });
-
-  it('nudges a pending application once after a day', () => {
-    const created = new Date('2026-10-01T00:00:00.000Z');
-    expect(dueForNudge({ status: 'PENDING', createdAt: created, nudgedAt: null }, new Date('2026-10-01T23:59:00.000Z'))).toBe(false);
-    expect(dueForNudge({ status: 'PENDING', createdAt: created, nudgedAt: null }, new Date('2026-10-02T00:01:00.000Z'))).toBe(true);
-    expect(dueForNudge({ status: 'PENDING', createdAt: created, nudgedAt: created }, new Date('2026-10-03T00:00:00.000Z'))).toBe(false);
-    expect(dueForNudge({ status: 'ACCEPTED', createdAt: created, nudgedAt: null }, new Date('2026-10-03T00:00:00.000Z'))).toBe(false);
   });
 });
 

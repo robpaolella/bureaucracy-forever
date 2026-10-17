@@ -7,7 +7,6 @@ import { zonedParts, zonedTimeToUtc } from '@/lib/time';
 
 export const HOUR_MS = 3_600_000;
 export const CLOSE_GRACE_MS = 60 * 60_000;
-export const NUDGE_AFTER_MS = 24 * HOUR_MS;
 export const RECONCILE_EVERY_MS = HOUR_MS;
 
 export type TickRaid = {
@@ -43,11 +42,6 @@ export function dueForLock(raid: TickRaid, now: Date): boolean {
 /** Step 5: an hour after the night ends. */
 export function dueForClose(raid: TickRaid, now: Date): boolean {
   return raid.status === 'LOCKED' && now.getTime() >= raid.startsAt.getTime() + raid.durationMin * 60_000 + CLOSE_GRACE_MS;
-}
-
-/** Step 6. */
-export function dueForNudge(app: { status: string; createdAt: Date; nudgedAt: Date | null }, now: Date): boolean {
-  return app.status === 'PENDING' && app.nudgedAt === null && now.getTime() - app.createdAt.getTime() > NUDGE_AFTER_MS;
 }
 
 const MINUTE_MS = 60_000;

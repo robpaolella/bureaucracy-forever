@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/db', () => ({ db: { ...mocks, $transaction: async (fn: (tx: typeof mocks) => unknown) => fn(mocks) } }));
 vi.mock('@/lib/outbox', () => ({ enqueue: mocks.enqueue }));
-import { decideApplication } from './decisions';
+import { decideApplication, reopenApplication } from './decisions';
 
 const app = { id: 'app', status: 'PENDING', path: 'RAIDER', character: 'Thrall', discordId: 'applicant', discordName: 'thrall' };
 const jobs = () => mocks.enqueue.mock.calls.map(([type, payload]) => [type, payload]);
@@ -47,5 +47,15 @@ describe('deciding an application with an interview in progress', () => {
     expect(await decideApplication('app', 'accepted', { userId: 'officer', name: 'Robert', source: 'discord' })).toBe('conflict');
     expect(mocks.interview.updateMany).not.toHaveBeenCalled();
     expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+});
+
+describe('reopening an application', () => {
+  it('reopens without touching the retired nudgedAt', async () => {
+    mocks.application.findUnique.mockResolvedValue({ id: 'app', status: 'DECLINED' });
+    expect(await reopenApplication('app', { userId: 'officer', name: 'Robert', source: 'web' })).toBe('decided');
+    const [{ data }] = mocks.application.updateMany.mock.calls[0];
+    expect(data).toEqual({ status: 'PENDING', decidedAt: null, decidedByUserId: null, reopenedAt: expect.any(Date) });
+    expect(jobs()).toEqual([['application.reopen', { applicationId: 'app', reopenedBy: 'Robert', source: 'web' }]]);
   });
 });
