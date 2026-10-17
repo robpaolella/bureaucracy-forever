@@ -108,5 +108,23 @@ async function applyResult(type: JobType, payload: Record<string, unknown>, resu
     await db.officerNote.updateMany({ where: { id: String(payload.noteId) }, data: { discordMessageId: messageId } });
     return 'note id stored';
   }
+  if (type === 'application.message.copy') return applyCopyAck(payload, result);
   return undefined;
+}
+
+/**
+ * SYNC-SPEC §13: store the copy's ids on the message from the job's `messageId` and, when the
+ * bot pinged, stamp the application's `relayPingAt`. A skip, a message that no longer exists or
+ * an ack without string ids changes nothing, and never fails the ack.
+ */
+async function applyCopyAck(payload: Record<string, unknown>, result: Record<string, unknown>): Promise<string | undefined> {
+  const copyChannelId = str(result.channelId);
+  const copyMessageId = str(result.messageId);
+  const id = str(payload.messageId);
+  if (!id || !copyChannelId || !copyMessageId) return undefined;
+  const message = await db.applicantMessage.findUnique({ where: { id }, select: { applicationId: true } });
+  if (!message) return undefined;
+  await db.applicantMessage.update({ where: { id }, data: { copyChannelId, copyMessageId } });
+  if (result.pinged === true) await db.application.update({ where: { id: message.applicationId }, data: { relayPingAt: new Date() } });
+  return 'message copy stored';
 }
