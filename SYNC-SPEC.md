@@ -305,7 +305,7 @@ directly from the click; it may reply ephemerally ("You're set to Accept") immed
 | `application.note.delete` | Delete that message. | — | — |
 | `application.decide` | Strip the buttons from the live reminder (`reminder.live`, §6 step 14), if any. Post decision embed (green Accepted / red Declined, by whom, via web or Discord). Retag. DM applicant from the template in `content/dm-templates` (site serves it in the job payload). On ACCEPTED: apply `payload.roles` (`{ add, remove }`, computed by the site: Guild Member, Raider and Trial in, Guest and Social out for the raider path; Guild Member and Social in, Guest out for social). Archive + lock the thread. | `{ dmDelivered: bool }` | — |
 | `application.reopen` | Unarchive, unlock, retag Pending, post "Reopened by X". | — | — |
-| `application.nudge` | `{ applicationId, key }`. A pending-application reminder (§6 step 14, §8 Reminders): re-read `GET /applications/:id`, compare keys, post one line with buttons in the application's thread. A job **without `key`** is the old once-only nudge: message in `OFFICERS_CHANNEL_ID`, "Application from X has been pending 24h" + link, handled as before until the schedule is switched on. | `{ channelId, messageId }`, or `{ skipped: "<reason>" }` | applied only if `key` still equals `reminderKey`: store `reminderChannelId` / `reminderMessageId`, count it, set `reminderLastOn`, clear `reminderKey`. Skipped: clear `reminderKey`, count nothing |
+| `application.nudge` | `{ applicationId, key }`. A pending-application reminder (§6 step 14, §8 Reminders): re-read `GET /applications/:id`, compare keys, post one line with buttons in the application's thread. The site no longer queues the old once-only nudge (a job **without `key`**, §6 step 7); one still in the queue from before the switch is handled as before: message in `OFFICERS_CHANNEL_ID`, "Application from X has been pending 24h" + link. | `{ channelId, messageId }`, or `{ skipped: "<reason>" }` | applied only if `key` still equals `reminderKey`: store `reminderChannelId` / `reminderMessageId`, count it, set `reminderLastOn`, clear `reminderKey`. Skipped: clear `reminderKey`, count nothing |
 | `raid.post` | Post one message in `RAID_SIGNUPS_CHANNEL_ID`: embed (§8) titled `🟢 Template — Ddd Mon D` (+ " · added late" when `payload.late`) + buttons Accept / Tentative / Decline / Join bench / View roster (link); open a thread on it named like the title minus the state marker. | `{ threadId, messageId }` | store on Raid |
 | `raid.update` | Re-render the embed (title prefix and colour carry the state) from `GET /raids/:id`. | — | — |
 | `raid.remind` | Thread message mentioning `payload.discordIds`. For anyone the mention can't reach (left server), skip. | — | — |
@@ -364,10 +364,9 @@ Runs every 60 s, called by the bot. Each step is idempotent and bounded.
    missing HR or SR (officer-placed picks count for their holder). Compute ids at enqueue
    time. If nobody is owed, mark done without a job. Overlapping ticks cannot enqueue twice.
    Returned `reservesReminded` counts jobs enqueued, not empty evaluations.
-7. **Nudge (retired).** Applications PENDING for > 24h with `nudgedAt null` → enqueue
-   `application.nudge` (no `key`), set `nudgedAt`. Runs only until the schedule in step 14 is
-   switched on; the switch turns this step off and step 14 on together, and nothing else
-   changes. The reminder rules moved to step 14 so they run after the interview steps.
+7. **Nudge (retired).** The old once-only nudge (PENDING > 24h → `application.nudge` without
+   `key`, set `nudgedAt`) is switched off; step 14 replaced it. Nothing reads or writes
+   `nudgedAt` any more. The reminder rules are step 14 so they run after the interview steps.
 8. **Reconcile (once per hour).** For every raid and application with a thread id and
    status that implies archived/locked, enqueue `*.update` (the bot's update handler also
    fixes archive/lock/tag state). Cheap insurance against drift.
@@ -387,8 +386,8 @@ overlapping ticks do one thing once; ending an interview also sets `endedAt` and
 `activeKey`. The reply counts them as `interviewsReminded`, `interviewsExpired`,
 `interviewsHeadsUp`, `interviewsLapsed`, `interviewsDone`.
 
-14. **Application reminders.** Replaces step 7 once switched on; reply count
-    `remindersQueued`. Rules below.
+14. **Application reminders.** Switched on, replacing step 7; reply count
+    `remindersQueued` (the old `nudged` count is gone). Rules below.
 
 ### Application reminders (step 14)
 

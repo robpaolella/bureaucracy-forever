@@ -77,7 +77,7 @@ export async function reopenApplication(id: string, by: DecisionActor): Promise<
   const app = await db.application.findUnique({ where: { id }, select: { id: true, status: true } });
   if (!app) return 'missing';
   if (app.status === 'PENDING') return 'conflict';
-  const reopened = await db.application.updateMany({ where: { id: app.id, status: { not: 'PENDING' } }, data: { status: 'PENDING', decidedAt: null, decidedByUserId: null, reopenedAt: new Date(), nudgedAt: null } });
+  const reopened = await db.application.updateMany({ where: { id: app.id, status: { not: 'PENDING' } }, data: { status: 'PENDING', decidedAt: null, decidedByUserId: null, reopenedAt: new Date() } });
   if (reopened.count === 0) return 'conflict';
   await enqueue('application.reopen', { applicationId: app.id, reopenedBy: by.name, source: by.source });
   return 'decided';
