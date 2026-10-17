@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { loadReminder } from '@/lib/application-reminders';
 import { loadApplication } from '@/lib/applications-data';
 import { orderedAnswers } from '@/lib/applications-inbox';
 import { SITE_URL } from '@/lib/config';
@@ -12,11 +13,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const app = await loadApplication(id);
   if (!app) return NextResponse.json({ error: 'No such application.' }, { status: 404, headers: NO_STORE });
-  const interview = await latestInterview(app.id);
+  const [interview, reminder] = await Promise.all([latestInterview(app.id), loadReminder(app.id)]);
   return NextResponse.json(
     {
       ...app,
       interview,
+      reminder: reminder ?? { pending: null, live: null },
       applicantDiscordId: app.discordId || null,
       answers: orderedAnswers(app.answers),
       url: `${SITE_URL}/officers/applications/${app.id}`,

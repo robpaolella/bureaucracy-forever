@@ -2,6 +2,7 @@ import 'server-only';
 
 import type { Prisma } from '@/lib/generated/prisma/client';
 import { db } from '@/lib/db';
+import { applyNudgeAck } from '@/lib/application-reminders';
 import { entityKey, lockExpired, LOCK_TIMEOUT_MS, nextAttempt, oneJobPerEntity, type AckBody, type JobType } from './outbox-rules';
 
 type Tx = Prisma.TransactionClient;
@@ -90,6 +91,9 @@ async function applyResult(type: JobType, payload: Record<string, unknown>, resu
   if (type === 'application.post' && threadId) {
     await db.application.updateMany({ where: { id: String(payload.applicationId) }, data: { discordThreadId: threadId, discordMessageId: messageId } });
     return 'application ids stored';
+  }
+  if (type === 'application.nudge' && typeof payload.key === 'string' && payload.key) {
+    return applyNudgeAck(String(payload.applicationId), payload.key, result);
   }
   if (type === 'raid.post' && threadId) {
     const stored = await db.raid.updateMany({ where: { id: String(payload.raidId) }, data: { discordThreadId: threadId, discordMessageId: messageId } });
