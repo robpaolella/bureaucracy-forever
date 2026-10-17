@@ -92,6 +92,17 @@ describe.skipIf(process.env.TICK_INTEGRATION !== '1')('interview tick steps on P
     expect(await db.interview.findUniqueOrThrow({ where: { id: 'done' } })).toMatchObject({ status: 'DONE', activeKey: null });
     expect(await db.outboxJob.count({ where: { payload: { path: ['interviewId'], equals: 'done' } } })).toBe(0);
   });
+  it('two overlapping ticks queue one application reminder, once per Pacific day', async () => {
+    // Created two days before, ticked at 6 PM Pacific on 2099-06-01 (PDT).
+    const evening = new Date('2099-06-02T01:00:00.000Z');
+    await db.application.create({ data: { id: 'app-rem', discordId: 'd-rem', discordName: 'rem', character: 'rem', path: 'SOCIAL', answers: {}, createdAt: new Date('2099-05-30T20:00:00.000Z') } });
+    const counts = await Promise.all([runTick(evening), runTick(evening)]);
+    expect(counts.reduce((n, c) => n + c.remindersQueued, 0)).toBe(1);
+    const key = '2099-05-30T20:00:00.000Z@2099-06-01';
+    expect((await jobs('application.nudge')).map((j) => j.payload)).toEqual([{ applicationId: 'app-rem', key }]);
+    expect(await db.application.findUniqueOrThrow({ where: { id: 'app-rem' } })).toMatchObject({ reminderTriedOn: '2099-06-01', reminderKey: key, nudgedAt: null });
+    expect((await runTick(new Date(evening.getTime() + 60_000))).remindersQueued).toBe(0);
+  });
   it('two overlapping voice joins announce once', async () => {
     await interview('join', { status: 'BOOKED', bookedStart: start });
     const results = await Promise.all([notifyVoiceJoin('d-app-join', at(-5)), notifyVoiceJoin('d-app-join', at(-5))]);
