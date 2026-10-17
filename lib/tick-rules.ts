@@ -100,3 +100,56 @@ export function joinNoticeDue(i: TickInterview, now: Date): boolean {
   const offset = i.bookedStart.getTime() - now.getTime();
   return offset <= INTERVIEW_JOIN_EARLY_MS && offset >= -INTERVIEW_JOIN_LATE_MS;
 }
+
+/** Application reminders (step 14): the attempt fields the activity time and line read. */
+export type ReminderInterview = {
+  attempt: number;
+  status: TickInterview['status'];
+  requestedAt: Date;
+  timesUpdatedAt: Date | null;
+  proposedAt: Date | null;
+  bookedAt: Date | null;
+  bookedStart: Date | null;
+  endedAt: Date | null;
+};
+
+export type ReminderApplication<I extends ReminderInterview = ReminderInterview> = {
+  createdAt: Date;
+  reopenedAt: Date | null;
+  /** Every officer note, soft-deleted ones included; edits don't count, so only `createdAt` is read. */
+  notes: { createdAt: Date }[];
+  interviews: I[];
+};
+
+export type ReminderLine = 'booking_owed' | 'time_passed' | 'no_time' | 'cancelled' | 'waiting';
+
+/** The latest attempt is the highest `attempt`, whatever order the rows come in. */
+export function latestAttempt<I extends ReminderInterview>(interviews: I[]): I | null {
+  return interviews.reduce<I | null>((latest, i) => (latest === null || i.attempt > latest.attempt ? i : latest), null);
+}
+
+/** The latest of creation, reopen, every note's creation and the latest attempt's timestamps. */
+export function reminderActivityTime(app: ReminderApplication): Date {
+  const latest = latestAttempt(app.interviews);
+  const times = [app.createdAt, app.reopenedAt, ...app.notes.map((n) => n.createdAt), latest?.requestedAt, latest?.timesUpdatedAt, latest?.proposedAt, latest?.bookedAt, latest?.endedAt];
+  return new Date(Math.max(...times.filter((t): t is Date => t instanceof Date).map((t) => t.getTime())));
+}
+
+/** While the latest attempt waits on the applicant or a booked time, the interview flow owns the thread. */
+export function reminderQuiet(app: ReminderApplication): boolean {
+  const status = latestAttempt(app.interviews)?.status;
+  return status === 'AWAITING_TIMES' || status === 'PROPOSED' || status === 'BOOKED';
+}
+
+/** Which line the reminder shows and the time it names; null while quiet. */
+export function reminderLine(app: ReminderApplication): { line: ReminderLine; at: Date } | null {
+  if (reminderQuiet(app)) return null;
+  const activity = reminderActivityTime(app);
+  const latest = latestAttempt(app.interviews);
+  // An attempt that ended before the latest reopen is history.
+  if (!latest || latest.status === 'CLOSED' || (latest.endedAt && app.reopenedAt && latest.endedAt < app.reopenedAt)) return { line: 'waiting', at: activity };
+  if (latest.status === 'TIMES_RECEIVED') return { line: 'booking_owed', at: latest.timesUpdatedAt ?? activity };
+  if (latest.status === 'DONE') return { line: 'time_passed', at: latest.bookedStart ?? activity };
+  if (latest.status === 'NO_TIME') return { line: 'no_time', at: latest.endedAt ?? activity };
+  return { line: 'cancelled', at: latest.endedAt ?? activity };
+}
