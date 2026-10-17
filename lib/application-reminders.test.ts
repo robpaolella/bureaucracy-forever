@@ -117,6 +117,11 @@ describe('applyNudgeAck', () => {
     expect(await applyNudgeAck('a', KEY, { skipped: 'decided' })).toBe('reminder skipped');
     expect(row).toMatchObject({ reminderKey: null, reminderCount: 0, reminderChannelId: null, reminderLastOn: null });
   });
+  it('leaves the key alone when the result has neither ids nor a skip', async () => {
+    expect(await applyNudgeAck('a', KEY, {})).toBe('reminder result ignored');
+    expect(await applyNudgeAck('a', KEY, { channelId: 'c1' })).toBe('reminder result ignored');
+    expect(row.reminderKey).toBe(KEY);
+  });
   it('ignores a stale skip', async () => {
     row.reminderKey = null;
     expect(await applyNudgeAck('a', KEY, { skipped: 'x' })).toBe('stale reminder ignored');

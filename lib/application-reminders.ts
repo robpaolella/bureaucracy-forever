@@ -69,10 +69,12 @@ export async function applyNudgeAck(applicationId: string, key: string, result: 
   const parsed = parseReminderKey(key);
   const channelId = typeof result.channelId === 'string' && result.channelId ? result.channelId : null;
   const messageId = typeof result.messageId === 'string' && result.messageId ? result.messageId : null;
-  if (!parsed || !channelId || !messageId) {
+  if (typeof result.skipped === 'string' && result.skipped) {
     const cleared = await db.application.updateMany({ where: { id: applicationId, reminderKey: key }, data: { reminderKey: null } });
     return cleared.count ? 'reminder skipped' : 'stale reminder ignored';
   }
+  // Neither ids nor a skip: leave the key in place rather than lose a reminder that is still valid.
+  if (!parsed || !channelId || !messageId) return 'reminder result ignored';
   const stored = { reminderKey: null, reminderChannelId: channelId, reminderMessageId: messageId, reminderLastOn: parsed.day };
   // Same activity time: one more reminder. A new one restarts the count at 1.
   const counted = await db.application.updateMany({
