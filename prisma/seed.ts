@@ -37,6 +37,7 @@ async function main() {
   // Wipe in dependency order.
   await db.botRequest.deleteMany();
   await db.outboxJob.deleteMany();
+  await db.applicantMessage.deleteMany();
   await db.officerNote.deleteMany();
   await db.application.deleteMany();
   await db.signup.deleteMany();
@@ -145,6 +146,24 @@ async function main() {
     if (a.read && a.path === 'RAIDER') {
       await db.officerNote.create({
         data: { applicationId: app.id, authorId: officers[2].id, body: 'Logs look clean. Deaths avoided more than damage done.', createdAt: new Date(createdAt.getTime() + 2 * 3600_000) },
+      });
+    }
+    for (const m of a.messages ?? []) {
+      const to = m.direction === 'TO_APPLICANT';
+      await db.applicantMessage.create({
+        data: {
+          applicationId: app.id,
+          direction: m.direction,
+          authorUserId: to ? officers[0].id : null,
+          body: m.body,
+          createdAt: new Date(createdAt.getTime() + m.afterMin * 60_000),
+          status: to ? (m.status ?? 'SENT') : null,
+          copyChannelId: m.copy ? '3000000000000000001' : null,
+          copyMessageId: m.copy ? '3000000000000000002' : null,
+          attachments: Array.from({ length: m.attachments ?? 0 }, (_, n) => ({ id: `${n + 1}`, filename: `sample-${n + 1}.png`, size: 20_000, spoiler: false })),
+          editedAt: m.edited ? new Date(createdAt.getTime() + (m.afterMin + 5) * 60_000) : null,
+          deletedAt: m.deleted ? new Date(createdAt.getTime() + (m.afterMin + 5) * 60_000) : null,
+        },
       });
     }
     // Sample interviews, written directly: no jobs for the bot, no Discord calls.

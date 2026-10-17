@@ -264,6 +264,7 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
     select: {
       id: true, status: true, createdAt: true, reopenedAt: true, reminderTriedOn: true, reminderCount: true, reminderActivityAt: true, reminderLastOn: true,
       notes: { select: { createdAt: true } },
+      messages: { where: { direction: 'TO_APPLICANT' }, select: { direction: true, createdAt: true } },
       interviews: { select: { attempt: true, status: true, requestedAt: true, timesUpdatedAt: true, proposedAt: true, bookedAt: true, bookedStart: true, endedAt: true } },
     },
   });

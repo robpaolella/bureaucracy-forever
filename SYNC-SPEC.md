@@ -8,6 +8,8 @@ fix is a PR to this file first.
 Decisions here were made by Robert and are not open for re-litigation by the implementer:
 web-only intake, rank-based rosters, outbox polling, every officer thread message becomes a
 note, auto-assign Guild Member on accept, no native Discord Events, any member may bench.
+The one exception to "every officer thread message becomes a note" is the officer–applicant
+relay (§13): relay messages are never notes, and bot webhook posts in a thread are ignored.
 
 ---
 
@@ -71,7 +73,9 @@ model Application {
   reminderLastOn      String?                  // Pacific date "YYYY-MM-DD" of the last reminder sent
   reminderChannelId   String?                  // the live reminder's channel (thread or #officers)
   reminderMessageId   String?                  // the live reminder's message
+  relayPingAt         DateTime?                // the last relay ping (§13); null until one is sent
   interviews        Interview[]
+  messages          ApplicantMessage[]
 }
 
 model OfficerNote {
@@ -81,6 +85,29 @@ model OfficerNote {
                                                // or the mirror the bot posted (web-origin)
   editedAt          DateTime?
   deletedAt         DateTime?                  // soft delete; hidden on web, deleted in Discord
+}
+
+enum MessageDirection { TO_APPLICANT FROM_APPLICANT }
+enum MessageStatus    { QUEUED SENT NOT_DELIVERED NOT_SENT }   // TO_APPLICANT only
+
+/// The officer–applicant relay (§13). Separate from OfficerNote, which stays officers-only.
+model ApplicantMessage {
+  id              String   @id @default(cuid())
+  applicationId   String
+  application     Application @relation(fields: [applicationId], references: [id])
+  direction       MessageDirection
+  authorUserId    String?                          // the officer; TO_APPLICANT only
+  body            String                           // may be "" for FROM_APPLICANT with attachments
+  createdAt       DateTime @default(now())         // FROM_APPLICANT: the DM's Discord send time
+  status          MessageStatus?                   // TO_APPLICANT only; null for FROM_APPLICANT
+  dmChannelId     String?                          // the DM (set when sent / received)
+  dmMessageId     String?  @unique
+  copyChannelId   String?                          // the thread (or #officers) copy
+  copyMessageId   String?
+  attachments     Json     @default("[]")          // [{ id, filename, size, spoiler }]
+  editedAt        DateTime?
+  deletedAt       DateTime?                        // FROM_APPLICANT: the text is kept, the copy says deleted
+  @@index([applicationId, createdAt])
 }
 
 model RaidTemplate {
@@ -274,6 +301,12 @@ Any route that takes `Idempotency-Key` may also answer `409 { reason: "in_progre
 | GET | `/needs` | Recruitment needs for `/recruitment` (§9.8): `{ statuses: [high, medium, closed], classes: [{ key, label, specs: [{ name, status }] }] }`, every spec listed, closed unless an officer set it. A spec that fills two raid roles is listed once per role, each with its own status: Feral is `Feral Tank` and `Feral Melee DPS`. |
 | PUT | `/needs` | `{ wowClass, spec, status, byDiscordId }` from `/recruitment`; `spec` is a name from `GET /needs`. `byDiscordId` must be an OFFICER, else 403; 400 for an unknown class, spec or status. The same write as the web needs editor, so the recruitment page, the home teaser and the officer editor show it within a minute. Anything but high also takes the spec's home-page star away. Answers `{ wowClass, spec, status }`. |
 | POST | `/members/sync` | `{ members: [{ discordId, name, avatarUrl, roles }], full }`. Upserts every member's name, avatar, site role, `inGuild` and rank from their Discord roles (§3). With `full`, anyone not listed gets `inGuild = false`. Idempotent; no Idempotency-Key needed. |
+| POST | `/applications/:id/messages` | Officer → applicant relay (§13). `{ byDiscordId, body }`, key = the popup's interaction id. 201 `{ message }` with status `QUEUED`; enqueues `application.message.send`. |
+| POST | `/applicant-messages` | An applicant's DM to the bot (§13). `{ discordId, dmChannelId, dmMessageId, body, createdAt, attachments }`, key = the DM message id. `{ stored: true, applicationId, messageId }` and enqueues `application.message.copy`, or `{ stored: false }`. |
+| PATCH | `/applicant-messages/:dmMessageId` | `{ body }`. Edit of a stored DM (§13). `{ changed, … }`. |
+| DELETE | `/applicant-messages/:dmMessageId` | Delete of a stored DM (§13): marks it deleted, keeps the text. `{ changed, … }`. |
+| GET | `/applicant-messages/open` | For the bot's catch-up (§13): one entry per `PENDING` application. |
+| GET | `/messages/:id` | One relay message for rendering (§13), with `ping`. |
 | POST | `/applications/:id/interview` | Start an interview (§12). `{ byDiscordId, confirmSecond? }`. 201 `{ interview }` (the read shape below). Enqueues `interview.request`. |
 | GET | `/interviews/:id` | Read an interview for rendering (§12): `{ id, applicationId, attempt, status, endReason, applicant: { discordId, characterName }, threadId, timeZone, timesRevision, slots: [ISO], requestedAt, timesUpdatedAt, requestedBy, proposedStart, proposedBy, bookedStart, bookedBy, endedAt, pageUrl, requestDmId, timesMessageId, proposalMessageId, proposalDmId, bookedMessageId }`. `requestedBy`, `proposedBy` and `bookedBy` are `{ discordId, name }` or `null`; `pageUrl` is `<site>/apply/interview`. 404 `{ error }` if unknown. |
 | POST | `/interviews/:id/book` | `{ startsAt, timesRevision, byDiscordId }`. 200 read shape. |
@@ -299,6 +332,8 @@ directly from the click; it may reply ephemerally ("You're set to Accept") immed
 | Type | Bot does | Ack `result` | Site applies result |
 |---|---|---|---|
 | `application.post` | Create forum post in `APPLICATIONS_FORUM_ID`: title `Name — Class (Spec) — Path` (Social: `Name — Social`), tags `[path, Pending]`, starter = embed of all answers + buttons Accept / Decline / Open on web (link). | `{ threadId, messageId }` | store on Application |
+| `application.message.send` | `{ applicationId, messageId }`. DM the applicant an officer's relay message (§13). | `{ dmChannelId, dmMessageId }`, `{ dmDelivered: false }` or `{ notSent: true }` | `SENT` and store the DM ids; `NOT_DELIVERED`; `NOT_SENT`. The site then enqueues `application.message.copy` |
+| `application.message.copy` | `{ applicationId, messageId }`. Post the relay message's thread copy, or edit it in place (§13). | `{ channelId, messageId, pinged }`, or `{ skipped }` | store the copy ids; `pinged` sets `relayPingAt`. `skipped` stores nothing |
 | `application.update` | Re-render starter embed and tags from `GET /applications/:id`. | — | — |
 | `application.note.post` | Post `**Name** (web) · body` in the thread. | `{ messageId }` | store on OfficerNote |
 | `application.note.edit` | Edit that message. | — | — |
@@ -397,7 +432,9 @@ and times of day are in `America/Los_Angeles` ("Pacific"), by calendar day, so D
 shifts a cadence. The reminder is the only thing that nudges; there is no digest.
 
 **Activity time** of an application is the latest of: `createdAt`; `reopenedAt`; the
-`createdAt` of every officer note, soft-deleted ones included (edits don't count); and, from
+`createdAt` of every officer note, soft-deleted ones included (edits don't count); the
+`createdAt` of every officer relay message (`TO_APPLICANT`, §13), whatever its status or the
+application's status (applicant messages never count); and, from
 its **latest** interview attempt (highest `attempt`), `requestedAt`, `timesUpdatedAt` (set when
 times are submitted or really changed; an identical set changes nothing, §12), `proposedAt`,
 `bookedAt` and `endedAt`. Messages the bot posts don't count. It never runs backwards. An
@@ -501,7 +538,8 @@ rows only; answered rows are kept.
   ephemeral with the reason. The visible changes come from the `application.decide` job.
 - **Thread messages**: on `on_message` in an application thread, if the author is not the bot
   and the site says they're an officer, `POST /notes`. On edit/delete, PATCH/DELETE. Messages
-  from non-officers are ignored (they can't see the channel anyway). Requires the
+  from non-officers are ignored (they can't see the channel anyway). Webhook posts
+  (`webhook_id` set, §13) are ignored too. Requires the
   **Message Content** privileged intent — enable it on the bot in the developer portal.
 - Web notes arrive as `application.note.post` and are posted by the bot as
   `**Robert** (web) · text`. The bot ignores its own messages when ingesting.
@@ -517,7 +555,8 @@ rows only; answered rows are kept.
   - `waiting`: "@Officer <name>'s application is still waiting for a decision. Last activity: <t:R>." Buttons: **Accept**, **Decline**, **Set up an interview**.
 - **Before posting**, the bot re-reads `GET /applications/:id`. It acks `{ skipped }` and
   posts nothing when: `reminder.pending` is `null` or its key differs from the job's `key`, or
-  it is past midnight Pacific; or a human (not the bot) posted in the thread in the last 24 h.
+  it is past midnight Pacific; or a human (not the bot, not a webhook post, §13) posted in the
+  thread in the last 24 h.
   The site never sees messages sent while the bot was down, nor image-only ones, so this check
   is the bot's alone.
 - **Post** in the application's thread; unarchive an archived pending thread first. Only the
@@ -584,6 +623,10 @@ rows only; answered rows are kept.
 - Buttons and menus in DMs and threads carry the interview id (custom ids `interview:<id>:…`)
   and survive restarts. A click on a stale control gets the 409 `error` ephemerally and the
   bot removes the controls from that message.
+
+### Relay (§13)
+Rendering rules for the officer–applicant relay (webhook, copies, files, `/message`, catch-up)
+are in §13 Rendering, so the contract reads in one place.
 
 ### `#apply` message
 - Replace the two component buttons with **link buttons**: `Apply as a Raider` →
@@ -803,6 +846,7 @@ Controls are removed or updated on the earlier messages so no live button outlas
 The ack results stored on the row are in §5.
 
 ### Applicant DM copy
+A reply the applicant DMs to the bot is the relay (§13), not part of the interview flow.
 Approved by Robert on 2026-10-15; times render in the applicant's zone (`<t:>`). Officer thread
 lines are plain, neutral in pronouns and have no exclamation marks.
 - Request: "Hi <name>. I'm following up on your application with Bureaucracy. The officers are reviewing it and would like to set up a quick 15–20 minute interview with you. Please share your availability over the next week and I'll schedule your interview." Button: **Share my availability**.
@@ -812,3 +856,173 @@ lines are plain, neutral in pronouns and have no exclamation marks.
 - Proposal: "The officers couldn't make any of your times. Could you do <time> instead?" Buttons: **Accept**, **Decline**.
 - Declined: "Thanks for letting us know. Since we couldn't find a time, an officer will reach out to you directly to arrange one." Expired and lapsed: "Since we couldn't find a time, an officer will reach out to you directly to arrange one."
 - Cancelled: "Your interview on <time> has been cancelled. An officer will be in touch." (<time> is the booked or proposed start; with neither, "Your interview has been cancelled. An officer will be in touch.")
+
+---
+
+## 13. Officer–applicant relay
+
+Officers talk to a pending applicant through the bot, and the applicant answers by DMing the
+bot. The site owns every rule below; the bot relays and renders. Decided with Robert on
+robpaolella/bureaucracy-forever-discord-bot#98; not open for re-litigation. A relay message is an
+`ApplicantMessage` (§3), a separate table from `OfficerNote`: notes stay officers-only, and
+nothing in the relay is ever a note. "Thrall" below stands for the applicant's character name
+(§12).
+
+### Rules
+- **Who and when.** Officers send; `byDiscordId` must resolve to an OFFICER, else 403
+  `{ reason: "forbidden", error }`. The relay works only while the application is `PENDING`,
+  both ways. Sending to a decided application is 409 `{ reason: "not_pending", error }` with
+  `error` "This application has been decided, so I can't pass messages on. DM them yourself if
+  you need to." Reopening turns the relay back on. Unknown application: 404 `{ error }`.
+- **Lengths.** An officer message is 1–1,500 characters after trimming (else 400
+  `{ reason: "invalid", error }`). An applicant DM is up to 4,000 characters (Discord Nitro; more
+  is 400 `invalid`). An applicant DM with no text but at least one attachment is valid; with
+  neither it is 400 `invalid`. Officers send text only.
+- **Which application.** A DM belongs to the sender's most recent application (by `createdAt`).
+  Someone with no application, or whose message the rule below refuses, is `{ stored: false }`.
+- **When an applicant DM is stored.** Only if, at the DM's Discord send time (`createdAt` in
+  the request), the sender's application was `PENDING`: the DM is later than the application's
+  `createdAt` and latest `reopenedAt`, and the application is `PENDING` now or the DM is earlier
+  than `decidedAt`. Otherwise `{ stored: false }` and the bot does nothing: no reply, no
+  reaction. A stored message belongs to that application for good, whatever happens to it
+  later.
+- **Edits and deletes** find the message by its DM message id (never by the sender's current
+  application) and apply only while that message's application is `PENDING` and the message is
+  not deleted. A delete keeps the text and sets `deletedAt`; an edit after a delete is ignored.
+  Changed attachments in an edit are ignored; only `body` changes (`editedAt` is set). An edit
+  that changes nothing, an unknown id, or any refusal is `{ changed: false }` (200, nothing
+  enqueued).
+- **Reminder activity** (§6 step 14): every officer message's `createdAt` joins the activity
+  time, whatever its status or the application's status. Applicant messages never do.
+
+### Routes
+All under §4's conventions; each write takes `Idempotency-Key`.
+
+- `POST /applications/:id/messages` `{ byDiscordId, body }` (key = the popup's interaction id)
+  → 201 `{ message }` (the `GET /messages/:id` message shape) with status `QUEUED`, and
+  enqueues `application.message.send`. Refusals: 403 `forbidden`, 409 `not_pending`, 400
+  `invalid` (above).
+- `POST /applicant-messages` `{ discordId, dmChannelId, dmMessageId, body, createdAt,
+  attachments }` (key = the DM message id; `attachments` is `[{ id, filename, size, spoiler }]`)
+  → `{ stored: true, applicationId, messageId }` and enqueues `application.message.copy`, or
+  `{ stored: false }`. A repeat of a stored `dmMessageId` (`dmMessageId` is unique) is a no-op
+  success returning the same reply and enqueueing nothing.
+- `PATCH /applicant-messages/:dmMessageId` `{ body }` (key = `<dmMessageId>:edit:<the edit's
+  Discord timestamp>`) and `DELETE /applicant-messages/:dmMessageId` (key =
+  `<dmMessageId>:delete`) → `{ changed: true, applicationId, messageId }`, updating or marking
+  deleted and enqueueing `application.message.copy`, or `{ changed: false }` when the rules say
+  no.
+- `GET /applicant-messages/open` → `{ open: [{ applicationId, applicantDiscordId, since,
+  afterDmMessageId }] }`, one per `PENDING` application. `since` is the latest of `createdAt`
+  and `reopenedAt` (ISO); `afterDmMessageId` is the latest stored applicant DM id, or `null`.
+  For the bot's catch-up.
+- `GET /messages/:id` → `{ id, direction, status, body, createdAt, editedAt, deletedAt,
+  attachments, dmChannelId, dmMessageId, copyChannelId, copyMessageId, author, applicant,
+  application, pageUrl, ping }`. `author` is `{ discordId, name }` for `TO_APPLICANT` and `null`
+  otherwise; `applicant` is `{ discordId, characterName }`; `application` is `{ id, status,
+  threadId }`; `pageUrl` is the application's web page. `ping` is what the copy may mention:
+  - `null` when the message is `TO_APPLICANT`, when a copy already exists (`copyMessageId` set,
+    so edits and deletes never re-ping), or when `relayPingAt` is less than 10 minutes old;
+  - otherwise the Discord id of the officer who most recently messaged this applicant through
+    the relay, if they are still an OFFICER, else `"role"` (the Officer role). With no officer
+    message yet it is `"role"`.
+  404 `{ error }` if unknown.
+
+### Jobs
+Entity `application:<id>` (`entityKey` maps `application.message.*` there), so they run in
+order with that application's other jobs. As in §12, **every handler re-reads
+`GET /messages/:id` and renders from it, never from the payload alone**. Each job does one
+Discord effect, so a failed copy never resends the DM.
+
+- `application.message.send` `{ applicationId, messageId }`. Only when the message is
+  `QUEUED` and the application is `PENDING`; a `QUEUED` message on an application that is no
+  longer `PENDING` acks `{ notSent: true }` → `NOT_SENT`; a message that is not `QUEUED` at all
+  (a stale delivery) acks `{ skipped: "<status>" }` and changes nothing. The DM is
+  "**<officer name> (Bureaucracy officer):**", the text, then "-# Reply here and I'll pass your
+  answer to the officers.", mentions suppressed. Ack `{ dmChannelId, dmMessageId }` → `SENT`,
+  stored with those ids; `{ dmDelivered: false }` when Discord refuses (error 50007, or the
+  person is not a member) → `NOT_DELIVERED`, never retried. Any other error fails the job so it
+  retries (§1.7). The site applies each ack only to a message still `QUEUED`, and enqueues
+  `application.message.copy` after any of the three.
+- `application.message.copy` `{ applicationId, messageId }`. Posts the copy (rendering below),
+  or edits it in place when `copyMessageId` is set. Ack `{ channelId, messageId, pinged }`: the
+  site stores the copy ids, and `pinged: true` sets `relayPingAt` to now. `{ skipped:
+  "<reason>" }` stores nothing. A `TO_APPLICANT` message still `QUEUED` is skipped.
+- A rare duplicate DM or copy after a lost ack is accepted, as in §12: the retry finds the
+  message still `QUEUED` (or the copy ids unset) and does the effect again.
+
+### Rendering
+- **Webhook.** One bot-owned webhook on `#applications` (e.g. "Bureaucrat relay"), found by
+  name and owner, created if missing, recreated once if Discord says it is gone. Posts go into
+  the application's thread under the person's name and Discord avatar: the officer's site name
+  (`author.name`), or the applicant's character name. Missing Manage Webhooks fails the job
+  loudly (it retries, then the FAILED alert, §1.7); `/rolecheck` reports it.
+- **Applicant copy.** The text, then "-# 📨 Thrall's DM to the officers", with the `ping`
+  mention on that line. A text over about 1,800 characters is cut and ends "… the rest is on
+  the web", linking `pageUrl`. Deleted: the text stays and the line becomes "-# 📨 Thrall's DM
+  to the officers · deleted by Thrall". Edits replace the text in place.
+- **Officer copy.** `SENT`: the text, then "-# 📨 Sent to Thrall by DM", no pings.
+  `NOT_DELIVERED`: a bot line "I couldn't DM Thrall, their DMs are closed or they've left the
+  server. Your message wasn't sent." `NOT_SENT`: "Not sent: Thrall's application was decided
+  before this went out.", posted only if the thread is still open (decided threads are never
+  unarchived, as §12); otherwise the copy job acks `{ skipped }`.
+- **Files.** Copied with the applicant's message: re-fetch the DM for fresh links, re-upload up
+  to the server's upload limit and Discord's 10 files per message, spoilers kept. A file over
+  the limit: "Thrall sent a file too big to copy here: logs.zip (40 MB). Ask them to send it
+  another way." A file gone before copying is named as no longer available. Attachments are
+  stored as metadata only (`attachments`), never the files.
+- **Where.** The thread; an archived `PENDING` thread is unarchived first. If the thread is
+  missing or the bot cannot post there (not found, forbidden), or the application is no longer
+  `PENDING` when an applicant copy is made, post in `#officers` as the bot ("**Thrall** · DM to
+  the officers" with the text, files and ping) with **Open on web** (link). Other errors retry
+  (§1.7). The same fallback serves a `SENT` officer copy. An edit or delete changes the copy
+  where it was first posted; it keeps the file lines already on it ("too big", "only the first 10", "no longer available") and leaves the
+  files already posted. A `SENT` officer copy without Manage Webhooks fails the job (no post in
+  `#officers`), as an applicant copy does.
+- **Mentions.** Allowed mentions are only the `ping` (a user id, or the Officer role for
+  `"role"`); text typed by anyone never pings.
+- **✅.** The bot reacts ✅ to the applicant's DM once its copy is first posted (thread or
+  `#officers`); a failed reaction is ignored.
+- **Webhook posts** (`webhook_id` set) never become notes (§8) and never count as a human for
+  step 14's 24 h thread check.
+- **Catch-up.** At startup and every 10 minutes, for each `GET /applicant-messages/open` entry,
+  the bot reads that person's DM history oldest first, at most 50 per applicant per round,
+  skipping its own messages, and sends each through `POST /applicant-messages` (a repeat is a
+  no-op, so overlap is safe). It starts after its own progress point, the newest DM it has
+  passed in order without a failure, kept in memory and tied to the entry's `since`; with no
+  progress for that `since` (first round, after a restart, or a reopened application) it starts
+  after `since`. It ignores `afterDmMessageId`, which a live DM can move past an older DM that
+  never arrived. The first failure stops that applicant until the next round. Edits and deletes made while the bot was offline are not
+  recovered (accepted by Robert, Q22). Officer thread notes missed while offline are not caught
+  up either.
+- **`/message`.** Run in an applicant's `#applications` thread (the bot resolves the application
+  as it does for notes), else "Run this in an applicant's thread." The popup is titled "Message
+  Thrall" with one paragraph box labelled "Sent to Thrall as a DM from the bot", hint "Notes you
+  type in the thread stay private. This goes to Thrall.", up to 1,500 characters. Names longer
+  than Discord's 45-character title and label limits (and the hint's limit) are shortened to
+  fit. Submit → `POST /applications/:id/messages` → "Sending to Thrall…" (private). Refusals
+  show the site's `error`.
+
+### Worked examples
+Thrall's application was created Mon 3:30 PM. "Stored" means `POST /applicant-messages` answers
+`{ stored: true }`.
+
+| Case | Events | Result |
+|---|---|---|
+| DM before submitting | Thrall DMs the bot Mon 3:00 PM, before submitting | `{ stored: false }`; no reply, no ✅. Catch-up reads from `since` (3:30 PM), so it is never retried |
+| Decided, reopened, then a DM | Decided Tue 9 AM. DM A Tue 10 AM. Reopened Tue 11 AM. DM B Tue 11:30 AM | A: not stored (not `PENDING`; a catch-up that read it would still refuse, since it is before `reopenedAt`). B: stored |
+| DM from someone with no application | Discord id has none | `{ stored: false }`; the bot says nothing |
+| Edit after the decision | Stored Mon; decided Tue; edited Wed | `{ changed: false }`; the copy keeps the old text |
+| Delete, then edit | Stored; deleted; then edited while `PENDING` | Delete: text kept, `deletedAt` set, copy line "· deleted by Thrall". Edit: `{ changed: false }` |
+| Three DMs in 10 minutes, then one | DMs at 12:00, 12:04, 12:09 and 12:11 | 12:00 pings; its copy ack sets `relayPingAt`. 12:04 and 12:09 have `ping: null`. 12:11 is over 10 minutes after the last ping, so it pings again |
+| Last messaging officer is no longer an officer | An officer messaged Thrall, then lost the role; Thrall replies | `ping: "role"`; the Officer role is mentioned |
+| 3,000-character DM | Nitro DM, no attachments | Stored whole (limit 4,000); the copy is cut near 1,800 characters and ends "… the rest is on the web" with the `pageUrl` link |
+| 40 MB file | DM with `logs.zip` (40 MB) and a small screenshot | Screenshot copied; "Thrall sent a file too big to copy here: logs.zip (40 MB). Ask them to send it another way."; ✅ still added |
+| Deleted thread | The copy job finds no thread (not found) | Posted in `#officers` as "**Thrall** · DM to the officers" with **Open on web**; ✅ added |
+| Officer message queued when decided | Officer submits; the application is decided before the send job runs | Send job acks `{ notSent: true }` → `NOT_SENT`; "Not sent: …" posted only if the thread is still open, else skipped |
+| Officer message to a decided application | Popup submitted after the decision | 409 `not_pending` with the "This application has been decided…" error; nothing queued |
+| Lost ack, send job | DM sent, ack lost | The retry finds the message `QUEUED` and sends the DM again: one rare duplicate DM, accepted |
+| Lost ack, copy job | Copy posted, ack lost | The retry posts a second copy and `relayPingAt` was not set: one rare duplicate, accepted |
+| Lost reply, `POST /applicant-messages` | Site stored it, reply lost | The bot retries under the same key and gets the same reply; nothing is stored or enqueued twice. Same for PATCH and DELETE |
+| Applicant DM with only a file | No text, one attachment | Valid; stored with `body: ""` and the file copied |
+| Not an officer | Someone without the role runs `/message` | 403 `forbidden`; nothing queued |

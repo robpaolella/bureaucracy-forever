@@ -3,6 +3,7 @@ import 'server-only';
 import type { ApplicationPath } from '@/components/recruitment/form-state';
 import { type AppStatus, type InboxItem } from '@/lib/applications-inbox';
 import { db } from '@/lib/db';
+import { discordThreadUrl } from '@/lib/discord-links';
 import { interviewCard, type InterviewCard } from '@/lib/interviews';
 import type { WowClass } from '@/lib/design/class-colors';
 
@@ -41,8 +42,31 @@ export type ApplicationDetail = InboxItem & {
   discordThreadId: string | null;
   /** Null when the application never had an interview. */
   interview: InterviewCard | null;
-  notes: { id: string; author: string; authorClass: WowClass | null; body: string; createdAt: string; source: 'web' | 'discord'; discordMessageId: string | null; editedAt: string | null }[];
+  /** Officer notes and relay messages together, oldest first. */
+  notes: NoteEntry[];
 };
+
+type Sender = { author: string; authorClass: WowClass | null };
+export type NoteEntry =
+  | (Sender & { kind: 'note'; id: string; body: string; createdAt: string; source: 'web' | 'discord'; discordMessageId: string | null; editedAt: string | null })
+  | (Sender & {
+      kind: 'message';
+      id: string;
+      body: string;
+      createdAt: string;
+      direction: 'to' | 'from';
+      marker: 'edited' | 'deleted' | 'not-delivered' | 'not-sent' | null;
+      attachmentCount: number;
+      /** The Discord copy of the message, when it has one. */
+      attachmentUrl: string | null;
+    });
+
+type MessageRow = { id: string; direction: 'TO_APPLICANT' | 'FROM_APPLICANT'; authorUserId: string | null; body: string; createdAt: Date; status: 'QUEUED' | 'SENT' | 'NOT_DELIVERED' | 'NOT_SENT' | null; copyChannelId: string | null; copyMessageId: string | null; attachments: unknown; editedAt: Date | null; deletedAt: Date | null };
+
+function messageMarker(m: MessageRow): Extract<NoteEntry, { kind: 'message' }>['marker'] {
+  if (m.direction === 'FROM_APPLICANT') return m.deletedAt ? 'deleted' : m.editedAt ? 'edited' : null;
+  return m.status === 'NOT_DELIVERED' ? 'not-delivered' : m.status === 'NOT_SENT' ? 'not-sent' : null;
+}
 
 export async function loadApplication(id: string): Promise<ApplicationDetail | null> {
   const r = await db.application.findUnique({
@@ -63,6 +87,10 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
       decidedAt: true,
       decidedBy: { select: { discordName: true } },
       discordThreadId: true,
+      messages: {
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, direction: true, authorUserId: true, body: true, createdAt: true, status: true, copyChannelId: true, copyMessageId: true, attachments: true, editedAt: true, deletedAt: true },
+      },
       notes: {
         where: { deletedAt: null },
         orderBy: { createdAt: 'asc' },
@@ -72,6 +100,43 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
   });
   if (!r) return null;
   const interview = await interviewCard(r.id);
+  const officerIds = [...new Set(r.messages.map((m) => m.authorUserId).filter((x): x is string => !!x))];
+  const officers = officerIds.length
+    ? await db.user.findMany({ where: { id: { in: officerIds } }, select: { id: true, discordName: true, characters: { where: { isMain: true }, take: 1, select: { class: true } } } })
+    : [];
+  const officerById = new Map(officers.map((o) => [o.id, o]));
+  const toClass = (c: string | undefined) => (c?.toLowerCase() as WowClass | undefined) ?? null;
+  const applicantClass = (r.class?.toLowerCase() as WowClass | undefined) ?? null;
+  const noteEntries: NoteEntry[] = r.notes.map((n) => ({
+    kind: 'note',
+    id: n.id,
+    author: n.author.discordName,
+    authorClass: toClass(n.author.characters[0]?.class),
+    body: n.body,
+    createdAt: n.createdAt.toISOString(),
+    source: n.source === 'DISCORD' ? 'discord' : 'web',
+    discordMessageId: n.discordMessageId,
+    editedAt: n.editedAt?.toISOString() ?? null,
+  }));
+  const messageEntries: NoteEntry[] = r.messages.map((m) => {
+    const from = m.direction === 'FROM_APPLICANT';
+    const officer = m.authorUserId ? officerById.get(m.authorUserId) : undefined;
+    return {
+      kind: 'message',
+      id: m.id,
+      author: from ? r.character : (officer?.discordName ?? 'An officer'),
+      authorClass: from ? applicantClass : toClass(officer?.characters[0]?.class),
+      body: m.body,
+      createdAt: m.createdAt.toISOString(),
+      direction: from ? 'from' : 'to',
+      marker: messageMarker(m),
+      attachmentCount: Array.isArray(m.attachments) ? m.attachments.length : 0,
+      // discordThreadUrl builds guild/<path>; channel/message is the path of a message link.
+      attachmentUrl: m.copyChannelId && m.copyMessageId ? discordThreadUrl(`${m.copyChannelId}/${m.copyMessageId}`) : null,
+    };
+  });
+  // Array.sort is stable: at the same instant a note stays before a message.
+  const notes = [...noteEntries, ...messageEntries].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   return {
     id: r.id,
     path: path(r.path),
@@ -89,16 +154,7 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
     decidedBy: r.decidedBy?.discordName ?? null,
     discordThreadId: r.discordThreadId,
     interview,
-    notes: r.notes.map((n) => ({
-      id: n.id,
-      author: n.author.discordName,
-      authorClass: (n.author.characters[0]?.class.toLowerCase() as WowClass | undefined) ?? null,
-      body: n.body,
-      createdAt: n.createdAt.toISOString(),
-      source: n.source === 'DISCORD' ? 'discord' : 'web',
-      discordMessageId: n.discordMessageId,
-      editedAt: n.editedAt?.toISOString() ?? null,
-    })),
+    notes,
   };
 }
 

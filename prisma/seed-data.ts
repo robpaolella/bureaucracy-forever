@@ -241,6 +241,20 @@ export type SeedApplication = {
   read: boolean;
   /** Oldest attempt first. Sample interviews, one per state of the officer Interview card. */
   interviews?: SeedInterview[];
+  /** Sample relay messages, oldest first; `afterMin` is minutes after the application. */
+  messages?: SeedMessage[];
+};
+
+export type SeedMessage = {
+  direction: 'TO_APPLICANT' | 'FROM_APPLICANT';
+  body: string;
+  afterMin: number;
+  status?: 'QUEUED' | 'SENT' | 'NOT_DELIVERED' | 'NOT_SENT';
+  attachments?: number;
+  /** Has a Discord copy in the thread, so the attachment note links to it. */
+  copy?: boolean;
+  edited?: boolean;
+  deleted?: boolean;
 };
 
 const HOUR = 60;
@@ -248,6 +262,18 @@ const HOUR = 60;
 const halfHours = (startMin: number, count: number) => Array.from({ length: count }, (_, i) => startMin + i * 30);
 /** The times an applicant sent: tomorrow evening and the day after, minutes from now. */
 const SAMPLE_TIMES = [...halfHours(26 * HOUR, 6), ...halfHours(50 * HOUR, 4)];
+
+/** One of each row the notes list can show, on a read application that already has a note. */
+const SAMPLE_MESSAGES: Record<string, SeedMessage[]> = {
+  Backlog: [
+    { direction: 'TO_APPLICANT', body: 'Thanks for applying. Which nights can you raid?', afterMin: 4 * HOUR, status: 'SENT' },
+    { direction: 'FROM_APPLICANT', body: 'Both nights. Here is my UI setup.', afterMin: 5 * HOUR, attachments: 1, copy: true },
+    { direction: 'FROM_APPLICANT', body: 'Sorry, ignore that last question about gear.', afterMin: 6 * HOUR, deleted: true },
+    { direction: 'FROM_APPLICANT', body: 'I can also bring consumables every week.', afterMin: 7 * HOUR, edited: true, attachments: 2 },
+    { direction: 'TO_APPLICANT', body: 'Great, we will book a short chat soon.', afterMin: 8 * HOUR, status: 'NOT_DELIVERED' },
+    { direction: 'TO_APPLICANT', body: 'Sending this one again.', afterMin: 9 * HOUR, status: 'NOT_SENT' },
+  ],
+};
 
 /**
  * An interview attempt with every moment as minutes from the seed's half-hour-rounded "now"
@@ -297,6 +323,7 @@ export function buildApplications(): SeedApplication[] {
     daysAgo: i,
     read: i > 3,
     interviews: SAMPLE_INTERVIEWS[character],
+    messages: SAMPLE_MESSAGES[character],
   }));
   apps.push(
     { path: 'SOCIAL', status: 'PENDING', discordName: 'sidebar', character: 'Sidebar', wowClass: null, spec: null, logsUrl: null, answers: { note: 'Friend of Paperclip. Alt runs on weekends.' }, daysAgo: 2, read: true, interviews: [{ status: 'NO_TIME', endReason: 'DECLINED', requestedMin: -44 * HOUR, slotMins: SAMPLE_TIMES.map((m) => m - 60 * HOUR), timesUpdatedMin: -40 * HOUR, proposed: { startMin: -2 * HOUR, by: 1 }, ended: { min: -4 * HOUR, by: null } }] },
