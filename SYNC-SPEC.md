@@ -962,7 +962,13 @@ Discord effect, so a failed copy never resends the DM.
 - **Applicant copy.** The text, then "-# 📨 Thrall's DM to the officers", with the `ping`
   mention on that line. A text over about 1,800 characters is cut and ends "… the rest is on
   the web", linking `pageUrl`. Deleted: the text stays and the line becomes "-# 📨 Thrall's DM
-  to the officers · deleted by Thrall". Edits replace the text in place.
+  to the officers · deleted by Thrall". Edits replace the text in place. Every applicant copy
+  carries a grey **Reply** button (persistent; its custom id is `sync:relay:reply:<applicationId>:<characterName>`,
+  the name cut so the id stays within Discord's 100 characters). It opens the `/message` popup
+  for that application, titled with the name from the id ("Message the applicant" when there
+  is none), and its submit is `/message`'s. It stays on old copies and after a decision (the
+  site then answers with the "has been decided" refusal). Edits and deletes keep it. Officer
+  copies have no **Reply**.
 - **Officer copy.** `SENT`: the text, then "-# 📨 Sent to Thrall by DM", no pings.
   `NOT_DELIVERED`: a bot line "I couldn't DM Thrall, their DMs are closed or they've left the
   server. Your message wasn't sent." `NOT_SENT`: "Not sent: Thrall's application was decided
@@ -976,7 +982,7 @@ Discord effect, so a failed copy never resends the DM.
 - **Where.** The thread; an archived `PENDING` thread is unarchived first. If the thread is
   missing or the bot cannot post there (not found, forbidden), or the application is no longer
   `PENDING` when an applicant copy is made, post in `#officers` as the bot ("**Thrall** · DM to
-  the officers" with the text, files and ping) with **Open on web** (link). Other errors retry
+  the officers" with the text, files and ping) with **Reply** and **Open on web** (link; officer copies get only **Open on web**). Other errors retry
   (§1.7). The same fallback serves a `SENT` officer copy. An edit or delete changes the copy
   where it was first posted; it keeps the file lines already on it ("too big", "only the first 10", "no longer available") and leaves the
   files already posted. A `SENT` officer copy without Manage Webhooks fails the job (no post in
@@ -1020,7 +1026,7 @@ Thrall's application was created Mon 3:30 PM. "Stored" means `POST /applicant-me
 | Last messaging officer is no longer an officer | An officer messaged Thrall, then lost the role; Thrall replies | `ping: "role"`; the Officer role is mentioned |
 | 3,000-character DM | Nitro DM, no attachments | Stored whole (limit 4,000); the copy is cut near 1,800 characters and ends "… the rest is on the web" with the `pageUrl` link |
 | 40 MB file | DM with `logs.zip` (40 MB) and a small screenshot | Screenshot copied; "Thrall sent a file too big to copy here: logs.zip (40 MB). Ask them to send it another way."; ✅ still added |
-| Deleted thread | The copy job finds no thread (not found) | Posted in `#officers` as "**Thrall** · DM to the officers" with **Open on web**; ✅ added |
+| Deleted thread | The copy job finds no thread (not found) | Posted in `#officers` as "**Thrall** · DM to the officers" with **Reply** and **Open on web**; ✅ added |
 | Officer message queued when decided | Officer submits; the application is decided before the send job runs | Send job acks `{ notSent: true }` → `NOT_SENT`; "Not sent: …" posted only if the thread is still open, else skipped |
 | Officer message to a decided application | Popup submitted after the decision | 409 `not_pending` with the "This application has been decided…" error; nothing queued |
 | Lost ack, send job | DM sent, ack lost | The retry finds the message `QUEUED` and sends the DM again: one rare duplicate DM, accepted |
