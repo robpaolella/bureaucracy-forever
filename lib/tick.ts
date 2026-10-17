@@ -6,7 +6,7 @@ import { enqueue } from '@/lib/outbox';
 import { locksAtFor, parseRequirements } from '@/lib/raids';
 import { instanceName, isRosterRank, missingOccurrences, occurrences } from '@/lib/series';
 import { trialCheckInDue } from '@/lib/rank-rules';
-import { dueForClose, dueForLock, dueForNudge, dueForPost, HOUR_MS, interviewDone, interviewExpired, interviewHeadsUpDue, interviewReminderDue, joinNoticeDue, proposalLapsed, reminderDue, INTERVIEW_JOIN_EARLY_MS, INTERVIEW_JOIN_LATE_MS } from '@/lib/tick-rules';
+import { applicationReminderDue, dueForClose, dueForLock, dueForPost, HOUR_MS, interviewDone, interviewExpired, interviewHeadsUpDue, interviewReminderDue, joinNoticeDue, pacificDay, proposalLapsed, reminderActivityTime, reminderDue, INTERVIEW_JOIN_EARLY_MS, INTERVIEW_JOIN_LATE_MS } from '@/lib/tick-rules';
 import { lootEnabled } from '@/lib/flags';
 import { RESERVE_LOCK_MINUTES, reservesLockAt } from '@/lib/loot-rules';
 import { reserveReminderDue, reserveReminderRecipients } from '@/lib/reserve-reminder';
@@ -24,13 +24,13 @@ export type TickCounts = {
   reservesReminded: number;
   locked: number;
   closed: number;
-  nudged: number;
   trialsRaised: number;
   interviewsReminded: number;
   interviewsExpired: number;
   interviewsHeadsUp: number;
   interviewsLapsed: number;
   interviewsDone: number;
+  remindersQueued: number;
   reconciled: number;
 };
 
@@ -91,7 +91,7 @@ function isUniqueViolation(error: unknown): boolean {
  * missed or doubled tick changes nothing but timing.
  */
 export async function runTick(now = new Date()): Promise<TickCounts> {
-  const counts: TickCounts = { generated: 0, rosterAdded: 0, rosterRemoved: 0, posted: 0, reminded: 0, reservesReminded: 0, locked: 0, closed: 0, nudged: 0, trialsRaised: 0, interviewsReminded: 0, interviewsExpired: 0, interviewsHeadsUp: 0, interviewsLapsed: 0, interviewsDone: 0, reconciled: 0 };
+  const counts: TickCounts = { generated: 0, rosterAdded: 0, rosterRemoved: 0, posted: 0, reminded: 0, reservesReminded: 0, locked: 0, closed: 0, trialsRaised: 0, interviewsReminded: 0, interviewsExpired: 0, interviewsHeadsUp: 0, interviewsLapsed: 0, interviewsDone: 0, remindersQueued: 0, reconciled: 0 };
   const roster = await rosterUserIds();
 
   // 1. Generate instances for every active series.
@@ -187,17 +187,6 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
     }
   }
 
-  // 7. Nudge officers about applications pending for a day.
-  const pending = await db.application.findMany({ where: { status: 'PENDING', nudgedAt: null }, select: { id: true, status: true, createdAt: true, nudgedAt: true, character: true } });
-  for (const app of pending) {
-    if (!dueForNudge(app, now)) continue;
-    await db.$transaction(async (tx) => {
-      await tx.application.update({ where: { id: app.id }, data: { nudgedAt: now } });
-      await enqueue('application.nudge', { applicationId: app.id, character: app.character }, tx);
-    });
-    counts.nudged += 1;
-  }
-
   // 7b. Trials: two weeks in (or when an extension runs out), the bot asks officers in
   // #officers to promote or extend, answered through POST /members/:discordId/trial (SYNC-SPEC §3).
   const trials = await db.user.findMany({ where: { rank: 'TRIAL', inGuild: true, trialStartedAt: { not: null }, trialNudgedAt: null }, select: { id: true, discordId: true, rank: true, discordName: true, trialStartedAt: true, trialNudgedAt: true, trialCheckInAt: true } });
@@ -264,6 +253,33 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
       const marked = await db.interview.updateMany({ where: { id: i.id, status: 'BOOKED', bookedStart: i.bookedStart }, data: { status: 'DONE', ...ended } });
       if (marked.count > 0) counts.interviewsDone += 1;
     }
+  }
+
+  // 14. Application reminders, after the interview steps so they see this tick's endings. One
+  // try per application per Pacific day: the conditional update on reminderTriedOn and the job
+  // share a transaction, so overlapping ticks enqueue once.
+  const today = pacificDay(now);
+  const pending = await db.application.findMany({
+    where: { status: 'PENDING', OR: [{ reminderTriedOn: null }, { reminderTriedOn: { not: today } }] },
+    select: {
+      id: true, status: true, createdAt: true, reopenedAt: true, reminderTriedOn: true, reminderCount: true, reminderActivityAt: true, reminderLastOn: true,
+      notes: { select: { createdAt: true } },
+      interviews: { select: { attempt: true, status: true, requestedAt: true, timesUpdatedAt: true, proposedAt: true, bookedAt: true, bookedStart: true, endedAt: true } },
+    },
+  });
+  for (const app of pending) {
+    if (!applicationReminderDue(app, now)) continue;
+    const key = `${reminderActivityTime(app).toISOString()}@${today}`;
+    const queued = await db.$transaction(async (tx) => {
+      const marked = await tx.application.updateMany({
+        where: { id: app.id, status: 'PENDING', OR: [{ reminderTriedOn: null }, { reminderTriedOn: { not: today } }] },
+        data: { reminderTriedOn: today, reminderKey: key },
+      });
+      if (marked.count === 0) return false;
+      await enqueue('application.nudge', { applicationId: app.id, key }, tx);
+      return true;
+    });
+    if (queued) counts.remindersQueued += 1;
   }
 
   // 8. Reconcile once an hour: re-render everything the bot has posted whose state implies
