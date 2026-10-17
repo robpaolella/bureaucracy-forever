@@ -384,6 +384,19 @@ model Application {
   reopenedAt       DateTime?
   /// The 24 h pending nudge was sent.
   nudgedAt         DateTime?
+  /// Pending-application reminders (SYNC-SPEC §6 step 14). The outstanding reminder's key.
+  reminderKey        String?
+  /// Pacific date "YYYY-MM-DD" a reminder was last tried.
+  reminderTriedOn    String?
+  /// Reminders sent for reminderActivityAt.
+  reminderCount      Int       @default(0)
+  /// The activity time reminderCount belongs to.
+  reminderActivityAt DateTime?
+  /// Pacific date "YYYY-MM-DD" of the last reminder sent.
+  reminderLastOn     String?
+  /// The live reminder's channel (thread or #officers) and message.
+  reminderChannelId  String?
+  reminderMessageId  String?
   interviews       Interview[]
 
   @@index([status, createdAt])

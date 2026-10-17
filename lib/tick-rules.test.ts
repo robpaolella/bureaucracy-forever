@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dueForClose, dueForLock, dueForNudge, dueForPost, interviewDone, interviewExpired, interviewHeadsUpDue, interviewReminderDue, joinNoticeDue, proposalLapsed, reminderDue, type TickInterview, type TickRaid } from './tick-rules';
+import { dueForClose, dueForLock, dueForNudge, dueForPost, interviewDone, interviewExpired, interviewHeadsUpDue, interviewReminderDue, joinNoticeDue, latestAttempt, proposalLapsed, reminderActivityTime, reminderDue, reminderLine, reminderQuiet, type ReminderApplication, type ReminderInterview, type TickInterview, type TickRaid } from './tick-rules';
 
 const startsAt = new Date('2026-10-16T03:00:00.000Z');
 const raid = (over: Partial<TickRaid> = {}): TickRaid => ({ status: 'SCHEDULED', startsAt, durationMin: 180, locksAt: new Date(startsAt.getTime() - 120 * 60_000), postedAt: null, remind72At: null, remind24At: null, ...over });
@@ -91,5 +91,73 @@ describe('interview tick rules', () => {
     expect(joinNoticeDue(iv(), at(31))).toBe(false);
     expect(joinNoticeDue(iv({ joinedNotifiedAt: at(-10) }), at(0))).toBe(false);
     expect(joinNoticeDue(iv({ status: 'PROPOSED' }), at(0))).toBe(false);
+  });
+});
+
+describe('application reminder rules', () => {
+  const t = (iso: string) => new Date(`2026-10-${iso}Z`);
+  const attempt = (over: Partial<ReminderInterview> = {}): ReminderInterview => ({ attempt: 1, status: 'AWAITING_TIMES', requestedAt: t('12T18:00:00'), timesUpdatedAt: null, proposedAt: null, bookedAt: null, bookedStart: null, endedAt: null, ...over });
+  const app = (over: Partial<ReminderApplication> = {}): ReminderApplication => ({ createdAt: t('10T18:00:00'), reopenedAt: null, notes: [], interviews: [], ...over });
+
+  it('starts at creation and takes the latest note, soft-deleted or not, ignoring edits', () => {
+    expect(reminderActivityTime(app())).toEqual(t('10T18:00:00'));
+    const deleted = { createdAt: t('11T09:00:00'), editedAt: null, deletedAt: t('11T10:00:00') };
+    const edited = { createdAt: t('10T20:00:00'), editedAt: t('13T12:00:00'), deletedAt: null };
+    expect(reminderActivityTime(app({ notes: [edited, deleted] }))).toEqual(t('11T09:00:00'));
+  });
+
+  it('takes a reopen after an old interview, and never runs backwards', () => {
+    const ended = attempt({ status: 'DONE', bookedAt: t('12T19:00:00'), bookedStart: t('13T02:00:00'), endedAt: t('13T03:00:00') });
+    expect(reminderActivityTime(app({ interviews: [ended] }))).toEqual(t('13T03:00:00'));
+    expect(reminderActivityTime(app({ interviews: [ended], reopenedAt: t('15T17:00:00') }))).toEqual(t('15T17:00:00'));
+  });
+
+  it('reads only the latest attempt, chosen by attempt rather than row order', () => {
+    const second = attempt({ attempt: 2, status: 'TIMES_RECEIVED', requestedAt: t('13T18:00:00'), timesUpdatedAt: t('13T20:00:00') });
+    // The first attempt's stray later timestamp doesn't count once a second attempt exists.
+    const first = attempt({ attempt: 1, status: 'CANCELLED', endedAt: t('14T00:00:00') });
+    expect(latestAttempt([second, first])).toBe(second);
+    expect(latestAttempt([])).toBeNull();
+    expect(reminderActivityTime(app({ interviews: [second, first] }))).toEqual(t('13T20:00:00'));
+    expect(reminderActivityTime(app({ interviews: [first] }))).toEqual(t('14T00:00:00'));
+  });
+
+  it('counts each step of the latest attempt, and an unchanged times submission moves nothing', () => {
+    const requested = attempt();
+    expect(reminderActivityTime(app({ interviews: [requested] }))).toEqual(t('12T18:00:00'));
+    // An identical resubmit leaves timesUpdatedAt where it was (only timesSubmittedAt would move).
+    const received = attempt({ status: 'TIMES_RECEIVED', timesUpdatedAt: t('12T20:00:00') });
+    const resubmitted = { ...received, timesSubmittedAt: t('13T08:00:00') };
+    expect(reminderActivityTime(app({ interviews: [resubmitted] }))).toEqual(t('12T20:00:00'));
+    expect(reminderActivityTime(app({ interviews: [attempt({ status: 'PROPOSED', timesUpdatedAt: t('12T20:00:00'), proposedAt: t('12T21:00:00') })] }))).toEqual(t('12T21:00:00'));
+    expect(reminderActivityTime(app({ interviews: [attempt({ status: 'BOOKED', timesUpdatedAt: t('12T20:00:00'), bookedAt: t('12T22:00:00'), bookedStart: t('14T02:00:00') })] }))).toEqual(t('12T22:00:00'));
+  });
+
+  it('is quiet while the latest attempt waits on times, a proposal or a booking', () => {
+    expect(reminderQuiet(app())).toBe(false);
+    for (const status of ['AWAITING_TIMES', 'PROPOSED', 'BOOKED'] as const) {
+      expect(reminderQuiet(app({ interviews: [attempt({ status })] }))).toBe(true);
+      expect(reminderLine(app({ interviews: [attempt({ status })] }))).toBeNull();
+    }
+    for (const status of ['TIMES_RECEIVED', 'DONE', 'NO_TIME', 'CANCELLED', 'CLOSED'] as const) expect(reminderQuiet(app({ interviews: [attempt({ status })] }))).toBe(false);
+    // Quiet follows the latest attempt, not an earlier booked one.
+    expect(reminderQuiet(app({ interviews: [attempt({ status: 'BOOKED' }), attempt({ attempt: 2, status: 'CANCELLED', endedAt: t('13T00:00:00') })] }))).toBe(false);
+  });
+
+  it('picks the line and its time from the latest attempt', () => {
+    const one = (over: Partial<ReminderInterview>) => reminderLine(app({ interviews: [attempt(over)] }));
+    expect(reminderLine(app())).toEqual({ line: 'waiting', at: t('10T18:00:00') });
+    expect(one({ status: 'TIMES_RECEIVED', timesUpdatedAt: t('12T20:00:00') })).toEqual({ line: 'booking_owed', at: t('12T20:00:00') });
+    expect(one({ status: 'DONE', bookedAt: t('12T22:00:00'), bookedStart: t('14T02:00:00'), endedAt: t('14T03:00:00') })).toEqual({ line: 'time_passed', at: t('14T02:00:00') });
+    expect(one({ status: 'NO_TIME', endedAt: t('15T00:00:00') })).toEqual({ line: 'no_time', at: t('15T00:00:00') });
+    expect(one({ status: 'CANCELLED', endedAt: t('15T01:00:00') })).toEqual({ line: 'cancelled', at: t('15T01:00:00') });
+    expect(one({ status: 'CLOSED', endedAt: t('15T02:00:00') })).toEqual({ line: 'waiting', at: t('15T02:00:00') });
+  });
+
+  it('treats an attempt that ended before the latest reopen as history', () => {
+    const reopened = (over: Partial<ReminderInterview>) => reminderLine(app({ reopenedAt: t('16T17:00:00'), interviews: [attempt(over)] }));
+    for (const status of ['DONE', 'NO_TIME', 'CANCELLED'] as const) expect(reopened({ status, bookedStart: t('13T02:00:00'), endedAt: t('13T03:00:00') })).toEqual({ line: 'waiting', at: t('16T17:00:00') });
+    // An attempt ended after the reopen still gives its own line.
+    expect(reopened({ status: 'NO_TIME', endedAt: t('17T00:00:00') })).toEqual({ line: 'no_time', at: t('17T00:00:00') });
   });
 });
