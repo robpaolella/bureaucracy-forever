@@ -62,7 +62,15 @@ model Application {
   discordThreadId   String?   @unique          // forum post (thread) id
   discordMessageId  String?                    // starter message id
   reopenedAt        DateTime?
-  nudgedAt          DateTime?                  // 24h pending nudge sent
+  nudgedAt          DateTime?                  // old once-only 24h nudge; kept, unused by the §6 step 14 rules
+  // Pending-application reminders (§6 step 14). All additive and nullable (count defaults 0).
+  reminderKey         String?                  // the outstanding reminder's key; null when none
+  reminderTriedOn     String?                  // Pacific date "YYYY-MM-DD" a reminder was last tried
+  reminderCount       Int       @default(0)    // reminders sent for reminderActivityAt
+  reminderActivityAt  DateTime?                // the activity time reminderCount belongs to
+  reminderLastOn      String?                  // Pacific date "YYYY-MM-DD" of the last reminder sent
+  reminderChannelId   String?                  // the live reminder's channel (thread or #officers)
+  reminderMessageId   String?                  // the live reminder's message
   interviews        Interview[]
 }
 
@@ -246,7 +254,7 @@ Any route that takes `Idempotency-Key` may also answer `409 { reason: "in_progre
 | GET | `/outbox?limit=20` | Next pending jobs whose `runAfter` has passed. Marks them RUNNING with `lockedAt`. Jobs locked > 5 min are returned again. |
 | POST | `/outbox/:id/ack` | `{ ok: true, result? }` → DONE, store result, apply it (see §5). `{ ok: false, error }` → attempts+1, PENDING with `runAfter = now + 2^attempts min`, FAILED after 5. |
 | POST | `/tick` | Runs everything due (§6). Idempotent. Returns counts of what it did. |
-| GET | `/applications/:id` | Full application + notes, for rendering, plus `interview`: the latest attempt in the `GET /interviews/:id` shape without `slots`, or `null` if there is none. |
+| GET | `/applications/:id` | Full application + notes, for rendering, plus `interview`: the latest attempt in the `GET /interviews/:id` shape without `slots`, or `null` if there is none, and `reminder`: `{ pending, live }` (§6 step 14, Fresh check). |
 | POST | `/applications/:id/decision` | `{ status: ACCEPTED\|DECLINED, byDiscordId, reason? }`. 409 if not PENDING. |
 | POST | `/applications/:id/reopen` | `{ byDiscordId }`. 409 if PENDING. |
 | POST | `/applications/:id/notes` | `{ discordMessageId, authorDiscordId, body, createdAt }`. Author must resolve to an OFFICER; otherwise 403 and the bot ignores the message. |
@@ -267,7 +275,7 @@ Any route that takes `Idempotency-Key` may also answer `409 { reason: "in_progre
 | PUT | `/needs` | `{ wowClass, spec, status, byDiscordId }` from `/recruitment`; `spec` is a name from `GET /needs`. `byDiscordId` must be an OFFICER, else 403; 400 for an unknown class, spec or status. The same write as the web needs editor, so the recruitment page, the home teaser and the officer editor show it within a minute. Anything but high also takes the spec's home-page star away. Answers `{ wowClass, spec, status }`. |
 | POST | `/members/sync` | `{ members: [{ discordId, name, avatarUrl, roles }], full }`. Upserts every member's name, avatar, site role, `inGuild` and rank from their Discord roles (§3). With `full`, anyone not listed gets `inGuild = false`. Idempotent; no Idempotency-Key needed. |
 | POST | `/applications/:id/interview` | Start an interview (§12). `{ byDiscordId, confirmSecond? }`. 201 `{ interview }` (the read shape below). Enqueues `interview.request`. |
-| GET | `/interviews/:id` | Read an interview for rendering (§12): `{ id, applicationId, attempt, status, endReason, applicant: { discordId, characterName }, threadId, timeZone, timesRevision, slots: [ISO], requestedAt, requestedBy, proposedStart, proposedBy, bookedStart, bookedBy, endedAt, pageUrl, requestDmId, timesMessageId, proposalMessageId, proposalDmId, bookedMessageId }`. `requestedBy`, `proposedBy` and `bookedBy` are `{ discordId, name }` or `null`; `pageUrl` is `<site>/apply/interview`. 404 `{ error }` if unknown. |
+| GET | `/interviews/:id` | Read an interview for rendering (§12): `{ id, applicationId, attempt, status, endReason, applicant: { discordId, characterName }, threadId, timeZone, timesRevision, slots: [ISO], requestedAt, timesUpdatedAt, requestedBy, proposedStart, proposedBy, bookedStart, bookedBy, endedAt, pageUrl, requestDmId, timesMessageId, proposalMessageId, proposalDmId, bookedMessageId }`. `requestedBy`, `proposedBy` and `bookedBy` are `{ discordId, name }` or `null`; `pageUrl` is `<site>/apply/interview`. 404 `{ error }` if unknown. |
 | POST | `/interviews/:id/book` | `{ startsAt, timesRevision, byDiscordId }`. 200 read shape. |
 | POST | `/interviews/:id/propose` | `{ startsAt, byDiscordId }`. 200 read shape. |
 | POST | `/interviews/:id/answer` | `{ discordId, answer: accept\|decline }`. 200 read shape. |
@@ -295,9 +303,9 @@ directly from the click; it may reply ephemerally ("You're set to Accept") immed
 | `application.note.post` | Post `**Name** (web) · body` in the thread. | `{ messageId }` | store on OfficerNote |
 | `application.note.edit` | Edit that message. | — | — |
 | `application.note.delete` | Delete that message. | — | — |
-| `application.decide` | Post decision embed (green Accepted / red Declined, by whom, via web or Discord). Retag. DM applicant from the template in `content/dm-templates` (site serves it in the job payload). On ACCEPTED: apply `payload.roles` (`{ add, remove }`, computed by the site: Guild Member, Raider and Trial in, Guest and Social out for the raider path; Guild Member and Social in, Guest out for social). Archive + lock the thread. | `{ dmDelivered: bool }` | — |
+| `application.decide` | Strip the buttons from the live reminder (`reminder.live`, §6 step 14), if any. Post decision embed (green Accepted / red Declined, by whom, via web or Discord). Retag. DM applicant from the template in `content/dm-templates` (site serves it in the job payload). On ACCEPTED: apply `payload.roles` (`{ add, remove }`, computed by the site: Guild Member, Raider and Trial in, Guest and Social out for the raider path; Guild Member and Social in, Guest out for social). Archive + lock the thread. | `{ dmDelivered: bool }` | — |
 | `application.reopen` | Unarchive, unlock, retag Pending, post "Reopened by X". | — | — |
-| `application.nudge` | Message in `OFFICERS_CHANNEL_ID`: "Application from X has been pending 24h" + link. | — | — |
+| `application.nudge` | `{ applicationId, key }`. A pending-application reminder (§6 step 14, §8 Reminders): re-read `GET /applications/:id`, compare keys, post one line with buttons in the application's thread. A job **without `key`** is the old once-only nudge: message in `OFFICERS_CHANNEL_ID`, "Application from X has been pending 24h" + link, handled as before until the schedule is switched on. | `{ channelId, messageId }`, or `{ skipped: "<reason>" }` | applied only if `key` still equals `reminderKey`: store `reminderChannelId` / `reminderMessageId`, count it, set `reminderLastOn`, clear `reminderKey`. Skipped: clear `reminderKey`, count nothing |
 | `raid.post` | Post one message in `RAID_SIGNUPS_CHANNEL_ID`: embed (§8) titled `🟢 Template — Ddd Mon D` (+ " · added late" when `payload.late`) + buttons Accept / Tentative / Decline / Join bench / View roster (link); open a thread on it named like the title minus the state marker. | `{ threadId, messageId }` | store on Raid |
 | `raid.update` | Re-render the embed (title prefix and colour carry the state) from `GET /raids/:id`. | — | — |
 | `raid.remind` | Thread message mentioning `payload.discordIds`. For anyone the mention can't reach (left server), skip. | — | — |
@@ -356,8 +364,10 @@ Runs every 60 s, called by the bot. Each step is idempotent and bounded.
    missing HR or SR (officer-placed picks count for their holder). Compute ids at enqueue
    time. If nobody is owed, mark done without a job. Overlapping ticks cannot enqueue twice.
    Returned `reservesReminded` counts jobs enqueued, not empty evaluations.
-7. **Nudge.** Applications PENDING for > 24h with `nudgedAt null` → enqueue
-   `application.nudge`, set `nudgedAt`.
+7. **Nudge (retired).** Applications PENDING for > 24h with `nudgedAt null` → enqueue
+   `application.nudge` (no `key`), set `nudgedAt`. Runs only until the schedule in step 14 is
+   switched on; the switch turns this step off and step 14 on together, and nothing else
+   changes. The reminder rules moved to step 14 so they run after the interview steps.
 8. **Reconcile (once per hour).** For every raid and application with a thread id and
    status that implies archived/locked, enqueue `*.update` (the bot's update handler also
    fixes archive/lock/tag state). Cheap insurance against drift.
@@ -376,6 +386,86 @@ Steps 9–13 are each a conditional update on status (and on the field that make
 overlapping ticks do one thing once; ending an interview also sets `endedAt` and clears
 `activeKey`. The reply counts them as `interviewsReminded`, `interviewsExpired`,
 `interviewsHeadsUp`, `interviewsLapsed`, `interviewsDone`.
+
+14. **Application reminders.** Replaces step 7 once switched on; reply count
+    `remindersQueued`. Rules below.
+
+### Application reminders (step 14)
+
+An application that sits PENDING gets a reminder in its thread, at most once per Pacific day,
+in the evening, with the buttons that fit where it stands. Raider and social alike. All dates
+and times of day are in `America/Los_Angeles` ("Pacific"), by calendar day, so DST never
+shifts a cadence. The reminder is the only thing that nudges; there is no digest.
+
+**Activity time** of an application is the latest of: `createdAt`; `reopenedAt`; the
+`createdAt` of every officer note, soft-deleted ones included (edits don't count); and, from
+its **latest** interview attempt (highest `attempt`), `requestedAt`, `timesUpdatedAt` (set when
+times are submitted or really changed; an identical set changes nothing, §12), `proposedAt`,
+`bookedAt` and `endedAt`. Messages the bot posts don't count. It never runs backwards. An
+interview ended late after downtime only delays a reminder.
+
+**Quiet.** While the latest attempt is `AWAITING_TIMES`, `PROPOSED` or `BOOKED`, nothing is
+due: the interview flow owns the thread. `TIMES_RECEIVED` is not quiet (a booking is owed).
+
+**Due.** In the evening window (5 PM to midnight Pacific), on Pacific day D, an application is
+due when all of these hold:
+- it is `PENDING` and not quiet;
+- its activity time is at least 24 h before D's 5 PM (elapsed time, so a 23- or 25-hour day
+  counts as it is);
+- `reminderTriedOn` is not D (one try per application per Pacific day);
+- the cadence allows. With `n` = `reminderCount` when `reminderActivityAt` equals the current
+  activity time, else 0: `n = 0`; or `n < 3` and `reminderLastOn` ≤ D−1; or `n ≥ 3` and
+  `reminderLastOn` ≤ D−3. A new activity time therefore restarts the count.
+
+Applications pending when the schedule is switched on follow the same rules with every count at
+0 (the new fields start empty). A day is never made up: a tick after midnight sees the next day.
+
+**Tick.** For each due application, in one transaction and as a conditional update on
+`reminderTriedOn`, set `reminderTriedOn = D`, set `reminderKey`, and enqueue
+`application.nudge` `{ applicationId, key }`, so overlapping ticks do one thing. `key` is
+`<activity time ISO>@<D>`; the bot treats it as opaque. Skipped, expired or failed tries don't
+count toward the cadence (only `reminderTriedOn` records them), so the next day tries again.
+
+**Line.** The site picks the line from the latest attempt and returns a code; the bot renders
+the copy (§8 Reminders):
+
+| Code | When | `at` |
+|---|---|---|
+| `booking_owed` | latest is `TIMES_RECEIVED` | `timesUpdatedAt` |
+| `time_passed` | latest is `DONE` | `bookedStart` |
+| `no_time` | latest is `NO_TIME` | `endedAt` |
+| `cancelled` | latest is `CANCELLED` | `endedAt` |
+| `waiting` | no interview, or latest is `CLOSED`, or latest ended before the latest `reopenedAt` | the activity time |
+
+A `DONE`, `NO_TIME` or `CANCELLED` attempt that ended before `reopenedAt` is history, so a
+reopened application gets `waiting`.
+
+**Fresh check.** `GET /applications/:id` adds `reminder: { pending, live }`:
+- `pending` is `{ key, line, at, interviewId }` (`line` a code above, `at` ISO, `interviewId`
+  the latest attempt's id or `null`) only while the outstanding key is still valid: the
+  application is `PENDING`, the activity time inside the key is unchanged, it is not quiet, and
+  it is before midnight Pacific of the key's day. Otherwise `null`.
+- `live` is `{ channelId, messageId }` of the last reminder sent, or `null`.
+
+The ack of an `application.nudge` job with a `key` is applied only if that key still equals
+`reminderKey`: store the ids, `reminderCount` +1 (reset to 1 and `reminderActivityAt` set to the
+key's activity time when it differs), `reminderLastOn = D`, clear `reminderKey`. A stale ack is
+ignored. `{ skipped: "<reason>" }` clears the key without counting.
+
+**Worked examples** (October 2026, Pacific, PDT unless noted; "ticks" means the tick that
+runs in the window):
+
+| Case | Activity / events | Result |
+|---|---|---|
+| Before the cut-off | Created Mon Oct 12 4:00 PM | Due Tue Oct 13 (Tue's threshold is Mon 5 PM and 4 PM is before it). First reminder Tue from 5 PM |
+| After the cut-off | Created Mon Oct 12 6:00 PM | Not due Tue (6 PM is after Mon 5 PM). First reminder Wed Oct 14 |
+| Daily, then every third day | Created Mon Oct 12 4 PM, nobody acts | Reminders: Tue 13 (1st, D), Wed 14 (2nd), Thu 15 (3rd, D+2), Sun 18 (4th, D+5: last was D−3), Wed 21 (5th) |
+| A note restarts the count | Reminders sent Tue 13 and Wed 14 (count 2); an officer adds a note Wed 9 PM | The activity time changed, so the count is 0. Not due Thu (threshold Wed 5 PM), due Fri Oct 16 (threshold Thu 5 PM). Fri's reminder is the 1st, so the daily cadence runs again |
+| Downtime, caught up | Due Tue 13 5 PM; bot or site down 5 PM to 9 PM | The 9 PM tick tries Tue and the bot posts it. Next day the cadence continues normally |
+| Downtime past midnight | Due Tue 13; down until 12:30 AM Wed | Tue is lost: a key issued at 11:55 PM is refused by the bot after midnight (fresh check `null`). Wed 14 is a new day with the same state, so it is due Wed 5 PM |
+| Fall back | Activity Sat Oct 31 5:30 PM PDT; Sun Nov 1 is 25 h long | Sun 5 PM PST minus 24 h is Sat 6:00 PM PDT, so due Sun Nov 1. Activity Sat 6:30 PM is not due until Mon |
+| Spring forward | Activity Sat Mar 13 2027 4:00 PM PST; Sun Mar 14 is 23 h long | Sun 5 PM PDT minus 24 h is Sat 4:00 PM PST, so due Sun. Activity 4:30 PM waits until Mon. A reminder Sat Mar 13 followed by Sun Mar 14 is "last on D−1", so Sun is allowed |
+| Reopened, earlier interview `DONE` | Interview `DONE` Oct 6; decided Oct 7; reopened Mon Oct 12 2 PM | Activity time is `reopenedAt`, so not due until Tue Oct 13. The `DONE` attempt ended before `reopenedAt`, so the line is `waiting` ("Last activity"), not `time_passed` |
 
 New roster members: when a user's `rank` becomes a roster rank while `inGuild`, `tick` step 1 also
 adds them to every SCHEDULED future raid. Rank leaving the roster removes their unanswered
@@ -416,6 +506,34 @@ rows only; answered rows are kept.
   **Message Content** privileged intent — enable it on the bot in the developer portal.
 - Web notes arrive as `application.note.post` and are posted by the bot as
   `**Robert** (web) · text`. The bot ignores its own messages when ingesting.
+
+### Reminders (§6 step 14)
+- **Copy** (approved by Robert on 2026-10-16). `@Officer` is a ping of the Officer role;
+  `<character name>` is the applicant's character name (§12); `<t:unix:R>` is a Discord
+  relative timestamp (shown here as "1 day ago") of the line's `at`. Plain, no exclamation marks.
+  - `booking_owed`: "@Officer <name> sent interview times <t:R> and none is booked yet." Buttons: **Book a time**, **Propose another time**.
+  - `time_passed`: "@Officer <name>'s interview time was <t:R> and there's no decision yet." Buttons: **Accept**, **Decline**.
+  - `no_time`: "@Officer No interview time was found with <name> <t:R>. An officer still needs to reach out to arrange one." Buttons: **Set up an interview**, **Accept**, **Decline**.
+  - `cancelled`: "@Officer <name>'s interview was cancelled <t:R>. An officer still needs to get in touch." Buttons: **Set up an interview**, **Accept**, **Decline**.
+  - `waiting`: "@Officer <name>'s application is still waiting for a decision. Last activity: <t:R>." Buttons: **Accept**, **Decline**, **Set up an interview**.
+- **Before posting**, the bot re-reads `GET /applications/:id`. It acks `{ skipped }` and
+  posts nothing when: `reminder.pending` is `null` or its key differs from the job's `key`, or
+  it is past midnight Pacific; or a human (not the bot) posted in the thread in the last 24 h.
+  The site never sees messages sent while the bot was down, nor image-only ones, so this check
+  is the bot's alone.
+- **Post** in the application's thread; unarchive an archived pending thread first. Only the
+  Officer role is pinged. Fall back to `#officers`, with the same line and buttons plus **Open
+  on web** (link), only when the thread is missing or the bot can't post there (not found,
+  forbidden); any other error fails the job so it retries (§4 backoff).
+- **Strip** the previous live reminder's buttons (`reminder.live`) after the new one is posted.
+  `application.decide` strips the live reminder's buttons too. Failing to strip is logged and
+  never retried as a new ping. Ack `{ channelId, messageId }` of the new message.
+- **Buttons** carry the application id, the line's interview id when it has one, and survive
+  restarts. They call the same routes as the thread's own controls (decision, interview start
+  with its `second_not_confirmed` flow, book, propose). A reminder that was missed and is old
+  still works while its action applies; once it doesn't, the click gets the site's refusal
+  `error` ephemerally and the bot strips the buttons from that message.
+- A rare duplicate reminder after a lost ack is accepted, as in §12.
 
 ### `#raid-signups` (text channel, read-only for members, chat in threads)
 - Permissions: Guild Member — deny Send Messages, allow Send Messages in Threads,
@@ -591,7 +709,7 @@ transition and enqueues the same job as the bot route that matches it (the bot's
 | any active | `CANCELLED` | an officer cancels |
 | any active | `CLOSED` | the application is decided, web or Discord, in the same transaction as the decision; reopening revives nothing |
 
-Ending sets `endedAt`, `endedById` (null for the system) and clears `activeKey`, and enqueues
+Interview timestamps feed the reminders' activity time and quiet state (§6 step 14). Ending sets `endedAt`, `endedById` (null for the system) and clears `activeKey`, and enqueues
 `interview.ended` except for `DONE`. Applicant times can only change in `AWAITING_TIMES` or
 `TIMES_RECEIVED`; in every other state the page is read-only and says where things stand.
 
