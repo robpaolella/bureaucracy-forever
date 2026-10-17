@@ -103,24 +103,44 @@ export function ApplicationView({ app, now, threadUrl = null, standaloneUrl = nu
             <p className="text-sm text-fg-3">{DETAIL.noNotes}</p>
           ) : (
             <ul className="flex flex-col gap-3">
-              {app.notes.map((n) => (
-                <li key={n.id} className="flex min-h-11 items-start gap-3">
-                  <ClassAvatar name={n.author} wowClass={n.authorClass} />
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="text-sm font-semibold" style={{ color: n.authorClass ? CLASS_COLORS[n.authorClass].onInk : undefined }}>
-                        {n.author}
-                      </span>
-                      <SourceBadge source={n.source} />
-                      <time dateTime={n.createdAt} className="text-xs text-fg-3">
-                        {relativeDate(new Date(n.createdAt), at)}
-                        {n.editedAt && ` · ${DETAIL.edited}`}
-                      </time>
+              {app.notes.map((n) => {
+                const message = n.kind === 'message' ? n : null;
+                const marker = message?.marker
+                  ? { edited: DETAIL.edited, deleted: DETAIL.deletedBy(app.character), 'not-delivered': DETAIL.notDelivered, 'not-sent': DETAIL.notSent }[message.marker]
+                  : n.kind === 'note' && n.editedAt
+                    ? DETAIL.edited
+                    : null;
+                return (
+                  <li key={`${n.kind}-${n.id}`} className="flex min-h-11 items-start gap-3">
+                    <ClassAvatar name={n.author} wowClass={n.authorClass} />
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-sm font-semibold" style={{ color: n.authorClass ? CLASS_COLORS[n.authorClass].onInk : undefined }}>
+                          {n.author}
+                        </span>
+                        {message ? (
+                          <SourceBadge source="discord" label={message.direction === 'to' ? DETAIL.dmTo(app.character) : DETAIL.dmFrom(app.character)} />
+                        ) : (
+                          <SourceBadge source={n.kind === 'note' ? n.source : 'web'} />
+                        )}
+                        <time dateTime={n.createdAt} className="text-xs text-fg-3">
+                          {relativeDate(new Date(n.createdAt), at)}
+                          {marker && ` · ${marker}`}
+                        </time>
+                      </div>
+                      {n.body && <p className="whitespace-pre-line break-words text-sm leading-[1.6] text-fg-2">{n.body}</p>}
+                      {message && message.attachmentCount > 0 &&
+                        (message.attachmentUrl ? (
+                          <a href={message.attachmentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center self-start text-sm text-teal-text underline-offset-4 hover:underline">
+                            {DETAIL.attachments(message.attachmentCount)} ↗
+                          </a>
+                        ) : (
+                          <p className="text-sm text-fg-3">{DETAIL.attachments(message.attachmentCount)}</p>
+                        ))}
                     </div>
-                    <p className="whitespace-pre-line text-sm leading-[1.6] text-fg-2">{n.body}</p>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           )}
           <NoteComposer applicationId={app.id} />
