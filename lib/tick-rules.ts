@@ -2,6 +2,9 @@
  * What `tick` decides (SYNC-SPEC §6), as pure predicates over a raid's fields and `now`.
  * The database work in lib/tick.ts applies them.
  */
+import { GUILD_TIMEZONE } from '@/lib/config';
+import { zonedParts, zonedTimeToUtc } from '@/lib/time';
+
 export const HOUR_MS = 3_600_000;
 export const CLOSE_GRACE_MS = 60 * 60_000;
 export const NUDGE_AFTER_MS = 24 * HOUR_MS;
@@ -152,4 +155,44 @@ export function reminderLine(app: ReminderApplication): { line: ReminderLine; at
   if (latest.status === 'DONE') return { line: 'time_passed', at: latest.bookedStart ?? activity };
   if (latest.status === 'NO_TIME') return { line: 'no_time', at: latest.endedAt ?? activity };
   return { line: 'cancelled', at: latest.endedAt ?? activity };
+}
+
+/** The Pacific calendar day of an instant, "YYYY-MM-DD" (the format of `reminderTriedOn` and `reminderLastOn`). */
+export function pacificDay(at: Date): string {
+  const p = zonedParts(at, GUILD_TIMEZONE);
+  return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
+}
+
+/** `day` moved back by whole calendar days, so DST never shifts it. */
+function daysBefore(day: string, days: number): string {
+  const [y, m, d] = day.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d - days)).toISOString().slice(0, 10);
+}
+
+export type ReminderSchedule = {
+  status: string;
+  reminderTriedOn: string | null;
+  reminderCount: number;
+  reminderActivityAt: Date | null;
+  reminderLastOn: string | null;
+};
+
+export const REMINDER_HOUR = 17;
+const REMINDER_QUIET_AFTER_MS = 24 * HOUR_MS;
+
+/** Step 14: is a reminder due for this application now? Only from 5 PM to midnight Pacific. */
+export function applicationReminderDue(app: ReminderApplication & ReminderSchedule, now: Date): boolean {
+  if (app.status !== 'PENDING' || reminderQuiet(app)) return false;
+  const p = zonedParts(now, GUILD_TIMEZONE);
+  if (p.hour < REMINDER_HOUR) return false;
+  const today = pacificDay(now);
+  if (app.reminderTriedOn === today) return false;
+  const activity = reminderActivityTime(app);
+  const fivePm = zonedTimeToUtc(p.year, p.month, p.day, REMINDER_HOUR, 0, GUILD_TIMEZONE);
+  if (activity.getTime() > fivePm.getTime() - REMINDER_QUIET_AFTER_MS) return false;
+  // Counts belong to the activity time they were made under; new activity restarts them.
+  const n = app.reminderActivityAt?.getTime() === activity.getTime() ? app.reminderCount : 0;
+  if (n === 0) return true;
+  if (app.reminderLastOn === null) return true;
+  return app.reminderLastOn <= daysBefore(today, n < 3 ? 1 : 3);
 }
