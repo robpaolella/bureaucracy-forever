@@ -5,12 +5,23 @@ const store = vi.hoisted(() => ({
   apps: {} as Record<string, string>,
   users: {} as Record<string, { id: string; role: string }>,
   messages: [] as Msg[],
+  jobs: [] as unknown[][],
+  failRead: false,
   enqueue: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/outbox', () => ({ enqueue: store.enqueue }));
-vi.mock('../../../messages/[id]/message', () => ({ readMessage: async (id: string) => ({ ...store.messages.find((m) => m.id === id), shape: 'GET /messages/:id' }) }));
+vi.mock('../../../messages/[id]/message', () => ({
+  readMessage: async (id: string, client: unknown) => {
+    if (!client) throw new Error('read outside the transaction');
+    if (store.failRead) {
+      store.failRead = false;
+      throw new Error('read failed');
+    }
+    return { ...store.messages.find((m) => m.id === id), shape: 'GET /messages/:id' };
+  },
+}));
 vi.mock('@/lib/db', async () => {
   const { Prisma } = await import('@/lib/generated/prisma/client');
   const tx = {
@@ -37,7 +48,18 @@ vi.mock('@/lib/db', async () => {
     },
     deleteMany: async ({ where }: { where: { key: string } }) => ({ count: requests.delete(where.key) ? 1 : 0 }),
   };
-  return { db: { ...tx, botRequest, $transaction: async (fn: (t: typeof tx) => unknown) => fn(tx) } };
+  // Rolls the store back when the callback throws, as a real transaction would.
+  const $transaction = async (fn: (t: typeof tx) => unknown) => {
+    const before = { messages: store.messages.length, jobs: store.jobs.length };
+    try {
+      return await fn(tx);
+    } catch (e) {
+      store.messages.length = before.messages;
+      store.jobs.length = before.jobs;
+      throw e;
+    }
+  };
+  return { db: { ...tx, botRequest, $transaction } };
 });
 
 import { NOT_PENDING_ERROR } from '@/lib/relay';
@@ -58,7 +80,10 @@ describe('POST /api/bot/applications/:id/messages', () => {
     store.apps = { a1: 'PENDING' };
     store.users = { [JAINA]: { id: 'u1', role: 'OFFICER' }, [GRUNT]: { id: 'u2', role: 'MEMBER' } };
     store.messages = [];
+    store.jobs = [];
+    store.failRead = false;
     store.enqueue.mockReset();
+    store.enqueue.mockImplementation(async (...args: unknown[]) => { store.jobs.push(args); });
   });
 
   it('refuses a request without the bot secret', async () => {
@@ -124,5 +149,15 @@ describe('POST /api/bot/applications/:id/messages', () => {
     expect(store.enqueue).toHaveBeenCalledTimes(1);
     expect((await send(msg('Hi'), { key: 'interaction-2' })).status).toBe(201);
     expect(store.messages).toHaveLength(2);
+  });
+
+  it('rolls the message back when its reply cannot be read, so a retry under the same key sends once', async () => {
+    store.failRead = true;
+    await expect(send(msg('Hi'), { key: 'interaction-retry' })).rejects.toThrow('read failed');
+    expect(store.messages).toHaveLength(0);
+    expect(store.jobs).toHaveLength(0);
+    expect((await send(msg('Hi'), { key: 'interaction-retry' })).status).toBe(201);
+    expect(store.messages).toHaveLength(1);
+    expect(store.jobs).toEqual([['application.message.send', { applicationId: 'a1', messageId: 'm1' }, expect.anything()]]);
   });
 });

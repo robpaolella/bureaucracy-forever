@@ -26,14 +26,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (app.status !== 'PENDING') return reply(409, { reason: 'not_pending', error: NOT_PENDING_ERROR });
     const parsed = parseOfficerMessage(read.body.body);
     if (!parsed.ok) return reply(400, { reason: 'invalid', error: parsed.error });
-    const messageId = await db.$transaction(async (tx) => {
+    // The reply is read inside the transaction: if reading it fails, the message and its job
+    // roll back with it, so the bot's retry under the same key cannot DM twice.
+    const message = await db.$transaction(async (tx) => {
       const row = await tx.applicantMessage.create({
         data: { applicationId: app.id, direction: 'TO_APPLICANT', authorUserId: who.officer.userId, body: parsed.text, status: 'QUEUED' },
         select: { id: true },
       });
       await enqueue('application.message.send', { applicationId: app.id, messageId: row.id }, tx);
-      return row.id;
+      return readMessage(row.id, tx);
     });
-    return reply(201, { message: await readMessage(messageId) });
+    return reply(201, { message });
   });
 }
