@@ -6,18 +6,20 @@ import { authorizeBot, isSnowflake, readJson } from '../../_lib';
 
 const UNCHANGED = () => reply(200, { changed: false });
 
-/**
- * The stored applicant DM an edit or delete applies to (§13): found by DM message id, from the
- * applicant, not deleted, on a `PENDING` application. Null otherwise.
- */
-async function findLive(dmMessageId: string) {
+const attachmentCount = (v: unknown) => (Array.isArray(v) ? v.length : 0);
+
+/** The stored message with this DM id, whatever its state, or null for an unknown or malformed id. */
+async function findMessage(dmMessageId: string) {
   if (!isSnowflake(dmMessageId)) return null;
-  const m = await db.applicantMessage.findUnique({
+  return db.applicantMessage.findUnique({
     where: { dmMessageId },
     select: { id: true, applicationId: true, direction: true, body: true, attachments: true, deletedAt: true, application: { select: { status: true } } },
   });
-  return m && m.direction === 'FROM_APPLICANT' && !m.deletedAt && m.application.status === 'PENDING' ? m : null;
 }
+
+/** Whether an edit or delete applies (§13): from the applicant, not deleted, on a `PENDING` application. */
+const isLive = (m: NonNullable<Awaited<ReturnType<typeof findMessage>>>) =>
+  m.direction === 'FROM_APPLICANT' && !m.deletedAt && m.application.status === 'PENDING';
 
 /** Applies `data` while the message is still live (re-checked in the write), then queues its copy. */
 async function change(m: { id: string; applicationId: string }, data: { body: string; editedAt: Date } | { deletedAt: Date }): Promise<Reply> {
@@ -46,12 +48,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ dm
   if ('deny' in read) return read.deny;
   const { dmMessageId } = await params;
   return withIdempotency(request, async () => {
-    const m = await findLive(dmMessageId);
-    // With no live message there is nothing to compare, so only the body's shape is checked.
-    const attachments = m ? (Array.isArray(m.attachments) ? m.attachments.length : 0) : 1;
-    const parsed = parseApplicantEdit(read.body, attachments);
+    const m = await findMessage(dmMessageId);
+    const parsed = parseApplicantEdit(read.body, m ? attachmentCount(m.attachments) : 0);
     if (!parsed.ok) return reply(400, { reason: 'invalid', error: parsed.error });
-    if (!m || parsed.text === m.body) return UNCHANGED();
+    if (!m || !isLive(m) || parsed.text === m.body) return UNCHANGED();
     return change(m, { body: parsed.text, editedAt: new Date() });
   });
 }
@@ -66,7 +66,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ d
   if (denied) return denied;
   const { dmMessageId } = await params;
   return withIdempotency(request, async () => {
-    const m = await findLive(dmMessageId);
-    return m ? change(m, { deletedAt: new Date() }) : UNCHANGED();
+    const m = await findMessage(dmMessageId);
+    return m && isLive(m) ? change(m, { deletedAt: new Date() }) : UNCHANGED();
   });
 }

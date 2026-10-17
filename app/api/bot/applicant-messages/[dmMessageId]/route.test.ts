@@ -126,6 +126,15 @@ describe('/api/bot/applicant-messages/:dmMessageId', () => {
       expect(store.messages[0].body).toBe('');
     });
 
+    it('refuses empty text with 400 even when the message is unknown, decided or deleted and has no attachment', async () => {
+      expect((await patch({ body: '' }, '100000000000000099')).status).toBe(400);
+      seed({}, 'ACCEPTED');
+      expect((await patch({ body: ' ' })).status).toBe(400);
+      store.messages = [];
+      seed({ deletedAt: new Date() });
+      expect((await patch({ body: '' })).status).toBe(400);
+    });
+
     it('ignores attachments in an edit', async () => {
       seed();
       await patch({ body: 'New', attachments: [{ id: '100000000000000009', filename: 'a.png', size: 1, spoiler: false }] });
