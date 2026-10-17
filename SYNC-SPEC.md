@@ -976,7 +976,9 @@ Discord effect, so a failed copy never resends the DM.
   `PENDING` when an applicant copy is made, post in `#officers` as the bot ("**Thrall** · DM to
   the officers" with the text, files and ping) with **Open on web** (link). Other errors retry
   (§1.7). The same fallback serves a `SENT` officer copy. An edit or delete changes the copy
-  where it was first posted.
+  where it was first posted; it keeps the file lines already on it ("too big", "only the first 10", "no longer available") and leaves the
+  files already posted. A `SENT` officer copy without Manage Webhooks fails the job (no post in
+  `#officers`), as an applicant copy does.
 - **Mentions.** Allowed mentions are only the `ping` (a user id, or the Officer role for
   `"role"`); text typed by anyone never pings.
 - **✅.** The bot reacts ✅ to the applicant's DM once its copy is first posted (thread or
@@ -984,10 +986,13 @@ Discord effect, so a failed copy never resends the DM.
 - **Webhook posts** (`webhook_id` set) never become notes (§8) and never count as a human for
   step 14's 24 h thread check.
 - **Catch-up.** At startup and every 10 minutes, for each `GET /applicant-messages/open` entry,
-  the bot reads that person's DM history after `afterDmMessageId` (else after `since`), oldest
-  first, at most 50 per applicant per round, skipping its own messages, and sends each through
-  `POST /applicant-messages` (a repeat is a no-op, so overlap is safe). The first failure stops
-  that applicant until the next round. Edits and deletes made while the bot was offline are not
+  the bot reads that person's DM history oldest first, at most 50 per applicant per round,
+  skipping its own messages, and sends each through `POST /applicant-messages` (a repeat is a
+  no-op, so overlap is safe). It starts after its own progress point, the newest DM it has
+  passed in order without a failure, kept in memory and tied to the entry's `since`; with no
+  progress for that `since` (first round, after a restart, or a reopened application) it starts
+  after `since`. It ignores `afterDmMessageId`, which a live DM can move past an older DM that
+  never arrived. The first failure stops that applicant until the next round. Edits and deletes made while the bot was offline are not
   recovered (accepted by Robert, Q22). Officer thread notes missed while offline are not caught
   up either.
 - **`/message`.** Run in an applicant's `#applications` thread (the bot resolves the application
