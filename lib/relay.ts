@@ -94,3 +94,32 @@ export function parseApplicantEdit(body: Record<string, unknown>, storedAttachme
   if (!text.trim() && storedAttachmentCount === 0) return { ok: false, error: 'A DM needs text or an attachment.' };
   return { ok: true, text };
 }
+
+export const OFFICER_MESSAGE_MAX = 1500;
+export const NOT_PENDING_ERROR = "This application has been decided, so I can't pass messages on. DM them yourself if you need to.";
+
+/**
+ * An officer's message text (§13): trimmed, then 1–1,500 characters (code points, as Discord's
+ * popup counts them), or the `error` for a 400 `invalid`.
+ */
+export function parseOfficerMessage(body: unknown): { ok: true; text: string } | { ok: false; error: string } {
+  if (typeof body !== 'string') return { ok: false, error: 'body must be text.' };
+  const text = body.trim();
+  if (!text) return { ok: false, error: 'The message is empty.' };
+  if ([...text].length > OFFICER_MESSAGE_MAX) return { ok: false, error: `The message is over ${OFFICER_MESSAGE_MAX} characters.` };
+  return { ok: true, text };
+}
+
+export type SendOutcome = { status: 'SENT'; dmChannelId: string; dmMessageId: string } | { status: 'NOT_DELIVERED' } | { status: 'NOT_SENT' };
+
+/**
+ * What an `application.message.send` ack sets (§13): the DM ids → `SENT`, `{ dmDelivered:
+ * false }` → `NOT_DELIVERED`, `{ notSent: true }` → `NOT_SENT`. A `{ skipped }` or anything
+ * else is null and changes nothing.
+ */
+export function sendOutcome(result: Record<string, unknown>): SendOutcome | null {
+  if (isSnowflake(result.dmChannelId) && isSnowflake(result.dmMessageId)) return { status: 'SENT', dmChannelId: result.dmChannelId, dmMessageId: result.dmMessageId };
+  if (result.dmDelivered === false) return { status: 'NOT_DELIVERED' };
+  if (result.notSent === true) return { status: 'NOT_SENT' };
+  return null;
+}

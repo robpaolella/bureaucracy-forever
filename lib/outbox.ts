@@ -3,6 +3,7 @@ import 'server-only';
 import type { Prisma } from '@/lib/generated/prisma/client';
 import { db } from '@/lib/db';
 import { applyNudgeAck } from '@/lib/application-reminders';
+import { sendOutcome } from '@/lib/relay';
 import { entityKey, lockExpired, LOCK_TIMEOUT_MS, nextAttempt, oneJobPerEntity, type AckBody, type JobType } from './outbox-rules';
 
 type Tx = Prisma.TransactionClient;
@@ -108,8 +109,27 @@ async function applyResult(type: JobType, payload: Record<string, unknown>, resu
     await db.officerNote.updateMany({ where: { id: String(payload.noteId) }, data: { discordMessageId: messageId } });
     return 'note id stored';
   }
+  if (type === 'application.message.send') return applySendAck(payload, result);
   if (type === 'application.message.copy') return applyCopyAck(payload, result);
   return undefined;
+}
+
+/**
+ * SYNC-SPEC §13: an officer message's send result. The status moves only from `QUEUED` (one
+ * conditional update, so a stale or repeated ack changes nothing), and the same transaction
+ * queues the thread copy. A `{ skipped }` changes nothing.
+ */
+async function applySendAck(payload: Record<string, unknown>, result: Record<string, unknown>): Promise<string | undefined> {
+  const outcome = sendOutcome(result);
+  const id = str(payload.messageId);
+  if (!outcome || !id) return undefined;
+  const { status, ...ids } = outcome;
+  return db.$transaction(async (tx) => {
+    const moved = await tx.applicantMessage.updateMany({ where: { id, direction: 'TO_APPLICANT', status: 'QUEUED' }, data: { status, ...ids } });
+    if (moved.count === 0) return 'stale send result ignored';
+    await enqueue('application.message.copy', { applicationId: String(payload.applicationId ?? ''), messageId: id }, tx);
+    return `message ${status.toLowerCase()}`;
+  });
 }
 
 /**
