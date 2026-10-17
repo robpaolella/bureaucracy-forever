@@ -81,3 +81,16 @@ export function relayPing(m: PingInput, now = new Date()): string | null {
   if (m.relayPingAt && now.getTime() - m.relayPingAt.getTime() < PING_QUIET_MS) return null;
   return m.lastOfficer && m.lastOfficer.role === 'OFFICER' ? m.lastOfficer.discordId : 'role';
 }
+
+/**
+ * `PATCH /applicant-messages/:dmMessageId` body (§13): only `body` is read, with the new-DM
+ * length rule. Empty (or whitespace-only) text is valid only when the stored message has an
+ * attachment; attachments in an edit are ignored.
+ */
+export function parseApplicantEdit(body: Record<string, unknown>, storedAttachmentCount: number): { ok: true; text: string } | { ok: false; error: string } {
+  const text = body.body ?? '';
+  if (typeof text !== 'string') return { ok: false, error: 'body must be text.' };
+  if ([...text].length > APPLICANT_DM_MAX) return { ok: false, error: `body is over ${APPLICANT_DM_MAX} characters.` };
+  if (!text.trim() && storedAttachmentCount === 0) return { ok: false, error: 'A DM needs text or an attachment.' };
+  return { ok: true, text };
+}

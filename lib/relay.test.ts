@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { APPLICANT_DM_MAX, inRelayWindow, parseApplicantDm, relayPing } from './relay';
+import { APPLICANT_DM_MAX, inRelayWindow, parseApplicantDm, parseApplicantEdit, relayPing } from './relay';
 
 // SYNC-SPEC §13 worked examples: Thrall's application was created Mon 3:30 PM.
 const at = (s: string) => new Date(`2026-10-${s}`);
@@ -109,5 +109,23 @@ describe('relayPing', () => {
   it('stays quiet under 10 minutes after the last ping and pings again after', () => {
     expect(relayPing({ ...base, relayPingAt: ago(9) }, now)).toBeNull();
     expect(relayPing({ ...base, relayPingAt: ago(11) }, now)).toBe('9');
+  });
+});
+
+describe('parseApplicantEdit', () => {
+  it('keeps the text as sent and ignores attachments', () => {
+    expect(parseApplicantEdit({ body: ' Hi ', attachments: [{}] }, 0)).toEqual({ ok: true, text: ' Hi ' });
+  });
+  it('counts characters, not UTF-16 units: 4,000 passes, 4,001 fails', () => {
+    expect(parseApplicantEdit({ body: '😀'.repeat(APPLICANT_DM_MAX) }, 0).ok).toBe(true);
+    expect(parseApplicantEdit({ body: 'a'.repeat(APPLICANT_DM_MAX + 1) }, 0).ok).toBe(false);
+  });
+  it('allows empty text only with a stored attachment', () => {
+    expect(parseApplicantEdit({ body: ' ' }, 0).ok).toBe(false);
+    expect(parseApplicantEdit({}, 0).ok).toBe(false);
+    expect(parseApplicantEdit({ body: '' }, 1).ok).toBe(true);
+  });
+  it('refuses non-text', () => {
+    expect(parseApplicantEdit({ body: 7 }, 1).ok).toBe(false);
   });
 });
