@@ -58,3 +58,26 @@ export function inRelayWindow(app: WindowApplication, sentAt: Date): boolean {
   if (app.status === 'PENDING') return true;
   return app.decidedAt !== null && t < app.decidedAt.getTime();
 }
+
+/** A relay ping is skipped when the last one is under this old (§13). */
+export const PING_QUIET_MS = 10 * 60 * 1000;
+
+export type PingInput = {
+  direction: string;
+  copyMessageId: string | null;
+  relayPingAt: Date | null;
+  /** The officer who most recently messaged this applicant, if any. */
+  lastOfficer: { discordId: string; role: string } | null;
+};
+
+/**
+ * What an applicant-message copy may mention (§13): `null` for an officer's message, a message
+ * that already has a copy (edits and deletes never re-ping) or a ping under 10 minutes ago;
+ * otherwise the last messaging officer's Discord id while they are still an OFFICER, else
+ * `"role"` (the Officer role).
+ */
+export function relayPing(m: PingInput, now = new Date()): string | null {
+  if (m.direction === 'TO_APPLICANT' || m.copyMessageId) return null;
+  if (m.relayPingAt && now.getTime() - m.relayPingAt.getTime() < PING_QUIET_MS) return null;
+  return m.lastOfficer && m.lastOfficer.role === 'OFFICER' ? m.lastOfficer.discordId : 'role';
+}

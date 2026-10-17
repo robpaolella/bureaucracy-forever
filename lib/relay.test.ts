@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { APPLICANT_DM_MAX, inRelayWindow, parseApplicantDm } from './relay';
+import { APPLICANT_DM_MAX, inRelayWindow, parseApplicantDm, relayPing } from './relay';
 
 // SYNC-SPEC §13 worked examples: Thrall's application was created Mon 3:30 PM.
 const at = (s: string) => new Date(`2026-10-${s}`);
@@ -87,5 +87,27 @@ describe('parseApplicantDm', () => {
     expect(error({ ...valid, createdAt: 'yesterday' })).toMatch(/createdAt/);
     expect(error({ ...valid, createdAt: 1760284800000 })).toMatch(/createdAt/);
     expect(error({ ...valid, body: 42 })).toMatch(/body/);
+  });
+});
+
+describe('relayPing', () => {
+  const now = new Date('2026-10-13T12:00:00Z');
+  const ago = (min: number) => new Date(now.getTime() - min * 60_000);
+  const base = { direction: 'FROM_APPLICANT', copyMessageId: null, relayPingAt: null, lastOfficer: { discordId: '9', role: 'OFFICER' } };
+
+  it('is null for an officer message and for a message that already has a copy', () => {
+    expect(relayPing({ ...base, direction: 'TO_APPLICANT' }, now)).toBeNull();
+    expect(relayPing({ ...base, copyMessageId: 'c1' }, now)).toBeNull();
+  });
+  it('names the last messaging officer while they are still an officer', () => {
+    expect(relayPing(base, now)).toBe('9');
+  });
+  it('falls back to the role when that officer lost the role or none has messaged', () => {
+    expect(relayPing({ ...base, lastOfficer: { discordId: '9', role: 'MEMBER' } }, now)).toBe('role');
+    expect(relayPing({ ...base, lastOfficer: null }, now)).toBe('role');
+  });
+  it('stays quiet under 10 minutes after the last ping and pings again after', () => {
+    expect(relayPing({ ...base, relayPingAt: ago(9) }, now)).toBeNull();
+    expect(relayPing({ ...base, relayPingAt: ago(11) }, now)).toBe('9');
   });
 });
