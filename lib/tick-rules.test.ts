@@ -98,7 +98,8 @@ describe('application reminder rules', () => {
     expect(reminderActivityTime(app({ messages: [sent, reply] }))).toEqual(t('11T09:00:00'));
     expect(reminderActivityTime(app({ messages: [reply] }))).toEqual(t('10T18:00:00'));
     for (const status of ['QUEUED', 'NOT_DELIVERED', 'NOT_SENT']) {
-      expect(reminderActivityTime(app({ messages: [{ ...sent, status, createdAt: t('13T09:00:00') }] }))).toEqual(t('13T09:00:00'));
+      const later = { ...sent, status, createdAt: t('13T09:00:00') };
+      expect(reminderActivityTime(app({ messages: [later] }))).toEqual(t('13T09:00:00'));
     }
   });
 
