@@ -78,7 +78,8 @@ import type { SignupSource } from '@/lib/raids';
 export type { SignupSource };
 
 /** Where a sign-up came from. Always present on a sign-up row, never inferred or hidden. */
-export function SourceBadge({ source, className, ...rest }: Omit<SpanProps, 'children'> & { source: SignupSource }) {
+/** `label` replaces the default wording but keeps the look, e.g. a relay message's "DM to Thrall". */
+export function SourceBadge({ source, label, className, ...rest }: Omit<SpanProps, 'children'> & { source: SignupSource; label?: string }) {
   return (
     <span
       {...rest}
@@ -88,7 +89,7 @@ export function SourceBadge({ source, className, ...rest }: Omit<SpanProps, 'chi
         className,
       )}
     >
-      {source === 'discord' ? 'via Discord' : 'via web'}
+      {label ?? (source === 'discord' ? 'via Discord' : 'via web')}
     </span>
   );
 }
