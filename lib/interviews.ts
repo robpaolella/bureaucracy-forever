@@ -28,7 +28,7 @@ export type InterviewView = {
   id: string; applicationId: string; attempt: number; status: InterviewStatus; endReason: string | null;
   applicant: { discordId: string; characterName: string }; threadId: string | null; timeZone: string | null;
   timesRevision: number; slots: string[]; requestedAt: string; requestedBy: Person; proposedStart: string | null;
-  proposedBy: Person; bookedStart: string | null; bookedBy: Person; endedAt: string | null; pageUrl: string;
+  timesUpdatedAt: string | null; proposedBy: Person; bookedStart: string | null; bookedBy: Person; endedAt: string | null; pageUrl: string;
   requestDmId: string | null; timesMessageId: string | null; proposalMessageId: string | null;
   proposalDmId: string | null; bookedMessageId: string | null;
 };
@@ -71,7 +71,7 @@ async function toView(row: Row, client: Client): Promise<InterviewView> {
     applicant: { discordId: row.application.discordId, characterName: row.application.character },
     threadId: row.application.discordThreadId, timeZone: row.timeZone, timesRevision: row.timesRevision,
     slots: row.slots.map((s) => s.toISOString()), requestedAt: row.requestedAt.toISOString(), requestedBy: person(row.requestedById),
-    proposedStart: iso(row.proposedStart), proposedBy: person(row.proposedById), bookedStart: iso(row.bookedStart),
+    timesUpdatedAt: iso(row.timesUpdatedAt), proposedStart: iso(row.proposedStart), proposedBy: person(row.proposedById), bookedStart: iso(row.bookedStart),
     bookedBy: person(row.bookedById), endedAt: iso(row.endedAt), pageUrl: INTERVIEW_PAGE_URL, requestDmId: row.requestDmId,
     timesMessageId: row.timesMessageId, proposalMessageId: row.proposalMessageId, proposalDmId: row.proposalDmId,
     bookedMessageId: row.bookedMessageId,

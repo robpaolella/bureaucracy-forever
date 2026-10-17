@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const store = vi.hoisted(() => ({ load: vi.fn(), latest: vi.fn() }));
+const store = vi.hoisted(() => ({ load: vi.fn(), latest: vi.fn(), reminder: vi.fn() }));
 vi.mock('@/lib/applications-data', () => ({ loadApplication: store.load }));
 vi.mock('@/lib/interviews', () => ({ latestInterview: store.latest }));
+
+vi.mock('@/lib/application-reminders', () => ({ loadReminder: store.reminder }));
 
 import { GET } from './route';
 
@@ -14,6 +16,7 @@ describe('GET /api/bot/applications/:id interview block', () => {
     process.env.BOT_SHARED_SECRET = 'test-secret';
     store.load.mockReset().mockResolvedValue({ id: 'a1', discordId: '1', answers: [], notes: [] });
     store.latest.mockReset();
+    store.reminder.mockReset().mockResolvedValue({ pending: null, live: null });
   });
 
   it('is null when there is no interview', async () => {
@@ -37,5 +40,13 @@ describe('GET /api/bot/applications/:id interview block', () => {
     store.load.mockResolvedValue(null);
     expect((await call('zzz')).status).toBe(404);
     expect(store.latest).not.toHaveBeenCalled();
+  });
+
+  it('carries the reminder block, live ids included for a decided application', async () => {
+    store.load.mockResolvedValue({ id: 'a1', discordId: '1', status: 'accepted', answers: [], notes: [] });
+    store.latest.mockResolvedValue(null);
+    store.reminder.mockResolvedValue({ pending: null, live: { channelId: 'c', messageId: 'm' } });
+    expect((await (await call()).json()).reminder).toEqual({ pending: null, live: { channelId: 'c', messageId: 'm' } });
+    expect(store.reminder).toHaveBeenCalledWith('a1');
   });
 });
