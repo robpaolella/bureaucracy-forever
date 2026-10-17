@@ -115,6 +115,8 @@ export type ReminderApplication<I extends ReminderInterview = ReminderInterview>
   reopenedAt: Date | null;
   /** Every officer note, soft-deleted ones included; edits don't count, so only `createdAt` is read. */
   notes: { createdAt: Date }[];
+  /** Relay messages (SYNC-SPEC §13); only officers' (`TO_APPLICANT`) count, whatever their status. */
+  messages: { direction: string; createdAt: Date }[];
   interviews: I[];
 };
 
@@ -125,10 +127,14 @@ export function latestAttempt<I extends ReminderInterview>(interviews: I[]): I |
   return interviews.reduce<I | null>((latest, i) => (latest === null || i.attempt > latest.attempt ? i : latest), null);
 }
 
-/** The latest of creation, reopen, every note's creation and the latest attempt's timestamps. */
+/**
+ * The latest of creation, reopen, every note's and officer relay message's creation and the
+ * latest attempt's timestamps. An applicant's relay message never counts.
+ */
 export function reminderActivityTime(app: ReminderApplication): Date {
   const latest = latestAttempt(app.interviews);
-  const times = [app.createdAt, app.reopenedAt, ...app.notes.map((n) => n.createdAt), latest?.requestedAt, latest?.timesUpdatedAt, latest?.proposedAt, latest?.bookedAt, latest?.endedAt];
+  const sent = app.messages.filter((m) => m.direction === 'TO_APPLICANT').map((m) => m.createdAt);
+  const times = [app.createdAt, app.reopenedAt, ...app.notes.map((n) => n.createdAt), ...sent, latest?.requestedAt, latest?.timesUpdatedAt, latest?.proposedAt, latest?.bookedAt, latest?.endedAt];
   return new Date(Math.max(...times.filter((t): t is Date => t instanceof Date).map((t) => t.getTime())));
 }
 

@@ -50,6 +50,7 @@ export async function loadReminder(applicationId: string, now = new Date()): Pro
     select: {
       status: true, createdAt: true, reopenedAt: true, reminderKey: true, reminderChannelId: true, reminderMessageId: true,
       notes: { select: { createdAt: true } },
+      messages: { where: { direction: 'TO_APPLICANT' }, select: { direction: true, createdAt: true } },
       interviews: { select: { id: true, attempt: true, status: true, requestedAt: true, timesUpdatedAt: true, proposedAt: true, bookedAt: true, bookedStart: true, endedAt: true } },
     },
   });

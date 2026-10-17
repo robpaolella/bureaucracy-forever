@@ -3,6 +3,7 @@ import 'server-only';
 import type { Prisma } from '@/lib/generated/prisma/client';
 import { db } from '@/lib/db';
 import { applyNudgeAck } from '@/lib/application-reminders';
+import { sendOutcome } from '@/lib/relay';
 import { entityKey, lockExpired, LOCK_TIMEOUT_MS, nextAttempt, oneJobPerEntity, type AckBody, type JobType } from './outbox-rules';
 
 type Tx = Prisma.TransactionClient;
@@ -108,5 +109,42 @@ async function applyResult(type: JobType, payload: Record<string, unknown>, resu
     await db.officerNote.updateMany({ where: { id: String(payload.noteId) }, data: { discordMessageId: messageId } });
     return 'note id stored';
   }
+  if (type === 'application.message.send') return applySendAck(payload, result);
+  if (type === 'application.message.copy') return applyCopyAck(payload, result);
   return undefined;
+}
+
+/**
+ * SYNC-SPEC §13: an officer message's send result. The status moves only from `QUEUED` (one
+ * conditional update, so a stale or repeated ack changes nothing), and the same transaction
+ * queues the thread copy. A `{ skipped }` changes nothing.
+ */
+async function applySendAck(payload: Record<string, unknown>, result: Record<string, unknown>): Promise<string | undefined> {
+  const outcome = sendOutcome(result);
+  const id = str(payload.messageId);
+  if (!outcome || !id) return undefined;
+  const { status, ...ids } = outcome;
+  return db.$transaction(async (tx) => {
+    const moved = await tx.applicantMessage.updateMany({ where: { id, direction: 'TO_APPLICANT', status: 'QUEUED' }, data: { status, ...ids } });
+    if (moved.count === 0) return 'stale send result ignored';
+    await enqueue('application.message.copy', { applicationId: String(payload.applicationId ?? ''), messageId: id }, tx);
+    return `message ${status.toLowerCase()}`;
+  });
+}
+
+/**
+ * SYNC-SPEC §13: store the copy's ids on the message from the job's `messageId` and, when the
+ * bot pinged, stamp the application's `relayPingAt`. A skip, a message that no longer exists or
+ * an ack without string ids changes nothing, and never fails the ack.
+ */
+async function applyCopyAck(payload: Record<string, unknown>, result: Record<string, unknown>): Promise<string | undefined> {
+  const copyChannelId = str(result.channelId);
+  const copyMessageId = str(result.messageId);
+  const id = str(payload.messageId);
+  if (!id || !copyChannelId || !copyMessageId) return undefined;
+  const message = await db.applicantMessage.findUnique({ where: { id }, select: { applicationId: true } });
+  if (!message) return undefined;
+  await db.applicantMessage.update({ where: { id }, data: { copyChannelId, copyMessageId } });
+  if (result.pinged === true) await db.application.update({ where: { id: message.applicationId }, data: { relayPingAt: new Date() } });
+  return 'message copy stored';
 }
