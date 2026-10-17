@@ -288,6 +288,8 @@ Any route that takes `Idempotency-Key` may also answer `409 { reason: "in_progre
 | PATCH | `/notes/by-message/:discordMessageId` | `{ body }` |
 | DELETE | `/notes/by-message/:discordMessageId` | soft delete |
 | GET | `/raids/:id` | Raid + template + counts + `viewer` block when `?discordId=` is given: `{ standing, response, character, characters?, lootTable, reservesLocked, reservesComplete, reservesUrl }`, or `null` when that member has no sign-up (so cannot reserve). `lootTable` is true when loot is on, the raid's template has at least one loot-table item and the member can reserve; it is false for a member on the Trial rank, who can't set reserves, so the bot shows them no reserve prompt; `reservesLocked` is true from `startsAt − 120 min` (the reserve lock, not the sign-up lock); `reservesComplete` is true only when the member has both a hard and a soft reserve on the raid, as for `raid.reserves.remind`; `reservesUrl` is `<site>/members/calendar/<raidId>?reserves=1`, which opens that member's own reserves window after sign-in when they are Accept or Tentative with a character, the raid is not cancelled and reserves aren't locked, and otherwise just shows the raid page. `character` is the brought character `{ id, name, wowClass, spec, raidRole }` (saved choice, otherwise main), or `null`; `wowClass` and `raidRole` are lowercase. `characters` is the member's list in the `/members/:discordId` format, main first then alts by name, sent only when the member has alts. `POST /raids/:id/respond` answers with the same `viewer` block. The bot must tolerate a missing `character` on older sites and show no character menu without `characters`. Character names are private to this viewer block, never added to the embed (§8). |
+| GET | `/raids?byDiscordId=` | For `/broadcast` (§14). Officers only. `{ raids: [{ id, name, startsAt, status }] }`: every raid whose `startsAt` is at or after now minus 7 days, any `status` (including `CANCELLED` and `DONE`), earliest first, at most 25 (the furthest-future drop off). `name` is the stored raid name; `startsAt` is ISO; `status` is the `RaidStatus`. None: `{ raids: [] }`. Read-only. |
+| GET | `/raids/:id/signups?byDiscordId=` | For `/broadcast` (§14). Officers only. `{ raid: { id, name, startsAt, status }, signups: [{ discordId, response, standing }] }`, one entry per sign-up row: `response` is `ACCEPT`, `TENTATIVE`, `ABSENT` or `null`; `standing` is `ROSTER` or `BENCH`. Checks run in this order: bad bearer 401; missing or malformed `byDiscordId` 400 `{ reason: "invalid", error }`; not an officer (or unknown id) 403 `{ reason: "forbidden", error: "Only officers can send broadcasts." }`; unknown raid 404 `{ error }`. Both routes share the 400 and 403 rules. Read-only. |
 | POST | `/raids/:id/respond` | `{ discordId, response: ACCEPT\|TENTATIVE\|ABSENT, reason?, characterId? }`. Optional `characterId` must belong to the member; invalid/not theirs, or any character with ABSENT, returns 400. Omitted: preserve the saved choice, or use the main for a new sign-up. A new sign-up can choose an alt directly. For an existing choice that differs, write the answer then switch character in the same transaction using the shared reserve rule; a switch refusal rolls back the entire answer and returns its status and `{ reason }`. Success includes `removedReserves: [{ kind, itemName, reason }]` (no item ids; `[]` when none or no switch), so the bot can explain reserves the new character cannot take. Uses `Idempotency-Key`, replaying the complete reply. Rules in §7, including the sign-up lock, are unchanged. `/bench` does not accept character choice. |
 | POST | `/raids/:id/bench` | `{ discordId }` — opt onto the bench. 409 if already on roster. |
 | POST | `/raids/:id/attendance` | `{ byDiscordId, attended: [discordId], absent: [discordId] }`. Officers only, after `startsAt + durationMin`. |
@@ -1026,3 +1028,24 @@ Thrall's application was created Mon 3:30 PM. "Stored" means `POST /applicant-me
 | Lost reply, `POST /applicant-messages` | Site stored it, reply lost | The bot retries under the same key and gets the same reply; nothing is stored or enqueued twice. Same for PATCH and DELETE |
 | Applicant DM with only a file | No text, one attachment | Valid; stored with `body: ""` and the file copied |
 | Not an officer | Someone without the role runs `/message` | 403 `forbidden`; nothing queued |
+
+## 14. Broadcasts
+
+An officer's `/broadcast` can pick **By raid**. The bot lists raids with `GET /raids` and reads one raid's
+answers with `GET /raids/:id/signups` (§4). Both are read-only, need `byDiscordId` to be an officer, and
+write and enqueue nothing. The bot builds the recipient list from the rows; the site never sees the
+statuses the officer ticks.
+
+How the bot reads the statuses, per sign-up row:
+
+| Status ticked | A row matches when |
+|---|---|
+| Accepted | `response` is `ACCEPT` (roster or bench) |
+| Tentative | `response` is `TENTATIVE` (roster or bench) |
+| Absent | `response` is `ABSENT` (roster or bench) |
+| No response | `standing` is `ROSTER` and `response` is `null` |
+| Bench | `standing` is `BENCH`, whatever the `response` |
+
+A member matching any ticked status is included once. Past and cancelled raids are not topped up with
+roster rows (the tick adds them only to future `SCHEDULED` raids), so "No response" on those means only
+the rows that exist.
