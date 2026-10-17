@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dueForClose, dueForLock, dueForNudge, dueForPost, interviewDone, interviewExpired, interviewHeadsUpDue, interviewReminderDue, joinNoticeDue, latestAttempt, proposalLapsed, reminderActivityTime, reminderDue, reminderLine, reminderQuiet, type ReminderApplication, type ReminderInterview, type TickInterview, type TickRaid } from './tick-rules';
+import { applicationReminderDue, pacificDay, dueForClose, dueForLock, dueForNudge, dueForPost, interviewDone, interviewExpired, interviewHeadsUpDue, interviewReminderDue, joinNoticeDue, latestAttempt, proposalLapsed, reminderActivityTime, reminderDue, reminderLine, reminderQuiet, type ReminderApplication, type ReminderInterview, type ReminderSchedule, type TickInterview, type TickRaid } from './tick-rules';
 
 const startsAt = new Date('2026-10-16T03:00:00.000Z');
 const raid = (over: Partial<TickRaid> = {}): TickRaid => ({ status: 'SCHEDULED', startsAt, durationMin: 180, locksAt: new Date(startsAt.getTime() - 120 * 60_000), postedAt: null, remind72At: null, remind24At: null, ...over });
@@ -159,5 +159,105 @@ describe('application reminder rules', () => {
     for (const status of ['DONE', 'NO_TIME', 'CANCELLED'] as const) expect(reopened({ status, bookedStart: t('13T02:00:00'), endedAt: t('13T03:00:00') })).toEqual({ line: 'waiting', at: t('16T17:00:00') });
     // An attempt ended after the reopen still gives its own line.
     expect(reopened({ status: 'NO_TIME', endedAt: t('17T00:00:00') })).toEqual({ line: 'no_time', at: t('17T00:00:00') });
+  });
+});
+
+describe('applicationReminderDue', () => {
+  // Pacific is UTC-7 until 2026-11-01, UTC-8 after; spring forward was 2026-03-08.
+  const u = (iso: string) => new Date(`${iso}Z`);
+  const base = (over: Partial<ReminderApplication & ReminderSchedule> = {}): ReminderApplication & ReminderSchedule => ({
+    createdAt: u('2026-10-10T00:00:00'), reopenedAt: null, notes: [], interviews: [],
+    status: 'PENDING', reminderTriedOn: null, reminderCount: 0, reminderActivityAt: null, reminderLastOn: null, ...over,
+  });
+  const interview = (status: ReminderInterview['status'], over: Partial<ReminderInterview> = {}): ReminderInterview => ({ attempt: 1, status, requestedAt: u('2026-10-01T00:00:00'), timesUpdatedAt: null, proposedAt: null, bookedAt: null, bookedStart: null, endedAt: null, ...over });
+  // 5 PM Pacific on 2026-10-16 is 2026-10-17T00:00Z.
+  const five = u('2026-10-17T00:00:00');
+
+  it('names the Pacific day', () => {
+    expect(pacificDay(u('2026-10-17T06:59:00'))).toBe('2026-10-16');
+    expect(pacificDay(u('2026-10-17T07:00:00'))).toBe('2026-10-17');
+  });
+
+  it('is due exactly 24 h after activity at 5 PM, not a minute less', () => {
+    expect(applicationReminderDue(base({ createdAt: u('2026-10-16T00:00:00') }), five)).toBe(true);
+    expect(applicationReminderDue(base({ createdAt: u('2026-10-16T00:01:00') }), five)).toBe(false);
+  });
+
+  it('only runs from 5 PM until midnight Pacific', () => {
+    expect(applicationReminderDue(base(), u('2026-10-16T23:59:00'))).toBe(false);
+    expect(applicationReminderDue(base(), five)).toBe(true);
+    // A bot down over 5 PM still sends at 9 PM, and 11:59 PM, but not after midnight (the next day's 5 PM is the next try).
+    expect(applicationReminderDue(base(), u('2026-10-17T04:00:00'))).toBe(true);
+    expect(applicationReminderDue(base(), u('2026-10-17T06:59:00'))).toBe(true);
+    expect(applicationReminderDue(base(), u('2026-10-17T07:00:00'))).toBe(false);
+  });
+
+  it('measures 24 h as elapsed time on both DST change days', () => {
+    // Fall back 2026-11-01: 5 PM PST is 2026-11-02T01:00Z on the 1st, a 25 h day.
+    const fall = u('2026-11-02T01:00:00');
+    expect(applicationReminderDue(base({ createdAt: u('2026-11-01T01:00:00') }), fall)).toBe(true);
+    expect(applicationReminderDue(base({ createdAt: u('2026-11-01T01:01:00') }), fall)).toBe(false);
+    expect(applicationReminderDue(base(), u('2026-11-02T00:59:00'))).toBe(false);
+    // Spring forward 2026-03-08: 5 PM PDT is 2026-03-09T00:00Z.
+    const spring = u('2026-03-09T00:00:00');
+    expect(applicationReminderDue(base({ createdAt: u('2026-03-08T00:00:00') }), spring)).toBe(true);
+    expect(applicationReminderDue(base({ createdAt: u('2026-03-08T00:01:00') }), spring)).toBe(false);
+    expect(applicationReminderDue(base({ createdAt: u('2026-03-01T00:00:00') }), u('2026-03-08T23:59:00'))).toBe(false);
+  });
+
+  it('is not due unless pending', () => {
+    for (const status of ['ACCEPTED', 'DECLINED']) expect(applicationReminderDue(base({ status }), five)).toBe(false);
+  });
+
+  it('does not try a day twice', () => {
+    expect(applicationReminderDue(base({ reminderTriedOn: '2026-10-16' }), five)).toBe(false);
+    expect(applicationReminderDue(base({ reminderTriedOn: '2026-10-15' }), five)).toBe(true);
+  });
+
+  it('is quiet while the interview flow owns the thread', () => {
+    for (const status of ['AWAITING_TIMES', 'PROPOSED', 'BOOKED'] as const) expect(applicationReminderDue(base({ interviews: [interview(status)] }), five)).toBe(false);
+    for (const status of ['TIMES_RECEIVED', 'DONE', 'NO_TIME', 'CANCELLED', 'CLOSED'] as const) expect(applicationReminderDue(base({ interviews: [interview(status, { endedAt: u('2026-10-02T00:00:00') })] }), five)).toBe(true);
+  });
+
+  it('follows the D, D+1, D+2, D+5 cadence', () => {
+    const activity = u('2026-10-10T00:00:00');
+    const sent = (count: number, lastOn: string) => base({ reminderActivityAt: activity, reminderCount: count, reminderLastOn: lastOn });
+    const at = (day: number) => u(`2026-10-${String(day + 1).padStart(2, '0')}T00:00:00`); // 5 PM Pacific on `day`
+    // First reminder on D=16, then D+1, D+2 (three sent), then not until D+5.
+    expect(applicationReminderDue(sent(1, '2026-10-16'), at(16))).toBe(false);
+    expect(applicationReminderDue(sent(1, '2026-10-16'), at(17))).toBe(true);
+    expect(applicationReminderDue(sent(2, '2026-10-17'), at(18))).toBe(true);
+    expect(applicationReminderDue(sent(3, '2026-10-18'), at(19))).toBe(false);
+    expect(applicationReminderDue(sent(3, '2026-10-18'), at(20))).toBe(false);
+    expect(applicationReminderDue(sent(3, '2026-10-18'), at(21))).toBe(true);
+    expect(applicationReminderDue(sent(7, '2026-10-18'), at(21))).toBe(true);
+  });
+
+  it('counts calendar days across a month and a DST change', () => {
+    expect(applicationReminderDue(base({ createdAt: u('2026-10-01T00:00:00'), reminderActivityAt: u('2026-10-01T00:00:00'), reminderCount: 3, reminderLastOn: '2026-10-29' }), u('2026-11-01T00:00:00'))).toBe(false);
+    expect(applicationReminderDue(base({ createdAt: u('2026-10-01T00:00:00'), reminderActivityAt: u('2026-10-01T00:00:00'), reminderCount: 3, reminderLastOn: '2026-10-29' }), u('2026-11-02T01:00:00'))).toBe(true);
+  });
+
+  it('restarts the count on new activity', () => {
+    const old = u('2026-10-10T00:00:00');
+    const due = base({ reminderActivityAt: old, reminderCount: 2, reminderLastOn: '2026-10-16' });
+    expect(applicationReminderDue(due, u('2026-10-18T00:00:00'))).toBe(true); // day 17, 2 sent, last on D-1
+    // A note on the 16th; by the 17th evening it is 24 h old, count restarts at 0, even though D-1 would also allow it.
+    const noted = { ...due, reminderLastOn: '2026-10-17', notes: [{ createdAt: u('2026-10-17T00:00:00') }] };
+    expect(applicationReminderDue(noted, u('2026-10-18T00:00:00'))).toBe(true);
+    // Same state at count 3 would wait until D-3, but new activity makes it fresh.
+    expect(applicationReminderDue({ ...noted, reminderCount: 3 }, u('2026-10-18T00:00:00'))).toBe(true);
+    expect(applicationReminderDue({ ...noted, reminderActivityAt: u('2026-10-17T00:00:00'), reminderCount: 3 }, u('2026-10-18T00:00:00'))).toBe(false);
+  });
+
+  it('counts a reopened application from the reopen', () => {
+    const reopened = base({ reopenedAt: u('2026-10-16T01:00:00'), reminderActivityAt: u('2026-10-10T00:00:00'), reminderCount: 3, reminderLastOn: '2026-10-15' });
+    expect(applicationReminderDue(reopened, five)).toBe(false); // reopened under 24 h ago
+    expect(applicationReminderDue(reopened, u('2026-10-18T00:00:00'))).toBe(true); // fresh count
+  });
+
+  it('ignores an old nudgedAt: a pending application with empty counters is never reminded', () => {
+    const legacy = { ...base(), nudgedAt: u('2026-10-11T00:00:00') };
+    expect(applicationReminderDue(legacy, five)).toBe(true);
   });
 });
