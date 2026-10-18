@@ -10,7 +10,7 @@ const store = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/db', () => ({ db: { botRequest: store } }));
 import { Prisma } from '@/lib/generated/prisma/client';
-import { CLAIM_LIFETIME_MS, reply, withIdempotency, WAIT_MS } from './idempotency';
+import { CLAIM_LIFETIME_MS, reply, withIdempotency, WAIT_MS, type Complete } from './idempotency';
 
 beforeEach(() => {
   rows.clear();
@@ -142,4 +142,70 @@ it('a repeat still waiting after the limit gets 409 in_progress and never runs t
   expect(result.headers.get('Idempotent-Replay')).toBeNull();
   expect(handler).not.toHaveBeenCalled();
   expect(rows.get('interaction')).toMatchObject({ statusCode: 0 });
+});
+
+// A stand-in transaction client over the same rows; `rollback` undoes what it wrote.
+const transaction = () => {
+  const before = new Map([...rows].map(([k, row]) => [k, { ...row }]));
+  return {
+    tx: { botRequest: store } as unknown as Parameters<Complete>[0],
+    rollback: () => { rows.clear(); for (const [k, row] of before) rows.set(k, row); },
+  };
+};
+
+it('complete stores the reply through the transaction, and the later save changes nothing', async () => {
+  const handler = vi.fn(async (complete: Complete) => {
+    const r = await complete(transaction().tx, reply(201, { id: 'm1' }));
+    expect(rows.get('interaction')).toMatchObject({ statusCode: 201, body: { id: 'm1' } });
+    return r;
+  });
+  const first = await withIdempotency(request('interaction'), handler);
+  expect([first.status, await first.json()]).toEqual([201, { id: 'm1' }]);
+  expect(store.updateMany).toHaveBeenCalledTimes(2);
+  expect(await store.updateMany.mock.results[1].value).toEqual({ count: 0 });
+  const replay = await withIdempotency(request('interaction'), handler);
+  expect(replay.headers.get('Idempotent-Replay')).toBe('true');
+  expect(handler).toHaveBeenCalledTimes(1);
+});
+
+it('a claim completed in a transaction is replayed, not run again, after its lifetime', async () => {
+  const handler = vi.fn(async (complete: Complete) => complete(transaction().tx, reply(201, { id: 'm1' })));
+  await withIdempotency(request('interaction'), handler);
+  rows.get('interaction')!.createdAt = new Date(Date.now() - CLAIM_LIFETIME_MS - 1000);
+  const late = await withIdempotency(request('interaction'), handler);
+  expect([late.status, late.headers.get('Idempotent-Replay')]).toEqual([201, 'true']);
+  expect(handler).toHaveBeenCalledTimes(1);
+});
+
+it('complete without a key stores nothing and returns the reply', async () => {
+  const result = await withIdempotency(request(), async (complete) => complete(transaction().tx, reply(201, { id: 'm1' })));
+  expect([result.status, await result.json()]).toEqual([201, { id: 'm1' }]);
+  expect(store.create).not.toHaveBeenCalled();
+  expect(store.updateMany).not.toHaveBeenCalled();
+});
+
+it('complete stores nothing for a 5xx, and the claim is released', async () => {
+  const result = await withIdempotency(request('interaction'), async (complete) => complete(transaction().tx, reply(503, { error: 'Down.' })));
+  expect(result.status).toBe(503);
+  expect(rows.has('interaction')).toBe(false);
+});
+
+it('when the transaction rolls back after complete, the reply the handler returns is stored instead', async () => {
+  const result = await withIdempotency(request('interaction'), async (complete) => {
+    const { tx, rollback } = transaction();
+    await complete(tx, reply(201, { id: 'm1' }));
+    rollback();
+    return reply(200, { id: 'raced' });
+  });
+  expect(result.status).toBe(200);
+  expect(rows.get('interaction')).toMatchObject({ statusCode: 200, body: { id: 'raced' } });
+});
+
+it('complete throws, so the transaction rolls back, once another retry has taken the claim over', async () => {
+  const handler = async (complete: Complete) => {
+    rows.get('interaction')!.createdAt = new Date(0); // another retry took the expired claim over
+    return complete(transaction().tx, reply(201, { id: 'm1' }));
+  };
+  await expect(withIdempotency(request('interaction'), handler)).rejects.toThrow('no longer claimed');
+  expect(rows.get('interaction')).toMatchObject({ statusCode: 0, createdAt: new Date(0) });
 });
