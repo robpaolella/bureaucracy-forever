@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 type Msg = { id: string; applicationId: string; direction: string; authorUserId: string; body: string; status: string };
+type BotRequest = { key: string; statusCode: number; body: unknown; createdAt: Date };
 const store = vi.hoisted(() => ({
+  requests: new Map<string, BotRequest>(),
+  crashAfterCommit: false,
   apps: {} as Record<string, string>,
   users: {} as Record<string, { id: string; role: string }>,
   messages: [] as Msg[],
@@ -24,7 +27,31 @@ vi.mock('../../../messages/[id]/message', () => ({
 }));
 vi.mock('@/lib/db', async () => {
   const { Prisma } = await import('@/lib/generated/prisma/client');
+  // Matches every field of `where`, as Prisma does.
+  const matches = (row: BotRequest | undefined, where: Partial<BotRequest>): row is BotRequest =>
+    !!row && Object.entries(where).every(([k, v]) => (v instanceof Date ? (row[k as keyof BotRequest] as Date).getTime() === v.getTime() : row[k as keyof BotRequest] === v));
+  const botRequest = {
+    create: async ({ data }: { data: BotRequest }) => {
+      if (store.requests.has(data.key)) throw new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' });
+      store.requests.set(data.key, { ...data });
+    },
+    findUnique: async ({ where }: { where: { key: string } }) => store.requests.get(where.key) ?? null,
+    updateMany: async ({ where, data }: { where: Partial<BotRequest> & { key: string }; data: Partial<BotRequest> }) => {
+      const row = store.requests.get(where.key);
+      if (!matches(row, where)) return { count: 0 };
+      Object.assign(row, data);
+      return { count: 1 };
+    },
+    deleteMany: async ({ where }: { where: Partial<BotRequest> & { key: string } }) =>
+      ({ count: matches(store.requests.get(where.key), where) && store.requests.delete(where.key) ? 1 : 0 }),
+  };
+  // Outside a transaction: the server dies right after the transaction commits.
+  const crashable = Object.fromEntries(Object.entries(botRequest).map(([name, fn]) => [name, async (args: never) => {
+    if (store.crashAfterCommit && (name === 'updateMany' || name === 'deleteMany')) throw new Error('crashed');
+    return (fn as (a: never) => unknown)(args);
+  }]));
   const tx = {
+    botRequest,
     application: { findUnique: async ({ where }: { where: { id: string } }) => (where.id in store.apps ? { id: where.id, status: store.apps[where.id] } : null) },
     user: { findUnique: async ({ where }: { where: { discordId: string } }) => store.users[where.discordId] ?? null },
     applicantMessage: {
@@ -35,33 +62,22 @@ vi.mock('@/lib/db', async () => {
       },
     },
   };
-  const requests = new Map<string, { key: string; statusCode: number; body: unknown; createdAt: Date }>();
-  const botRequest = {
-    create: async ({ data }: { data: { key: string; statusCode: number; body: unknown; createdAt: Date } }) => {
-      if (requests.has(data.key)) throw new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' });
-      requests.set(data.key, data);
-    },
-    findUnique: async ({ where }: { where: { key: string } }) => requests.get(where.key) ?? null,
-    updateMany: async ({ where, data }: { where: { key: string }; data: object }) => {
-      Object.assign(requests.get(where.key)!, data);
-      return { count: 1 };
-    },
-    deleteMany: async ({ where }: { where: { key: string } }) => ({ count: requests.delete(where.key) ? 1 : 0 }),
-  };
   // Rolls the store back when the callback throws, as a real transaction would.
   const $transaction = async (fn: (t: typeof tx) => unknown) => {
-    const before = { messages: store.messages.length, jobs: store.jobs.length };
+    const before = { messages: store.messages.length, jobs: store.jobs.length, requests: structuredClone(store.requests) };
     try {
       return await fn(tx);
     } catch (e) {
       store.messages.length = before.messages;
       store.jobs.length = before.jobs;
+      store.requests = before.requests;
       throw e;
     }
   };
-  return { db: { ...tx, botRequest, $transaction } };
+  return { db: { ...tx, botRequest: crashable, $transaction } };
 });
 
+import { CLAIM_LIFETIME_MS } from '@/lib/idempotency';
 import { NOT_PENDING_ERROR } from '@/lib/relay';
 import { POST } from './route';
 
@@ -82,6 +98,8 @@ describe('POST /api/bot/applications/:id/messages', () => {
     store.messages = [];
     store.jobs = [];
     store.failRead = false;
+    store.requests = new Map();
+    store.crashAfterCommit = false;
     store.enqueue.mockReset();
     store.enqueue.mockImplementation(async (...args: unknown[]) => { store.jobs.push(args); });
   });
@@ -156,8 +174,27 @@ describe('POST /api/bot/applications/:id/messages', () => {
     await expect(send(msg('Hi'), { key: 'interaction-retry' })).rejects.toThrow('read failed');
     expect(store.messages).toHaveLength(0);
     expect(store.jobs).toHaveLength(0);
+    expect(store.requests.has('interaction-retry')).toBe(false);
     expect((await send(msg('Hi'), { key: 'interaction-retry' })).status).toBe(201);
     expect(store.messages).toHaveLength(1);
     expect(store.jobs).toEqual([['application.message.send', { applicationId: 'a1', messageId: 'm1' }, expect.anything()]]);
+  });
+
+  it('stores the reply with the message, so a crash after the commit cannot DM twice on a late same-key retry', async () => {
+    store.crashAfterCommit = true;
+    await expect(send(msg('Hi'), { key: 'interaction-late' })).rejects.toThrow('crashed');
+    store.crashAfterCommit = false;
+    expect(store.messages).toHaveLength(1);
+    expect(store.jobs).toHaveLength(1);
+    const saved = store.requests.get('interaction-late')!;
+    expect(saved).toMatchObject({ statusCode: 201, body: { message: expect.objectContaining({ id: 'm1' }) } });
+    saved.createdAt = new Date(Date.now() - CLAIM_LIFETIME_MS - 60_000);
+    const headers = { 'content-type': 'application/json', authorization: 'Bearer test-secret', 'idempotency-key': 'interaction-late' };
+    const retry = await POST(new Request('https://example.test/x', { method: 'POST', headers, body: JSON.stringify(msg('Hi')) }), { params: Promise.resolve({ id: 'a1' }) });
+    expect(retry.status).toBe(201);
+    expect(retry.headers.get('Idempotent-Replay')).toBe('true');
+    expect(await retry.json()).toEqual({ message: expect.objectContaining({ id: 'm1', status: 'QUEUED' }) });
+    expect(store.messages).toHaveLength(1);
+    expect(store.jobs).toHaveLength(1);
   });
 });

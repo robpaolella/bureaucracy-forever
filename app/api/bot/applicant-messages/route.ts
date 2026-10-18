@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { Prisma } from '@/lib/generated/prisma/client';
-import { reply, withIdempotency, type Reply } from '@/lib/idempotency';
+import { reply, withIdempotency, type Complete, type Reply } from '@/lib/idempotency';
 import { enqueue } from '@/lib/outbox';
 import { inRelayWindow, parseApplicantDm, type ApplicantDm } from '@/lib/relay';
 import { authorizeBot, readJson } from '../_lib';
@@ -15,7 +15,7 @@ async function storedReply(dmMessageId: string): Promise<Reply | null> {
   return reply(200, { stored: true, applicationId: existing.applicationId, messageId: existing.id });
 }
 
-async function store(dm: ApplicantDm): Promise<Reply> {
+async function store(dm: ApplicantDm, complete: Complete): Promise<Reply> {
   const repeat = await storedReply(dm.dmMessageId);
   if (repeat) return repeat;
   // §13: only the sender's most recent application, and only if it was PENDING at the send time.
@@ -26,15 +26,15 @@ async function store(dm: ApplicantDm): Promise<Reply> {
   });
   if (!app || !inRelayWindow(app, dm.createdAt)) return reply(200, { stored: false });
   try {
-    const message = await db.$transaction(async (tx) => {
+    // The key's stored reply commits with the message and its job.
+    return await db.$transaction(async (tx) => {
       const row = await tx.applicantMessage.create({
         data: { applicationId: app.id, direction: 'FROM_APPLICANT', body: dm.body, createdAt: dm.createdAt, dmChannelId: dm.dmChannelId, dmMessageId: dm.dmMessageId, attachments: dm.attachments },
         select: { id: true },
       });
       await enqueue('application.message.copy', { applicationId: app.id, messageId: row.id }, tx);
-      return row;
+      return complete(tx, reply(200, { stored: true, applicationId: app.id, messageId: row.id }));
     });
-    return reply(200, { stored: true, applicationId: app.id, messageId: message.id });
   } catch (e) {
     // The same DM arriving under another key at the same moment: the first one stored it.
     if (isDuplicate(e)) {
@@ -57,9 +57,9 @@ export async function POST(request: Request) {
   if (denied) return denied;
   const read = await readJson(request);
   if ('deny' in read) return read.deny;
-  return withIdempotency(request, async () => {
+  return withIdempotency(request, async (complete) => {
     const parsed = parseApplicantDm(read.body);
     if (!parsed.ok) return reply(400, { reason: 'invalid', error: parsed.error });
-    return store(parsed.dm);
+    return store(parsed.dm, complete);
   });
 }

@@ -7,7 +7,7 @@ import { PrismaClient } from '@/lib/generated/prisma/client';
 
 const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient }));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
-import { CLAIM_LIFETIME_MS, reply, WAIT_MS, withIdempotency } from './idempotency';
+import { CLAIM_LIFETIME_MS, reply, WAIT_MS, withIdempotency, type Complete } from './idempotency';
 
 const request = (key: string) => new Request('https://example.test', { method: 'POST', headers: { 'Idempotency-Key': key } });
 const gate = () => { let open!: () => void; const opened = new Promise<void>((resolve) => { open = resolve; }); return { open, opened }; };
@@ -83,6 +83,25 @@ describe.skipIf(process.env.IDEMPOTENCY_INTEGRATION !== '1')('Idempotency-Key cl
     expect(runs).toBe(1);
     expect(results.map((r) => r.status)).toEqual([200, 200]);
     expect(await db.botRequest.findUnique({ where: { key: 'stale' } })).toMatchObject({ statusCode: 200, body: { ok: true } });
+  });
+
+  it('complete commits the reply with the transaction: a late retry replays it, a rolled-back one stores nothing', async () => {
+    let runs = 0;
+    const handler = (fail: boolean) => async (complete: Complete) => {
+      runs += 1;
+      return db.$transaction(async (tx) => {
+        const r = await complete(tx, reply(201, { run: runs }));
+        if (fail) throw new Error('rolled back');
+        return r;
+      });
+    };
+    await expect(withIdempotency(request('in-tx'), handler(true))).rejects.toThrow('rolled back');
+    expect(await db.botRequest.findUnique({ where: { key: 'in-tx' } })).toBeNull();
+    expect((await withIdempotency(request('in-tx'), handler(false))).status).toBe(201);
+    await db.botRequest.update({ where: { key: 'in-tx' }, data: { createdAt: new Date(Date.now() - CLAIM_LIFETIME_MS - 60_000) } });
+    const late = await withIdempotency(request('in-tx'), handler(false));
+    expect([late.status, late.headers.get('Idempotent-Replay'), await late.json()]).toEqual([201, 'true', { run: 2 }]);
+    expect(runs).toBe(2);
   });
 
   it('a waiting request that times out gets 409 in_progress and the handler runs once', async () => {

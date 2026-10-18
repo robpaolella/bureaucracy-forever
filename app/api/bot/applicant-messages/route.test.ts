@@ -2,13 +2,34 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 type App = { id: string; discordId: string; status: string; createdAt: Date; reopenedAt: Date | null; decidedAt: Date | null };
 type Msg = { id: string; applicationId: string; direction: string; dmMessageId: string | null; body: string; createdAt: Date; attachments: unknown; dmChannelId: string | null };
-const store = vi.hoisted(() => ({ apps: [] as App[], messages: [] as Msg[], enqueue: vi.fn(), raceOnCreate: false }));
+type BotRequest = { key: string; statusCode: number; body: unknown; createdAt: Date };
+const store = vi.hoisted(() => ({ apps: [] as App[], messages: [] as Msg[], enqueue: vi.fn(), raceOnCreate: false, requests: new Map<string, BotRequest>(), saves: [] as string[] }));
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/outbox', () => ({ enqueue: store.enqueue }));
 vi.mock('@/lib/db', async () => {
   const { Prisma } = await import('@/lib/generated/prisma/client');
+  // Matches every field of `where`, as Prisma does; `saves` records which client stored a reply.
+  const matches = (row: BotRequest | undefined, where: Partial<BotRequest>): row is BotRequest =>
+    !!row && Object.entries(where).every(([k, v]) => (v instanceof Date ? (row[k as keyof BotRequest] as Date).getTime() === v.getTime() : row[k as keyof BotRequest] === v));
+  const botRequest = (client: string) => ({
+    create: async ({ data }: { data: BotRequest }) => {
+      if (store.requests.has(data.key)) throw new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' });
+      store.requests.set(data.key, { ...data });
+    },
+    findUnique: async ({ where }: { where: { key: string } }) => store.requests.get(where.key) ?? null,
+    updateMany: async ({ where, data }: { where: Partial<BotRequest> & { key: string }; data: Partial<BotRequest> }) => {
+      const row = store.requests.get(where.key);
+      if (!matches(row, where)) return { count: 0 };
+      Object.assign(row, data);
+      store.saves.push(client);
+      return { count: 1 };
+    },
+    deleteMany: async ({ where }: { where: Partial<BotRequest> & { key: string } }) =>
+      ({ count: matches(store.requests.get(where.key), where) && store.requests.delete(where.key) ? 1 : 0 }),
+  });
   const tx = {
+    botRequest: botRequest('transaction'),
     application: {
       findFirst: async ({ where }: { where: { discordId: string } }) =>
         store.apps.filter((a) => a.discordId === where.discordId).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ?? null,
@@ -26,7 +47,19 @@ vi.mock('@/lib/db', async () => {
       },
     },
   };
-  return { db: { ...tx, $transaction: async (fn: (t: typeof tx) => unknown) => fn(tx) } };
+  // Rolls the messages and stored replies back when the callback throws, as a real transaction would.
+  const $transaction = async (fn: (t: typeof tx) => unknown) => {
+    const before = { messages: [...store.messages], requests: structuredClone(store.requests) };
+    try {
+      return await fn(tx);
+    } catch (e) {
+      // A message a concurrent request committed (raceOnCreate) is not ours to roll back.
+      store.messages = store.messages.filter((m) => m.id === 'raced' || before.messages.includes(m));
+      store.requests = before.requests;
+      throw e;
+    }
+  };
+  return { db: { ...tx, botRequest: botRequest('after'), $transaction } };
 });
 
 import { POST } from './route';
@@ -37,10 +70,10 @@ const seed = (over: Partial<App> = {}) => store.apps.push({ id: 'a1', discordId:
 const dm = (over: Record<string, unknown> = {}) => ({
   discordId: THRALL, dmChannelId: '100000000000000002', dmMessageId: '100000000000000003', body: 'Hello officers', createdAt: '2026-10-12T16:00:00.000Z', attachments: [], ...over,
 });
-const call = (body: unknown, { secret = 'test-secret' as string | null, raw }: { secret?: string | null; raw?: string } = {}) =>
+const call = (body: unknown, { secret = 'test-secret' as string | null, raw, key }: { secret?: string | null; raw?: string; key?: string } = {}) =>
   POST(new Request('https://example.test/api/bot/applicant-messages', {
     method: 'POST',
-    headers: { ...(secret ? { authorization: `Bearer ${secret}` } : {}), 'content-type': 'application/json' },
+    headers: { ...(secret ? { authorization: `Bearer ${secret}` } : {}), 'content-type': 'application/json', ...(key ? { 'idempotency-key': key } : {}) },
     body: raw ?? JSON.stringify(body),
   }));
 const json = async (body: unknown) => {
@@ -54,6 +87,8 @@ describe('POST /api/bot/applicant-messages', () => {
     store.apps = [];
     store.messages = [];
     store.raceOnCreate = false;
+    store.requests = new Map();
+    store.saves = [];
     store.enqueue.mockReset();
   });
 
@@ -162,5 +197,36 @@ describe('POST /api/bot/applicant-messages', () => {
     seed();
     expect(await json(dm(over))).toMatchObject({ status: 400, body: { reason: 'invalid' } });
     expect(store.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('stores the keyed reply in the same transaction as the message and its job', async () => {
+    seed();
+    store.enqueue.mockImplementation(async () => {
+      // The job is queued before the reply is saved, inside the same transaction.
+      expect(store.requests.get('100000000000000003')).toMatchObject({ statusCode: 0 });
+    });
+    const body = { stored: true, applicationId: 'a1', messageId: 'm1' };
+    expect((await call(dm(), { key: '100000000000000003' })).status).toBe(200);
+    expect(store.saves).toEqual(['transaction']);
+    expect(store.requests.get('100000000000000003')).toMatchObject({ statusCode: 200, body });
+    expect(store.enqueue).toHaveBeenCalledTimes(1);
+    const replay = await call(dm(), { key: '100000000000000003' });
+    expect(replay.headers.get('Idempotent-Replay')).toBe('true');
+    expect(await replay.json()).toEqual(body);
+    expect(store.messages).toHaveLength(1);
+  });
+
+  it('stores the concurrent request\'s reply under the key when its own transaction rolls back', async () => {
+    seed();
+    store.raceOnCreate = true;
+    expect(await (await call(dm(), { key: '100000000000000003' })).json()).toEqual({ stored: true, applicationId: 'a1', messageId: 'raced' });
+    expect(store.saves).toEqual(['after']);
+    expect(store.requests.get('100000000000000003')).toMatchObject({ statusCode: 200, body: { stored: true, applicationId: 'a1', messageId: 'raced' } });
+  });
+
+  it('stores the no-op reply for a DM it does not keep, outside any transaction', async () => {
+    expect((await call(dm(), { key: '100000000000000003' })).status).toBe(200);
+    expect(store.saves).toEqual(['after']);
+    expect(store.requests.get('100000000000000003')).toMatchObject({ statusCode: 200, body: { stored: false } });
   });
 });
