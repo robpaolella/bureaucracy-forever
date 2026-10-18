@@ -20,6 +20,12 @@ export const WAIT_MS = 10_000;
 const POLL_MS = 200;
 
 export type Reply = { status: number; body: Record<string, unknown> };
+/**
+ * Stores `reply` as the key's reply through `tx`, so it commits with the handler's writes or
+ * not at all; returns `reply`. A no-op without a key or for a 5xx. Throws, rolling `tx` back,
+ * if the claim is no longer this request's (an expired claim another retry took over).
+ */
+export type Complete = (tx: Prisma.TransactionClient, reply: Reply) => Promise<Reply>;
 
 function response(status: number, body: Record<string, unknown>, replay = false): NextResponse {
   const headers = { ...NO_STORE, ...(replay ? { 'Idempotent-Replay': 'true' } : {}) };
@@ -58,12 +64,13 @@ async function claim(key: string): Promise<{ claimedAt: Date } | { stored: Reply
  * executes once. Its reply (2xx or 4xx) is stored and replayed on a repeat; a throw or 5xx
  * releases the claim so a retry can run. A repeat that arrives while the first is still
  * running waits up to WAIT_MS for its reply, then gets 409 `in_progress`. Without the header
- * the handler simply runs.
+ * the handler simply runs. A handler that writes in a transaction can pass it to `complete`
+ * so a crash after its commit cannot leave the key claimed for a late retry to run again.
  */
-export async function withIdempotency(request: Request, handler: () => Promise<Reply>): Promise<NextResponse> {
+export async function withIdempotency(request: Request, handler: (complete: Complete) => Promise<Reply>): Promise<NextResponse> {
   const key = request.headers.get(IDEMPOTENCY_HEADER)?.trim().slice(0, 128) || null;
   if (!key) {
-    const r = await handler();
+    const r = await handler(async (_tx, done) => done);
     return response(r.status, r.body);
   }
   const deadline = Date.now() + WAIT_MS;
@@ -76,13 +83,21 @@ export async function withIdempotency(request: Request, handler: () => Promise<R
   if ('stored' in claimed) return response(claimed.stored.status, claimed.stored.body, true);
 
   const mine = { key, statusCode: CLAIMED, createdAt: claimed.claimedAt };
+  const complete: Complete = async (tx, r) => {
+    if (r.status >= 500) return r;
+    const done = await tx.botRequest.updateMany({ where: mine, data: { statusCode: r.status, body: r.body as Prisma.InputJsonValue } });
+    if (done.count !== 1) throw new Error(`Idempotency-Key ${key} is no longer claimed by this request.`);
+    return r;
+  };
   let r: Reply;
   try {
-    r = await handler();
+    r = await handler(complete);
   } catch (e) {
     await db.botRequest.deleteMany({ where: mine });
     throw e;
   }
+  // Both match only a claim still open: after `complete` committed they change nothing, and
+  // after its transaction rolled back they store or release as for any handler.
   if (r.status >= 500) await db.botRequest.deleteMany({ where: mine });
   else await db.botRequest.updateMany({ where: mine, data: { statusCode: r.status, body: r.body as Prisma.InputJsonValue } });
   return response(r.status, r.body);

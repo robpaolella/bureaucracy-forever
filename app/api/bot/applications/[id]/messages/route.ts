@@ -18,7 +18,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const read = await readJson(request);
   if ('deny' in read) return read.deny;
   const { id } = await params;
-  return withIdempotency(request, async () => {
+  return withIdempotency(request, async (complete) => {
     const who = await interviewOfficer(read.body);
     if ('deny' in who) return who.deny;
     const app = await db.application.findUnique({ where: { id }, select: { id: true, status: true } });
@@ -26,16 +26,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (app.status !== 'PENDING') return reply(409, { reason: 'not_pending', error: NOT_PENDING_ERROR });
     const parsed = parseOfficerMessage(read.body.body);
     if (!parsed.ok) return reply(400, { reason: 'invalid', error: parsed.error });
-    // The reply is read inside the transaction: if reading it fails, the message and its job
-    // roll back with it, so the bot's retry under the same key cannot DM twice.
-    const message = await db.$transaction(async (tx) => {
+    // The reply is read and stored inside the transaction: the message, its job and the key's
+    // stored reply commit together or not at all, so no retry under the same key can DM twice.
+    return db.$transaction(async (tx) => {
       const row = await tx.applicantMessage.create({
         data: { applicationId: app.id, direction: 'TO_APPLICANT', authorUserId: who.officer.userId, body: parsed.text, status: 'QUEUED' },
         select: { id: true },
       });
       await enqueue('application.message.send', { applicationId: app.id, messageId: row.id }, tx);
-      return readMessage(row.id, tx);
+      return complete(tx, reply(201, { message: await readMessage(row.id, tx) }));
     });
-    return reply(201, { message });
   });
 }
