@@ -47,7 +47,7 @@ describe('PATCH /api/bot/notes/by-message/:discordMessageId', () => {
 
   it('refuses malformed mentions with 400 and changes nothing', async () => {
     const many = Object.fromEntries(Array.from({ length: 51 }, (_, i) => [`1000000000000001${String(i).padStart(2, '0')}`, { name: 'x' }]));
-    for (const mentions of [{ roles: { officer: { name: 'Officer', color: 0 } } }, { users: { '100000000000000001': { name: 'a'.repeat(101) } } }, { roles: { '100000000000000004': { name: 'Officer', color: 16777216 } } }, { channels: many }]) {
+    for (const mentions of [{ roles: { officer: { name: 'Officer', color: 0 } } }, { users: { '100000000000000001': { name: 'a'.repeat(101) } } }, { roles: { '100000000000000004': { name: 'Officer', color: 16777216 } } }, { channels: many }, null]) {
       expect(await patch({ body: 'Edited', mentions })).toEqual({ status: 400, body: { error: expect.any(String) } });
     }
     expect(store.notes[0]).toMatchObject({ body: 'Ask <@100000000000000001>', editedAt: null, mentions: OLD });

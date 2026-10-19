@@ -169,7 +169,7 @@ describe('/api/bot/applicant-messages/:dmMessageId', () => {
     it('refuses malformed mentions with 400 and changes nothing', async () => {
       seed();
       const many = Object.fromEntries(Array.from({ length: 51 }, (_, i) => [`1000000000000001${String(i).padStart(2, '0')}`, { name: 'x', color: 0 }]));
-      for (const mentions of [{ channels: { general: { name: 'general' } } }, { users: { '100000000000000001': { name: 'a'.repeat(101) } } }, { roles: { '100000000000000004': { name: 'Officer', color: -1 } } }, { roles: many }]) {
+      for (const mentions of [{ channels: { general: { name: 'general' } } }, { users: { '100000000000000001': { name: 'a'.repeat(101) } } }, { roles: { '100000000000000004': { name: 'Officer', color: -1 } } }, { roles: many }, null]) {
         expect(await patch({ body: 'Edited', mentions })).toEqual({ status: 400, body: { reason: 'invalid', error: expect.any(String) } });
       }
       expect(store.messages[0]).toMatchObject({ body: 'Hello', editedAt: null });

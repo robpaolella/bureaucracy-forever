@@ -20,9 +20,8 @@ describe('parseMentions', () => {
     expect(parseMentions(full)).toEqual({ ok: true, mentions: full });
   });
 
-  it('is null when absent, null or empty', () => {
+  it('is null when absent or empty', () => {
     expect(parseMentions(undefined)).toEqual({ ok: true, mentions: null });
-    expect(parseMentions(null)).toEqual({ ok: true, mentions: null });
     expect(parseMentions({})).toEqual({ ok: true, mentions: null });
     expect(parseMentions({ users: {}, roles: {} })).toEqual({ ok: true, mentions: null });
   });
@@ -35,6 +34,7 @@ describe('parseMentions', () => {
   });
 
   it('refuses a value or kind that is not an object', () => {
+    expect(refused(null)).toMatch(/mentions must be an object/);
     expect(refused('x')).toMatch(/mentions must be an object/);
     expect(refused([])).toMatch(/mentions must be an object/);
     expect(refused({ users: [] })).toMatch(/mentions.users must be an object/);

@@ -34,12 +34,11 @@ const ENTRY_RULE = {
 };
 
 /**
- * The optional `mentions` field of a bot body, or the `error` for a 400. Absent (or null) is
- * `null`, as is a value with no entries, so the site uses its own fallback. Unknown keys are
- * dropped.
+ * The optional `mentions` field of a bot body, or the `error` for a 400. Absent is `null`, as
+ * is a value with no entries, so the site uses its own fallback. Unknown keys are dropped.
  */
 export function parseMentions(raw: unknown): { ok: true; mentions: Mentions | null } | { ok: false; error: string } {
-  if (raw === undefined || raw === null) return { ok: true, mentions: null };
+  if (raw === undefined) return { ok: true, mentions: null };
   if (!isRecord(raw)) return { ok: false, error: 'mentions must be an object.' };
   const mentions: Record<string, Record<string, unknown>> = {};
   for (const kind of ['users', 'roles', 'channels'] as const) {

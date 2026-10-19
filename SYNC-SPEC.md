@@ -341,7 +341,7 @@ mentions: {
 ```
 
 - Ids are Discord ids (digits). `name` is 1–100 characters; `color` is an integer from 0 to
-  16777215. At most 50 entries per kind. Anything else is a 400 with an `error` (with
+  16777215. At most 50 entries per kind. Anything else, `null` included, is a 400 with an `error` (with
   `reason: "invalid"` on the relay routes, as for their other fields). Unknown keys are ignored.
 - Optional: without it the note or message is stored as before, and the site shows tags with
   its own fallback. Notes and messages stored before this field have none.
