@@ -86,7 +86,7 @@ export function HeatGrid({ heat, days, offsetSlots, zone, slotAt }: Props) {
                   className={cn(
                     'flex-1 basis-0 cursor-default border-b border-l border-l-line-faint p-0 hover:outline hover:outline-1 hover:-outline-offset-1 hover:outline-fg focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-teal',
                     line,
-                    HEAT_BG[heatStep(cell.total)],
+                    HEAT_BG[heatStep(cell.total, heat.submitted)],
                   )}
                 />
               );

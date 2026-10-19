@@ -78,14 +78,14 @@ export function OfficerAvailability({ memberCount, submitted, notSubmitted }: Pr
         <div className="flex flex-col gap-3.5">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-[17px] font-semibold">Week of {weekLabel}</h2>
-            <div className="flex items-center gap-2.5 text-xs text-fg-3" aria-label={`Colour scale from 0 to ${memberCount} available`}>
+            <div className="flex items-center gap-2.5 text-xs text-fg-3" aria-label={`Colour scale from 0 to ${submitted} submitted`}>
               <span>0</span>
               <span className="flex gap-[3px]" aria-hidden>
                 {HEAT_BG.map((bg) => (
                   <span key={bg} className={`h-3 w-[22px] border border-line ${bg}`} />
                 ))}
               </span>
-              <span>{memberCount} available</span>
+              <span>{submitted} submitted</span>
             </div>
           </div>
 
