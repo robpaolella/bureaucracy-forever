@@ -60,6 +60,17 @@ describe('loadApplication notes and messages', () => {
     expect(mocks.users).toHaveBeenCalledWith(expect.objectContaining({ where: { discordId: { in: ['111', '222'] } } }));
   });
 
+  it('passes stored mentions through, and treats a missing or malformed value as none', async () => {
+    const good = { roles: { '10000000000000001': { name: 'Officer', color: 255 } } };
+    mocks.findUnique.mockResolvedValue({
+      ...row,
+      notes: [{ id: 'n1', body: 'x', createdAt: at(2), source: 'DISCORD', discordMessageId: null, editedAt: null, mentions: good, author: { discordName: 'Redtape', characters: [] } }],
+      messages: [msg({ id: 'm1', mentions: { roles: 'nope' } }), msg({ id: 'm2', mentions: null, createdAt: at(3) }), msg({ id: 'm3', createdAt: at(4) })],
+    });
+    const byId = Object.fromEntries((await loadApplication('app'))!.notes.map((n) => [n.id, n.mentions]));
+    expect(byId).toEqual({ n1: good, m1: null, m2: null, m3: null });
+  });
+
   it('keeps a deleted applicant message with its marker', async () => {
     mocks.findUnique.mockResolvedValue({ ...row, messages: [msg({ deletedAt: at(2), editedAt: at(2) })] });
     expect((await loadApplication('app'))!.notes[0]).toMatchObject({ body: 'hi', marker: 'deleted' });

@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { discordThreadUrl } from '@/lib/discord-links';
 import { mentionedUserIds } from '@/lib/discord-mentions';
 import { interviewCard, type InterviewCard } from '@/lib/interviews';
+import { parseMentions as parseStoredMentions, type Mentions } from '@/lib/mentions-input';
 import type { WowClass } from '@/lib/design/class-colors';
 
 const path = (p: 'RAIDER' | 'SOCIAL'): ApplicationPath => (p === 'SOCIAL' ? 'social' : 'raider');
@@ -49,9 +50,16 @@ export type ApplicationDetail = InboxItem & {
   mentionUsers: Record<string, string>;
 };
 
+/** The bot's stored tag names, or null when absent or malformed: the stored JSON is not trusted. */
+function storedMentions(raw: unknown): Mentions | null {
+  if (raw === null || raw === undefined) return null;
+  const r = parseStoredMentions(raw);
+  return r.ok ? r.mentions : null;
+}
+
 type Sender = { author: string; authorClass: WowClass | null };
 export type NoteEntry =
-  | (Sender & { kind: 'note'; id: string; body: string; createdAt: string; source: 'web' | 'discord'; discordMessageId: string | null; editedAt: string | null })
+  | (Sender & { kind: 'note'; id: string; body: string; createdAt: string; source: 'web' | 'discord'; discordMessageId: string | null; editedAt: string | null; mentions: Mentions | null })
   | (Sender & {
       kind: 'message';
       id: string;
@@ -62,9 +70,10 @@ export type NoteEntry =
       attachmentCount: number;
       /** The Discord copy of the message, when it has one. */
       attachmentUrl: string | null;
+      mentions: Mentions | null;
     });
 
-type MessageRow = { id: string; direction: 'TO_APPLICANT' | 'FROM_APPLICANT'; authorUserId: string | null; body: string; createdAt: Date; status: 'QUEUED' | 'SENT' | 'NOT_DELIVERED' | 'NOT_SENT' | null; copyChannelId: string | null; copyMessageId: string | null; attachments: unknown; editedAt: Date | null; deletedAt: Date | null };
+type MessageRow = { id: string; direction: 'TO_APPLICANT' | 'FROM_APPLICANT'; authorUserId: string | null; body: string; createdAt: Date; status: 'QUEUED' | 'SENT' | 'NOT_DELIVERED' | 'NOT_SENT' | null; copyChannelId: string | null; copyMessageId: string | null; attachments: unknown; mentions: unknown; editedAt: Date | null; deletedAt: Date | null };
 
 function messageMarker(m: MessageRow): Extract<NoteEntry, { kind: 'message' }>['marker'] {
   if (m.direction === 'FROM_APPLICANT') return m.deletedAt ? 'deleted' : m.editedAt ? 'edited' : null;
@@ -92,12 +101,12 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
       discordThreadId: true,
       messages: {
         orderBy: { createdAt: 'asc' },
-        select: { id: true, direction: true, authorUserId: true, body: true, createdAt: true, status: true, copyChannelId: true, copyMessageId: true, attachments: true, editedAt: true, deletedAt: true },
+        select: { id: true, direction: true, authorUserId: true, body: true, createdAt: true, status: true, copyChannelId: true, copyMessageId: true, attachments: true, mentions: true, editedAt: true, deletedAt: true },
       },
       notes: {
         where: { deletedAt: null },
         orderBy: { createdAt: 'asc' },
-        select: { id: true, body: true, createdAt: true, source: true, discordMessageId: true, editedAt: true, author: { select: { discordName: true, characters: { where: { isMain: true }, take: 1, select: { class: true } } } } },
+        select: { id: true, body: true, createdAt: true, source: true, discordMessageId: true, editedAt: true, mentions: true, author: { select: { discordName: true, characters: { where: { isMain: true }, take: 1, select: { class: true } } } } },
       },
     },
   });
@@ -122,6 +131,7 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
     source: n.source === 'DISCORD' ? 'discord' : 'web',
     discordMessageId: n.discordMessageId,
     editedAt: n.editedAt?.toISOString() ?? null,
+    mentions: storedMentions(n.mentions),
   }));
   const messageEntries: NoteEntry[] = r.messages.map((m) => {
     const from = m.direction === 'FROM_APPLICANT';
@@ -137,6 +147,7 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
       marker: messageMarker(m),
       attachmentCount: Array.isArray(m.attachments) ? m.attachments.length : 0,
       // discordThreadUrl builds guild/<path>; channel/message is the path of a message link.
+      mentions: storedMentions(m.mentions),
       attachmentUrl: m.copyChannelId && m.copyMessageId ? discordThreadUrl(`${m.copyChannelId}/${m.copyMessageId}`) : null,
     };
   });
