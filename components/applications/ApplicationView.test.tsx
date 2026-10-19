@@ -11,7 +11,7 @@ vi.mock('./DecisionBar', () => ({ DecisionBar: () => null }));
 vi.mock('./NoteComposer', () => ({ NoteComposer: () => null }));
 
 type Msg = Extract<NoteEntry, { kind: 'message' }>;
-const msg = (o: Partial<Msg>): Msg => ({ kind: 'message', id: 'm', author: 'Thrall', authorClass: 'shaman', body: 'hello', createdAt: '2026-10-12T01:00:00.000Z', direction: 'from', marker: null, attachmentCount: 0, attachmentUrl: null, ...o });
+const msg = (o: Partial<Msg>): Msg => ({ kind: 'message', id: 'm', author: 'Thrall', authorClass: 'shaman', body: 'hello', mentions: null, createdAt: '2026-10-12T01:00:00.000Z', direction: 'from', marker: null, attachmentCount: 0, attachmentUrl: null, ...o });
 const base: ApplicationDetail = {
   id: 'app', path: 'raider', status: 'pending', character: 'Thrall', wowClass: 'shaman', spec: 'Enhancement', discordName: 'thrall', createdAt: '2026-10-12T00:00:00.000Z', unread: false,
   discordId: 'd1', logsUrl: null, answers: {}, decidedAt: null, decidedBy: null, discordThreadId: null, interview: null, notes: [], mentionUsers: {},
@@ -30,6 +30,19 @@ describe('ApplicationView notes and messages', () => {
     expect(host.textContent).not.toContain('<@');
   });
 
+  it('uses stored names, a role colour and a channel name, and the fallback where nothing is stored', async () => {
+    const mentions = { users: { '111': { name: 'Stored Name' } }, roles: { '5': { name: 'Officer', color: 0xe74c3c }, '6': { name: 'Plain', color: 0 } }, channels: { '7': { name: 'officer-chat' } } };
+    await act(async () => root.render(<ApplicationView app={{ ...base, mentionUsers: { '111': 'Ledgerline' }, notes: [msg({ id: 'a', body: '<@111> <@&5> <@&6> <#7>', mentions }), msg({ id: 'b', body: '<@111> <@&5> <#7>' })] }} now="2026-10-13T00:00:00.000Z" />));
+    const [first, second] = [...host.querySelectorAll('li p.whitespace-pre-line')].map((p) => [...p.querySelectorAll('span')].map((e) => e.textContent));
+    expect(first).toEqual(['@Stored Name', '@Officer', '@Plain', '#officer-chat']);
+    expect(second).toEqual(['@Ledgerline', '@role', '#channel']);
+    const roleSpan = [...host.querySelectorAll('p span')].find((e) => e.textContent === '@Officer') as HTMLElement;
+    expect(roleSpan.style.color).not.toBe('');
+    expect(roleSpan.className).not.toContain('teal');
+    const plain = [...host.querySelectorAll('p span')].find((e) => e.textContent === '@Plain') as HTMLElement;
+    expect(plain.className).toContain('bg-teal-wash');
+    expect(plain.getAttribute('style')).toBeNull();
+  });
 
   it('uses the new heading and line', async () => {
     const text = await render([]);
@@ -74,7 +87,7 @@ describe('ApplicationView notes and messages', () => {
   });
 
   it('still shows a note with its source badge and edited marker', async () => {
-    const text = await render([{ kind: 'note', id: 'n', author: 'Redtape', authorClass: null, body: 'a note', createdAt: '2026-10-12T02:00:00.000Z', source: 'discord', discordMessageId: null, editedAt: '2026-10-12T03:00:00.000Z' }]);
+    const text = await render([{ kind: 'note', id: 'n', author: 'Redtape', authorClass: null, body: 'a note', createdAt: '2026-10-12T02:00:00.000Z', source: 'discord', discordMessageId: null, editedAt: '2026-10-12T03:00:00.000Z', mentions: null }]);
     expect(text).toContain('via Discord');
     expect(text).toContain('edited');
   });
