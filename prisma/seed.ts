@@ -21,6 +21,13 @@ const CLASS = {
 } as const;
 const RAID_ROLE = { tank: 'TANK', healer: 'HEALER', melee: 'MELEE', ranged: 'RANGED' } as const;
 
+/** Invented ids, names and colours for the tags in the first sample note. */
+const SAMPLE_MENTIONS = {
+  users: { '1000000000000000004': { name: 'Marginalia' } },
+  roles: { '1000000000000000001': { name: 'Raid Leader', color: 0xe67e22 } },
+  channels: { '1000000000000000002': { name: 'officer-chat' } },
+};
+
 async function main() {
   const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
   if (!connectionString) throw new Error('DATABASE_URL must be set');
@@ -124,6 +131,8 @@ async function main() {
 
   // Applications, with officer notes on the read ones.
   const officers = users.filter((u) => u.role === 'OFFICER');
+  // The first sample note carries stored tag names, as the bot sends them; the rest show the fallback.
+  let notesWithMentions = 0;
   for (const a of buildApplications()) {
     const createdAt = new Date(now.getTime() - a.daysAgo * 86_400_000);
     const app = await db.application.create({
@@ -145,7 +154,7 @@ async function main() {
     });
     if (a.read && a.path === 'RAIDER') {
       await db.officerNote.create({
-        data: { applicationId: app.id, authorId: officers[2].id, body: `Logs look clean. Deaths avoided more than damage done.\nAsking <@${roster[0].discordId}> and <@&1000000000000000001> to look in <#1000000000000000002> <:pepe:1000000000000000003>. Also <@1000000000000000004>.`, createdAt: new Date(createdAt.getTime() + 2 * 3600_000) },
+        data: { applicationId: app.id, authorId: officers[2].id, body: `Logs look clean. Deaths avoided more than damage done.\nAsking <@${roster[0].discordId}> and <@&1000000000000000001> to look in <#1000000000000000002> <:pepe:1000000000000000003>. Also <@1000000000000000004>.`, createdAt: new Date(createdAt.getTime() + 2 * 3600_000), mentions: notesWithMentions++ === 0 ? SAMPLE_MENTIONS : undefined },
       });
     }
     for (const m of a.messages ?? []) {
