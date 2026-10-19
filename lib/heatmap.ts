@@ -150,12 +150,16 @@ export function buildHeatmap(members: HeatMember[], viewerZone: string, now: Dat
   };
 }
 
-/** Which step of the six-step ramp a count falls on (docs/05 § Heatmap). */
-export function heatStep(total: number): 0 | 1 | 2 | 3 | 4 | 5 {
+/**
+ * Which step of the six-step ramp a cell falls on (docs/05 § Heatmap). The five shaded steps
+ * split the members who have submitted into fifths, so the grid keeps its contrast while only
+ * part of the roster has filled it in.
+ */
+export function heatStep(total: number, submitted: number): 0 | 1 | 2 | 3 | 4 | 5 {
   if (total <= 0) return 0;
-  if (total <= 8) return 1;
-  if (total <= 16) return 2;
-  if (total <= 24) return 3;
-  if (total <= 32) return 4;
-  return 5;
+  if (submitted <= 0 || total >= submitted) return 5;
+  // Doubled so a half-weighted total stays an exact integer; ceil(5t/s) without float drift.
+  const doubled = Math.round(total * 2);
+  const step = Math.floor((5 * doubled + 2 * submitted - 1) / (2 * submitted));
+  return Math.min(5, Math.max(1, step)) as 1 | 2 | 3 | 4 | 5;
 }

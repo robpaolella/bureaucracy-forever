@@ -100,7 +100,31 @@ describe('stacking', () => {
 });
 
 describe('heatStep', () => {
-  it('follows the six-step ramp', () => {
-    expect([0, 1, 8, 9, 16, 17, 24, 25, 32, 33, 41].map(heatStep)).toEqual([0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
+  it('is empty only for a zero total', () => {
+    expect(heatStep(0, 10)).toBe(0);
+    expect(heatStep(0, 0)).toBe(0);
+  });
+
+  it('splits 10 submitted into fifths', () => {
+    expect([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((t) => heatStep(t, 10))).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
+  });
+
+  it('spreads the whole ramp across 41 submitted', () => {
+    expect([1, 8, 9, 16, 17, 24, 25, 32, 33, 41].map((t) => heatStep(t, 41))).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
+  });
+
+  it('puts anyone available at the top when one has submitted', () => {
+    expect(heatStep(1, 1)).toBe(5);
+  });
+
+  it('keeps a total above the submitted count at the top step', () => {
+    expect(heatStep(12, 10)).toBe(5);
+    expect(heatStep(3, 0)).toBe(5);
+  });
+
+  it('handles half-weighted totals without drift', () => {
+    expect(heatStep(0.5, 10)).toBe(1);
+    expect(heatStep(2.5, 10)).toBe(2);
+    expect(heatStep(4.5, 10)).toBe(3);
   });
 });
