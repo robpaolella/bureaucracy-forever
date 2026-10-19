@@ -75,7 +75,7 @@ export function DaySummary({ heat, days, offsetSlots, zone, slotAt }: Props) {
                   aria-label={`${day.name} ${fmtSlot(s)}, ${cell.total} available`}
                   aria-pressed={slot === s}
                   onClick={() => setSlot(s)}
-                  className={cn('tabular flex flex-1 items-center justify-end border-l border-line-faint pr-3 text-[12px] font-semibold', HEAT_BG[heatStep(cell.total)], slot === s && 'outline outline-1 -outline-offset-1 outline-teal')}
+                  className={cn('tabular flex flex-1 items-center justify-end border-l border-line-faint pr-3 text-[12px] font-semibold', HEAT_BG[heatStep(cell.total, heat.submitted)], slot === s && 'outline outline-1 -outline-offset-1 outline-teal')}
                 >
                   {cell.total > 0 ? cell.total : ''}
                 </button>
@@ -100,7 +100,7 @@ export function DaySummary({ heat, days, offsetSlots, zone, slotAt }: Props) {
               </span>
               <span className="flex flex-1 gap-px" aria-hidden>
                 {heat.cells[d.day].map((c, s) => (
-                  <span key={s} className={cn('h-4 flex-1', HEAT_BG[heatStep(c.total)])} />
+                  <span key={s} className={cn('h-4 flex-1', HEAT_BG[heatStep(c.total, heat.submitted)])} />
                 ))}
               </span>
               <span className="tabular w-8 shrink-0 text-right text-sm font-semibold text-teal">{peak}</span>
