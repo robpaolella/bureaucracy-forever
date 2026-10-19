@@ -4,6 +4,7 @@ import type { ApplicationPath } from '@/components/recruitment/form-state';
 import { type AppStatus, type InboxItem } from '@/lib/applications-inbox';
 import { db } from '@/lib/db';
 import { discordThreadUrl } from '@/lib/discord-links';
+import { mentionedUserIds } from '@/lib/discord-mentions';
 import { interviewCard, type InterviewCard } from '@/lib/interviews';
 import type { WowClass } from '@/lib/design/class-colors';
 
@@ -44,6 +45,8 @@ export type ApplicationDetail = InboxItem & {
   interview: InterviewCard | null;
   /** Officer notes and relay messages together, oldest first. */
   notes: NoteEntry[];
+  /** Discord name by Discord id, for the people tagged in the notes and messages. */
+  mentionUsers: Record<string, string>;
 };
 
 type Sender = { author: string; authorClass: WowClass | null };
@@ -105,6 +108,8 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
     ? await db.user.findMany({ where: { id: { in: officerIds } }, select: { id: true, discordName: true, characters: { where: { isMain: true }, take: 1, select: { class: true } } } })
     : [];
   const officerById = new Map(officers.map((o) => [o.id, o]));
+  const mentionIds = [...new Set([...r.notes, ...r.messages].flatMap((x) => mentionedUserIds(x.body)))];
+  const mentioned = mentionIds.length ? await db.user.findMany({ where: { discordId: { in: mentionIds } }, select: { discordId: true, discordName: true } }) : [];
   const toClass = (c: string | undefined) => (c?.toLowerCase() as WowClass | undefined) ?? null;
   const applicantClass = (r.class?.toLowerCase() as WowClass | undefined) ?? null;
   const noteEntries: NoteEntry[] = r.notes.map((n) => ({
@@ -155,6 +160,7 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
     discordThreadId: r.discordThreadId,
     interview,
     notes,
+    mentionUsers: Object.fromEntries(mentioned.map((u) => [u.discordId, u.discordName])),
   };
 }
 
