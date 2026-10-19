@@ -1,12 +1,17 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { Prisma } from '@/lib/generated/prisma/client';
 import { NOTE_MAX } from '@/lib/applications-decide';
 import { reply, withIdempotency } from '@/lib/idempotency';
+import { parseMentions } from '@/lib/mentions-input';
 import { authorizeBot, isSnowflake, NO_STORE, readJson, str } from '../../../_lib';
 
 type Params = { params: Promise<{ discordMessageId: string }> };
 
-/** PATCH /api/bot/notes/by-message/:discordMessageId — `{ body }` after an officer edits their thread message (SYNC-SPEC §4). */
+/**
+ * PATCH /api/bot/notes/by-message/:discordMessageId — `{ body, mentions? }` after an officer
+ * edits their thread message (SYNC-SPEC §4). `mentions` replaces the stored one; omitted, it clears it.
+ */
 export async function PATCH(request: Request, { params }: Params) {
   const denied = authorizeBot(request);
   if (denied) return denied;
@@ -17,7 +22,9 @@ export async function PATCH(request: Request, { params }: Params) {
   return withIdempotency(request, async () => {
     const body = str(read.body.body, NOTE_MAX);
     if (!body) return reply(400, { error: 'body is empty.' });
-    const updated = await db.officerNote.updateMany({ where: { discordMessageId, deletedAt: null }, data: { body, editedAt: new Date() } });
+    const mentions = parseMentions(read.body.mentions);
+    if (!mentions.ok) return reply(400, { error: mentions.error });
+    const updated = await db.officerNote.updateMany({ where: { discordMessageId, deletedAt: null }, data: { body, mentions: mentions.mentions ?? Prisma.DbNull, editedAt: new Date() } });
     if (updated.count === 0) return reply(404, { error: 'No note for that message.' });
     return reply(200, { discordMessageId, edited: true });
   });
