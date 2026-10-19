@@ -8,6 +8,7 @@ import { DETAIL } from '@/content/applications';
 import { InterviewCard } from './InterviewCard';
 import { DecisionBar } from './DecisionBar';
 import { NoteComposer } from './NoteComposer';
+import { MentionText } from './MentionText';
 
 type Props = {
   app: ApplicationDetail;
@@ -128,7 +129,7 @@ export function ApplicationView({ app, now, threadUrl = null, standaloneUrl = nu
                           {marker && ` · ${marker}`}
                         </time>
                       </div>
-                      {n.body && <p className="whitespace-pre-line break-words text-sm leading-[1.6] text-fg-2">{n.body}</p>}
+                      {n.body && <p className="whitespace-pre-line break-words text-sm leading-[1.6] text-fg-2"><MentionText body={n.body} users={app.mentionUsers} /></p>}
                       {message && message.attachmentCount > 0 &&
                         (message.attachmentUrl ? (
                           <a href={message.attachmentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center self-start text-sm text-teal-text underline-offset-4 hover:underline">
