@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 type App = { id: string; discordId: string; status: string; createdAt: Date; reopenedAt: Date | null; decidedAt: Date | null };
-type Msg = { id: string; applicationId: string; direction: string; dmMessageId: string | null; body: string; createdAt: Date; attachments: unknown; dmChannelId: string | null };
+type Msg = { id: string; applicationId: string; direction: string; dmMessageId: string | null; body: string; createdAt: Date; attachments: unknown; dmChannelId: string | null; mentions?: unknown };
 type BotRequest = { key: string; statusCode: number; body: unknown; createdAt: Date };
 const store = vi.hoisted(() => ({ apps: [] as App[], messages: [] as Msg[], enqueue: vi.fn(), raceOnCreate: false, requests: new Map<string, BotRequest>(), saves: [] as string[] }));
 
@@ -62,6 +62,7 @@ vi.mock('@/lib/db', async () => {
   return { db: { ...tx, botRequest: botRequest('after'), $transaction } };
 });
 
+import { Prisma } from '@/lib/generated/prisma/client';
 import { POST } from './route';
 
 const THRALL = '100000000000000001';
@@ -228,5 +229,24 @@ describe('POST /api/bot/applicant-messages', () => {
     expect((await call(dm(), { key: '100000000000000003' })).status).toBe(200);
     expect(store.saves).toEqual(['after']);
     expect(store.requests.get('100000000000000003')).toMatchObject({ statusCode: 200, body: { stored: false } });
+  });
+
+  it('stores the mentions sent with a DM, and none when they are left out', async () => {
+    seed();
+    const mentions = { users: { '100000000000000001': { name: 'Thrall' } }, roles: { '100000000000000004': { name: 'Officer', color: 15844367 } }, channels: { '100000000000000005': { name: 'general' } } };
+    expect((await json(dm({ mentions }))).body.stored).toBe(true);
+    expect(store.messages[0].mentions).toEqual(mentions);
+    expect((await json(dm({ dmMessageId: '100000000000000006' }))).body.stored).toBe(true);
+    expect(store.messages[1].mentions).toBe(Prisma.DbNull);
+  });
+
+  it('refuses malformed mentions with 400 and stores nothing', async () => {
+    seed();
+    const many = Object.fromEntries(Array.from({ length: 51 }, (_, i) => [`1000000000000001${String(i).padStart(2, '0')}`, { name: 'x' }]));
+    for (const mentions of [{ users: { abc: { name: 'x' } } }, { users: { '100000000000000001': { name: 'a'.repeat(101) } } }, { roles: { '100000000000000004': { name: 'Officer', color: 16777216 } } }, { channels: many }, 'Thrall']) {
+      expect(await json(dm({ mentions }))).toEqual({ status: 400, body: { reason: 'invalid', error: expect.any(String) } });
+    }
+    expect(store.messages).toHaveLength(0);
+    expect(store.enqueue).not.toHaveBeenCalled();
   });
 });
