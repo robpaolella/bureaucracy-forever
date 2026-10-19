@@ -112,16 +112,22 @@ through the bot.
 ### Heatmap
 
 Identical 7 × 48 grid at 17px rows and a 72px time gutter. Each cell is filled from the
-count of members available in that slot, using the six-step ramp in `tokens.css`:
+count of members available in that slot, using the six-step ramp in `tokens.css`. The ramp is
+relative to how many members have submitted: the five shaded steps split that number into
+fifths, so a cell with total `t` out of `s` submitted sits on step `ceil(5 × t / s)`, kept
+between 1 and 5. A total of 0 is always `--heat-0`.
 
 ```
-0 → --heat-0     1–8 → --heat-1     9–16 → --heat-2
-17–24 → --heat-3   25–32 → --heat-4   33+ → --heat-5
+0 → --heat-0
+with 10 submitted: 1–2 → --heat-1   3–4 → --heat-2   5–6 → --heat-3
+                   7–8 → --heat-4   9–10 → --heat-5
 ```
+
+With nobody submitted every cell is empty; with one submitted, anyone available is the top step.
 
 The ramp is single-hue and sequential on purpose — a rainbow scale would imply categories
-where there's only more and less. A legend sits above the grid: "0", six swatches, "41
-available".
+where there's only more and less. A legend sits above the grid: "0", six swatches, "10
+submitted" (the submitted count).
 
 **"If needed" counts as half.** A slot with 20 available and 8 if-needed reads as 24.
 Show the split in the tooltip.
