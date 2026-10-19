@@ -145,7 +145,7 @@ async function main() {
     });
     if (a.read && a.path === 'RAIDER') {
       await db.officerNote.create({
-        data: { applicationId: app.id, authorId: officers[2].id, body: 'Logs look clean. Deaths avoided more than damage done.', createdAt: new Date(createdAt.getTime() + 2 * 3600_000) },
+        data: { applicationId: app.id, authorId: officers[2].id, body: `Logs look clean. Deaths avoided more than damage done.\nAsking <@${roster[0].discordId}> and <@&1000000000000000001> to look in <#1000000000000000002> <:pepe:1000000000000000003>. Also <@1000000000000000004>.`, createdAt: new Date(createdAt.getTime() + 2 * 3600_000) },
       });
     }
     for (const m of a.messages ?? []) {
