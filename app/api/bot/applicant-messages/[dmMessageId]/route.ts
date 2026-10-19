@@ -1,5 +1,7 @@
 import { db } from '@/lib/db';
+import { Prisma } from '@/lib/generated/prisma/client';
 import { reply, withIdempotency, type Reply } from '@/lib/idempotency';
+import { parseMentions } from '@/lib/mentions-input';
 import { enqueue } from '@/lib/outbox';
 import { parseApplicantEdit } from '@/lib/relay';
 import { authorizeBot, isSnowflake, readJson } from '../../_lib';
@@ -22,7 +24,7 @@ const isLive = (m: NonNullable<Awaited<ReturnType<typeof findMessage>>>) =>
   m.direction === 'FROM_APPLICANT' && !m.deletedAt && m.application.status === 'PENDING';
 
 /** Applies `data` while the message is still live (re-checked in the write), then queues its copy. */
-async function change(m: { id: string; applicationId: string }, data: { body: string; editedAt: Date } | { deletedAt: Date }): Promise<Reply> {
+async function change(m: { id: string; applicationId: string }, data: { body: string; mentions: Prisma.InputJsonValue | typeof Prisma.DbNull; editedAt: Date } | { deletedAt: Date }): Promise<Reply> {
   const changed = await db.$transaction(async (tx) => {
     const { count } = await tx.applicantMessage.updateMany({
       where: { id: m.id, deletedAt: null, application: { status: 'PENDING' } },
@@ -36,8 +38,8 @@ async function change(m: { id: string; applicationId: string }, data: { body: st
 }
 
 /**
- * PATCH /api/bot/applicant-messages/:dmMessageId — `{ body }`, key = `<dmMessageId>:edit:<the
- * edit's Discord timestamp>` (SYNC-SPEC §13). Sets the text and `editedAt` and queues
+ * PATCH /api/bot/applicant-messages/:dmMessageId — `{ body, mentions? }`, key = `<dmMessageId>:edit:<the
+ * edit's Discord timestamp>` (SYNC-SPEC §13). Sets the text, `mentions` (cleared when omitted) and `editedAt` and queues
  * `application.message.copy`: `{ changed: true, applicationId, messageId }`. Otherwise
  * `{ changed: false }`: unknown id, decided application, deleted message or an unchanged text.
  */
@@ -51,8 +53,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ dm
     const m = await findMessage(dmMessageId);
     const parsed = parseApplicantEdit(read.body, m ? attachmentCount(m.attachments) : 0);
     if (!parsed.ok) return reply(400, { reason: 'invalid', error: parsed.error });
+    const mentions = parseMentions(read.body.mentions);
+    if (!mentions.ok) return reply(400, { reason: 'invalid', error: mentions.error });
     if (!m || !isLive(m) || parsed.text === m.body) return UNCHANGED();
-    return change(m, { body: parsed.text, editedAt: new Date() });
+    return change(m, { body: parsed.text, mentions: mentions.mentions ?? Prisma.DbNull, editedAt: new Date() });
   });
 }
 

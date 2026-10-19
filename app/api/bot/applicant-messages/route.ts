@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { Prisma } from '@/lib/generated/prisma/client';
 import { reply, withIdempotency, type Complete, type Reply } from '@/lib/idempotency';
+import { parseMentions, type Mentions } from '@/lib/mentions-input';
 import { enqueue } from '@/lib/outbox';
 import { inRelayWindow, parseApplicantDm, type ApplicantDm } from '@/lib/relay';
 import { authorizeBot, readJson } from '../_lib';
@@ -15,7 +16,7 @@ async function storedReply(dmMessageId: string): Promise<Reply | null> {
   return reply(200, { stored: true, applicationId: existing.applicationId, messageId: existing.id });
 }
 
-async function store(dm: ApplicantDm, complete: Complete): Promise<Reply> {
+async function store(dm: ApplicantDm, mentions: Mentions | null, complete: Complete): Promise<Reply> {
   const repeat = await storedReply(dm.dmMessageId);
   if (repeat) return repeat;
   // §13: only the sender's most recent application, and only if it was PENDING at the send time.
@@ -29,7 +30,7 @@ async function store(dm: ApplicantDm, complete: Complete): Promise<Reply> {
     // The key's stored reply commits with the message and its job.
     return await db.$transaction(async (tx) => {
       const row = await tx.applicantMessage.create({
-        data: { applicationId: app.id, direction: 'FROM_APPLICANT', body: dm.body, createdAt: dm.createdAt, dmChannelId: dm.dmChannelId, dmMessageId: dm.dmMessageId, attachments: dm.attachments },
+        data: { applicationId: app.id, direction: 'FROM_APPLICANT', body: dm.body, createdAt: dm.createdAt, dmChannelId: dm.dmChannelId, dmMessageId: dm.dmMessageId, attachments: dm.attachments, mentions: mentions ?? Prisma.DbNull },
         select: { id: true },
       });
       await enqueue('application.message.copy', { applicationId: app.id, messageId: row.id }, tx);
@@ -47,7 +48,7 @@ async function store(dm: ApplicantDm, complete: Complete): Promise<Reply> {
 
 /**
  * POST /api/bot/applicant-messages — an applicant's DM to the bot (SYNC-SPEC §13). `{ discordId,
- * dmChannelId, dmMessageId, body, createdAt, attachments }`, key = the DM message id. Stored
+ * dmChannelId, dmMessageId, body, createdAt, attachments, mentions? }` (`mentions`: §4, Mentions), key = the DM message id. Stored
  * on the sender's most recent application when it was PENDING at the DM's send time, then
  * `application.message.copy` is queued: `{ stored: true, applicationId, messageId }`.
  * Otherwise `{ stored: false }`. A repeat DM id returns the same reply and queues nothing.
@@ -60,6 +61,8 @@ export async function POST(request: Request) {
   return withIdempotency(request, async (complete) => {
     const parsed = parseApplicantDm(read.body);
     if (!parsed.ok) return reply(400, { reason: 'invalid', error: parsed.error });
-    return store(parsed.dm, complete);
+    const mentions = parseMentions(read.body.mentions);
+    if (!mentions.ok) return reply(400, { reason: 'invalid', error: mentions.error });
+    return store(parsed.dm, mentions.mentions, complete);
   });
 }

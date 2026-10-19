@@ -471,6 +471,8 @@ model OfficerNote {
   editedAt         DateTime?
   /// Soft delete: hidden on the web, deleted in Discord.
   deletedAt        DateTime?
+  /// Discord-origin: what the text's tags point to, as the bot sent it (lib/mentions-input.ts). Null: use the fallback.
+  mentions         Json?
 
   @@index([applicationId])
 }
@@ -513,6 +515,8 @@ model ApplicantMessage {
   editedAt      DateTime?
   /// FROM_APPLICANT: the text is kept and the copy says deleted.
   deletedAt     DateTime?
+  /// FROM_APPLICANT: what the text's tags point to, as the bot sent it (lib/mentions-input.ts). Null: use the fallback.
+  mentions      Json?
 
   @@index([applicationId, createdAt])
 }
