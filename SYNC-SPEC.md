@@ -85,6 +85,7 @@ model OfficerNote {
                                                // or the mirror the bot posted (web-origin)
   editedAt          DateTime?
   deletedAt         DateTime?                  // soft delete; hidden on web, deleted in Discord
+  mentions          Json?                      // Discord-origin: what the tags point to (§4, Mentions)
 }
 
 enum MessageDirection { TO_APPLICANT FROM_APPLICANT }
@@ -107,6 +108,7 @@ model ApplicantMessage {
   attachments     Json     @default("[]")          // [{ id, filename, size, spoiler }]
   editedAt        DateTime?
   deletedAt       DateTime?                        // FROM_APPLICANT: the text is kept, the copy says deleted
+  mentions        Json?                            // FROM_APPLICANT: what the tags point to (§4, Mentions)
   @@index([applicationId, createdAt])
 }
 
@@ -284,8 +286,8 @@ Any route that takes `Idempotency-Key` may also answer `409 { reason: "in_progre
 | GET | `/applications/:id` | Full application + notes, for rendering, plus `interview`: the latest attempt in the `GET /interviews/:id` shape without `slots`, or `null` if there is none, and `reminder`: `{ pending, live }` (§6 step 14, Fresh check). |
 | POST | `/applications/:id/decision` | `{ status: ACCEPTED\|DECLINED, byDiscordId, reason? }`. 409 if not PENDING. |
 | POST | `/applications/:id/reopen` | `{ byDiscordId }`. 409 if PENDING. |
-| POST | `/applications/:id/notes` | `{ discordMessageId, authorDiscordId, body, createdAt }`. Author must resolve to an OFFICER; otherwise 403 and the bot ignores the message. |
-| PATCH | `/notes/by-message/:discordMessageId` | `{ body }` |
+| POST | `/applications/:id/notes` | `{ discordMessageId, authorDiscordId, body, createdAt, mentions? }` ([Mentions](#mentions)). Author must resolve to an OFFICER; otherwise 403 and the bot ignores the message. |
+| PATCH | `/notes/by-message/:discordMessageId` | `{ body, mentions? }` ([Mentions](#mentions)): replaces the stored `mentions`; omitted, it clears them. |
 | DELETE | `/notes/by-message/:discordMessageId` | soft delete |
 | GET | `/raids/:id` | Raid + template + counts + `viewer` block when `?discordId=` is given: `{ standing, response, character, characters?, lootTable, reservesLocked, reservesComplete, reservesUrl }`, or `null` when that member has no sign-up (so cannot reserve). `lootTable` is true when loot is on, the raid's template has at least one loot-table item and the member can reserve; it is false for a member on the Trial rank, who can't set reserves, so the bot shows them no reserve prompt; `reservesLocked` is true from `startsAt − 120 min` (the reserve lock, not the sign-up lock); `reservesComplete` is true only when the member has both a hard and a soft reserve on the raid, as for `raid.reserves.remind`; `reservesUrl` is `<site>/members/calendar/<raidId>?reserves=1`, which opens that member's own reserves window after sign-in when they are Accept or Tentative with a character, the raid is not cancelled and reserves aren't locked, and otherwise just shows the raid page. `character` is the brought character `{ id, name, wowClass, spec, raidRole }` (saved choice, otherwise main), or `null`; `wowClass` and `raidRole` are lowercase. `characters` is the member's list in the `/members/:discordId` format, main first then alts by name, sent only when the member has alts. `POST /raids/:id/respond` answers with the same `viewer` block. The bot must tolerate a missing `character` on older sites and show no character menu without `characters`. Character names are private to this viewer block, never added to the embed (§8). |
 | GET | `/raids?byDiscordId=` | For `/broadcast` (§14). Officers only. `{ raids: [{ id, name, startsAt, status }] }`: every raid whose `startsAt` is at or after now minus 7 days, any `status` (including `CANCELLED` and `DONE`), earliest first, at most 25 (the furthest-future drop off). `name` is the stored raid name; `startsAt` is ISO; `status` is the `RaidStatus`. None: `{ raids: [] }`. Read-only. |
@@ -304,8 +306,8 @@ Any route that takes `Idempotency-Key` may also answer `409 { reason: "in_progre
 | PUT | `/needs` | `{ wowClass, spec, status, byDiscordId }` from `/recruitment`; `spec` is a name from `GET /needs`. `byDiscordId` must be an OFFICER, else 403; 400 for an unknown class, spec or status. The same write as the web needs editor, so the recruitment page, the home teaser and the officer editor show it within a minute. Anything but high also takes the spec's home-page star away. Answers `{ wowClass, spec, status }`. |
 | POST | `/members/sync` | `{ members: [{ discordId, name, avatarUrl, roles }], full }`. Upserts every member's name, avatar, site role, `inGuild` and rank from their Discord roles (§3). With `full`, anyone not listed gets `inGuild = false`. Idempotent; no Idempotency-Key needed. |
 | POST | `/applications/:id/messages` | Officer → applicant relay (§13). `{ byDiscordId, body }`, key = the popup's interaction id. 201 `{ message }` with status `QUEUED`; enqueues `application.message.send`. |
-| POST | `/applicant-messages` | An applicant's DM to the bot (§13). `{ discordId, dmChannelId, dmMessageId, body, createdAt, attachments }`, key = the DM message id. `{ stored: true, applicationId, messageId }` and enqueues `application.message.copy`, or `{ stored: false }`. |
-| PATCH | `/applicant-messages/:dmMessageId` | `{ body }`. Edit of a stored DM (§13). `{ changed, … }`. |
+| POST | `/applicant-messages` | An applicant's DM to the bot (§13). `{ discordId, dmChannelId, dmMessageId, body, createdAt, attachments, mentions? }` ([Mentions](#mentions)), key = the DM message id. `{ stored: true, applicationId, messageId }` and enqueues `application.message.copy`, or `{ stored: false }`. |
+| PATCH | `/applicant-messages/:dmMessageId` | `{ body, mentions? }` ([Mentions](#mentions)). Edit of a stored DM (§13). `{ changed, … }`. |
 | DELETE | `/applicant-messages/:dmMessageId` | Delete of a stored DM (§13): marks it deleted, keeps the text. `{ changed, … }`. |
 | GET | `/applicant-messages/open` | For the bot's catch-up (§13): one entry per `PENDING` application. |
 | GET | `/messages/:id` | One relay message for rendering (§13), with `ping`. |
@@ -323,6 +325,31 @@ Every write here that changes something Discord shows **also enqueues the matchi
 posts the response, the site stores it and enqueues `raid.update`, the bot picks that up on
 its next poll and re-renders from `GET /raids/:id`. The bot must not update the embed
 directly from the click; it may reply ephemerally ("You're set to Accept") immediately.
+
+### Mentions
+The four routes that carry a Discord message's text (`POST /applications/:id/notes`,
+`PATCH /notes/by-message/:discordMessageId`, `POST /applicant-messages`,
+`PATCH /applicant-messages/:dmMessageId`) take an optional `mentions`: what the text's tags
+point to, from discord.js's resolved mentions on that message, so the site can show names.
+
+```
+mentions: {
+  users?:    { [discordId]: { name } },          // the member's server display name
+  roles?:    { [roleId]:    { name, color } },   // color: Discord's integer role colour, 0 = none
+  channels?: { [channelId]: { name } },
+}
+```
+
+- Ids are Discord ids (digits). `name` is 1–100 characters; `color` is an integer from 0 to
+  16777215. At most 50 entries per kind. Anything else, `null` included, is a 400 with an `error` (with
+  `reason: "invalid"` on the relay routes, as for their other fields). Unknown keys are ignored.
+- Optional: without it the note or message is stored as before, and the site shows tags with
+  its own fallback. Notes and messages stored before this field have none.
+- A create stores it. An edit replaces it with what was sent, and an edit without it clears
+  it, so send it on every edit. An applicant edit whose text is unchanged answers
+  `{ changed: false }` and keeps the stored `mentions`.
+- Not on `POST /applications/:id/messages`: that text comes from a popup, where Discord
+  resolves no tags.
 
 ---
 
@@ -905,11 +932,11 @@ All under §4's conventions; each write takes `Idempotency-Key`.
   enqueues `application.message.send`. Refusals: 403 `forbidden`, 409 `not_pending`, 400
   `invalid` (above).
 - `POST /applicant-messages` `{ discordId, dmChannelId, dmMessageId, body, createdAt,
-  attachments }` (key = the DM message id; `attachments` is `[{ id, filename, size, spoiler }]`)
+  attachments, mentions? }` (§4, Mentions; key = the DM message id; `attachments` is `[{ id, filename, size, spoiler }]`)
   → `{ stored: true, applicationId, messageId }` and enqueues `application.message.copy`, or
   `{ stored: false }`. A repeat of a stored `dmMessageId` (`dmMessageId` is unique) is a no-op
   success returning the same reply and enqueueing nothing.
-- `PATCH /applicant-messages/:dmMessageId` `{ body }` (key = `<dmMessageId>:edit:<the edit's
+- `PATCH /applicant-messages/:dmMessageId` `{ body, mentions? }` (key = `<dmMessageId>:edit:<the edit's
   Discord timestamp>`) and `DELETE /applicant-messages/:dmMessageId` (key =
   `<dmMessageId>:delete`) → `{ changed: true, applicationId, messageId }`, updating or marking
   deleted and enqueueing `application.message.copy`, or `{ changed: false }` when the rules say
