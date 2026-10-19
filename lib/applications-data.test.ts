@@ -48,6 +48,18 @@ describe('loadApplication notes and messages', () => {
     expect(notes[2]).toMatchObject({ direction: 'from', author: 'Thrall', authorClass: 'shaman' });
   });
 
+  it('looks up the people tagged in notes and messages in one query', async () => {
+    mocks.users.mockResolvedValue([{ discordId: '111', discordName: 'Ledgerline' }]);
+    mocks.findUnique.mockResolvedValue({
+      ...row,
+      notes: [{ id: 'n1', body: 'ask <@111> and <@&5>', createdAt: at(2), source: 'WEB', discordMessageId: null, editedAt: null, author: { discordName: 'Redtape', characters: [] } }],
+      messages: [msg({ body: 'hi <@!111> <@222>' })],
+    });
+    expect((await loadApplication('app'))!.mentionUsers).toEqual({ '111': 'Ledgerline' });
+    expect(mocks.users).toHaveBeenCalledTimes(1);
+    expect(mocks.users).toHaveBeenCalledWith(expect.objectContaining({ where: { discordId: { in: ['111', '222'] } } }));
+  });
+
   it('keeps a deleted applicant message with its marker', async () => {
     mocks.findUnique.mockResolvedValue({ ...row, messages: [msg({ deletedAt: at(2), editedAt: at(2) })] });
     expect((await loadApplication('app'))!.notes[0]).toMatchObject({ body: 'hi', marker: 'deleted' });
