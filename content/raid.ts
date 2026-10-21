@@ -104,7 +104,7 @@ export const UNANSWERED = {
   heading: "Hasn't answered",
   empty: 'Everyone on the roster has answered.',
   nudge: 'Nudge in Discord',
-  nudgeHint: 'Mentions them in the raid thread.',
+  nudgeHint: 'Sends each of them a Discord DM.',
   nudged: (n: number) => (n === 1 ? 'Nudged 1 member in Discord' : `Nudged ${n} members in Discord`),
   noThread: 'The raid is not posted to Discord yet.',
 };
