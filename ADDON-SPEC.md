@@ -1032,9 +1032,9 @@ a chunk twice changes nothing.
 - **Who runs the add-on (`P`).** `H` is per raid and ignored for a raid the receiver has
   not loaded, so it cannot say who runs the add-on. An add-on broadcasts `P;1` to the
   group when it joins the group, reloads or logs in while in a group, and the roster is
-  the senders it has seen. On receiving `P;1` from a name it has not seen, an add-on
-  whispers `P;0` back, and, if it holds a selection, an `S` (below). It never answers
-  `P;0`, so nothing loops. A name leaves the roster when it leaves the group. The
+  the senders it has seen. An add-on answers every `P;1`, even from a name it has
+  seen, because a reloaded add-on has lost its roster; it whispers `P;0` back and, if it
+  holds a selection, an `S` (below). It never answers `P;0`, so nothing loops. A name leaves the roster when it leaves the group. The
   chooser rule (2.1) runs on this roster, the loot master and the raid leader as the
   game reports them. The `P` text carries no raid, so it works for an add-on with no
   snapshot loaded; an officer without one can still be chosen and is told to load one.
