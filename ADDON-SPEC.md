@@ -985,7 +985,7 @@ Body (after the prefix and a tab), fields separated by `;`:
 | --- | --- | --- |
 | `O` | `O;msgid;n/N;raid;author;piece` | Chunk `n` of `N` of one operation. |
 | `Q` | `Q;msgid;1,3` | Please resend these chunks of `msgid` (whisper to the sender). |
-| `H` | `H;raid;version;count;digest` | "Here is what I hold." Sent when an add-on loads the raid's snapshot, joins the group, or reloads. |
+| `H` | `H;raid;version;count;digest` | "Here is what I hold." Sent when an add-on loads the raid's snapshot, joins the group, or reloads. Also whispered in answer to a `P;1`. |
 | `C` | `C;reqid;raid;n/N;piece` | Catch-up request: the ids the sender holds (comma-separated), chunked like `O`. |
 | `D` | `D;reqid;count` | End of a reply to `C`: `count` operations were sent. |
 | `P` | `P;reply` | "I run the add-on." Needs no loaded raid. `reply` is `1` (broadcast, please answer) or `0` (an answer). |
@@ -1033,8 +1033,11 @@ a chunk twice changes nothing.
   not loaded, so it cannot say who runs the add-on. An add-on broadcasts `P;1` to the
   group when it joins the group, reloads or logs in while in a group, and the roster is
   the senders it has seen. An add-on answers every `P;1`, even from a name it has
-  seen, because a reloaded add-on has lost its roster; it whispers `P;0` back and, if it
-  holds a selection, an `S` (below). It never answers `P;0`, so nothing loops. A name leaves the roster when it leaves the group. The
+  seen, because a reloaded add-on has lost its roster; it whispers `P;0` back, if it
+  holds a selection an `S` (below), and one `H` for each raid it has loaded, so a late
+  joiner learns what it missed: its own `H` only makes the others ask it for what they
+  lack, and nobody else would send it one. Nothing loops: a `P;0` is never answered, and
+  a whispered `H` only sets off a `C` (above), never another `P`. A name leaves the roster when it leaves the group. The
   chooser rule (2.1) runs on this roster, the loot master and the raid leader as the
   game reports them. The `P` text carries no raid, so it works for an add-on with no
   snapshot loaded; an officer without one can still be chosen and is told to load one.
