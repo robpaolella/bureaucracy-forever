@@ -449,7 +449,7 @@ records nothing.
 
 ### 4.4 The add-on's saved data
 
-The add-on keeps its awards and operations in `BureaucracyForeverDB`, in five places. The
+The add-on keeps its awards and operations in `BureaucracyForeverDB`, in seven places. The
 helper reads them (section 7.3) and copy-out (section 12) is built from them. A list that
 is absent is the same as an empty one.
 
@@ -460,6 +460,8 @@ is absent is the same as an empty one.
 | `noRaid` | The award records held as "no raid" (section 2): no `raid` or `env`. |
 | `noRaidOps` | Their operations, in the same order and shape as `ops`. |
 | `siteVoids` | The site's pending voids: voids from the catch-up (3.4) for awards the add-on does not hold yet. An object keyed by award key; each entry is described below. |
+| `via[opId]` | The bare name of the officer who forwarded this operation (10.2). Private saved data: never uploaded, copied out or sent to other officers; the helper ignores it. Written only for a forwarded operation; removed only when the no-raid awards are discarded (section 2). Attaching them to a raid keeps the entry. |
+| `authors[opId]` | The bare name of the officer who made this locally saved operation, when its text names no author: a `confirm`, `not-confirmed` or `void`. For an `award` or replacement award, `sender` names the author. Private saved data: never uploaded, copied out or sent to other officers; the helper ignores it. Written only for those operations; removed only when the no-raid awards are discarded (section 2). Attaching them to a raid keeps the entry. A missing entry means the account's own character, as in saved data from before this field. |
 
 When an officer attaches the "no raid" awards to a raid, both lists move to that raid's
 `awards` and `ops`, each record gaining `raid` and `env` and keeping its key; discarding
