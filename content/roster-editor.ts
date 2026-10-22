@@ -22,7 +22,7 @@ export const EDITOR = {
   secondName: 'Second name',
   namePlaceholder: 'Red',
   secondNamePlaceholder: 'Tape',
-  nameHint: 'First name, and a second name if the character has one, 2 to 12 letters each.',
+  nameHint: 'A first and a second name, 2 to 12 letters each, exactly as in game.',
   wowClass: 'Class',
   spec: 'Spec',
   role: 'Raid role',

@@ -13,8 +13,8 @@ import { POST } from './route';
 import { PATCH, DELETE } from './[characterId]/route';
 import { OFFICER_RANK_ERROR } from '@/content/roster-editor';
 
-const body = { userId: 'member', name: 'Sample', wowClass: 'paladin', spec: 'Protection', role: 'tank', rank: 'raider' };
-const character = { id: 'character', userId: 'member', name: 'Sample', isMain: false, raidRole: 'TANK', rank: 'RAIDER' };
+const body = { userId: 'member', name: 'Sample Name', wowClass: 'paladin', spec: 'Protection', role: 'tank', rank: 'raider' };
+const character = { id: 'character', userId: 'member', name: 'Sample Name', isMain: false, raidRole: 'TANK', rank: 'RAIDER' };
 const tx = { user: { findUnique: mocks.user }, character: {
   findFirst: mocks.findFirst, create: mocks.create, update: mocks.update, delete: mocks.remove, count: mocks.count,
 } };
@@ -52,6 +52,13 @@ it('adds an alt using the member rank, ignoring the supplied officer rank; retri
   mocks.findFirst.mockResolvedValue(character);
   expect((await POST(request('POST', { ...body, alt: true }))).status).toBe(200);
 });
+it.each(['POST', 'PATCH'])('%s refuses a single name before any write', async (method) => {
+  const single = { ...body, name: 'Sample' };
+  const response = method === 'POST' ? await POST(request(method, single)) : await PATCH(request(method, single), params);
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({ error: expect.stringMatching(/first and a second name/) });
+  expect(mocks.transaction).not.toHaveBeenCalled();
+});
 it('refuses a ninth character with the shared message', async () => {
   mocks.user.mockResolvedValue({ rank: 'RAIDER', characters: Array(8).fill({ isMain: true }) });
   const response = await POST(request('POST', { ...body, alt: true }));
@@ -60,18 +67,18 @@ it('refuses a ninth character with the shared message', async () => {
   expect(mocks.create).not.toHaveBeenCalled();
 });
 it('uses case-insensitive name checks and the shared collision message', async () => {
-  mocks.findFirst.mockResolvedValue({ ...character, userId: 'other', name: 'SAMPLE' });
+  mocks.findFirst.mockResolvedValue({ ...character, userId: 'other', name: 'SAMPLE NAME' });
   const response = await POST(request('POST', { ...body, alt: true }));
   expect(response.status).toBe(409);
   expect(await response.json()).toEqual({ error: 'That name is taken by another member.' });
-  expect(mocks.findFirst).toHaveBeenCalledWith({ where: { name: { equals: 'Sample', mode: 'insensitive' } } });
+  expect(mocks.findFirst).toHaveBeenCalledWith({ where: { name: { equals: 'Sample Name', mode: 'insensitive' } } });
 });
 it('keeps create-main success, existing-main rejection and officer-rank rejection', async () => {
   mocks.user.mockResolvedValue({ id: 'member', characters: [] });
-  mocks.create.mockResolvedValue({ id: 'character', name: 'Sample' });
+  mocks.create.mockResolvedValue({ id: 'character', name: 'Sample Name' });
   const response = await POST(request('POST'));
   expect(response.status).toBe(201);
-  expect(await response.json()).toEqual({ id: 'character', name: 'Sample' });
+  expect(await response.json()).toEqual({ id: 'character', name: 'Sample Name' });
   expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ isMain: true }) }));
   expect(mocks.rank).toHaveBeenCalledWith('member', 'RAIDER');
   mocks.user.mockResolvedValue({ id: 'member', characters: [character] });
@@ -87,9 +94,9 @@ it('edits an alt, ignoring rank, and queues a refresh through the shared rules',
   mocks.update.mockResolvedValue({ ...character, raidRole: 'HEALER' });
   const response = await PATCH(request('PATCH', { ...body, spec: 'Holy', role: 'healer', rank: 'invalid' }), params);
   expect(response.status).toBe(200);
-  expect(await response.json()).toEqual({ id: 'character', name: 'Sample' });
+  expect(await response.json()).toEqual({ id: 'character', name: 'Sample Name' });
   expect(mocks.findFirst).toHaveBeenCalledWith({ where: { id: 'character', userId: 'member' } });
-  expect(mocks.update).toHaveBeenCalledWith({ where: { id: 'character' }, data: { name: 'Sample', class: 'PALADIN', spec: 'Holy', raidRole: 'HEALER' } });
+  expect(mocks.update).toHaveBeenCalledWith({ where: { id: 'character' }, data: { name: 'Sample Name', class: 'PALADIN', spec: 'Holy', raidRole: 'HEALER' } });
   expect(mocks.refresh).toHaveBeenCalledWith(character, tx);
   expect(mocks.rank).not.toHaveBeenCalled();
 });
@@ -117,7 +124,7 @@ it.each([false, true])('removes a character with no remaining alts (main: %s)', 
   mocks.findFirst.mockResolvedValue({ ...character, isMain });
   const response = await DELETE(request('DELETE'), params);
   expect(response.status).toBe(200);
-  expect(await response.json()).toEqual({ id: 'character', name: 'Sample' });
+  expect(await response.json()).toEqual({ id: 'character', name: 'Sample Name' });
   expect(mocks.refresh).toHaveBeenCalledWith({ ...character, isMain }, tx);
   expect(mocks.remove).toHaveBeenCalledWith({ where: { id: 'character' } });
   expect(mocks.rank).not.toHaveBeenCalled();
