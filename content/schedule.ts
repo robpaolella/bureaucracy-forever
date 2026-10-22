@@ -4,7 +4,8 @@
  *
  * Times are guild wall-clock ("HH:MM", 24h) in GUILD_TIMEZONE (lib/config.ts). Never
  * store or show a bare time: components turn each into its next instant and render it with
- * LocalTime, in the viewer's zone with guild time on hover, tap and focus.
+ * LocalTime, in the viewer's zone with guild time on hover, tap and focus (the guild zone's
+ * abbreviation, no popup, for viewers already in guild time).
  */
 import { minutesBetween, nextOccurrence, type Weekday } from '@/lib/time';
 

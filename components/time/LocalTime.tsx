@@ -49,7 +49,8 @@ const HOVER_CLICK_MS = 400;
 /**
  * A time in the viewer's zone ("8:00 – 11:00 PM EDT") with guild time on mouse hover, tap,
  * click or keyboard focus, and in the accessible name. Before the zone is known, or when it
- * is guild time, it shows guild time once, labelled, with no popup. The popup is the item
+ * is guild time, it shows the guild zone's abbreviation ("8:00 – 11:00 PM PDT") with no popup;
+ * the accessible name still says guild time. The popup is the item
  * tooltip's disclosure (ItemName): Escape, an outside press and tabbing away close it.
  */
 export function LocalTime({ startsAt, durationMin, className, zone, weekday, date, dense = false, hitHeight = 44 }: Props) {

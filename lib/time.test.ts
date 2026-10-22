@@ -167,18 +167,28 @@ describe('viewerTime', () => {
       guild: 'Saturday 17 Oct, 10:00 PM guild time (PDT)',
       label: 'Sunday 18 Oct, 1:00 AM EDT, Saturday 17 Oct, 10:00 PM guild time (PDT)',
     });
-    expect(viewerTime(late, 0, null, 'en-US', { date: true }).text).toBe('Saturday 17 Oct, 10:00 PM guild time');
+    expect(viewerTime(late, 0, null, 'en-US', { date: true }).text).toBe('Saturday 17 Oct, 10:00 PM PDT');
   });
 
-  it('shows guild time once when the viewer is in guild time', () => {
-    const once = { text: '5:00 – 8:00 PM guild time', guild: null, label: '5:00 – 8:00 PM guild time' };
+  it('shows the guild zone abbreviation once when the viewer is in guild time', () => {
+    const once = { text: '5:00 – 8:00 PM PDT', guild: null, label: '5:00 – 8:00 PM PDT, guild time' };
     expect(viewerTime(start, 180, LA)).toEqual(once);
     // Another zone on the same clock counts as guild time too.
     expect(viewerTime(start, 180, 'America/Vancouver')).toEqual(once);
   });
 
-  it('labels guild time before the viewer is known', () => {
-    expect(viewerTime(start, 0, null)).toEqual({ text: '5:00 PM guild time', guild: null, label: '5:00 PM guild time' });
+  it('uses the guild zone abbreviation before the viewer is known', () => {
+    expect(viewerTime(start, 0, null)).toEqual({ text: '5:00 PM PDT', guild: null, label: '5:00 PM PDT, guild time' });
+  });
+
+  it('computes PDT or PST for the instant, for Tijuana too', () => {
+    const winter = zonedTimeToUtc(2026, 12, 1, 17, 0, LA);
+    const tj = 'America/Tijuana';
+    for (const zone of [null, LA, tj]) {
+      expect(viewerTime(start, 0, zone)).toMatchObject({ text: '5:00 PM PDT', guild: null });
+      expect(viewerTime(winter, 0, zone)).toEqual({ text: '5:00 PM PST', guild: null, label: '5:00 PM PST, guild time' });
+    }
+    expect(viewerTime(winter, 0, NY).guild).toBe('5:00 PM guild time (PST)');
   });
 
   it('follows each zone across a DST change', () => {
@@ -205,16 +215,16 @@ describe('viewerTime', () => {
   it('names the weekday always or never when asked', () => {
     expect(viewerTime(start, 0, NY, 'en-US', { weekday: 'always' })).toMatchObject({ text: 'Tue 8:00 PM EDT', guild: 'Tue 5:00 PM guild time (PDT)' });
     expect(viewerTime(start, 0, LON, 'en-US', { weekday: 'never' })).toMatchObject({ text: '1:00 AM GMT+1', guild: '5:00 PM guild time (PDT)' });
-    expect(viewerTime(start, 0, LA, 'en-US', { weekday: 'always' }).text).toBe('Tue 5:00 PM guild time');
+    expect(viewerTime(start, 0, LA, 'en-US', { weekday: 'always' }).text).toBe('Tue 5:00 PM PDT');
     // 'guild': the shown time sits beside a date in the viewer's zone, so only the popup names a day.
     expect(viewerTime(start, 0, LON, 'en-US', { weekday: 'guild' })).toMatchObject({ text: '1:00 AM GMT+1', guild: 'Tue 5:00 PM guild time (PDT)' });
     expect(viewerTime(start, 0, NY, 'en-US', { weekday: 'guild' })).toMatchObject({ text: '8:00 PM EDT', guild: '5:00 PM guild time (PDT)' });
-    expect(viewerTime(start, 0, LA, 'en-US', { weekday: 'guild' }).text).toBe('5:00 PM guild time');
+    expect(viewerTime(start, 0, LA, 'en-US', { weekday: 'guild' }).text).toBe('5:00 PM PDT');
   });
 
   it('drops the zone name from the text, never from the accessible name', () => {
     expect(viewerTime(start, 0, NY, 'en-US', { zoneName: false })).toEqual({ text: '8:00 PM', guild: '5:00 PM guild time (PDT)', label: '8:00 PM EDT, 5:00 PM guild time (PDT)' });
-    expect(viewerTime(start, 0, LA, 'en-US', { zoneName: false })).toEqual({ text: '5:00 PM', guild: null, label: '5:00 PM guild time' });
+    expect(viewerTime(start, 0, LA, 'en-US', { zoneName: false })).toEqual({ text: '5:00 PM', guild: null, label: '5:00 PM PDT, guild time' });
   });
 });
 
