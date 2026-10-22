@@ -5,12 +5,12 @@ const mocks = vi.hoisted(() => ({ transaction: vi.fn() }));
 vi.mock('@/lib/db', () => ({ db: { $transaction: mocks.transaction } }));
 import { addAlt, changeMain, editCharacter, removeCharacter } from './characters';
 
-const valid = { name: 'Sample', wowClass: 'paladin', spec: 'Protection', role: 'tank' };
+const valid = { name: 'Sample Name', wowClass: 'paladin', spec: 'Protection', role: 'tank' };
 const conflict = (code: string) => new Prisma.PrismaClientKnownRequestError('Race', { code, clientVersion: 'test' });
 beforeEach(() => vi.clearAllMocks());
 
 it('validates add and edit before starting any transaction', async () => {
-  for (const input of [null, {}, { ...valid, name: '1' }, { ...valid, role: 'healer' }]) {
+  for (const input of [null, {}, { ...valid, name: '1' }, { ...valid, name: 'Sample' }, { ...valid, role: 'healer' }]) {
     expect(await addAlt('member', input)).toMatchObject({ status: 400, reason: 'invalid' });
     expect(await editCharacter('member', 'character', input)).toMatchObject({ status: 400, reason: 'invalid' });
   }
