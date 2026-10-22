@@ -1,6 +1,6 @@
 /**
- * Raid week. PLACEHOLDER — design-handover/CLAUDE.md lists raid nights and times among
- * the invented content. Confirm with the guild before launch.
+ * Raid week. Tuesday and Thursday 8:00 to 11:00 PM guild time are Robert-approved for now
+ * (2026-10-22); the optional night has no day or time yet.
  *
  * Times are guild wall-clock ("HH:MM", 24h) in GUILD_TIMEZONE (lib/config.ts). Never
  * store or show a bare time: components turn each into its next instant and render it with
@@ -19,7 +19,6 @@ export type RaidNight = {
 export const RAID_NIGHTS: RaidNight[] = [
   { day: 2, start: '20:00', end: '23:00', kind: 'Progression', optional: false },
   { day: 4, start: '20:00', end: '23:00', kind: 'Progression', optional: false },
-  { day: 0, start: '19:00', end: '22:00', kind: 'Clear night', optional: true },
 ];
 
 /** `weekday`, `start` and `end` are guild time; the optional night has none until it is set. */

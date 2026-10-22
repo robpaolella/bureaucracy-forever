@@ -189,7 +189,7 @@ export function paintWeek(zone: string, random: () => number, from = new Date())
 /** `template` names the SeedTemplate the raid belongs to, so reserves and the loot log have a table. */
 export type SeedRaid = { name: string; template: string; startsAt: Date; durationMin: number; requirements: Record<RaidRoleKey, number>; notes: string | null };
 
-/** Three weeks of raids from `from`: the progression nights plus the optional Sunday. */
+/** Three weeks of raids from `from`: the progression nights. */
 export function buildRaids(from = new Date()): SeedRaid[] {
   const names: Record<number, string> = { 2: "Onyxia's Lair", 4: "Onyxia's Lair", 0: 'Hyjal Summit clear' };
   const templates: Record<number, string> = { 2: "Onyxia's Lair", 4: "Onyxia's Lair", 0: 'Hyjal Summit' };

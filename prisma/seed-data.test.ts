@@ -82,7 +82,7 @@ describe('paintWeek', () => {
 describe('raids, needs, applications', () => {
   it('schedules three weeks of the raid week in order', () => {
     const raids = buildRaids(new Date('2026-09-30T12:00:00Z'));
-    expect(raids).toHaveLength(9);
+    expect(raids).toHaveLength(6);
     for (let i = 1; i < raids.length; i++) expect(raids[i].startsAt.getTime()).toBeGreaterThan(raids[i - 1].startsAt.getTime());
     expect(raids[0].requirements).toEqual({ tank: 3, healer: 12, melee: 11, ranged: 14 });
     expect(raids.every((raid) => ['Hyjal Summit', "Onyxia's Lair"].includes(raid.template))).toBe(true);
