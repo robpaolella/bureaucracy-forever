@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
+import { AnalyticsScripts } from '@/components/shell/AnalyticsScripts';
 import { StagingBadge } from '@/components/shell/StagingBadge';
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/config';
+import { isProductionDeployment } from '@/lib/deploy-env';
 import './fonts/fonts.css';
 import './globals.css';
 
@@ -79,6 +81,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-ink-950 text-fg font-sans antialiased">
         {children}
         <StagingBadge />
+        {isProductionDeployment() && <AnalyticsScripts />}
       </body>
     </html>
   );
