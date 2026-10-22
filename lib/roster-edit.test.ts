@@ -2,21 +2,22 @@ import { describe, expect, it } from 'vitest';
 import { fullName, normaliseName, parseCharacterInput, reconcileCharacter, rolesFor, specsFor, splitName } from './roster-edit';
 
 describe('character input', () => {
-  const good = { name: 'redtape', wowClass: 'priest', spec: 'Holy', role: 'healer', rank: 'raider' };
+  const good = { name: 'redtape tape', wowClass: 'priest', spec: 'Holy', role: 'healer', rank: 'raider' };
 
   it('normalises the name like the game does', () => {
     expect(normaliseName('rEDTAPE')).toBe('Redtape');
     const r = parseCharacterInput(good);
-    expect(r).toMatchObject({ ok: true, value: { name: 'Redtape', wowClass: 'priest', spec: 'Holy', role: 'healer', rank: 'raider' } });
+    expect(r).toMatchObject({ ok: true, value: { name: 'Redtape Tape', wowClass: 'priest', spec: 'Holy', role: 'healer', rank: 'raider' } });
   });
 
   it('names the field that failed', () => {
+    expect(parseCharacterInput({ ...good, name: 'Redtape' })).toMatchObject({ ok: false, error: /first and a second name/ });
     expect(parseCharacterInput({ ...good, name: 'X' })).toMatchObject({ ok: false, error: /2 to 12 letters/ });
     expect(parseCharacterInput({ ...good, name: 'Red tape' })).toMatchObject({ ok: true, value: { name: 'Red Tape' } });
     expect(parseCharacterInput({ ...good, name: 'Red tape extra' })).toMatchObject({ ok: false, error: /letters/ });
     expect(parseCharacterInput({ ...good, name: 'Red t' })).toMatchObject({ ok: false, error: /letters/ });
     expect(parseCharacterInput({ ...good, name: 'A÷b' })).toMatchObject({ ok: false, error: /letters/ });
-    expect(parseCharacterInput({ ...good, name: 'Ångström' })).toMatchObject({ ok: true });
+    expect(parseCharacterInput({ ...good, name: 'Ångström Ångström' })).toMatchObject({ ok: true });
     expect(parseCharacterInput({ ...good, wowClass: 'deathknight' })).toMatchObject({ ok: false, error: /class/ });
     expect(parseCharacterInput({ ...good, spec: 'Fire' })).toMatchObject({ ok: false, error: /spec/ });
     expect(parseCharacterInput({ ...good, role: 'tank' })).toMatchObject({ ok: false, error: /raid role/ });
@@ -40,12 +41,12 @@ describe('character input', () => {
 describe('two-part names', () => {
   it('joins and normalises first and second names, and accepts one part alone', () => {
     expect(fullName('red', 'TAPE')).toBe('Red Tape');
-    expect(fullName(' Red ', '')).toBe('Red');
+    expect(fullName(' Red ', '')).toBeNull();
     expect(fullName('R', 'Tape')).toBeNull();
-    expect(fullName('Red', '  ')).toBe('Red');
-    expect(fullName('ÿves', '')).toBeNull(); // capitalised Ÿ leaves the letter block
-    expect(fullName('ßabcdefghijk', '')).toBeNull(); // SS makes it thirteen letters
-    expect(fullName('A\u030angstrom', '')).toBe('Ångstrom'); // decomposed input is composed first
+    expect(fullName('Red', '  ')).toBeNull();
+    expect(fullName('ÿves', 'Tape')).toBeNull(); // capitalised Ÿ leaves the letter block
+    expect(fullName('ßabcdefghijk', 'Tape')).toBeNull(); // SS makes it thirteen letters
+    expect(fullName('A\u030angstrom', 'Tape')).toBe('Ångstrom Tape'); // decomposed input is composed first
     expect(splitName('')).toEqual({ first: '', second: '' });
     expect(fullName('Red', 'Tapeisfartoolong')).toBeNull();
     expect(splitName('Red Tape')).toEqual({ first: 'Red', second: 'Tape' });
@@ -56,6 +57,8 @@ describe('two-part names', () => {
     const good = { firstName: 'red', secondName: 'tape', wowClass: 'priest', spec: 'Holy', role: 'healer', rank: 'raider' };
     expect(parseCharacterInput(good)).toMatchObject({ ok: true, value: { name: 'Red Tape' } });
     expect(parseCharacterInput({ ...good, secondName: 'x' })).toMatchObject({ ok: false });
+    expect(parseCharacterInput({ ...good, secondName: '' })).toMatchObject({ ok: false, error: /first and a second name/ });
+    expect(parseCharacterInput({ ...good, secondName: undefined })).toMatchObject({ ok: false });
     expect(parseCharacterInput({ ...good, name: 'Other Name' })).toMatchObject({ ok: true, value: { name: 'Red Tape' } }); // the parts win
     expect(parseCharacterInput({ ...good, firstName: undefined, secondName: undefined, name: 'Red  Tape' })).toMatchObject({ ok: true, value: { name: 'Red Tape' } });
   });
