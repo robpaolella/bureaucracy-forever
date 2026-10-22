@@ -39,7 +39,7 @@ describe('character input', () => {
 });
 
 describe('two-part names', () => {
-  it('joins and normalises first and second names, and accepts one part alone', () => {
+  it('joins and normalises first and second names, and requires both parts', () => {
     expect(fullName('red', 'TAPE')).toBe('Red Tape');
     expect(fullName(' Red ', '')).toBeNull();
     expect(fullName('R', 'Tape')).toBeNull();
