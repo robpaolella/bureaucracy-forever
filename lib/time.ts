@@ -183,7 +183,7 @@ export function zoneAbbreviation(date: Date, zone: string, locale = 'en-US'): st
 }
 
 export type ViewerTime = {
-  /** What the page shows: the viewer's time with its zone, or guild time labelled. */
+  /** What the page shows: the viewer's time with its zone (the guild zone's abbreviation when they share it). */
   text: string;
   /** Guild time for the hover/tap/focus popup; null when `text` already is guild time. */
   guild: string | null;
@@ -215,7 +215,8 @@ export type ViewerTimeOptions = {
 /**
  * A time as the viewer reads it: "8:00 – 11:00 PM EDT", with guild time
  * ("5:00 – 8:00 PM guild time (PDT)") kept for the popup. Before the viewer's zone is known,
- * or when it matches guild time, the guild time shows once, labelled. When the viewer's day
+ * or when it matches guild time, the guild time shows once with the guild zone's abbreviation
+ * ("8:00 – 11:00 PM PDT"), and only the accessible name says "guild time". When the viewer's day
  * differs from the guild's, both carry their weekday so a date shown in guild time still reads
  * right. `durationMin` 0 is a single instant. `locale` (the browser's language) names the
  * viewer's zone the way they know it, "BST" rather than "GMT+1" in en-GB; clocks stay en-US.
@@ -230,8 +231,9 @@ export function viewerTime(start: Date, durationMin: number, viewerZone: string 
   const showDay = !date && (weekday === 'always' || ((weekday === 'differs' || weekday === 'guild') && local.day !== home.day));
   const day = (p: ZonedParts) => (showDay ? `${SHORT_WEEKDAY[p.weekday]} ` : '');
   if (!viewerZone || sameAsGuild(viewerZone)) {
-    const guild = `${day(home)}${text(GUILD_TIMEZONE)} guild time`;
-    return { text: zoneName ? guild : `${day(home)}${text(GUILD_TIMEZONE)}`, guild: null, label: guild };
+    const clock = `${day(home)}${text(GUILD_TIMEZONE)}`;
+    const named = `${clock} ${zoneAbbreviation(start, GUILD_TIMEZONE)}`;
+    return { text: zoneName ? named : clock, guild: null, label: `${named}, guild time` };
   }
   const clock = `${weekday === 'guild' ? '' : day(local)}${text(viewerZone)}`;
   const named = `${clock} ${zoneAbbreviation(start, viewerZone, locale)}`;
