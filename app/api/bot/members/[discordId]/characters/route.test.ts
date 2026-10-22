@@ -88,6 +88,14 @@ describe('member characters bot API', () => {
     expect(await response.json()).toEqual({ reason, error: 'Explanation.' });
   });
 
+  it('POST refuses a one-part name through the real validation without writing', async () => {
+    const real = await vi.importActual<typeof import('@/lib/characters')>('@/lib/characters');
+    store.add.mockImplementation(real.addAlt);
+    const response = await call('POST', { body: JSON.stringify({ ...input, name: 'Alt' }) });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ reason: 'invalid', error: expect.stringMatching(/first and a second name/) });
+  });
+
   it('POST rejects malformed JSON without writing', async () => {
     expect((await call('POST', { body: '{' })).status).toBe(400);
     expect(store.add).not.toHaveBeenCalled();
