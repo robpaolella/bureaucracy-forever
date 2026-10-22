@@ -5,6 +5,7 @@ import { useHourLabels } from '@/components/availability/useHourLabels';
 import { fmtSlot, SLOTS, type WeekDay } from '@/lib/availability';
 import { cn } from '@/lib/cn';
 import { heatStep, type Heatmap } from '@/lib/heatmap';
+import { zoneAbbreviation } from '@/lib/time';
 import { HEAT_BG } from './HeatGrid';
 import { InspectorBody } from './Inspector';
 
@@ -62,7 +63,7 @@ export function DaySummary({ heat, days, offsetSlots, zone, slotAt }: Props) {
             <InspectorBody cell={heat.cells[open][slot]} members={heat.members} memberCount={heat.memberCount} zone={zone} startsAt={slotAt(open, slot)} />
           </div>
         )}
-        <p className="text-xs text-fg-3">Tap a half-hour to see who is free.{offsetSlots === 0 && ' Times are guild time.'}</p>
+        <p className="text-xs text-fg-3">Tap a half-hour to see who is free.{offsetSlots === 0 && ` Times are ${zoneAbbreviation(new Date(slotAt(open, 0)), zone)}.`}</p>
         <ol className="overflow-hidden rounded-card border border-line bg-ink-900">
           {Array.from({ length: SLOTS }, (_, s) => {
             const cell = heat.cells[open][s];
