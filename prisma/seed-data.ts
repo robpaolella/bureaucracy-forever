@@ -191,8 +191,8 @@ export type SeedRaid = { name: string; template: string; startsAt: Date; duratio
 
 /** Three weeks of raids from `from`: the progression nights plus the optional Sunday. */
 export function buildRaids(from = new Date()): SeedRaid[] {
-  const names: Record<number, string> = { 2: "Onyxia's Lair", 3: "Onyxia's Lair", 0: 'Hyjal Summit clear' };
-  const templates: Record<number, string> = { 2: "Onyxia's Lair", 3: "Onyxia's Lair", 0: 'Hyjal Summit' };
+  const names: Record<number, string> = { 2: "Onyxia's Lair", 4: "Onyxia's Lair", 0: 'Hyjal Summit clear' };
+  const templates: Record<number, string> = { 2: "Onyxia's Lair", 4: "Onyxia's Lair", 0: 'Hyjal Summit' };
   const raids: SeedRaid[] = [];
   for (let week = 0; week < 3; week++) {
     for (const night of RAID_NIGHTS) {
