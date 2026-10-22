@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { TimezoneBar } from '@/components/time/TimezoneBar';
+import { LocalTime } from '@/components/time/LocalTime';
 import { Card } from '@/components/ui';
-import { RAID_WEEK, SCHEDULE_ASIDES, SCHEDULE_HEAD } from '@/content/schedule';
+import { RAID_WEEK, SCHEDULE_ASIDES, SCHEDULE_HEAD, slotTime } from '@/content/schedule';
 import { cn } from '@/lib/cn';
 import { SITE_NAME } from '@/lib/config';
 
@@ -15,6 +16,9 @@ export const metadata: Metadata = {
   openGraph: { type: 'website', siteName: SITE_NAME, locale: 'en_US', title: TITLE, description: DESCRIPTION },
   twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
 };
+
+/** Each card shows its night's next occurrence, so rebuild hourly rather than freeze at build time. */
+export const revalidate = 3600;
 
 const GUTTER = 'px-4 md:px-gutter';
 
@@ -32,21 +36,28 @@ export default function SchedulePage() {
       </section>
 
       <section className={`${GUTTER} pb-14`}>
-        {/* Pre-launch stand-in for the week strip: the slots are known, the days and times are not. */}
+        {/* Stand-in for the week strip: two set nights and one optional night with no day yet. */}
         <ol className="grid grid-cols-1 gap-3 md:grid-cols-3" aria-label="Raid week">
-          {RAID_WEEK.map((slot) => (
-            <li
-              key={slot.day}
-              className={cn(
-                'flex flex-col gap-2.5 rounded-card border px-5 py-[26px]',
-                slot.optional ? 'border-line-strong bg-ink-850' : 'border-sand-dim bg-ink-800',
-              )}
-            >
-              <span className={cn('text-[13px] font-semibold uppercase tracking-[0.1em]', slot.optional ? 'text-fg-2' : 'text-sand')}>{slot.day}</span>
-              <span className="text-base font-semibold">{slot.kind}</span>
-              <span className="mt-3 text-[15px] font-semibold">TBD</span>
-            </li>
-          ))}
+          {RAID_WEEK.map((slot) => {
+            const time = slotTime(slot);
+            return (
+              <li
+                key={slot.day}
+                className={cn(
+                  'flex flex-col gap-2.5 rounded-card border px-5 py-[26px]',
+                  slot.optional ? 'border-line-strong bg-ink-850' : 'border-sand-dim bg-ink-800',
+                )}
+              >
+                <span className={cn('text-[13px] font-semibold uppercase tracking-[0.1em]', slot.optional ? 'text-fg-2' : 'text-sand')}>{slot.day}</span>
+                <span className="text-base font-semibold">{slot.kind}</span>
+                {time ? (
+                  <LocalTime startsAt={time.startsAt} durationMin={time.durationMin} className="mt-3 text-[15px] font-semibold" />
+                ) : (
+                  <span className="mt-3 text-[15px] font-semibold">TBD</span>
+                )}
+              </li>
+            );
+          })}
         </ol>
       </section>
 
