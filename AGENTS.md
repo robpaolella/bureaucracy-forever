@@ -91,6 +91,7 @@ the staging deploy applied any migration in the PR. Only one open PR may have `o
 conductor removes the label when its PR merges or closes.
 
 ## Watch out for
+- Game facts must hold for WoW Forever, never for Classic or retail by default: character names, items, bosses, instances, levels, the add-on API and client limits. Check them against the Forever client, its beta results, or a Forever source (wago.tools data for a Forever build, Wowhead's Forever pages, foreverchanges.pro), and say so when a fact is unchecked for Forever. For example, a character name is a first and a last name separated by a space (the site's rule: 2–12 letters each), not Classic's single word.
 - Get a go-ahead before changing migrations, auth, or anything under `design-handover/`.
 - Merging a migration to `main` or `staging` applies it on the next deploy. Keep migrations
   additive.
