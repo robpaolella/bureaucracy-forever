@@ -80,6 +80,7 @@ describe.skipIf(process.env.IMPORT_INTEGRATION !== '1')('importing copy-out text
     for (const [user, name] of [['u_ana', 'Ana Vale'], ['u_bo', 'Bo Marsh'], ['u_rae', 'Rae Quill']]) {
       await db.user.create({ data: { id: user, discordId: `d-${user}`, discordName: user, characters: { create: { name, class: 'MAGE', spec: 'Fire', raidRole: 'RANGED' } } } });
     }
+    await db.user.update({ where: { id: 'u_rae' }, data: { role: 'OFFICER' } });
   });
 
   it('records the worked example, and an unknown name comes back unknown-character', async () => {
@@ -106,6 +107,14 @@ describe.skipIf(process.env.IMPORT_INTEGRATION !== '1')('importing copy-out text
     const before = await stored();
     expect(await statuses(EXAMPLE)).toEqual(Array(5).fill('replayed'));
     expect(await stored()).toEqual(before);
+  });
+
+  it('refuses an award whose sender isn’t a current officer’s character, keeping it as a problem', async () => {
+    const text = [EXAMPLE.split('\n')[0], 'A;aw-7f3k2m9q;lb_lucifron;16805;Ana Vale;u_ana;HR;91;;Bo Marsh;1792001200;', 'E;1'].join('\n');
+    const res = await importText(text);
+    expect((await res.json()).results).toEqual([expect.objectContaining({ id: 'aw-7f3k2m9q', status: 'rejected', code: 'unknown-sender', sender: 'Bo Marsh' })]);
+    expect(await stored()).toEqual({ awards: 0, operations: 0 });
+    expect(await db.lootOperationRejection.findMany({ select: { opId: true, code: true, deliveredById: true } })).toEqual([{ opId: 'aw-7f3k2m9q', code: 'unknown-sender', deliveredById: 'u_rae' }]);
   });
 
   it('records nothing from a rejected paste', async () => {

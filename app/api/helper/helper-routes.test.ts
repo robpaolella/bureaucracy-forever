@@ -8,11 +8,14 @@ const mocks = vi.hoisted(() => ({
   raids: vi.fn(),
   load: vi.fn(),
   release: vi.fn(),
+  award: vi.fn(),
+  ops: vi.fn(),
+  rejections: vi.fn(),
 }));
 
 vi.mock('@/lib/flags', () => ({ helperEnabled: () => mocks.enabled }));
 vi.mock('@/lib/helper-keys', () => ({ verifyHelperKey: mocks.verify, recordHelperKeyUse: async () => {} }));
-vi.mock('@/lib/db', () => ({ db: { user: { findUnique: mocks.user }, raid: { findUnique: mocks.raid, findMany: mocks.raids } } }));
+vi.mock('@/lib/db', () => ({ db: { user: { findUnique: mocks.user }, raid: { findUnique: mocks.raid, findMany: mocks.raids }, lootAward: { findMany: mocks.award }, lootOperation: { findMany: mocks.ops }, lootOperationRejection: { findMany: mocks.rejections } } }));
 vi.mock('@/lib/addon-release', async (real) => ({ ...(await real<typeof import('@/lib/addon-release')>()), getAddonRelease: mocks.release }));
 vi.mock('@/lib/addon-snapshot', async (real) => ({ ...(await real<typeof import('@/lib/addon-snapshot')>()), loadSnapshot: mocks.load }));
 
@@ -21,12 +24,16 @@ import { buildSnapshot } from '@/lib/addon-snapshot';
 import { GET as me } from './me/route';
 import { GET as raids } from './raids/route';
 import { GET as snapshot } from './raids/[raid]/snapshot/route';
+import { GET as catchup } from './raids/[raid]/catchup/route';
+import { GET as problems } from './raids/[raid]/problems/route';
 
 let n = 0;
 let ip = '';
 const request = (path: string) =>
   new Request(`https://example.test/api/helper/${path}`, { headers: { authorization: `Bearer bfh_${'a'.repeat(43)}`, 'x-real-ip': ip } });
 const getSnapshot = (raid: string) => snapshot(request(`raids/${raid}/snapshot`), { params: Promise.resolve({ raid }) });
+const getCatchup = (raid: string) => catchup(request(`raids/${raid}/catchup`), { params: Promise.resolve({ raid }) });
+const getProblems = (raid: string) => problems(request(`raids/${raid}/problems`), { params: Promise.resolve({ raid }) });
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -39,7 +46,7 @@ beforeEach(() => {
 });
 
 describe('the helper routes share the guard', () => {
-  const calls = [['me', () => me(request('me'))], ['raids', () => raids(request('raids'))], ['snapshot', () => getSnapshot('r1')]] as const;
+  const calls = [['me', () => me(request('me'))], ['raids', () => raids(request('raids'))], ['snapshot', () => getSnapshot('r1')], ['catchup', () => getCatchup('r1')], ['problems', () => getProblems('r1')]] as const;
 
   it.each(calls)('%s refuses while switched off', async (_name, call) => {
     mocks.enabled = false;
@@ -153,5 +160,109 @@ describe('GET /api/helper/raids/[raid]/snapshot', () => {
     expect(res.status).toBe(409);
     expect((await res.json()).code).toBe('raid-cancelled');
     expect(mocks.load).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /api/helper/raids/[raid]/catchup', () => {
+  const stored = (over: object) => ({
+    id: 'cmaward0001', requestKey: 'op_addon_0001', bossId: 'lb_trash', itemId: 18861, characterName: 'Dee Holt', userId: 'u_dee', method: 'OPEN_ROLL', roll: 64, voidedAt: null,
+    source: 'ADDON', confirmation: 'ANNOUNCED', confirmedAt: null, awardedAt: new Date(1_000_000), createdAt: new Date(1_010_000), practice: false, ...over,
+  });
+
+  it('answers the add-on awards, a by-hand award, a practice award and a pending void with their states', async () => {
+    mocks.raid.mockResolvedValue({ cancelledAt: null });
+    mocks.award.mockResolvedValue([
+      stored({ confirmation: 'CONFIRMED', confirmedAt: new Date(1_100_000) }),
+      stored({ id: 'cmhand0001', requestKey: null, source: 'LOOT_LOG', confirmation: 'CONFIRMED', createdAt: new Date(900_000) }),
+      stored({ requestKey: 'op_addon_0003', practice: true, voidedAt: new Date(1_300_000) }),
+    ]);
+    mocks.ops.mockResolvedValue([{ key: 'op_gone_0001', at: new Date(2_000_000), payload: { type: 'void', reason: 'Wrong player' } }]);
+    const res = await getCatchup('cm9xr2k4a0001');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('private, no-store');
+    const body = await res.json();
+    expect(body).toMatchObject({ formatVersion: 1, raid: 'cm9xr2k4a0001', env: 'production', voids: [{ key: 'op_gone_0001', reason: 'Wrong player', at: 2000 }] });
+    expect(body.awards.map((a: { key: string; state: string; voided: boolean; practice?: boolean }) => [a.key, a.state, a.voided, a.practice])).toEqual([
+      ['op_addon_0001', 'confirmed', false, undefined],
+      ['site-cmhand0001', 'manual', false, undefined],
+      ['op_addon_0003', 'announced', true, true],
+    ]);
+    expect(mocks.ops.mock.calls[0][0].where).toMatchObject({ raidId: 'cm9xr2k4a0001', status: 'PENDING' });
+  });
+
+  it('answers empty lists for a raid with nothing recorded', async () => {
+    mocks.raid.mockResolvedValue({ cancelledAt: null });
+    mocks.award.mockResolvedValue([]);
+    mocks.ops.mockResolvedValue([]);
+    expect(await (await getCatchup('r1')).json()).toMatchObject({ awards: [], voids: [] });
+  });
+
+  it('answers 404 when the raid is deleted after the check', async () => {
+    mocks.raid.mockResolvedValueOnce({ cancelledAt: null }).mockResolvedValueOnce(null);
+    mocks.award.mockResolvedValue([]);
+    mocks.ops.mockResolvedValue([]);
+    expect((await getCatchup('r1')).status).toBe(404);
+  });
+
+  it('answers 404 for a raid this site doesn’t hold and 409 for a cancelled one, reading nothing more', async () => {
+    mocks.raid.mockResolvedValue(null);
+    const missing = await getCatchup('cmstagingonly1');
+    expect(missing.status).toBe(404);
+    expect((await missing.json()).code).toBe('unknown-raid');
+    mocks.raid.mockResolvedValue({ cancelledAt: new Date() });
+    const cancelled = await getCatchup('r1');
+    expect(cancelled.status).toBe(409);
+    expect((await cancelled.json()).code).toBe('raid-cancelled');
+    expect(mocks.award).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /api/helper/raids/[raid]/problems', () => {
+  it('answers rejections, including a wrong-environment one, and pending operations, never cached', async () => {
+    mocks.raid.mockResolvedValue({ id: 'r1' });
+    mocks.rejections.mockResolvedValue([
+      { opId: 'op_addon_0001', code: 'key-conflict', payload: { type: 'award', key: 'op_addon_0001' }, receivedAt: new Date(1_000_000) },
+      { opId: 'op_addon_0002', code: 'wrong-environment', payload: { type: 'award', key: 'op_addon_0002' }, receivedAt: new Date(1_100_000) },
+    ]);
+    mocks.ops.mockResolvedValue([{ opId: 'op_void_0001', type: 'VOID', key: 'op_gone_0001', at: new Date(1_900_000), receivedAt: new Date(2_000_000) }]);
+    const res = await getProblems('r1');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('private, no-store');
+    expect(await res.json()).toMatchObject({
+      formatVersion: 1,
+      raid: 'r1',
+      rejected: [
+        { id: 'op_addon_0001', code: 'key-conflict', type: 'award', key: 'op_addon_0001', at: 1000 },
+        { id: 'op_addon_0002', code: 'wrong-environment', type: 'award', key: 'op_addon_0002', at: 1100 },
+      ],
+      pending: [{ id: 'op_void_0001', type: 'void', key: 'op_gone_0001', at: 1900 }],
+    });
+    expect(mocks.ops.mock.calls.at(-1)?.[0].where).toMatchObject({ raidId: 'r1', status: 'PENDING' });
+    expect(mocks.rejections.mock.calls.at(-1)?.[0].where).toEqual({ raidId: 'r1' });
+  });
+
+  it('answers empty lists for a raid with no problems', async () => {
+    mocks.raid.mockResolvedValue({ id: 'r1' });
+    mocks.rejections.mockResolvedValue([]);
+    mocks.ops.mockResolvedValue([]);
+    expect(await (await getProblems('r1')).json()).toMatchObject({ rejected: [], pending: [] });
+  });
+
+  it('still answers for a cancelled raid, whose refused uploads are listed here', async () => {
+    mocks.raid.mockResolvedValue({ id: 'r1', cancelledAt: new Date() });
+    mocks.rejections.mockResolvedValue([{ opId: 'op_1', code: 'raid-cancelled', payload: {}, receivedAt: new Date(1000) }]);
+    mocks.ops.mockResolvedValue([]);
+    const res = await getProblems('r1');
+    expect(res.status).toBe(200);
+    expect((await res.json()).rejected).toMatchObject([{ code: 'raid-cancelled' }]);
+  });
+
+  it('answers 404 for a raid this site doesn’t hold', async () => {
+    mocks.raid.mockResolvedValue(null);
+    mocks.rejections.mockResolvedValue([]);
+    mocks.ops.mockResolvedValue([]);
+    const res = await getProblems('cmstagingonly1');
+    expect(res.status).toBe(404);
+    expect(await res.json()).toMatchObject({ code: 'unknown-raid', error: expect.any(String) });
   });
 });

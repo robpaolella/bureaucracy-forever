@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { GetAddon } from '@/components/addon/GetAddon';
+import { GetHelper } from '@/components/addon/GetHelper';
 import { HelperKeys } from '@/components/addon/HelperKeys';
 import { ADDON_HEAD } from '@/components/addon/copy';
 import { ToastHost } from '@/components/ui';
-import { getAddonRelease } from '@/lib/addon-release';
+import { getAddonRelease, getHelperRelease } from '@/lib/addon-release';
 import { lootEnabled } from '@/lib/flags';
 import { HELPER_KEY_NAME_MAX, listHelperKeys } from '@/lib/helper-keys';
 import { getSession } from '@/lib/session';
@@ -16,7 +17,7 @@ export default async function AddonPage() {
   // Session first: it reads cookies, so the page renders per request and the flag is read at run time.
   const session = await getSession();
   if (!lootEnabled() || !session || session.role !== 'officer') notFound();
-  const [listed, release] = await Promise.all([listHelperKeys(session), getAddonRelease()]);
+  const [listed, release, helperRelease] = await Promise.all([listHelperKeys(session), getAddonRelease(), getHelperRelease()]);
   if (!listed.ok) notFound();
   const keys = listed.keys.map((key) => ({ id: key.id, name: key.name, createdAt: key.createdAt.toISOString(), lastUsedAt: key.lastUsedAt?.toISOString() ?? null }));
 
@@ -30,6 +31,7 @@ export default async function AddonPage() {
         </section>
         <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
           <GetAddon found={release} />
+          <GetHelper found={helperRelease} />
         </div>
         <HelperKeys keys={keys} nameMax={HELPER_KEY_NAME_MAX} />
       </div>

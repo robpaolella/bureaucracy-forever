@@ -162,8 +162,8 @@ describe('responseToast', () => {
   it("writes the docs copy with the viewer's time and zone", () => {
     expect(responseToast(raid, 'accept', 'America/Chicago', 'en-US')).toEqual({ title: "You're in for Wednesday — Blackwing Lair", detail: '10:00 PM CST' });
     expect(responseToast(raid, 'accept', 'Europe/London', 'en-GB').detail).toBe('Thu 4:00 AM GMT');
-    expect(responseToast(raid, 'tentative', 'America/Los_Angeles', 'en-US')).toMatchObject({ title: 'Marked tentative for Wednesday — Blackwing Lair', detail: '8:00 PM guild time' });
-    expect(responseToast(raid, 'absent', null, 'en-US').detail).toBe('8:00 PM guild time');
+    expect(responseToast(raid, 'tentative', 'America/Los_Angeles', 'en-US')).toMatchObject({ title: 'Marked tentative for Wednesday — Blackwing Lair', detail: '8:00 PM PST' });
+    expect(responseToast(raid, 'absent', null, 'en-US').detail).toBe('8:00 PM PST');
     expect(responseToast(raid, null, null).title).toBe('Answer withdrawn for Wednesday — Blackwing Lair');
   });
 });

@@ -7,7 +7,8 @@ import { ButtonLink, Card, StarIcon, StatusPill } from '@/components/ui';
 import { CLOSING, HERO, PEDIGREE, PROGRESSION, type ProgressionRow } from '@/content/home';
 import { NEED_LABEL } from '@/content/recruitment';
 import { getHomeNeeds } from '@/lib/class-needs-data';
-import { RAID_WEEK } from '@/content/schedule';
+import { LocalTime } from '@/components/time/LocalTime';
+import { RAID_WEEK, slotTime } from '@/content/schedule';
 import { cn } from '@/lib/cn';
 import { SITE_NAME } from '@/lib/config';
 import { CLASS_COLORS, ROLE_LABELS } from '@/lib/design/class-colors';
@@ -138,15 +139,22 @@ function TheWeek() {
     <div className="flex flex-col gap-6">
       <SectionHead eyebrow="The week" title="Raid schedule" />
       <div className="flex flex-col gap-3">
-        {RAID_WEEK.map((slot) => (
-          <Card key={slot.day} className="flex items-center justify-between px-[22px] py-5">
-            <div className="flex flex-col gap-1">
-              <span className="text-base font-semibold">{slot.day}</span>
-              <span className="text-[13px] text-fg-3">{slot.kind}</span>
-            </div>
-            <span className="text-[15px] font-semibold">TBD</span>
-          </Card>
-        ))}
+        {RAID_WEEK.map((slot) => {
+          const time = slotTime(slot);
+          return (
+            <Card key={slot.day} className="flex items-center justify-between px-[22px] py-5">
+              <div className="flex flex-col gap-1">
+                <span className="text-base font-semibold">{slot.day}</span>
+                <span className="text-[13px] text-fg-3">{slot.kind}</span>
+              </div>
+              {time ? (
+                <LocalTime startsAt={time.startsAt} durationMin={time.durationMin} className="text-[15px] font-semibold" />
+              ) : (
+                <span className="text-[15px] font-semibold">TBD</span>
+              )}
+            </Card>
+          );
+        })}
       </div>
       <AccentLink href="/schedule" className="self-start">
         Full schedule →

@@ -134,6 +134,14 @@ describe.skipIf(process.env.HELPER_UPLOAD_INTEGRATION !== '1')('the helper uploa
     ]);
   });
 
+  it('refuses an award whose sender isn’t a current officer’s character, keeping it as a problem', async () => {
+    staging();
+    const r = records('staging');
+    expect(await results([{ ...r.award, sender: 'Ana Vale' }])).toEqual([['aw-7f3k2m9q', 'unknown-sender']]);
+    expect(await stored()).toEqual({ awards: 0, operations: 0 });
+    expect(await db.lootOperationRejection.findMany({ select: { opId: true, code: true, deliveredById: true } })).toEqual([{ opId: 'aw-7f3k2m9q', code: 'unknown-sender', deliveredById: 'u_rae' }]);
+  });
+
   it('refuses a key whose owner is no longer an officer, recording nothing', async () => {
     staging();
     await db.user.update({ where: { id: 'u_rae' }, data: { role: 'MEMBER' } });

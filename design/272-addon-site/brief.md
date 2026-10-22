@@ -32,7 +32,7 @@ names are **placeholders** the spec fills in (marked as such in the prototype).
 | #276 | Helper keys on the In-game addon page: create, shown once, list with created / last used, revoke with confirmation, empty | The API that checks keys (#277) |
 | #280 | Get the add-on on the In-game addon page: release, no release, GitHub unreachable; install guide link; the In-game addon menu entry | Publishing releases (addon#18) |
 | #293 | The in-game instance number in the template's Edit/New window on Raids and series (`/officers/raids`): field, hint, error, and the templates list | The schema and migration; the snapshot and raids list carrying it (#274, #277); the add-on's matching |
-| Follow-up (not yet filed) | Get the helper on the In-game addon page: Mac and Windows downloads, no release yet | The helper's own releases and window (bureaucracy-forever-helper) |
+| #313 (added in revision 3) | Get the helper on the In-game addon page: Mac and Windows downloads (Mac links the Apple silicon installer; decision 17 in decisions.md), no release yet, GitHub unreachable | The helper's own releases and window (bureaucracy-forever-helper) |
 
 ## Boundaries and visual authority
 DESIGN.md and the live site govern the look; PRODUCT.md the facts and voice. Reuse:

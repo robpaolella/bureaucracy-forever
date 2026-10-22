@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AVAILABILITY_PHONE_HINT } from '@/content/availability';
 import { applyPaintRun, blockAt, dayBlocks, dragEdge, removeBlock, sameBlock, SLOTS, type Block, type SlotState, type Week, type WeekDay } from '@/lib/availability';
 import { cn } from '@/lib/cn';
+import { zoneAbbreviation } from '@/lib/time';
 import { DayBlock, ROW } from './DayBlock';
 import { useHourLabels } from './useHourLabels';
 
@@ -251,7 +252,7 @@ export function DayColumn({ week, days, offsetSlots, zone, slotAt, mode, onWeek,
       </ol>
       <p className="text-xs text-fg-3">
         {AVAILABILITY_PHONE_HINT}
-        {offsetSlots === 0 && ' Times are guild time.'}
+        {offsetSlots === 0 && ` Times are ${zoneAbbreviation(new Date(slotAt(day.day, 0)), zone)}.`}
       </p>
 
       <div
