@@ -77,8 +77,11 @@ rule here compares a name.
 
 - **The instance number.** A raid's `instance` (3.1) is an integer taken from its raid
   template: the instance id that `GetInstanceInfo()` returns in game (its 8th return
-  value, the same in every client language). **Unverified on the WoW Forever client
-  (Interface 16001):** the add-on's task checks it before relying on this section.
+  value, the same in every client language). **Confirmed in game for a dungeon:** the
+  Hall of Thanes is 3065 (`GetInstanceInfo()`'s 8th value, shown in the Sync tab; Robert,
+  2026-10-16, build 1.60.1.70374). **Raid instances are still unchecked on the WoW Forever
+  client (Interface 16001)** until raids open (the add-on's checkpoint 6); the add-on's
+  task checks them before relying on this section for a raid.
   A template with no instance number gives a raid with no `instance` field (the field is
   absent, 7.3 rule 2), and such a raid is never suggested.
 - **A candidate** for an instance is a raid, from the inbox or pasted, that has that
@@ -93,8 +96,20 @@ rule here compares a name.
   there is none either. The suggestion only pre-selects a row in the question; it never
   becomes the active raid by itself.
 - **The question.** When an officer's add-on, as the *chooser* (below), sees its
-  player enter a raid instance (`GetInstanceInfo()` instance type `raid`) while in a
-  raid group, it asks **"Is this a guild run?"** with three answers:
+  player enter an instance, it asks **"Is this a guild run?"** with three answers, in
+  two cases:
+  - entering a **raid instance** (`GetInstanceInfo()` instance type `raid`) while in a
+    raid group: asked with or without a candidate;
+  - entering **any other instance** (instance type neither `none` nor `raid`, so a
+    dungeon) while in a group, a party or a raid group: asked **only when that instance
+    has a candidate**. A dungeon with no candidate asks nothing and the selection stays.
+    The rule matches any non-raid instance type, not `party` alone, so it does not depend
+    on what the Forever client reports for a dungeon (only its instance number is
+    confirmed). It is broader than dungeons: a battleground or arena would ask only if a
+    loaded raid named its instance number, which no guild template does. An instance
+    with no number, or with no type, asks nothing.
+
+  The answers, the suggestion and the chooser are the same in both cases:
   - **No.** The group is **not a guild run**. Every add-on in the group goes quiet: no
     loot pop-up, no chat lines, nothing recorded, saved as an award or sent (not even as
     "no raid"). It lasts until the add-on leaves the group.
@@ -105,11 +120,12 @@ rule here compares a name.
     number into a custom raid's template on the site) and lists the raids anyway.
   - **Decide later.** The active raid stays as it was (none at the start, so awards are
     held as no raid). The Sync tab says the raid is not chosen yet. The question comes
-    again on the next entry into a raid instance, the same instance included.
+    again on the next entry where the question applies (a raid instance, or a dungeon
+    with a candidate), the same instance included.
   If master loot is off, the question says so.
 - **The chooser.** Exactly one add-on in the group asks, so add-ons never disagree: the
   **loot master**, if master loot is on and they run the add-on; otherwise the **raid
-  leader**, if they run the add-on; otherwise the add-on user who comes first by name
+  leader** (in a party, the party leader), if they run the add-on; otherwise the add-on user who comes first by name
   order (the names as the game shows them, compared byte by byte). Anyone running the
   add-on counts as an officer: the snapshot carries no roster, so the add-on can't tell
   officers from other players. Each add-on knows who runs the add-on from the `P`
@@ -126,8 +142,9 @@ rule here compares a name.
   later wins: the later sender's time `at`, ties broken by name (10.4). Choosing a raid
   makes it the active raid whatever the instance or time; pasting a snapshot (3.2) counts
   as choosing that raid.
-- **Asked again** only on entering a raid instance **different** from the selected raid's
-  `instance`, for example Molten Core, then Onyxia the same night; that instance's
+- **Asked again** only on entering an instance where the question applies that is
+  **different** from the selected raid's `instance`, for example Molten Core, then Onyxia
+  the same night, or the Deadmines, then the Stockade the same evening; that instance's
   suggestion is pre-selected. Never after `/reload`, a corpse run or re-entering the same
   instance, and never when the selection is "not a guild run" or the selected raid has no
   `instance`. A new group asks fresh. Master loot being set later, or passing to another
@@ -153,16 +170,17 @@ rule here compares a name.
 | Case | Outcome |
 | --- | --- |
 | Outside any instance (`GetInstanceInfo()` reports instance type `none`) | No question and no change: the selection stays, so awards after leaving go to the same raid. At login with none selected, no raid. |
-| Inside a dungeon or other non-raid instance, or in a party that is not a raid group | No question. A selection already made stays. |
+| Inside a dungeon (or other non-raid instance) that has a candidate, in a party or raid group | The question, as in a raid instance. |
+| Inside a dungeon (or other non-raid instance) with no candidate, inside a raid instance in a party that is not a raid group, or not in a group | No question. A selection already made stays. |
 | No raids in the inbox (and none pasted) | The question can only be "No" or "Decide later"; "Yes" says there is no raid to choose and the officer can choose later when a snapshot arrives. An empty inbox clears the inbox's raids; pasted ones remain. |
 | The instance has no raid, or only a raid with a different `instance` | No suggestion: the question shows the instance number and lists the loaded raids anyway. |
 | A raid whose template has no instance number | Never suggested; it can still be chosen from the list or by pasting. |
 | A raid cancelled after the inbox was written | Still in the file until the helper writes it again, which it does when the raids list changes; the next `/reload` drops it. Until then uploads for it are rejected `raid-cancelled` (section 5) and show in its problems list (7.4). |
-| The selected raid is no longer in the inbox (and not pasted) | The selection is cleared with a notice (`activeBy` becomes `none`) and the question is asked again on the next raid instance entry. The raid's saved awards stay in their list and still upload. The raid is gone, so there is nothing to ask about. |
+| The selected raid is no longer in the inbox (and not pasted) | The selection is cleared with a notice (`activeBy` becomes `none`) and the question is asked again on the next entry where the question applies. The raid's saved awards stay in their list and still upload. The raid is gone, so there is nothing to ask about. |
 | Two raids for one instance, neither started, with the same soonest start | No suggestion, as for two under way. Nothing is pre-selected; the officer picks from the list. |
-| Back-to-back raids for one instance | The suggestion is the one under way, then the next once the first has ended. The question is not asked again for the same instance; an officer changes the raid in the Sync tab. |
+| Back-to-back raids for one instance | The suggestion is the one under way, then the next once the first has ended. The question is not asked again for the same instance, a dungeon included; an officer changes the raid in the Sync tab. |
 | A pasted snapshot | It loads one raid and selects it for the group (an `S` message, `activeBy` `chosen`). If the inbox holds the same raid, the snapshot with the later `generated` is the one used. It stays loaded until the officer removes it in the Sync tab. |
-| The answer is "No" and an officer later enters another raid instance | Still not a guild run; no question. Any officer can choose a raid in the Sync tab. |
+| The answer is "No" and an officer later enters another instance where the question applies | Still not a guild run; no question. Any officer can choose a raid in the Sync tab. |
 | An add-on that has not yet received `S` | It holds the state it had; it takes `S` on arrival, so awards made in between go as no raid or to the old raid, and can be attached later. |
 
 ### Practice records
@@ -788,8 +806,9 @@ nothing to send. Its entries stay within the limits above like the rest of the f
 
 ## 9. Raid chat line
 
-The add-on can post to raid chat only from an officer's click (proved in the beta), and
-a line is limited to 255 characters. One line carries a **human part** for the raid and
+The add-on can post to raid chat only from an officer's click (proved in the beta); in a
+party it posts the same line to party chat, and everything else about the line is
+unchanged. A line is limited to 255 characters. One line carries a **human part** for the raid and
 a **machine part** for a helper. The raid sees the human part; the machine part is how
 any officer's helper, with no earlier state, records the award from `WoWChatLog.txt`.
 
@@ -903,8 +922,10 @@ non-officer sender) is handled by the site's rules (sections 4 and 5), not here.
 
 `WoWChatLog.txt` lines look like
 `10/13 10:01:51.269  |Hchannel:RAID|h[Raid Leader]|h Zoé Brûlé: ...`. The helper accepts the
-`RAID` and `RAID_LEADER` channels, takes the text after `: ` as the line, and the name
-before it as `sender`. `at` is the log time read in the computer's own time zone, with
+`RAID`, `RAID_LEADER`, `PARTY` and `PARTY_LEADER` channels, takes the text after `: ` as the line, and the name
+before it as `sender`. A party line is expected to read
+`|Hchannel:PARTY|h[Party]|h Name: ...`; that has not yet been seen in the Forever client
+(the first dungeon run with the helper checks it). `at` is the log time read in the computer's own time zone, with
 the year the date was most recently in (never in the future). The helper turns the
 machine part into the section 4 operation, using the raid code to pick the raid and the
 snapshot's bosses to turn the boss code into a boss `id`, then sends it like any other
@@ -954,12 +975,12 @@ Correction: |cffa335ee|Hitem:16805::::::::60:::::::|h[Felheart Gloves]|h|r goes 
 Officers' add-ons share what they record through hidden add-on messages, so all of them
 hold one set of awards (and a second officer can take over). Hidden messages are
 limited to 255 bytes; this section counts the prefix `BFLOOT1` and its separator
-within that limit. They use the raid group's add-on channel, except where a whisper is
+within that limit. They use the group's add-on channel (`RAID` in a raid group, `PARTY` in a party), except where a whisper is
 named. A message with a higher prefix number is ignored with a notice that the add-on
 needs updating.
 
 The add-on cannot check that a sender is an officer (the snapshot carries no roster).
-It accepts messages only from members of the raid group; the site's sender check
+It accepts messages only from members of the group; the site's sender check
 (section 7.2) is the authority when the records are uploaded.
 
 ### 10.1 Operation text
