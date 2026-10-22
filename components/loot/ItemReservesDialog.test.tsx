@@ -71,11 +71,11 @@ describe('limitToast', () => {
 });
 
 describe('Confirmation', () => {
-  it('reads as guild time, once, until the viewer zone is known', () => {
+  it('reads in the guild zone abbreviation until the viewer zone is known', () => {
     // Wed, Oct 7 2026, 8:00 PM in Los Angeles.
     const raid = { id: 'r1', name: 'Molten Core', startsAt: '2026-10-08T03:00:00.000Z', cancelled: false };
     const html = renderToStaticMarkup(<Confirmation holders={[{ key: 'k1', character: 'Redtape', kind: 'SR', raid }]} stale={false} />);
-    expect(html.replace(/<[^>]+>/g, '')).toContain('Molten Core Wed, Oct 7, 8:00 PM guild time');
+    expect(html.replace(/<[^>]+>/g, '')).toContain('Molten Core Wed, Oct 7, 8:00 PM PDT');
     expect(html).not.toContain('role="tooltip"');
   });
 });

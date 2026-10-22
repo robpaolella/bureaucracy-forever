@@ -9,12 +9,14 @@ import 'server-only';
 import { addonForSnapshot, ADDON_RELEASES_URL, getAddonRelease } from '@/lib/addon-release';
 import { FORMAT_VERSION, type SiteEnv } from '@/lib/addon-operations';
 import { db } from '@/lib/db';
+import { encounterId } from '@/lib/encounter-ids';
 import { isStagingDeployment } from '@/lib/deploy-env';
 import { loadActiveReserves, loadLootTable } from '@/lib/loot-data';
 import { hrBlocked, winLimitOf, type HrAward, type LootMethod, type ReserveKind, type WinLimits } from '@/lib/loot-rules';
 
 export type SnapshotHolder = { user: string; char: string; kind: ReserveKind; trial: boolean; blocked?: 'win-limit' };
-export type SnapshotBoss = { id: string; name: string; trash: boolean; items: number[] };
+/** `encounter` is the game's encounter id; absent for Trash and for a boss the table doesn't know (section 3.1). */
+export type SnapshotBoss = { id: string; name: string; trash: boolean; items: number[]; encounter?: number };
 export type SnapshotAward = { key: string; boss?: string; item: number; char?: string; user?: string; method: LootMethod; roll?: number; voided: boolean };
 export type Snapshot = {
   formatVersion: typeof FORMAT_VERSION;
@@ -43,7 +45,8 @@ export type SnapshotInput = {
   now: Date;
   /** The latest add-on version and where to get it; the placeholder when omitted. */
   addon?: { version: string; url: string };
-  bosses: SnapshotBoss[];
+  /** As the loot table gives them; `buildSnapshot` adds each boss's `encounter`. */
+  bosses: Omit<SnapshotBoss, 'encounter'>[];
   reserves: { userId: string; characterId: string; characterName: string; itemId: number; kind: ReserveKind; onTrial: boolean }[];
   winLimits: WinLimits;
   /** Non-voided HR/SR wins from other raids; this raid's own are the add-on's to subtract. */
@@ -57,15 +60,11 @@ const seconds = (d: Date) => Math.floor(d.getTime() / 1000);
 /** `P` or `S`, then the last five characters of the raid id, upper-case (section 2). */
 export const raidCode = (env: SiteEnv, raidId: string) => (env === 'staging' ? 'S' : 'P') + raidId.slice(-5).toUpperCase();
 
-export function buildSnapshot(input: SnapshotInput): Snapshot {
-  const { raid, env, now } = input;
-  const reserves: Record<string, SnapshotHolder[]> = {};
-  for (const r of input.reserves) {
-    const holder: SnapshotHolder = { user: r.userId, char: r.characterName, kind: r.kind, trial: r.onTrial };
-    if (hrBlocked(r.characterId, r.itemId, input.earlierWins, [], winLimitOf(r.itemId, input.winLimits))) holder.blocked = 'win-limit';
-    (reserves[String(r.itemId)] ??= []).push(holder);
-  }
-  const awards = input.awards.map((a): SnapshotAward => ({
+type AwardRow = SnapshotInput['awards'][number];
+
+/** One award as the baseline carries it; the catch-up (lib/helper-catchup.ts) builds on it so both agree on keys. */
+export function baselineAward(a: AwardRow): SnapshotAward {
+  return {
     // An award recorded by hand has no key; the site makes the same one every time.
     key: a.requestKey ?? `site-${a.id}`,
     ...(a.bossId ? { boss: a.bossId } : {}),
@@ -75,7 +74,18 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
     method: a.method,
     ...(a.roll !== null ? { roll: a.roll } : {}),
     voided: a.voidedAt !== null,
-  }));
+  };
+}
+
+export function buildSnapshot(input: SnapshotInput): Snapshot {
+  const { raid, env, now } = input;
+  const reserves: Record<string, SnapshotHolder[]> = {};
+  for (const r of input.reserves) {
+    const holder: SnapshotHolder = { user: r.userId, char: r.characterName, kind: r.kind, trial: r.onTrial };
+    if (hrBlocked(r.characterId, r.itemId, input.earlierWins, [], winLimitOf(r.itemId, input.winLimits))) holder.blocked = 'win-limit';
+    (reserves[String(r.itemId)] ??= []).push(holder);
+  }
+  const awards = input.awards.map(baselineAward);
   return {
     formatVersion: FORMAT_VERSION,
     raid: raid.id,
@@ -87,7 +97,10 @@ export function buildSnapshot(input: SnapshotInput): Snapshot {
     ...(raid.instance ? { instance: raid.instance } : {}),
     generated: seconds(now),
     addon: { ...(input.addon ?? ADDON_PLACEHOLDER) },
-    bosses: input.bosses,
+    bosses: input.bosses.map((b) => {
+      const encounter = b.trash ? undefined : encounterId(raid.instance, b.name);
+      return encounter ? { ...b, encounter } : { ...b };
+    }),
     reserves,
     awards,
   };

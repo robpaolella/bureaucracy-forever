@@ -44,9 +44,9 @@ describe('paintWeek', () => {
   const from = new Date('2026-09-30T12:00:00Z'); // a Wednesday
 
   it('covers the progression nights in the member’s own local slots', () => {
-    // Los Angeles is guild time: Tue/Wed 20:00–23:00 → day 1 and 2, slots 40..45
+    // Los Angeles is guild time: Tue/Thu 20:00–23:00, slots 40..45
     const la = paintWeek('America/Los_Angeles', rng(1), from);
-    for (const day of [1, 2]) for (const slot of [40, 41, 42, 43, 44, 45]) expect(la[`${day}:${slot}`]).toBeDefined();
+    for (const day of [1, 3]) for (const slot of [40, 41, 42, 43, 44, 45]) expect(la[`${day}:${slot}`]).toBeDefined();
     // Chicago: 22:00–01:00 → slots 44..47, then 0..1 of the next day
     const chi = paintWeek('America/Chicago', rng(1), from);
     for (const slot of [44, 45, 46, 47]) expect(chi[`1:${slot}`]).toBeDefined();
@@ -82,7 +82,7 @@ describe('paintWeek', () => {
 describe('raids, needs, applications', () => {
   it('schedules three weeks of the raid week in order', () => {
     const raids = buildRaids(new Date('2026-09-30T12:00:00Z'));
-    expect(raids).toHaveLength(9);
+    expect(raids).toHaveLength(6);
     for (let i = 1; i < raids.length; i++) expect(raids[i].startsAt.getTime()).toBeGreaterThan(raids[i - 1].startsAt.getTime());
     expect(raids[0].requirements).toEqual({ tank: 3, healer: 12, melee: 11, ranged: 14 });
     expect(raids.every((raid) => ['Hyjal Summit', "Onyxia's Lair"].includes(raid.template))).toBe(true);

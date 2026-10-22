@@ -6,6 +6,11 @@ It lives here only. `SYNC-SPEC.md` is the site–bot contract and is not part of
 Change this file in the same PR as any code that changes a format, and bump
 `formatVersion` when an old reader would misread the new one.
 
+The raid question's saved-data values (`activeBy`: `none`, `chosen`, `off`) and the `P`
+and `S` messages (section 10) replace the earlier `auto`/`override` and add to an
+add-on and helper that have not shipped, so no old reader exists and `formatVersion`
+stays 1. Once either ships, a change like this bumps it.
+
 **Format version: 1.** Sections 1–8 (part A) cover identity, the reserve snapshot,
 operations and the helper API. Sections 9–12 (part B) cover the raid chat line, officer
 sync messages, boss attribution and copy-out text.
@@ -46,65 +51,119 @@ carry the short **raid code** instead) and the **environment**: `production` or
   of the raid id, upper-case: raid `cm9xr2k4a0001` on staging is `SA0001`. It only picks
   the raid out of what an add-on has loaded; the full id is always in the data.
 - **The add-on's active raid** is the one raid its awards go to. The add-on holds the
-  snapshots of several raids (the inbox's, section 7.3, and any pasted, 3.2) and picks
-  the active one by the instance the officer is in and by time, or by the officer's own
-  override (2.1). The helper has no part in the choice. The add-on asks first before
-  moving off a raid that has awards.
-- **No active raid:** awards made with none are held as **no raid**. This is the one
-  exception to "every record carries a raid id and environment": they sit in a separate
-  `noRaid` list in the add-on's saved data, without `raid` or `env`, and are never
-  uploaded or sent as chat. An officer attaches them to a raid, which adds that raid's
-  `raid` and `env` (and moves them to the awards list) and keeps their keys.
+  snapshots of several raids (the inbox's, section 7.3, and any pasted, 3.2), and an
+  officer chooses the active one by answering a question when a run starts (2.1). The
+  choice is shared by every add-on in the group. A run that is *not a guild run* has no
+  active raid and records nothing. The helper has no part in the choice. The add-on
+  asks first before an officer moves off a raid that has awards.
+- **No active raid:** awards made with none (before the question is answered, or after
+  "Decide later") are held as **no raid**. This is the one exception to "every record
+  carries a raid id and environment": they sit in a separate `noRaid` list in the
+  add-on's saved data, without `raid` or `env`, and are never uploaded or sent as chat.
+  An officer attaches them to a raid, which adds that raid's `raid` and `env` (and moves
+  them to the awards list) and keeps their keys, or **discards** them after a
+  confirmation. A discarded award is deleted from the add-on's saved data; it was never
+  uploaded, so nothing reaches the site.
 - **The helper's raid list** (section 7.5) is every upcoming raid, so the inbox can carry
   the snapshot of each. It is not a choice: the helper only shows the add-on's current
   pick (2.1).
 
 ### 2.1 Choosing the active raid
 
-The add-on chooses; the officer can override. The choice rests on the **instance
-number**, never on a name. Zone and dungeon names are translated on other clients and
-spelled differently in game and on the site, so no rule here compares a name.
+An officer confirms the raid at the start of each run; the add-on never picks it silently.
+The question is built on the **instance number**, never on a name. Zone and dungeon names
+are translated on other clients and spelled differently in game and on the site, so no
+rule here compares a name.
 
 - **The instance number.** A raid's `instance` (3.1) is an integer taken from its raid
   template: the instance id that `GetInstanceInfo()` returns in game (its 8th return
   value, the same in every client language). **Unverified on the WoW Forever client
   (Interface 16001):** the add-on's task checks it before relying on this section.
   A template with no instance number gives a raid with no `instance` field (the field is
-  absent, 7.3 rule 2), and such a raid is never matched automatically.
-- **A candidate** for the instance the officer is in is a raid, from the inbox or pasted,
-  that has that `instance`, is not cancelled, and is **under way** or **starts within 12
-  hours** (the same test as section 7.5, using `startsAt` and `durationMin`).
-- **The automatic pick.** With exactly one candidate, it is the pick. With several, a
+  absent, 7.3 rule 2), and such a raid is never suggested.
+- **A candidate** for an instance is a raid, from the inbox or pasted, that has that
+  `instance`, is not cancelled, and is **under way** or **starts within 12 hours** (the
+  same test as section 7.5, using `startsAt` and `durationMin`).
+- **The suggestion.** With exactly one candidate, it is the suggestion. With several, a
   raid under way beats one that has not started; among raids that have not started the
   soonest start wins, so back-to-back raids for one instance hand over when the first
-  ends. Two candidates **both under way** are an overlap: the add-on asks the officer in game which one, and the
-  answer is kept as the override. With no candidate there is no match (below).
-- **When it is applied.** At login, `/reload` and whenever the officer enters a new zone;
-  not on a timer, so the active raid never changes under an officer's hands.
-- **The override.** The Sync tab lists the loaded raids and "Automatic". Choosing a raid
-  makes it the active raid whatever the instance or time; it lasts through `/reload`
-  until the officer chooses "Automatic" or another raid. Pasting a snapshot (3.2) counts
-  as choosing that raid. The Sync tab shows the active raid and whether it was picked
-  automatically or by override, and the add-on writes the same two facts into its saved
-  data (`activeRaid`, a raid id, and `activeBy`, `auto` or `override`) so the helper can
-  show them.
-- **The current instance is shown.** The Sync tab, and the prompt when nothing matches,
-  show the instance number and name from `GetInstanceInfo()` (the name is for people
-  only), so an officer can type the number into a custom raid's template on the site.
-- **Leaving a raid that has awards.** Any change of active raid, automatic or by
-  override, asks first (keep or switch) when the current raid has awards. Awards already
-  made stay with their raid either way.
+  ends. Two or more candidates **both under way** give no suggestion. Two or more candidates that have not started and
+  share the soonest start time give none either; a tie at a later start does not matter
+  (A and B both at 8pm, C at 9pm: none; A at 8pm, B and C both at 9pm: A). With no candidate
+  there is none either. The suggestion only pre-selects a row in the question; it never
+  becomes the active raid by itself.
+- **The question.** When an officer's add-on, as the *chooser* (below), sees its
+  player enter a raid instance (`GetInstanceInfo()` instance type `raid`) while in a
+  raid group, it asks **"Is this a guild run?"** with three answers:
+  - **No.** The group is **not a guild run**. Every add-on in the group goes quiet: no
+    loot pop-up, no chat lines, nothing recorded, saved as an award or sent (not even as
+    "no raid"). It lasts until the add-on leaves the group.
+  - **Yes**, then **"Select the raid event"**, listing the loaded raids (inbox and
+    pasted) with the suggestion pre-selected, or none pre-selected when there is no
+    suggestion. With no candidate, the question shows the instance number and name
+    from `GetInstanceInfo()` (the name is for people only, so an officer can type the
+    number into a custom raid's template on the site) and lists the raids anyway.
+  - **Decide later.** The active raid stays as it was (none at the start, so awards are
+    held as no raid). The Sync tab says the raid is not chosen yet. The question comes
+    again on the next entry into a raid instance, the same instance included.
+  If master loot is off, the question says so.
+- **The chooser.** Exactly one add-on in the group asks, so add-ons never disagree: the
+  **loot master**, if master loot is on and they run the add-on; otherwise the **raid
+  leader**, if they run the add-on; otherwise the add-on user who comes first by name
+  order (the names as the game shows them, compared byte by byte). Anyone running the
+  add-on counts as an officer: the snapshot carries no roster, so the add-on can't tell
+  officers from other players. Each add-on knows who runs the add-on from the `P`
+  messages of section 10, so all reach the same answer without a race; it waits **5
+  seconds** after entering the instance or joining the group for them before it asks.
+  If the chooser leaves the group or logs out with the question open, the rule is run
+  again and the new chooser asks when their player is in the instance.
+- **Shared with the group.** The answer (a raid, or "not a guild run", and who chose it)
+  goes to every add-on in the group as an `S` message (section 10) and is applied by all
+  of them. Add-ons that join or reload receive it (10.4). The Sync tab shows who chose
+  it.
+- **Changing it.** Any officer can change the raid, or choose "not a guild run" or a
+  raid after one, in the Sync tab. It is shared the same way. When two changes cross, the
+  later wins: the later sender's time `at`, ties broken by name (10.4). Choosing a raid
+  makes it the active raid whatever the instance or time; pasting a snapshot (3.2) counts
+  as choosing that raid.
+- **Asked again** only on entering a raid instance **different** from the selected raid's
+  `instance`, for example Molten Core, then Onyxia the same night; that instance's
+  suggestion is pre-selected. Never after `/reload`, a corpse run or re-entering the same
+  instance, and never when the selection is "not a guild run" or the selected raid has no
+  `instance`. A new group asks fresh. Master loot being set later, or passing to another
+  officer, keeps the selection; the new loot master is not asked.
+- **Saved data.** The add-on writes the selection into its saved data so the helper can
+  show it: `activeRaid` (a raid id, or `nil`), `activeBy` and `chosenBy` (the officer's
+  name, or `nil`). `activeBy` is one of:
+  - `none`: not chosen yet (after "Decide later", or before any answer). `activeRaid` is
+    `nil`; awards are held as no raid.
+  - `chosen`: an officer chose the raid, by the question, the Sync tab or a pasted
+    snapshot. If the add-on has not loaded that raid yet, `activeRaid` stays `nil` and
+    the Sync tab says the raid is not loaded; it applies when the snapshot loads.
+  - `off`: not a guild run. `activeRaid` is `nil`.
+
+  The selection survives `/reload` while the player is still in the same group, and is
+  cleared at login if the player is not in a group, and when the player leaves a group.
+  Where awards and operations are saved is in 4.4.
+- **Leaving a raid that has awards.** A change of the selected raid by this officer, in
+  the Sync tab or by the question, asks first (keep or switch) when the current raid has
+  awards. Awards already made stay with their raid either way. An add-on that follows a
+  change made by someone else does not ask.
 
 | Case | Outcome |
 | --- | --- |
-| No raids in the inbox (and none pasted) | No match: awards are held as no raid. An empty inbox clears the inbox's raids; pasted ones remain. |
-| The instance has no raid, or only a raid with a different `instance` | No match: awards are held as no raid, and the prompt shows the instance number (above). If the current raid has awards the add-on asks first, and "keep" leaves it active. |
-| The officer is outside any instance (`GetInstanceInfo()` reports instance type `none`) | No automatic change: the active raid stays as it is, so awards after leaving go to the same raid. At login with none active and no override, no raid. |
-| A raid whose template has no instance number | Never matched automatically; it can still be the active raid by override or by pasting. |
+| Outside any instance (`GetInstanceInfo()` reports instance type `none`) | No question and no change: the selection stays, so awards after leaving go to the same raid. At login with none selected, no raid. |
+| Inside a dungeon or other non-raid instance, or in a party that is not a raid group | No question. A selection already made stays. |
+| No raids in the inbox (and none pasted) | The question can only be "No" or "Decide later"; "Yes" says there is no raid to choose and the officer can choose later when a snapshot arrives. An empty inbox clears the inbox's raids; pasted ones remain. |
+| The instance has no raid, or only a raid with a different `instance` | No suggestion: the question shows the instance number and lists the loaded raids anyway. |
+| A raid whose template has no instance number | Never suggested; it can still be chosen from the list or by pasting. |
 | A raid cancelled after the inbox was written | Still in the file until the helper writes it again, which it does when the raids list changes; the next `/reload` drops it. Until then uploads for it are rejected `raid-cancelled` (section 5) and show in its problems list (7.4). |
-| The override names a raid no longer in the inbox (and not pasted) | The override is cleared with a notice and the automatic pick applies; the raid's saved awards stay in their list and still upload. The raid is gone, so there is nothing to ask about. |
-| Back-to-back raids for one instance | As the automatic pick: the one under way, then the next once the first has ended. No question unless both are under way. |
-| A pasted snapshot | It loads one raid and makes it the override. If the inbox holds the same raid, the snapshot with the later `generated` is the one used. It stays loaded until the officer removes it in the Sync tab. |
+| The selected raid is no longer in the inbox (and not pasted) | The selection is cleared with a notice (`activeBy` becomes `none`) and the question is asked again on the next raid instance entry. The raid's saved awards stay in their list and still upload. The raid is gone, so there is nothing to ask about. |
+| Two raids for one instance, neither started, with the same soonest start | No suggestion, as for two under way. Nothing is pre-selected; the officer picks from the list. |
+| Back-to-back raids for one instance | The suggestion is the one under way, then the next once the first has ended. The question is not asked again for the same instance; an officer changes the raid in the Sync tab. |
+| A pasted snapshot | It loads one raid and selects it for the group (an `S` message, `activeBy` `chosen`). If the inbox holds the same raid, the snapshot with the later `generated` is the one used. It stays loaded until the officer removes it in the Sync tab. |
+| The answer is "No" and an officer later enters another raid instance | Still not a guild run; no question. Any officer can choose a raid in the Sync tab. |
+| An add-on that has not yet received `S` | It holds the state it had; it takes `S` on arrival, so awards made in between go as no raid or to the old raid, and can be attached later. |
 
 ### Practice records
 
@@ -134,10 +193,10 @@ the site holds them now come separately, as the catch-up (3.4).
 | `env` | `production` or `staging` |
 | `name`, `startsAt` | Raid name; start in Unix seconds |
 | `durationMin` | Planned length in minutes, an integer; with `startsAt` it says when the raid is under way (2.1) |
-| `instance` | The raid's in-game instance number, an integer: the raid template's instance id as `GetInstanceInfo()` returns it (2.1). **Absent** when the template has none (for example a custom raid whose officer hasn't filled it in); never `nil`. A raid without it is never matched automatically. |
+| `instance` | The raid's in-game instance number, an integer: the raid template's instance id as `GetInstanceInfo()` returns it (2.1). **Absent** when the template has none (for example a custom raid whose officer hasn't filled it in); never `nil`. A raid without it is never suggested for the raid question (2.1). |
 | `generated` | When the site built this snapshot, Unix seconds |
 | `addon` | `{ version, url }`: the latest add-on version and where to download it |
-| `bosses` | In table order: `{ id, name, trash, items }`. `id` is the `LootBoss` id; `trash` is true for the Trash row; `items` are game item ids (the `LootTableEntry` rows, in position order). An item on several bosses appears under each. |
+| `bosses` | In table order: `{ id, name, trash, items, encounter }`. `id` is the `LootBoss` id; `trash` is true for the Trash row; `items` are game item ids (the `LootTableEntry` rows, in position order). An item on several bosses appears under each. `encounter` is the game's encounter id, an integer: the number `ENCOUNTER_END` reports for that boss's kill, so the add-on can match a kill in any client language. It is **absent** (never `nil`) on the Trash row, on a boss the site's table doesn't know (an officer-added or renamed boss, for example), and on every boss of a raid whose `instance` is absent. The add-on matches a kill by `encounter` when the row has one and falls back to the name (ignoring case and spacing) when it doesn't. The site looks the id up by the raid's `instance` and the boss name (case and spacing ignored) in a table checked in at `lib/encounter-ids.ts`, taken from wago.tools' DungeonEncounter table (`https://wago.tools/db2/DungeonEncounter/csv?build=1.60.1.70374`), WoW Forever client build 1.60.1.70374; `instance` is that table's `MapID`. Added without a format change: no reader has shipped (section 6), and a reader that ignores an unknown field is unaffected. |
 | `reserves` | Per item id, every holder: `{ user, char, kind, trial, blocked }` |
 | `awards` | The baseline: this raid's awards so far, voided ones included |
 
@@ -162,7 +221,7 @@ Undo (a void) gives the reserve back, with nothing to reload.
 
 ### 3.2 Pasted text
 
-A pasted snapshot loads one raid and becomes the override (2.1); it has no catch-up. The
+A pasted snapshot loads one raid and selects it for the group (2.1); it has no catch-up. The
 paste test proved about 7,400 characters in one box, so the text is cut into parts
 of at most **7,000** characters (a margin). Each part is one line:
 
@@ -188,8 +247,8 @@ line breaks for reading; the real text has none that matter.
   addon = { version = "0.1.0",
     url = "https://github.com/robpaolella/bureaucracy-forever-addon/releases/latest" },
   bosses = {
-    { id = "lb_lucifron", name = "Lucifron", trash = false, items = { 16800, 16805 } },
-    { id = "lb_magmadar", name = "Magmadar", trash = false, items = { 16796, 16805 } },
+    { id = "lb_lucifron", name = "Lucifron", trash = false, items = { 16800, 16805 }, encounter = 663 },
+    { id = "lb_magmadar", name = "Magmadar", trash = false, items = { 16796, 16805 }, encounter = 664 },
     { id = "lb_trash", name = "Trash", trash = true, items = { 17011, 18861 } },
   },
   reserves = {
@@ -235,10 +294,11 @@ voided }`, with `user` and `roll` absent when none) plus:
 | Added field | Meaning |
 | --- | --- |
 | `state` | `announced`, `confirmed` or `not-confirmed` (section 4.1), or `manual` for an award made by hand on the site, where no game ever confirmed it. A voided award keeps the state it had. |
-| `at` | When the state last changed, Unix seconds, for 4.1's later-wins rule |
+| `at` | When the state last changed, Unix seconds, for 4.1's later-wins rule: the game time of the confirmation, else of the hand-out; for a `manual` award, when it was recorded on the site |
 | `practice` | `true` on a practice record (staging only); absent otherwise |
 
-A pending void is `{ key, reason, at }` (`reason` absent when none). The catch-up has no
+A pending void is `{ key, reason, at }` (`reason` absent when none); a replace held for an
+original the site lacks is listed as a void of that original. The catch-up has no
 `replace`: a replacement is the voided original and the new award, as the site stores it.
 Practice awards are in it, marked, so the add-on's spending matches the site's.
 
@@ -314,7 +374,9 @@ announced ──▶ confirmed ──▶ voided
 
 Records arrive late, twice and out of order (the helper retries, two officers upload the
 same raid). The site applies these rules per key. Outcomes are the per-operation `status` words of
-section 7.1, never separate HTTP codes:
+section 7.1, never separate HTTP codes. Any award in the table, including the new award
+inside a `replace`, may instead be `rejected` by section 5's checks (such as
+`unknown-sender`):
 
 | What arrives | Already held | Outcome |
 | --- | --- | --- |
@@ -385,10 +447,63 @@ Ana's reserve is back for the next copy.
 A production site answers that operation `rejected` with code `practice-refused` and
 records nothing.
 
+### 4.4 The add-on's saved data
+
+The add-on keeps its awards and operations in `BureaucracyForeverDB`, in seven places. The
+helper reads them (section 7.3) and copy-out (section 12) is built from them. A list that
+is absent is the same as an empty one.
+
+| Saved as | Holds |
+| --- | --- |
+| `awards[raidId]` | The raid's award records, in their final state. Voided awards stay in the list; nothing is removed. |
+| `ops[raidId]` | The raid's operations in the shape of section 4, in the order they were made or received. Copy-out and the helper's upload read this list because they need the order, not only the final state. |
+| `noRaid` | The award records held as "no raid" (section 2): no `raid` or `env`. |
+| `noRaidOps` | Their operations, in the same order and shape as `ops`. |
+| `siteVoids` | The site's pending voids: voids from the catch-up (3.4) for awards the add-on does not hold yet. An object keyed by award key; each entry is described below. |
+| `via[opId]` | The bare name of the officer who forwarded this operation (10.2). Private saved data: never uploaded, copied out or sent to other officers; the helper ignores it. Written only for a forwarded operation; removed only when the no-raid awards are discarded (section 2). Attaching them to a raid keeps the entry. |
+| `authors[opId]` | The bare name of the officer who made this locally saved operation, when its text names no author: a `confirm`, `not-confirmed` or `void`. For an `award` or replacement award, `sender` names the author. Private saved data: never uploaded, copied out or sent to other officers; the helper ignores it. Written only for those operations; removed only when the no-raid awards are discarded (section 2). Attaching them to a raid keeps the entry. A missing entry means the account's own character, as in saved data from before this field. |
+
+When an officer attaches the "no raid" awards to a raid, both lists move to that raid's
+`awards` and `ops`, each record gaining `raid` and `env` and keeping its key; discarding
+them deletes both lists (section 2).
+
+**Pending site voids.** Each `siteVoids` entry, under the key of the award it voids, is
+`{ raid, env, reason, at }`:
+
+| Field | Meaning |
+| --- | --- |
+| `raid`, `env` | The raid and environment the catch-up named, so a stored void is checked against the active raid and environment as 3.4 does. |
+| `reason` | The void's reason; absent when none, as in 3.4. |
+| `at` | When the site voided the award, as in 3.4's pending void. |
+
+The field exists so a pending void survives a `/reload` or a new session; without it the
+add-on would lose the void before the award arrived. An entry is removed once its award
+arrives and the void applies (3.4, 4.2), and is dropped when its raid is discarded. Pending
+voids are never in `ops` or `noRaidOps` and are never uploaded or sent to other officers
+(section 10): the site already holds them and sends them again in its own catch-up. A
+missing `siteVoids` means no pending voids, as in saved data from before the field. The
+helper **ignores** the field (see 8.3).
+
+An **award record** holds the award's fields (`raid`, `env`, `practice`, `boss`, `item`,
+`char`, `user`, `method`, `roll`, `note`, `sender`, `at`, as in section 4) and:
+
+| Field | Meaning |
+| --- | --- |
+| `key` | The award's operation id (section 4). |
+| `state` | `announced`, `confirmed` or `not-confirmed` (4.1). |
+| `stateAt` | The `at` of the operation that set `state`; the award's own `at` while `announced`. |
+| `replaces` | On a replacement, the `key` of the award it replaced. |
+| `replacedBy` | On a replaced award, the `key` of its replacement. |
+| `voided` | `true` once voided or replaced. |
+| `voidReason`, `voidedAt` | The reason (optional) and `at` of the first void; later voids do not change them (4.2). |
+
+An operation that names an award not held yet stays in `ops` and takes effect when the
+award arrives (4.2). Each operation carries `formatVersion` (currently 1; section 6).
+
 ## 5. What the site does with an operation
 
-For each operation the site, in order: checks the key and that the sender is a current
-officer (section 7); checks `formatVersion`, `env`, `raid` and `practice` (section 2);
+For each operation the site, in order: checks the key belongs to a current officer
+(section 7.2); checks `formatVersion`, `env`, `raid` and `practice` (section 2);
 checks the raid isn't cancelled (`raid-cancelled`, as the loot log does); applies the
 arrival rules (4.2); and answers per operation, so one bad record never blocks the rest
 of a batch. An award becomes a `LootAward` the way `POST /api/raids/[id]/loot` makes
@@ -396,7 +511,7 @@ one: the officer on the key is `recordedById`, names are copied, and the winner 
 re-checked against sign-ups or reserves — the officer in the game had the last word.
 
 A rejected operation changes nothing and is kept for the problems list (7.4). Besides
-`unsupported-version` (section 6) and the sender check (7.2), its `code` is one of:
+`unsupported-version` (section 6), its `code` is one of:
 
 | Code | Why |
 | --- | --- |
@@ -409,8 +524,10 @@ A rejected operation changes nothing and is kept for the problems list (7.4). Be
 | `unknown-boss` | The award's `boss` is not a boss of the raid's loot table. |
 | `unknown-character` | No character has the award's `char` name. |
 | `user-mismatch` | The award's `user` is given but doesn't own `char`. |
+| `unknown-sender` | The award's `sender` is not the exact name of a character whose account has officer access now (7.2). |
 
-The last five check an award, including the new award inside a `replace`. A `replace` is
+The last six check an award, including the new award inside a `replace`, in the order
+listed, so an award failing two of them gets the earlier code. A `replace` is
 checked when it arrives, even if it would otherwise be kept `pending`, and is rejected
 whole with its new award's code, so a held replacement never fails later. A pending void
 or confirmation carries no award and is kept as 4.2 says. A recorded award sent again is
@@ -422,6 +539,8 @@ or confirmation carries no award and is kept as 4.2 says. A recorded award sent 
 refuse the data and say the add-on or helper needs updating (the snapshot carries the
 latest add-on version and link for this). The site accepts the versions it lists in
 `GET /api/helper/me` (section 7.1) and answers `unsupported-version` otherwise.
+
+Adding an optional field does not change the version: the `encounter` field on a boss row (3.1) was added while version 1 was still unshipped, so no old reader exists.
 
 ## 7. The helper API
 
@@ -479,10 +598,13 @@ the failed-authentication limit (`429`), the body size (`413` `too-large`), the 
   what it was when created. Failure is `401` for an unknown or revoked key, `403` for a
   former officer.
 - **Trust boundary.** Officer helpers are **trusted reporters**, not proven sources. The
-  site can check that `sender` is a character belonging to a current officer (`unknown-sender`
-  if not), but nothing proves the game said so: an officer could send false records. The
-  recorded officer is the key's owner, always; `sender` is stored as a claim. The audit
-  trail is the point, since awards are never deleted and any can be voided.
+  site checks that `sender` is the exact name of a character whose account has officer
+  access when the record arrives, and answers `unknown-sender` if not (section 5): an
+  alt not yet on the site, an old name after a rename and a former officer's queued
+  records are all refused, whoever delivers them. Nothing proves the game said so: an
+  officer could send false records. The recorded officer is the key's owner, always;
+  `sender` is stored as a claim. The audit trail is the point, since awards are never
+  deleted and any can be voided.
 - A key works in one environment: the one that issued it.
 - **The other site.** Keys and raid ids exist only in the database of the site that made
   them, so the API needs no separate environment refusal: a key from the other site is
@@ -530,7 +652,7 @@ Rules for the serializer (the only code that writes this file):
    a newline is `\010`). Three digits mean a following digit can't be misread, and no
    input can close the string or start a comment (`]]`, `--`, `\z` are all inert inside
    it).
-5. Depth is at most 8 (a holder inside the inbox is 7 deep), strings at most 200 bytes, one
+5. These limits are the inbox's only; the add-on's saved file has its own (8.3). Depth is at most 8 (a holder inside the inbox is 7 deep), strings at most 200 bytes, one
    raid's entry (snapshot and catch-up) at most 200,000 bytes and the file at most
    700,000 (three raids at the entry limit, plus the wrapper). Over a limit, the helper refuses to write, keeps
    the old file and shows the officer an error naming the raid or the size; it never
@@ -545,10 +667,23 @@ loads no inbox raids.
 
 ### 7.4 Problems
 
-`GET .../problems` lists, for the raid: operations rejected with their code (most often
-`key-conflict`), pending voids/confirmations/replacements with no award yet, and awards
-held for a different environment. The helper shows them; the site's officer log shows
-the same. Reporting is the whole response: nothing is auto-resolved.
+`GET .../problems` lists, for the raid, what the site rejected or is holding. The helper
+shows it; the site's officer log shows the same. Reporting is the whole response: nothing is
+auto-resolved. The answer is JSON, not cached (section 7):
+
+```
+{ formatVersion, raid, generated, rejected: [ ... ], pending: [ ... ] }
+```
+
+| Field | Meaning |
+| --- | --- |
+| `raid`, `generated` | The raid id; when the site built the answer, Unix seconds |
+| `rejected[]` | Operations the site refused for this raid, oldest first: `{ id, code, type?, key?, at }`. `code` is a section 4 code (most often `key-conflict`); a `wrong-environment` record for a raid this site holds is listed with the rest. `type` and `key` are the record's own, left out when it gave none. `at` is when the site received it, Unix seconds |
+| `pending[]` | Operations kept waiting for an award the site doesn't hold, oldest first: `{ id, type, key, at }`. `type` is `award`, `confirm`, `not-confirmed`, `void` or `replace`; `key` is the award it names; `at` is the operation's own game time (section 4) |
+
+Both lists are empty for a raid with no problems. A cancelled raid still answers, since its
+refused uploads (`raid-cancelled`) are listed here; a raid the site doesn't hold is the usual
+404 `unknown-raid`.
 
 ### 7.5 The raids list
 
@@ -559,7 +694,7 @@ the same. Reporting is the whole response: nothing is auto-resolved.
 - is not cancelled (`cancelledAt` is null),
 
 **soonest first** (`startsAt` ascending, so an under-way raid is first). The site has no
-per-officer raids, so it is every such raid for any officer. Each entry is
+per-officer raids, so it is every such raid for any officer. The response body is a bare JSON array of entries, not an object. Each entry is
 `{ id, code, name, startsAt, durationMin, instance, hasLootTable }`, where `startsAt` is
 Unix seconds as in the snapshot and `instance` is the integer of 3.1 (absent when the raid
 template has none). The helper writes a snapshot
@@ -599,12 +734,57 @@ against double recording is that every operation is idempotent (4.2).
    `table = "{" [ entry { "," entry } [ "," ] ] "}"`; `entry = [ key "=" ] value`;
    `key = identifier | "[" integer "]"`; string and integer as in 7.3 rules 2 and 4.
    Whitespace between tokens is ignored; anything else is a parse error.
-3. **The helper reading `SavedVariables`** (the add-on's saved data) uses the same
-   parser, in the helper's language, over the file's single assignment. It does not run
-   the file in a Lua interpreter.
+3. **The helper reading `SavedVariables`** (the add-on's saved data) uses a parser of the
+   same kind, in the helper's language, over the file's single assignment, with the
+   grammar extension and limits of 8.3 (not 8.2's and 7.3's). It does not run the file in
+   a Lua interpreter.
 4. **The site reading uploads** parses JSON, then validates every field's type, range and
    length (section 4) before use. Text from the add-on is never put into a database
    query, a path or markup unescaped.
+
+### 8.3 The add-on's saved file
+
+The file the game writes (section 4.4) is not the inbox, so 8.2's grammar and 7.3 rule 5's
+limits do not apply to it; this section does. The helper's reader is `savedvars.rs` and
+`savedvars/lua.rs`.
+
+**Grammar beyond 8.2.** The game writes the file in its own layout, so the reader also
+accepts:
+
+- keys `["string"]` as well as `[integer]` and identifiers (a number key that is not an
+  integer is read as text);
+- `--` line comments (the game adds `-- [1]` after list items), anywhere whitespace is
+  allowed;
+- decimal floats such as `-12.5` or `1e3`, and hexadecimal integers;
+- `nil` values (the entry is left out), `;` as well as `,` between entries, and single-quoted
+  strings.
+
+A table whose keys are 1, 2, 3… in order is read as a list, any other as an object. Still
+refused: a function call, an operator, a reference to a variable, a repeated key in one
+table, and anything after the one assignment (`BureaucracyForeverDB = { … }`) but whitespace
+and comments.
+
+**Limits.**
+
+| Limit | Value |
+| --- | --- |
+| File size | 8 MiB (8,388,608 bytes) |
+| String length | 1,000 bytes |
+| Nesting depth | 8 (the file's outer table is depth 1) |
+
+Strings are longer than the inbox's 200 because a `note` of 200 characters can take up to
+800 bytes. The size limit is checked before the file is read.
+
+**Over a limit or outside the grammar.** The helper refuses the file **whole**: nothing in it
+is used, and the officer sees a plain-English reason (with the line, for a syntax problem).
+A file over the size limit is refused unread. Code in the file, a syntax error, a repeated
+key, a limit and a file that is valid but not the layout of 4.4 are each refused whole in
+the same way. An operation that has no valid `id` is the exception: it is skipped and the rest go on.
+
+**`siteVoids` is a known field.** A file that holds the add-on's `siteVoids` (4.4) is the
+layout of 4.4 and is accepted: the reader skips the field and uses nothing from it. The
+helper uploads from `ops`, and pending voids come from the site's own catch-up, so there is
+nothing to send. Its entries stay within the limits above like the rest of the file.
 
 ## 9. Raid chat line
 
@@ -734,8 +914,8 @@ the same key, so the second is `replayed` (4.2).
 ### 9.6 Who may post a line
 
 A chat line counts only if its sender's "First Last" equals the name of a `Character`
-whose `User` is an officer. The helper cannot check this (it has no roster), so it
-passes the sender on as `sender` and the **site** decides (section 7.2:
+whose `User` is an officer when the record reaches the site. The helper cannot check
+this (it has no roster), so it passes the sender on as `sender` and the **site** decides (section 7.2:
 `unknown-sender`). Chat names are not authenticated by the helper; the site's audit trail
 and voids are the safeguard, as for any operation.
 
@@ -807,12 +987,16 @@ Body (after the prefix and a tab), fields separated by `;`:
 | --- | --- | --- |
 | `O` | `O;msgid;n/N;raid;author;piece` | Chunk `n` of `N` of one operation. |
 | `Q` | `Q;msgid;1,3` | Please resend these chunks of `msgid` (whisper to the sender). |
-| `H` | `H;raid;version;count;digest` | "Here is what I hold." Sent when an add-on loads the raid's snapshot, joins the group, or reloads. |
+| `H` | `H;raid;version;count;digest` | "Here is what I hold." Sent when an add-on loads the raid's snapshot, joins the group, or reloads. Also whispered in answer to a `P;1`. |
 | `C` | `C;reqid;raid;n/N;piece` | Catch-up request: the ids the sender holds (comma-separated), chunked like `O`. |
 | `D` | `D;reqid;count` | End of a reply to `C`: `count` operations were sent. |
+| `P` | `P;reply` | "I run the add-on." Needs no loaded raid. `reply` is `1` (broadcast, please answer) or `0` (an answer). |
+| `S` | `S;choice;at;by` | The group's raid selection (2.1). Needs no loaded raid. |
 
 - `msgid` and `reqid` are six lower-case letters or digits, chosen by the sender.
-- `raid` is the raid code. A message for a raid the receiver has not loaded is ignored.
+- `raid` is the raid code. A message for a raid the receiver has not loaded is ignored,
+  except `P` and `S`, which carry no raid id of their own and work without any raid
+  loaded (10.4).
 - `author` is the officer who made the operation: "First Last", the operation's
   `sender`. A direct message has the same name as the game's own sender of the message.
   A **forwarded** one (a reply to `C`) has the original author, and the game shows the
@@ -847,6 +1031,32 @@ a chunk twice changes nothing.
   messages to the requester with `author` set to the original author, then a `D`. I never
   re-forward an operation I merely received unprompted, so a message cannot loop.
 - Duplicates from several officers replying to one `C` are harmless (idempotent).
+- **Who runs the add-on (`P`).** `H` is per raid and ignored for a raid the receiver has
+  not loaded, so it cannot say who runs the add-on. An add-on broadcasts `P;1` to the
+  group when it joins the group, reloads or logs in while in a group, and the roster is
+  the senders it has seen. An add-on answers every `P;1`, even from a name it has
+  seen, because a reloaded add-on has lost its roster; it whispers `P;0` back, if it
+  holds a selection an `S` (below), and one `H` for each raid it has loaded, so a late
+  joiner learns what it missed: its own `H` only makes the others ask it for what they
+  lack, and nobody else would send it one. Nothing loops: a `P;0` is never answered, and
+  a whispered `H` only sets off a `C` (above), never another `P`. A name leaves the roster when it leaves the group. The
+  chooser rule (2.1) runs on this roster, the loot master and the raid leader as the
+  game reports them. The `P` text carries no raid, so it works for an add-on with no
+  snapshot loaded; an officer without one can still be chosen and is told to load one.
+- **The selection (`S`).** `choice` is a raid code (9.1), or `-` for "not a guild run";
+  `at` is the sender's time in seconds; `by` is the officer who chose, as "First Last"
+  (escaped by 9.3). It is broadcast to the group when chosen, and whispered to a
+  newcomer as above, with the original `at` and `by`. An add-on applies an `S` only if
+  its `(at, by)` is later than the one it holds, comparing `at` and then `by` byte by
+  byte, so two changes that cross end up the same everywhere and a repeat changes
+  nothing. `S` is accepted only from group members. It always fits 255 bytes: at most
+  8 (prefix) + 2 + 6 + 1 + 10 + 1 and a name of up to 3 × 24 bytes once escaped,
+  about 100.
+- **Raid code with no snapshot.** An add-on that gets an `S` for a code it has not
+  loaded keeps it, shows "raid not loaded" in the Sync tab (2.1, `activeBy` `chosen` with
+  `activeRaid` `nil`) and applies it when the snapshot loads. If the code names two
+  loaded raids (a collision of the five characters) it uses neither and shows a notice.
+- **Leaving the group** clears the roster and the selection; a new group asks fresh.
 
 ### 10.5 Worked example: a chunked message
 

@@ -78,6 +78,16 @@ describe('snapshot text', () => {
     expect(read(text)).toEqual(expected());
   });
 
+  it('writes a boss\'s encounter id as an integer, and leaves the field out when absent', () => {
+    const input = sample();
+    input.raid.instance = 3065;
+    input.bosses = [{ id: 'b1', name: 'Plunder', trash: false, items: [1] }, { id: 'b2', name: 'Unknown', trash: false, items: [2] }];
+    const text = snapshotTable(buildSnapshot(input));
+    expect(text).toContain('encounter=3494');
+    expect(text.match(/encounter=/g)).toHaveLength(1);
+    expect(read(text)).toEqual(JSON.parse(JSON.stringify(buildSnapshot(input))));
+  });
+
   it('escapes quotes, backslashes and non-ASCII bytes as decimal, and reads them back', () => {
     const snap = buildSnapshot({ ...sample(), raid: { ...sample().raid, name: 'A "q" \\ ü\n]] --' } });
     const text = snapshotTable(snap);

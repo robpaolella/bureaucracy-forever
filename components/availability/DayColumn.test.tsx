@@ -53,6 +53,23 @@ describe('DayColumn blocks', () => {
   });
 });
 
+describe('DayColumn zone note', () => {
+  const LA = 'America/Los_Angeles';
+  const note = (instant: string, offsetSlots: number, z = LA) =>
+    renderToStaticMarkup(
+      <DayColumn week={week} days={days} offsetSlots={offsetSlots} zone={z} slotAt={() => instant} mode="available" onWeek={() => {}} selected={null} onSelect={() => {}} onOpenDay={() => {}} />,
+    );
+
+  it('names PDT for an October day and PST for a December day', () => {
+    expect(note('2026-10-06T07:00:00.000Z', 0)).toContain('Times are PDT.');
+    expect(note('2026-12-08T08:00:00.000Z', 0)).toContain('Times are PST.');
+  });
+
+  it('adds no note when the grid is not in guild time', () => {
+    expect(note('2026-10-06T07:00:00.000Z', 2, 'America/New_York')).not.toContain('Times are');
+  });
+});
+
 describe('paint modes', () => {
   it('offers Available and If needed only, with no Erase', () => {
     const html = renderToStaticMarkup(<AvailabilityEditor initial={null} />);

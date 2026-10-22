@@ -49,10 +49,10 @@ describe('InterviewCard', () => {
     expect(text()).toContain('Booked for Friday 16 Oct, 10:00 PM EDT by Ledgerline.');
   });
 
-  it('shows guild time once, labelled, before the viewer zone is known', async () => {
+  it('shows the guild zone abbreviation before the viewer zone is known', async () => {
     zoneStore.zone = null;
     await show({ status: 'BOOKED', bookedBy: 'Ledgerline', bookedStart: SLOT });
-    expect(text()).toContain('Friday 16 Oct, 7:00 PM guild time');
+    expect(text()).toContain('Friday 16 Oct, 7:00 PM PDT');
   });
 
   it('lists the applicant’s times by day for times received, proposed and no time found', async () => {

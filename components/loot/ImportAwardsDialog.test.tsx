@@ -75,9 +75,34 @@ describe('ImportAwardsDialog results', () => {
     expect(onChanged).toHaveBeenCalledTimes(1);
   });
 
+  it('leaves the Waiting row out when nothing is waiting', async () => {
+    await importIt(answer(200, { results: [r('recorded'), r('replayed')] }));
+    const labels = [...host.querySelectorAll('ul')[0].querySelectorAll('li')].map((li) => li.querySelector('span span')?.textContent);
+    expect(labels).toEqual(['Recorded', 'Already there', 'Voided', 'Refused', 'Not on the site']);
+    expect(host.textContent).not.toContain(copy.waitingNote);
+  });
+
+  it('uses the body size for the summary lines', async () => {
+    await importIt(answer(200, { results: [r('recorded')] }));
+    expect(host.innerHTML).not.toContain('text-[15px]');
+    expect(host.querySelector('[role="status"] p')!.className).toContain('text-body');
+  });
+
   it.each(Object.entries(copy.refusals))('words the refusal %s', async (code, wording) => {
     await importIt(answer(200, { results: [r('recorded'), r('rejected', { code })] }));
     expect(host.textContent).toContain(`Blade · Gravelstone: ${wording}`);
+  });
+
+  it('words an unknown sender as Robert approved, naming the sender, not the generic line', async () => {
+    await importIt(answer(200, { results: [r('recorded'), r('rejected', { code: 'unknown-sender', sender: 'Memoranda' })] }));
+    expect(host.textContent).toContain('Blade · Gravelstone, sent by Memoranda: The sender isn’t a character of a current officer.');
+    expect(host.textContent).not.toContain(copy.refusedOther);
+  });
+
+  it('names the sender only on an unknown-sender refusal', async () => {
+    await importIt(answer(200, { results: [r('recorded'), r('rejected', { code: 'key-conflict', sender: 'Memoranda' })] }));
+    expect(host.textContent).toContain(`Blade · Gravelstone: ${copy.refusals['key-conflict']}`);
+    expect(host.textContent).not.toContain('sent by');
   });
 
   it('says nothing new, and refreshes nothing, when every award was already there', async () => {

@@ -42,7 +42,7 @@ const json = (op: Operation) => op as unknown as Prisma.InputJsonValue;
 class RaidChanged extends Error {}
 
 type Tx = Prisma.TransactionClient;
-type Names = { bosses: Map<string, string>; characters: Map<string, { id: string; name: string; userId: string }>; users: Set<string> };
+type Names = { bosses: Map<string, string>; characters: Map<string, { id: string; name: string; userId: string; officer: boolean }>; users: Set<string> };
 
 async function writeBatch(tx: Tx, { raidId, operations, env, officerId, receivedAt, via }: BatchInput): Promise<BatchResult[]> {
   const raid = await lockRaid(tx, raidId);
@@ -68,10 +68,13 @@ async function writeBatch(tx: Tx, { raidId, operations, env, officerId, received
     if (raid.cancelledAt) return 'raid-cancelled';
     if (!items.has(award.item)) return 'item-not-in-table';
     if (!names.bosses.has(award.boss)) return 'unknown-boss';
-    if (award.char === null) return null;
-    const character = names.characters.get(award.char);
-    if (!character) return 'unknown-character';
-    return award.user !== null && award.user !== character.userId ? 'user-mismatch' : null;
+    if (award.char !== null) {
+      const character = names.characters.get(award.char);
+      if (!character) return 'unknown-character';
+      if (award.user !== null && award.user !== character.userId) return 'user-mismatch';
+    }
+    // Section 7.2: the sender is a character whose account has officer access now.
+    return names.characters.get(award.sender)?.officer ? null : 'unknown-sender';
   };
 
   // The awards this batch itself carries, by identity: another award with the same id (a refused clash) is not one, and a
@@ -128,7 +131,8 @@ async function loadNames(tx: Tx, templateId: string | null, operations: Operatio
     .flatMap((op) => (op.type === 'award' ? [op] : op.type === 'replace' ? [op.award] : []));
   const wanted = [...new Set(awards.flatMap((a) => (a.char ? [a.char, a.sender] : [a.sender])))];
   const bosses = templateId ? await tx.lootBoss.findMany({ where: { templateId }, select: { id: true, name: true } }) : [];
-  const characters = await tx.character.findMany({ where: { name: { in: wanted } }, select: { id: true, name: true, userId: true } });
+  const found = await tx.character.findMany({ where: { name: { in: wanted } }, select: { id: true, name: true, userId: true, user: { select: { role: true } } } });
+  const characters = found.map(({ user, ...c }) => ({ ...c, officer: user.role === 'OFFICER' }));
   const users = await tx.user.findMany({ where: { id: { in: awards.flatMap((a) => (a.user ? [a.user] : [])) } }, select: { id: true } });
   return { bosses: new Map(bosses.map((b) => [b.id, b.name])), characters: new Map(characters.map((c) => [c.name, c])), users: new Set(users.map((u) => u.id)) };
 }

@@ -126,16 +126,16 @@ function Results({ summary, items }: { summary: ImportSummary; items: Record<num
   if (summary.total === 0 || nothingNew(summary)) {
     return (
       <div role="status" className="flex flex-col gap-1 rounded-card border border-line bg-ink-900 p-4">
-        <p className="text-[15px] font-semibold text-fg">{summary.total === 0 ? copy.empty : copy.nothingNew(summary.total)}</p>
+        <p className="text-body font-semibold text-fg">{summary.total === 0 ? copy.empty : copy.nothingNew(summary.total)}</p>
       </div>
     );
   }
   const counts = { ...summary, refused: summary.refused.length, unknown: summary.unknown.length };
   return (
     <div role="status" className="flex flex-col gap-3 rounded-card border border-line bg-ink-900 p-4">
-      <p className="text-[15px] font-semibold text-fg">{copy.imported(summary.total)}</p>
+      <p className="text-body font-semibold text-fg">{copy.imported(summary.total)}</p>
       <ul className="divide-y divide-line-faint rounded-card border border-line-faint">
-        {ROWS.map(({ key, tone, note }) => (
+        {ROWS.filter(({ key }) => key !== 'waiting' || counts.waiting > 0).map(({ key, tone, note }) => (
           <li key={key} className="flex min-h-11 items-center justify-between gap-3 px-3 py-2">
             <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
               <StatusPill tone={tone}>{copy.counts[key]}</StatusPill>
@@ -150,7 +150,7 @@ function Results({ summary, items }: { summary: ImportSummary; items: Record<num
           <h4 className="text-label font-semibold uppercase tracking-[0.12em] text-fg-3">{copy.refusedHeading}</h4>
           <ul className="flex flex-col gap-1 text-sm text-fg-2">
             {summary.refused.map((r, i) => (
-              <li key={i}><Award award={r} items={items} />: {copy.refusals[r.code] ?? copy.refusedOther}</li>
+              <li key={i}><Award award={r} items={items} />{r.code === 'unknown-sender' && r.sender && copy.sentBy(r.sender)}: {copy.refusals[r.code] ?? copy.refusedOther}</li>
             ))}
           </ul>
         </section>
