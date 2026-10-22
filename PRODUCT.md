@@ -31,7 +31,7 @@ Bureaucracy's website connects recruitment with the practical work of running it
 ## Capabilities and Constraints
 
 - Preserve separate public, member, and officer experiences and their access boundaries. A design change must not expose private officer information.
-- The raiding week's structure is confirmed (see Evidence on Hand), but raid days and times are not set. Do not invent them, and do not turn sample schedules, TBD values, or artboard examples into approved policy.
+- The raiding week's structure is confirmed (see Evidence on Hand), and raid days and times are set for now: Tuesday and Thursday, 8:00 to 11:00 PM guild time (Robert, 2026-10-22); the optional night is not set. Do not invent others, and do not turn sample schedules, TBD values, or artboard examples into approved policy.
 - The public loot rules page was removed (#241). Loot rules for members come in a later members copy project. The only public loot statement is the Raiding page's one-line summary. Do not repeat placeholder loot policy from old content or the handover as approved product facts.
 - Recruitment needs are operational data, not permanent claims or design constants.
 - Record Robert's approved facts rather than inferring approval from a live page. The site can still contain copy awaiting correction in a separate issue.
@@ -57,7 +57,7 @@ Decided by Robert on 2026-10-12 in the planning for [issue #90](https://github.c
 5. Robert's own home and About copy (Sept 27, 2026) is the reference for the voice (commits `6baa2cc` home, `456206d` About, `c13b3f8` Naxxramas claim fix).
 6. Confident and plain. No exclamation marks or emoji.
 7. Avoid patterns that read as AI-written: "not X, but Y" contrasts, dashes used for drama, lists of three for rhythm.
-8. Nothing that goes stale with time ("forming now", "before launch", "first lockout"), except in spots built to be updated, such as the home page's announcement bar. Two deliberate exceptions: the Raiding page intro "We'll post our raid days and times here soon…" until the days and times are set; and the Recruitment page's open-recruitment call-out, which is time-bound and changed over time (Robert, 2026-10-15).
+8. Nothing that goes stale with time ("forming now", "before launch", "first lockout"), except in spots built to be updated, such as the home page's announcement bar. One deliberate exception: the Recruitment page's open-recruitment call-out, which is time-bound and changed over time (Robert, 2026-10-15).
 9. Public pages say what the reader gets, not how officers run things behind the scenes. For example, "Officers pick raid nights from members' availability" stays off public pages, and no page says an officer "claims" an application.
 10. Explanations sound like a person talking to the reader ("will be set", "we'll post"; not "get set", "when they land"). On the recruitment page, expectations address the reader directly: "We expect every raider to …".
 
@@ -77,13 +77,13 @@ Examples of the voice, approved by Robert on 2026-10-12.
 - Recruitment headline: "Join a raid team built to compete". Intro: "The table below shows the classes and specs we need most. If your spec is closed and you're an exceptional player, we still want to hear from you."
 - Expectations: "Both progression nights. Raiders attend both progression nights. If you can't make one, let us know in Discord ahead of time." / "Come prepared. We expect every raider to show up prepared, with consumables, enchants and gear ready to go." / "In Discord for every raid. Every raid runs in Discord voice, and every raider is in it." / "Two-week trial. New raiders start with a two-week trial. Gear isn't awarded during the trial."
 - Application received: "Your application is in" / "Thanks for applying. We'll get back to you on Discord within a few days. If you have a question in the meantime, ask an officer in our Discord."
-- Raiding intro: "We'll post our raid days and times here soon. Each one will show in your own time zone, so you'll always know when raid starts where you are."
+- Raiding intro: "Raid times show in your own time zone, so you'll always know when raid starts where you are. Our optional night is still to be set."
 
 ## Evidence on Hand
 
 - Robert approved this achievement claim through the conductor for issue #76: **top 150 guilds in the region to fully clear Naxxramas in week one**. Approved card title: **Top 150 regionally**. This supersedes both the handover's top-500-worldwide claim and the old site's inaccurate top-100-world claim. A separate issue updates site copy; do not use the old text as evidence against this approval.
 - Confirmed by Robert on 2026-10-12 (answers linked under Voice):
-  - Two progression nights a week, plus an optional night for farm and alt runs. Days and times aren't set yet.
+  - Two progression nights a week, plus an optional night for farm and alt runs. Tuesday and Thursday, 8:00 to 11:00 PM guild time (set 2026-10-22, "for now"); the optional night isn't set yet.
   - Raiders are expected at both progression nights, and tell us in Discord ahead of time if they'll miss one. No attendance target is published.
   - Raiders are in Discord voice for every raid.
   - From Robert's About copy: strats are worked out together; logs are reviewed after every raid; everyone comes prepared with consumables, enchants and gear; once a raid is on farm, the focus moves to faster clears.
