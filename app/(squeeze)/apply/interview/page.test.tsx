@@ -57,10 +57,10 @@ describe('/apply/interview', () => {
   });
 
   it.each([
-    ['TIMES_RECEIVED', { slots: ['2026-10-17T17:00:00.000Z', '2026-10-17T17:30:00.000Z'] }, ['Your times are with the officers', 'Your times · 1 hour', 'Saturday 17 Oct', '10:00 – 11:00 AM guild time']],
-    ['PROPOSED', { proposedStart: '2026-10-18T02:00:00.000Z' }, ['Could you do this time instead?', 'Saturday 17 Oct, 7:00 PM guild time', 'The officers couldn’t make any of your times.', '>Accept</button>', '>Decline</button>']],
-    ['BOOKED', { bookedStart: '2026-10-18T02:00:00.000Z' }, ['Your interview is booked', 'Saturday 17 Oct, 7:00 PM guild time', 'Public Lounge', 'Open Discord']],
-    ['CANCELLED', { bookedStart: '2026-10-18T02:00:00.000Z' }, ['Your interview was cancelled', 'Your interview on', 'Saturday 17 Oct, 7:00 PM guild time', 'has been cancelled. An officer will be in touch.']],
+    ['TIMES_RECEIVED', { slots: ['2026-10-17T17:00:00.000Z', '2026-10-17T17:30:00.000Z'] }, ['Your times are with the officers', 'Your times · 1 hour', 'Saturday 17 Oct', '10:00 – 11:00 AM PDT']],
+    ['PROPOSED', { proposedStart: '2026-10-18T02:00:00.000Z' }, ['Could you do this time instead?', 'Saturday 17 Oct, 7:00 PM PDT', 'The officers couldn’t make any of your times.', '>Accept</button>', '>Decline</button>']],
+    ['BOOKED', { bookedStart: '2026-10-18T02:00:00.000Z' }, ['Your interview is booked', 'Saturday 17 Oct, 7:00 PM PDT', 'Public Lounge', 'Open Discord']],
+    ['CANCELLED', { bookedStart: '2026-10-18T02:00:00.000Z' }, ['Your interview was cancelled', 'Your interview on', 'Saturday 17 Oct, 7:00 PM PDT', 'has been cancelled. An officer will be in touch.']],
     ['CANCELLED', {}, ['Your interview was cancelled', 'Your interview has been cancelled. An officer will be in touch.']],
     ['NO_TIME', {}, ['We couldn’t find a time', 'An officer will reach out to you directly to arrange one.']],
     ['CLOSED', {}, ['This interview is closed', 'because your application has been decided']],

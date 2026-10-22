@@ -172,8 +172,8 @@ export function viewerReserves(raid: { id: string; startsAt: Date; hasLootTable:
 
 /**
  * Toast copy for a response (docs/04 § Sign-up confirmation): "You're in for Wednesday —
- * Blackwing Lair" with the viewer's time and zone beneath ("10:00 PM CDT"); guild time,
- * labelled, until the zone is known. A toast can't be hovered, so it carries one time like the
+ * Blackwing Lair" with the viewer's time and zone beneath ("10:00 PM CDT"); the guild
+ * zone's abbreviation ("8:00 PM PDT") until the zone is known. A toast can't be hovered, so it carries one time like the
  * rows behind it. Clearing an answer reads as withdrawn. `locale` names the zone; it defaults to
  * the browser's language, since toasts are only built in the browser.
  */
