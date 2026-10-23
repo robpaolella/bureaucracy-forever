@@ -11,7 +11,7 @@ import { applyResponse, signupRoleFor, ZERO_COUNTS } from './raids';
 const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient, discordId: '', role: 'member' }));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
 vi.mock('@/lib/session', () => ({ getSession: async () => ({ discordId: state.discordId, role: state.role, name: 'Sample' }) }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => false }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => false, openUntilStart: () => false }));
 import { PUT } from '@/app/api/raids/[id]/signup/route';
 import { POST } from '@/app/api/raids/route';
 import { applyDiscordAnswer } from '@/app/api/bot/raids/_respond';

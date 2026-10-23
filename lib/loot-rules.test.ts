@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { RESERVES } from '@/content/reserves';
 import {
   decideReserve,
@@ -16,6 +16,8 @@ import {
   pickUnavailable,
   REASONS,
   reserveHolders,
+  reserveLockMinutes,
+  reservesLocked,
   reservesLockAt,
   resolveDrop,
   winLimitOf,
@@ -34,6 +36,20 @@ const pick = { characterId: 'c1', hr: 100, sr: 200 };
 describe('reserve lock and eligibility', () => {
   it('locks two hours before the start', () => {
     expect(reservesLockAt(startsAt).toISOString()).toBe('2026-10-16T01:00:00.000Z');
+  });
+
+  it('locks at the start with OPEN_UNTIL_START on, and is open until then', () => {
+    vi.stubEnv('OPEN_UNTIL_START', 'true');
+    expect(reservesLockAt(startsAt).toISOString()).toBe(startsAt.toISOString());
+    expect(reservesLocked(startsAt, new Date(startsAt.getTime() - 1))).toBe(false);
+    expect(reservesLocked(startsAt, startsAt)).toBe(true);
+    vi.unstubAllEnvs();
+    expect(reservesLocked(startsAt, new Date(startsAt.getTime() - 1))).toBe(true);
+  });
+
+  it('gives a 0 gap on and 120 off', () => {
+    expect(reserveLockMinutes({ OPEN_UNTIL_START: 'true' })).toBe(0);
+    expect(reserveLockMinutes({})).toBe(120);
   });
 
   it('counts only Accept and Tentative', () => {

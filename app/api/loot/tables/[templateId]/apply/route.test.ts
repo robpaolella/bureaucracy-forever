@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ role: 'officer' as string | null, enabled: true, apply: vi.fn() }));
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.role ? { role: mocks.role, discordId: 'discord-officer', name: 'Sample Officer' } : null }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.enabled }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.enabled, openUntilStart: () => false }));
 vi.mock('@/lib/users', () => ({ ensureUser: async () => ({ id: 'officer' }) }));
 vi.mock('@/lib/loot-load', () => ({ applyLootTable: mocks.apply }));
 import { POST } from './route';

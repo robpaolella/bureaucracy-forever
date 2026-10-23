@@ -7,7 +7,7 @@ import { PrismaClient } from '@/lib/generated/prisma/client';
 
 const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient }));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => true }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => true, openUntilStart: () => false }));
 import { PUT } from './route';
 import { REASONS } from '@/lib/signup-rules';
 import { REASONS as LOOT_REASONS } from '@/lib/loot-rules';

@@ -4,7 +4,7 @@ import { Prisma } from '@/lib/generated/prisma/client';
 const mocks = vi.hoisted(() => ({ boss: vi.fn(), update: vi.fn(), findMany: vi.fn(), del: vi.fn(), lock: vi.fn() }));
 
 vi.mock('@/lib/session', () => ({ getSession: async () => ({ role: 'officer' }) }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => true }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => true, openUntilStart: () => false }));
 vi.mock('@/lib/db', () => {
   const lootBoss = { findUnique: mocks.boss, update: mocks.update, findMany: mocks.findMany, delete: mocks.del };
   const tx = { lootBoss, $queryRaw: mocks.lock };
