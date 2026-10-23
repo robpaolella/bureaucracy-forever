@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_MINIMA, findWindows, formatRoleMinima, scheduleHref, topWindows, type WindowCell } from './windows';
 
-const zero = (): WindowCell => ({ total: 0, roles: { tank: 0, healer: 0, melee: 0, ranged: 0 } });
+const zero = (): WindowCell => ({ total: 0, roles: { tank: 0, healer: 0, dps: 0 } });
 const grid = (): WindowCell[][] => Array.from({ length: 7 }, () => Array.from({ length: 48 }, zero));
 const fill = (cells: WindowCell[][], day: number, from: number, to: number, cell: WindowCell) => {
   for (let s = from; s <= to; s++) cells[day][s] = { total: cell.total, roles: { ...cell.roles } };
 };
-const strong = { total: 30, roles: { tank: 3, healer: 9, melee: 10, ranged: 12 } };
+const strong = { total: 30, roles: { tank: 3, healer: 9, dps: 22 } };
 
 describe('findWindows', () => {
   it('finds a window whose every slot meets every minimum, and nothing else', () => {
@@ -15,13 +15,13 @@ describe('findWindows', () => {
     const found = findWindows(cells, 6, DEFAULT_MINIMA);
     expect(found).toEqual([{ day: 1, start: 40, length: 6, score: 30, roles: strong.roles }]);
     expect(findWindows(cells, 8, DEFAULT_MINIMA)).toEqual([]); // 4h does not fit in the painted 3h
-    expect(findWindows(cells, 6, { ...DEFAULT_MINIMA, ranged: 13 })).toEqual([]);
+    expect(findWindows(cells, 6, { ...DEFAULT_MINIMA, dps: 23 })).toEqual([]);
   });
 
   it('scores by the weakest slot and reports the guaranteed role minima', () => {
     const cells = grid();
     fill(cells, 2, 36, 43, strong);
-    cells[2][39] = { total: 22, roles: { tank: 2, healer: 8, melee: 9, ranged: 11 } }; // a dip
+    cells[2][39] = { total: 22, roles: { tank: 2, healer: 8, dps: 20 } }; // a dip
     const found = findWindows(cells, 6, DEFAULT_MINIMA);
     // Windows 36–41, 37–42 include the dip; 38–43 does too. All three qualify at the dip's numbers.
     expect(found.map((w) => [w.start, w.score])).toEqual([
@@ -29,7 +29,7 @@ describe('findWindows', () => {
       [37, 22],
       [38, 22],
     ]);
-    expect(found[0].roles).toEqual({ tank: 2, healer: 8, melee: 9, ranged: 11 });
+    expect(found[0].roles).toEqual({ tank: 2, healer: 8, dps: 20 });
   });
 
   it('sorts by score, then day, then start', () => {
@@ -55,7 +55,7 @@ describe('topWindows', () => {
 });
 
 it('formats role minima the way the artboard does', () => {
-  expect(formatRoleMinima(DEFAULT_MINIMA)).toBe('2T · 8H · 9M · 11R');
+  expect(formatRoleMinima(DEFAULT_MINIMA)).toBe('2T · 8H · 20D');
 });
 
 describe('scheduleHref', () => {
@@ -68,4 +68,15 @@ describe('scheduleHref', () => {
     expect(scheduleHref(5, 47, 4, -27)).toBe('/members/calendar?new=1&day=6&time=10:00&length=120');
     expect(scheduleHref(6, 46, 4, 4)).toBe('/members/calendar?new=1&day=1&time=01:00&length=120');
   });
+});
+
+it('qualifies a window whose DPS is 20 in every cell however it splits between melee and ranged', () => {
+  const cells = Array.from({ length: 7 }, () => Array.from({ length: 48 }, zero));
+  // 20 melee and 0 ranged, then 0 melee and 20 ranged: summed per cell, DPS is 20 throughout.
+  const dps20 = { total: 30, roles: { tank: 2, healer: 8, dps: 20 } };
+  fill(cells, 1, 40, 41, dps20);
+  const found = findWindows(cells, 2, DEFAULT_MINIMA);
+  expect(found).toHaveLength(1);
+  expect(found[0].roles.dps).toBe(20);
+  expect(findWindows(cells, 2, { ...DEFAULT_MINIMA, dps: 21 })).toEqual([]);
 });

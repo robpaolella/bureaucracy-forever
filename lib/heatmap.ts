@@ -9,8 +9,14 @@ import type { WowClass } from '@/lib/design/class-colors';
 import { zonedParts, zonedTimeToUtc } from '@/lib/time';
 
 export type HeatRole = 'tank' | 'healer' | 'melee' | 'ranged';
-export const HEAT_ROLES: readonly HeatRole[] = ['tank', 'healer', 'melee', 'ranged'];
-export type RoleCounts = Record<HeatRole, number>;
+/** The roles the heatmap counts: melee and ranged are one DPS count. */
+export type CountRole = 'tank' | 'healer' | 'dps';
+export const HEAT_ROLES: readonly CountRole[] = ['tank', 'healer', 'dps'];
+export type RoleCounts = Record<CountRole, number>;
+
+export function countRole(role: HeatRole): CountRole {
+  return role === 'melee' || role === 'ranged' ? 'dps' : role;
+}
 
 /** One roster member as the aggregation needs them. `slots` is null when they never saved. */
 export type HeatMember = {
@@ -47,7 +53,7 @@ export type Heatmap = {
   cells: HeatCell[][];
 };
 
-export const ZERO_ROLES: RoleCounts = { tank: 0, healer: 0, melee: 0, ranged: 0 };
+export const ZERO_ROLES: RoleCounts = { tank: 0, healer: 0, dps: 0 };
 
 /** Half weight for if-needed, rounded half up so 20 + 8 if-needed reads 24 and 1 if-needed reads 1. */
 export function weighted(available: number, ifNeeded: number): number {
@@ -57,7 +63,7 @@ export function weighted(available: number, ifNeeded: number): number {
 /**
  * Role counts that add up to the cell's total. Each role's exact weight is floored, then
  * the rounding remainder goes to the roles with the largest fractions, so the inspector's
- * 2×2 breakdown never disagrees with the figure above it.
+ * three-role breakdown never disagrees with the figure above it.
  */
 export function splitToTotal(split: { a: RoleCounts; n: RoleCounts }, total: number): RoleCounts {
   const exact = HEAT_ROLES.map((r) => ({ r, v: split.a[r] + split.n[r] / 2 }));
@@ -121,10 +127,10 @@ export function buildHeatmap(members: HeatMember[], viewerZone: string, now: Dat
       const split = roleSplit[day][slot];
       if (state === 'available') {
         cell.available += 1;
-        split.a[m.role] += 1;
+        split.a[countRole(m.role)] += 1;
       } else {
         cell.ifNeeded += 1;
-        split.n[m.role] += 1;
+        split.n[countRole(m.role)] += 1;
       }
       cell.who.push({ i, state });
     }

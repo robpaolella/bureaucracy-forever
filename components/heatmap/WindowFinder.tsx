@@ -5,7 +5,7 @@ import { LocalTime } from '@/components/time/LocalTime';
 import { ButtonLink, Card, CONTROL, FIELD_LABEL } from '@/components/ui';
 import { fmtSlot, type WeekDay } from '@/lib/availability';
 import { cn } from '@/lib/cn';
-import { HEAT_ROLES, type Heatmap, type HeatRole, type RoleCounts } from '@/lib/heatmap';
+import { HEAT_ROLES, type CountRole, type Heatmap, type RoleCounts } from '@/lib/heatmap';
 import { DEFAULT_MINIMA, findWindows, formatRoleMinima, scheduleHref, topWindows, WINDOW_LENGTHS } from '@/lib/windows';
 import { WINDOW_FINDER } from '@/content/availability';
 import { SCHEDULE_FROM_WINDOW } from '@/content/calendar';
@@ -20,11 +20,11 @@ type Props = {
   slotAt: (day: number, slot: number) => string;
 };
 
-const ROLE_LABEL: Record<HeatRole, string> = { tank: 'Min tanks', healer: 'Min healers', melee: 'Min melee', ranged: 'Min ranged' };
+const ROLE_LABEL: Record<CountRole, string> = { tank: 'Min tanks', healer: 'Min healers', dps: 'Min DPS' };
 const LENGTH_LABEL: Record<(typeof WINDOW_LENGTHS)[number], string> = { 4: '2 hours', 6: '3 hours', 8: '4 hours' };
 
 /**
- * docs/05 § Find raid windows. Three 44px length buttons, a 2×2 grid of minimums, and the
+ * docs/05 § Find raid windows. Three 44px length buttons, three minimums, and the
  * ranked results, recomputed on every change. The count in the header is the full count;
  * the list shows at most one window per day, five in all.
  */
@@ -66,7 +66,7 @@ export function WindowFinder({ heat, days, offsetSlots, zone, slotAt }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         {HEAT_ROLES.map((r) => (
           <div key={r} className="flex flex-col gap-1.5">
             <label htmlFor={`${baseId}-${r}`} className={FIELD_LABEL}>
