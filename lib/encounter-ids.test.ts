@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ENCOUNTER_ROWS, encounterId } from '@/lib/encounter-ids';
+import { checkBossNames, ENCOUNTER_ROWS, encounterId } from '@/lib/encounter-ids';
 
 describe('encounter id table', () => {
   it('holds positive integer ids, none repeated', () => {
@@ -26,5 +26,29 @@ describe('encounter id table', () => {
     expect(encounterId(null, 'Plunder')).toBeUndefined();
     expect(encounterId(undefined, 'Plunder')).toBeUndefined();
     expect(encounterId(0, 'Plunder')).toBeUndefined();
+  });
+});
+
+describe('checkBossNames', () => {
+  const hall = [
+    { name: 'Faldrim Anvilmar', isTrash: false }, { name: 'Plunder', isTrash: false },
+    { name: 'Magmatus', isTrash: false }, { name: 'durgen  dirgehammer', isTrash: false },
+    { name: 'Trash', isTrash: true },
+  ];
+  it('flags a name that is not the game’s and lists the game’s names no row matched', () => {
+    expect(checkBossNames(3065, hall)).toEqual({ kind: 'checked', flagged: ['Magmatus'], unmatched: ['Infurnus'] });
+  });
+  it('flags a rare monster that is not an encounter, but never trash', () => {
+    const rows = [...hall.slice(0, 2), { name: 'Infurnus', isTrash: false }, hall[3], { name: 'Sneed’s Shredder', isTrash: false }, { name: 'Trash mobs', isTrash: true }];
+    expect(checkBossNames(3065, rows)).toEqual({ kind: 'checked', flagged: ['Sneed’s Shredder'], unmatched: [] });
+  });
+  it('counts a name the map has twice as matched, and still flags a name that is on no map row', () => {
+    const rows = [{ name: 'grubbis', isTrash: false }, { name: 'Mekgineer Thermaplugg', isTrash: false }, { name: 'Made Up', isTrash: false }];
+    expect(checkBossNames(90, rows)).toMatchObject({ kind: 'checked', flagged: ['Made Up'] });
+  });
+  it('checks nothing without an instance number or for one the list does not cover', () => {
+    expect(checkBossNames(null, hall)).toEqual({ kind: 'unchecked', reason: 'no-instance' });
+    expect(checkBossNames(undefined, hall)).toEqual({ kind: 'unchecked', reason: 'no-instance' });
+    expect(checkBossNames(999999, hall)).toEqual({ kind: 'unchecked', reason: 'not-listed' });
   });
 });

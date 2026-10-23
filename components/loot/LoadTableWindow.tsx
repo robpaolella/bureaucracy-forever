@@ -197,6 +197,7 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
       loadFile: current,
       source: itemSource,
       replace: replacing,
+      checkNames: mode === 'forever',
       stopped: () => stopRequested.current || id !== run.current,
       onProgress: (next) => id === run.current && setProgress(next),
     });
@@ -299,6 +300,7 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
         <div className="flex flex-col gap-4">
           {/* Robert, 2026-10-08: ids still missing keep their box and Try again above "Nothing to change". */}
           <NotFound ready={ready} loadFile={loadFile} busy={busy} onRetry={() => void startPreview(true)} />
+          <BossNames check={ready.bossCheck} />
           <div role="status" tabIndex={-1} data-step-focus className="flex flex-col gap-1.5 rounded-card border border-dashed border-line-strong p-5 text-center outline-none">
             <strong className="font-display text-xl font-medium text-fg">{LOOT_LOAD.nothingTitle}</strong>
             <span>{LOOT_LOAD.nothingBody}</span>
@@ -490,6 +492,7 @@ function PreviewView({ ready, loadFile, replace, stale, busy, onRetry }: { ready
         {removals.length > 0 ? <RemovesSummary preview={preview} /> : LOOT_LOAD.nothingRemoved}
       </p>
       <NotFound ready={ready} loadFile={loadFile} busy={busy} onRetry={onRetry} />
+      <BossNames check={ready.bossCheck} />
       {removals.length > 0 && (
         <section>
           <h3 className={cn(FIELD_LABEL, 'border-b border-line pb-1.5')}>{LOOT_LOAD.removes}</h3>
@@ -578,6 +581,21 @@ function NotFound({ ready, loadFile, busy, onRetry }: { ready: Ready; loadFile: 
         <span key={boss.name} className="tabular text-fg-2">{boss.name}: {boss.notFound.map((id) => `#${id}`).join(', ')}</span>
       ))}
       <span><Button variant="secondary" size="sm" loading={busy === 'retry'} disabled={busy === 'apply'} onClick={onRetry}>{LOOT_LOAD.tryAgain}</Button></span>
+    </div>
+  );
+}
+
+/** Warnings, not errors: the officer can still load, then rename with Edit boss. */
+function BossNames({ check }: { check: Ready['bossCheck'] }) {
+  if (!check) return null;
+  if (check.kind === 'unchecked') return <p className="text-[13px] text-fg-3">{LOOT_LOAD.bossUnchecked[check.reason]}</p>;
+  if (check.flagged.length === 0 && check.unmatched.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-1.5 rounded-card border border-warn-line bg-warn-wash px-3.5 py-3 text-fg">
+      {check.flagged.map((name) => (
+        <span key={name}><strong className="font-semibold text-warn">{name}</strong>: {LOOT_LOAD.bossFlag}</span>
+      ))}
+      {check.unmatched.length > 0 && <span className="text-fg-2">{LOOT_LOAD.bossUnmatched} {check.unmatched.join(', ')}</span>}
     </div>
   );
 }

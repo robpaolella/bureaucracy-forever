@@ -15,7 +15,7 @@ const loadFile: LoadFile = {
 };
 const merge = { remove: [], kept: [], absent: null };
 const ready = (failed: number[] = [6], added = 4): PreviewResult => ({
-  kind: 'preview', nothingToChange: added === 0, failed: failed.map((id) => ({ id, error: 'Not found' })),
+  kind: 'preview', bossCheck: null, nothingToChange: added === 0, failed: failed.map((id) => ({ id, error: 'Not found' })),
   items: [{ id: 2, name: 'Ashen Signet', quality: 4, icon: 'inv_ring' }],
   preview: { token: 'tok', added, newBosses: 1, removed: 0, removedBosses: 0, kept: 0, bosses: [
     { bossId: 'b1', name: 'Lucifron', isTrash: false, isNew: false, add: [2, 3], already: [1], notFound: [], ...merge },
@@ -255,6 +255,33 @@ describe('LoadTableWindow WoW Forever', () => {
     client.applyLoadTable.mockResolvedValue({ kind: 'success', added: 4, newBosses: 1, removed: 0 });
     await click('Load 4 items');
     expect(client.applyLoadTable).toHaveBeenCalledWith(expect.objectContaining({ source: 'FOREVER', token: 'tok', loadFile: expect.objectContaining({ name: 'foreverchanges.pro: Molten Core' }) }));
+  });
+
+  it('shows boss-name warnings and the can’t-check note in the preview, and Load still works', async () => {
+    client.fetchForeverTable.mockResolvedValue({ kind: 'ok', source: 'FOREVER', value: loadFile });
+    const base = ready() as Extract<PreviewResult, { kind: 'preview' }>;
+    client.previewLoadTable.mockResolvedValue({ ...base, bossCheck: { kind: 'checked', flagged: ['Magmatus'], unmatched: ['Infurnus'] } });
+    await render(); await useForever(); await click('Preview');
+    expect(client.previewLoadTable).toHaveBeenCalledWith(expect.objectContaining({ checkNames: true }));
+    expect(host.textContent).toContain('Magmatus: not a boss name in the game’s data. It may be a rare monster, or named differently in game');
+    expect(host.textContent).toContain('Infurnus');
+    client.applyLoadTable.mockResolvedValue({ kind: 'success', added: 4, newBosses: 1, removed: 0 });
+    await click('Load 4 items');
+    expect(client.applyLoadTable).toHaveBeenCalled();
+  });
+
+  it('says names can’t be checked when the template has no instance number, and flags nothing', async () => {
+    client.fetchForeverTable.mockResolvedValue({ kind: 'ok', source: 'FOREVER', value: loadFile });
+    client.previewLoadTable.mockResolvedValue({ ...(ready() as object), bossCheck: { kind: 'unchecked', reason: 'no-instance' } });
+    await render(); await useForever(); await click('Preview');
+    expect(host.textContent).toContain('Boss names can’t be checked until this raid has its in-game instance number.');
+    expect(host.textContent).not.toContain('not a boss name');
+  });
+
+  it('shows no boss-name check for a file or AtlasLoot load', async () => {
+    client.previewLoadTable.mockResolvedValue(ready());
+    await render();
+    expect(host.textContent).not.toContain('Boss names can’t be checked');
   });
 
   it('shows a failed dungeon list in plain words and applies nothing', async () => {

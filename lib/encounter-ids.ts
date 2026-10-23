@@ -424,6 +424,19 @@ const ENCOUNTERS: Record<number, [name: string, id: number][]> = {
   ],
 };
 
+/**
+ * The names `ENCOUNTERS` leaves out because a map has them more than once (same build and
+ * source). They have no single id, but they are the game's names: the boss-name check treats them as matched.
+ */
+const DUPLICATE_NAMES: Record<number, string[]> = {
+  // Blackfathom Deeps
+  48: ['Ghamoo-ra', 'Lady Sarevess', 'Lorgus Jett', 'Geilhast', "Old Serra'kis", 'Twilight Lord Kelris', "Aku'mai"],
+  // Gnomeregan
+  90: ['Grubbis', 'Viscous Fallout', 'Electrocutioner 6000', 'Crowd Pummeler 9-60', 'Mekgineer Thermaplugg'],
+  // Sunken Temple
+  109: ['Dreamscythe', 'Weaver', "Jammal'an the Prophet", 'Morphaz', 'Hazzas', 'Avatar of Hakkar', 'Shade of Eranikus', "Atal'alarion"],
+};
+
 /** A boss name as compared: case and spacing ignored (the add-on's name matching does the same). */
 const key = (name: string) => name.replace(/\s+/g, '').toLowerCase();
 
@@ -438,4 +451,22 @@ export const ENCOUNTER_ROWS = Object.entries(ENCOUNTERS).flatMap(([map, rows]) =
 export function encounterId(instance: number | null | undefined, bossName: string): number | undefined {
   if (!instance) return undefined;
   return BY_MAP.get(instance)?.get(key(bossName));
+}
+
+/** What the Load table's WoW Forever preview says about boss names: not checkable, or the rows to flag and the game's names no row used. */
+export type BossNameCheck =
+  | { kind: 'unchecked'; reason: 'no-instance' | 'not-listed' }
+  | { kind: 'checked'; flagged: string[]; unmatched: string[] };
+
+/** Compares each non-trash row's name with the game's encounter names for the instance (same comparison as `encounterId`; a name the map has twice counts as matched). */
+export function checkBossNames(instance: number | null | undefined, rows: { name: string; isTrash: boolean }[]): BossNameCheck {
+  if (!instance) return { kind: 'unchecked', reason: 'no-instance' };
+  const names = ENCOUNTERS[instance];
+  if (!names) return { kind: 'unchecked', reason: 'not-listed' };
+  const known = BY_MAP.get(instance)!;
+  const bosses = rows.filter((row) => !row.isTrash);
+  const duplicates = new Set((DUPLICATE_NAMES[instance] ?? []).map(key));
+  const flagged = bosses.filter((row) => !known.has(key(row.name)) && !duplicates.has(key(row.name))).map((row) => row.name);
+  const used = new Set(bosses.map((row) => key(row.name)));
+  return { kind: 'checked', flagged, unmatched: names.map(([name]) => name).filter((name) => !used.has(key(name))) };
 }

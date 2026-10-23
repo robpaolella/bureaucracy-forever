@@ -142,6 +142,12 @@ export const LOOT_LOAD = {
   nothingRemoved: 'Nothing is removed.',
   notFound: (n: number) => `Wowhead couldn’t find ${items(n)}`,
   notFoundHint: 'They won’t be loaded. Check the ids in the file, or try again if Wowhead was busy.',
+  bossFlag: 'not a boss name in the game’s data. It may be a rare monster, or named differently in game',
+  bossUnmatched: 'The game’s data also has these bosses for this dungeon, which no row matched:',
+  bossUnchecked: {
+    'no-instance': 'Boss names can’t be checked until this raid has its in-game instance number.',
+    'not-listed': 'Boss names can’t be checked because the game’s encounter list doesn’t cover this dungeon yet.',
+  },
   adds: 'Adds',
   newBoss: 'New boss',
   trash: 'Trash',
