@@ -152,7 +152,7 @@ describe.skipIf(process.env.RAID_VIEW_INTEGRATION !== '1')('GET /api/bot/raids/:
     const body = await res.json();
     expect(body.removedReserves).toEqual([{ kind: 'HR', itemName: 'Item 100', reason: 'Not open to reserves' }]);
     expect(body.viewer.character.id).toBe('alt');
-    expect(body.bars).toEqual({ tank: 0, healer: 1, melee: 0, ranged: 0 });
+    expect(body.bars).toEqual({ tank: 0, healer: 1, dps: 0 });
     expect(await saved('removals')).toMatchObject({ characterId: 'alt', response: 'ACCEPT', source: 'DISCORD' });
     expect(await client.reserve.findMany({ where: { raidId: 'removals' } })).toMatchObject([{ kind: 'SR', characterId: 'alt' }]);
     const replay = await answer('removals', { characterId: 'alt' }, 'choose-alt');

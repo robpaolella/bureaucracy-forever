@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, durationLabel, durationOptions, emptyRaidInput, locksAtFor, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, linkOpensReserves, parseRequirements, promptsReserves, raidDate, raidWeekday, reservesUrl, responseToast, sourceSplit, totalCounts, viewerReserves, ZERO_COUNTS, type RaidCard, type SignupRow } from './raids';
+import { toComposition, applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, durationLabel, durationOptions, emptyRaidInput, locksAtFor, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, linkOpensReserves, parseRequirements, promptsReserves, raidDate, raidWeekday, reservesUrl, responseToast, sourceSplit, totalCounts, viewerReserves, ZERO_COUNTS, type RaidCard, type SignupRow } from './raids';
 
 describe('requirements and counts', () => {
   it('parses a JSON requirements column defensively', () => {
@@ -27,6 +27,24 @@ describe('requirements and counts', () => {
     expect(applyResponse(c, 'healer', 'tentative', 'absent')).toEqual(c);
     expect(applyResponse(c, null, null, 'accept')).toEqual(c);
     expect(applyResponse({ ...c, healer: 0 }, 'healer', 'accept', null)).toEqual({ ...c, healer: 0 });
+  });
+
+  it('reads stored requirements as tank, healer and DPS', () => {
+    expect(toComposition({ tank: 2, healer: 8, melee: 11, ranged: 14 })).toEqual({ tank: 2, healer: 8, dps: 25 });
+    expect(toComposition({ tank: 2, healer: 8, dps: 20 })).toEqual({ tank: 2, healer: 8, dps: 20 });
+    expect(toComposition({ tank: 2, healer: 8, dps: 20, melee: 9, ranged: 11 }).dps).toBe(20);
+    expect(toComposition(null)).toEqual({ tank: 0, healer: 0, dps: 0 });
+    expect(toComposition('{bad')).toEqual({ tank: 0, healer: 0, dps: 0 });
+    expect(toComposition({ tank: -1, healer: 'x', melee: 3 })).toEqual({ tank: 0, healer: 0, dps: 3 });
+  });
+
+  it.each(['melee', 'ranged'] as const)('moves a %s member through DPS as they accept, withdraw and switch', (role) => {
+    const c = { tank: 2, healer: 8, melee: 11, ranged: 14 };
+    const accepted = applyResponse(c, role, null, 'accept');
+    expect(toComposition(accepted).dps).toBe(26);
+    expect(toComposition(applyResponse(accepted, role, 'accept', 'absent')).dps).toBe(25);
+    const moved = applyResponse(applyResponse(accepted, role, 'accept', null), 'healer', null, 'accept');
+    expect(toComposition(moved)).toEqual({ tank: 2, healer: 9, dps: 25 });
   });
 
   it('tones a count against its requirement', () => {

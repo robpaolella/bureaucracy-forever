@@ -2,6 +2,7 @@ import 'server-only';
 
 import { db } from '@/lib/db';
 import type { Prisma } from '@/lib/generated/prisma/client';
+import { COMPOSITION_ROLES } from '@/lib/design/class-colors';
 import { lootEnabled } from '@/lib/flags';
 import { blockedItemIds, lockReserveTier, winLimits } from '@/lib/loot-blocks';
 import { hrAwardsFor, signupAnswer } from '@/lib/loot-data';
@@ -66,7 +67,7 @@ export async function switchCharacterInTransaction(tx: Prisma.TransactionClient,
   await tx.signup.update({ where: { id: signup.id }, data: { characterId: character.id } });
   const counts = (role: string | null) => countsForBars([{ standing: signup.standing, response: signupAnswer(signup.response).response, role }]);
   const before = counts(previous?.raidRole.toLowerCase() ?? null), after = counts(character.raidRole.toLowerCase());
-  if (raid.discordThreadId && Object.keys(before).some((role) => before[role] !== after[role])) {
+  if (raid.discordThreadId && COMPOSITION_ROLES.some((role) => before[role] !== after[role])) {
     await enqueue('raid.update', { raidId: raid.id }, tx);
   }
   return { ok: true as const, character, removed };

@@ -46,6 +46,18 @@ export const ROLE_SHORT: Record<Role, string> = {
   tank: 'T', healer: 'H', melee: 'M', ranged: 'R',
 };
 
+/** What a raid's composition shows: melee and ranged count together as DPS. Characters keep the four `Role`s. */
+export const COMPOSITION_ROLES = ['tank', 'healer', 'dps'] as const;
+export type CompositionRole = (typeof COMPOSITION_ROLES)[number];
+
+export const COMPOSITION_LABELS: Record<CompositionRole, string> = { tank: 'Tank', healer: 'Healer', dps: 'DPS' };
+export const COMPOSITION_SHORT: Record<CompositionRole, string> = { tank: 'T', healer: 'H', dps: 'D' };
+
+/** The composition role a character's raid role fills. */
+export function compositionRole(role: Role): CompositionRole {
+  return role === 'melee' || role === 'ranged' ? 'dps' : role;
+}
+
 /** Classic-era specs per class, and the role each one fills. */
 export const SPECS: Record<WowClass, { name: string; roles: Role[] }[]> = {
   warrior: [{ name: 'Protection', roles: ['tank'] }, { name: 'Fury', roles: ['melee'] }, { name: 'Arms', roles: ['melee'] }],
