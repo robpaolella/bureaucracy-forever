@@ -439,3 +439,20 @@ export function encounterId(instance: number | null | undefined, bossName: strin
   if (!instance) return undefined;
   return BY_MAP.get(instance)?.get(key(bossName));
 }
+
+/** What the Load table's WoW Forever preview says about boss names: not checkable, or the rows to flag and the game's names no row used. */
+export type BossNameCheck =
+  | { kind: 'unchecked'; reason: 'no-instance' | 'not-listed' }
+  | { kind: 'checked'; flagged: string[]; unmatched: string[] };
+
+/** Compares each non-trash row's name with the game's encounter names for the instance (same comparison as `encounterId`). */
+export function checkBossNames(instance: number | null | undefined, rows: { name: string; isTrash: boolean }[]): BossNameCheck {
+  if (!instance) return { kind: 'unchecked', reason: 'no-instance' };
+  const names = ENCOUNTERS[instance];
+  if (!names) return { kind: 'unchecked', reason: 'not-listed' };
+  const known = BY_MAP.get(instance)!;
+  const bosses = rows.filter((row) => !row.isTrash);
+  const flagged = bosses.filter((row) => !known.has(key(row.name))).map((row) => row.name);
+  const used = new Set(bosses.map((row) => key(row.name)));
+  return { kind: 'checked', flagged, unmatched: names.map(([name]) => name).filter((name) => !used.has(key(name))) };
+}

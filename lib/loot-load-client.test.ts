@@ -25,6 +25,26 @@ describe('toIdsFile', () => {
   });
 });
 
+describe('previewLoadTable boss names', () => {
+  const run = (checkNames: boolean | undefined, bossCheck: unknown) => {
+    const fetcher = vi.fn().mockResolvedValue(response({ remaining: 0, skip: [], failed: [], preview, bossCheck }));
+    return previewLoadTable({ templateId: 'mc', loadFile, fetcher, checkNames }).then((result) => ({ result, body: JSON.parse((fetcher.mock.calls[0][1] as RequestInit).body as string) }));
+  };
+  const check = { kind: 'checked', flagged: ['Magmatus'], unmatched: ['Infurnus'] };
+  it('asks for the check only when told to, and returns what the server says', async () => {
+    const asked = await run(true, check);
+    expect(asked.body.checkNames).toBe(true);
+    expect(asked.result).toMatchObject({ kind: 'preview', bossCheck: check });
+    const notAsked = await run(undefined, check);
+    expect(notAsked.body).not.toHaveProperty('checkNames');
+    expect(notAsked.result).toMatchObject({ bossCheck: null });
+  });
+  it('ignores an answer it cannot read', async () => {
+    expect((await run(true, { kind: 'checked', flagged: 'x' })).result).toMatchObject({ bossCheck: null });
+    expect((await run(true, { kind: 'unchecked', reason: 'no-instance' })).result).toMatchObject({ bossCheck: { kind: 'unchecked' } });
+  });
+});
+
 describe('previewLoadTable', () => {
   it('continues with returned skip, reports each batch, and retains all failures', async () => {
     const fetcher = vi.fn()
@@ -32,7 +52,7 @@ describe('previewLoadTable', () => {
       .mockResolvedValueOnce(response({ remaining: 0, skip: [2, 3], failed: [{ id: 3, error: 'Gone' }], preview }));
     const progress = vi.fn();
 
-    await expect(previewLoadTable({ templateId: 'mc', loadFile, fetcher, onProgress: progress })).resolves.toEqual({ kind: 'preview', preview, items: [], failed: [{ id: 2, error: 'Not found' }, { id: 3, error: 'Gone' }], nothingToChange: false });
+    await expect(previewLoadTable({ templateId: 'mc', loadFile, fetcher, onProgress: progress })).resolves.toEqual({ kind: 'preview', preview, items: [], failed: [{ id: 2, error: 'Not found' }, { id: 3, error: 'Gone' }], nothingToChange: false, bossCheck: null });
     expect(fetcher.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string))).toEqual([
       { file: sent, source: 'FOREVER', skip: [], replace: false }, { file: sent, source: 'FOREVER', skip: [2], replace: false },
     ]);
