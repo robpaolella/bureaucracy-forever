@@ -246,6 +246,34 @@ describe('schedule form input', () => {
   });
 });
 
+describe('reserves allowed in the raid input', () => {
+  const good = { templateId: 't1', date: '2026-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 }, notes: '' };
+
+  it('passes the switch through, and leaves it out when not sent', () => {
+    expect(parseRaidInput({ ...good, reservesAllowed: false })).toMatchObject({ ok: true, value: { reservesAllowed: false } });
+    expect(parseRaidInput({ ...good, reservesAllowed: true })).toMatchObject({ ok: true, value: { reservesAllowed: true } });
+    const left = parseRaidInput(good);
+    expect(left.ok && 'reservesAllowed' in left.value).toBe(false);
+  });
+
+  it('refuses anything but a boolean', () => {
+    for (const v of ['no', 0, null]) expect(parseRaidInput({ ...good, reservesAllowed: v }).ok).toBe(false);
+  });
+
+  it('defaults to on when scheduling and shows the stored value on edit', () => {
+    expect(emptyRaidInput({}, new Date('2026-09-26T17:00:00.000Z')).reservesAllowed).toBe(true);
+    const raid = { templateId: 't1', startsAt: '2026-10-08T02:00:00.000Z', durationMin: 180, requirements: good.requirements, notes: null };
+    expect(raidToInput({ ...raid, reservesAllowed: false }).reservesAllowed).toBe(false);
+    expect(raidToInput({ ...raid, reservesAllowed: true }).reservesAllowed).toBe(true);
+  });
+
+  it('does not prompt for reserves when they are off', () => {
+    const window = (reservesAllowed: boolean) => ({ locked: false, cancelled: false, reservesAllowed, targets: [{ self: true, current: { hr: null, sr: null } }] });
+    expect(promptsReserves('accept', window(true))).toBe(true);
+    expect(promptsReserves('accept', window(false))).toBe(false);
+  });
+});
+
 describe('raid lengths', () => {
   const good = { templateId: 't1', date: '2026-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 }, notes: '' };
 

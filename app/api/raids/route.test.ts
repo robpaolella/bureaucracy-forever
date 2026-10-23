@@ -50,6 +50,20 @@ describe('POST /api/raids', () => {
     expect(mocks.create.mock.calls[0][0].data.name).toBe('Molten Core — Wed Nov 4');
   });
 
+  it('stores the switch, and yes when it is left out', async () => {
+    await post({ reservesAllowed: false });
+    expect(mocks.create.mock.calls[0][0].data.reservesAllowed).toBe(false);
+    await post({ reservesAllowed: true });
+    expect(mocks.create.mock.calls[1][0].data.reservesAllowed).toBe(true);
+    await post();
+    expect(mocks.create.mock.calls[2][0].data.reservesAllowed).toBe(true);
+  });
+
+  it('refuses a switch that is not on or off', async () => {
+    expect((await post({ reservesAllowed: 'no' })).status).toBe(400);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
   it('accepts template lengths and refuses others', async () => {
     expect((await post({ durationMin: 45 })).status).toBe(201);
     expect((await post({ durationMin: 420 })).status).toBe(201);

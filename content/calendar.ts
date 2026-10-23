@@ -36,6 +36,7 @@ export const SCHEDULE_FORM = {
   submit: 'Schedule',
   cancel: 'Cancel',
   preview: 'Members will see',
+  reservesAllowed: 'Reserves allowed',
 };
 
 export function scheduledToast(name: string, weekday: string): string {

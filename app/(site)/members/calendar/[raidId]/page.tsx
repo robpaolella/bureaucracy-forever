@@ -67,6 +67,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
         discordThreadId: true,
         seriesId: true,
         templateId: true,
+        reservesAllowed: true,
         template: { select: { id: true, short: true, name: true } },
         signups: {
           select: {
@@ -132,6 +133,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
     locksAt: raid.locksAt.toISOString(),
     short: raid.template?.short ?? null,
     onRoster: mine?.standing === 'ROSTER',
+    reservesAllowed: raid.reservesAllowed,
   };
   const past = !isUpcoming(card, now);
   const open = !past && !card.cancelled && raid.status === 'SCHEDULED';
@@ -159,7 +161,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
   const memberLoot = table && reserveTargets && session.role === 'member' ? await loadMemberRaidLoot(raid.id) : null;
   const locked = reservesLocked(raid.startsAt, now);
   // The bot's reserves link (SYNC-SPEC §4) opens the viewer's own window, when they could open it themselves.
-  const openReserves = linkOpensReserves(query[RESERVES_PARAM], table && reserveTargets && { locked, cancelled: card.cancelled, targets: reserveTargets.targets });
+  const openReserves = linkOpensReserves(query[RESERVES_PARAM], table && reserveTargets && raid.reservesAllowed ? { locked, cancelled: card.cancelled, targets: reserveTargets.targets } : null);
 
   return (
     <ToastHost>
@@ -206,7 +208,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
 
         <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_380px] md:items-start">
           <div className="order-2 flex flex-col gap-6 md:order-1">
-            {officer && <OfficerActions raid={card} members={memberOptions} past={past} threadUrl={discordThreadUrl(raid.discordThreadId)} fromSeries={raid.seriesId !== null} template={raid.template ? { id: raid.template.id, name: raid.template.name } : null} templates={templates} />}
+            {officer && <OfficerActions raid={card} members={memberOptions} past={past} threadUrl={discordThreadUrl(raid.discordThreadId)} fromSeries={raid.seriesId !== null} template={raid.template ? { id: raid.template.id, name: raid.template.name } : null} templates={templates} lootOn={lootEnabled()} />}
             {officer && past && !card.cancelled && <AttendanceForm raidId={raid.id} rows={rows} />}
             <RosterByRole raidId={raid.id} rows={roster} now={now.toISOString()} canAnswerFor={officer && !past && !card.cancelled} showAttendance={past} />
           </div>
@@ -217,7 +219,13 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
           </div>
         </div>
 
-        {table && reserveTargets && (
+        {table && reserveTargets && !raid.reservesAllowed && (
+          <section id="loot-reserves" className="flex scroll-mt-24 flex-col gap-3 rounded-card border border-line bg-ink-850 p-4 md:p-5" aria-labelledby="reserves-heading">
+            <h2 id="reserves-heading" className="font-display text-2xl font-medium">{RESERVES.heading}</h2>
+            <p className="text-sm text-fg-2">{RESERVES.off}</p>
+          </section>
+        )}
+        {table && reserveTargets && raid.reservesAllowed && (
           <Reserves
             raid={{ id: raid.id, name: raid.name, startsAt: card.startsAt }}
             table={table}
