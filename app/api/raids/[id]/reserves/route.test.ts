@@ -24,7 +24,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/character-switch', () => ({ switchCharacterInTransaction: mocks.switchCharacter }));
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.session }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.loot }));
+vi.mock('@/lib/flags', async () => ({ ...(await vi.importActual<typeof import('@/lib/flags')>('@/lib/flags')), lootEnabled: () => mocks.loot }));
 vi.mock('@/lib/users', () => ({ ensureUser: async () => ({ id: 'officer-user' }) }));
 vi.mock('@/lib/loot-data', async () => {
   const real = await vi.importActual<typeof import('@/lib/loot-data')>('@/lib/loot-data');
@@ -50,6 +50,7 @@ const call = (body: unknown) => PUT(new Request('https://example.test', { method
 const BODY = { characterId: 'c1', hr: 100, sr: 200 };
 
 beforeEach(() => {
+  vi.unstubAllEnvs();
   mocks.session = { role: 'member', discordId: 'd1' };
   mocks.loot = true;
   for (const m of [mocks.raid, mocks.user, mocks.signup, mocks.items, mocks.awards, mocks.deleteMany, mocks.createMany, mocks.transaction]) m.mockReset();
@@ -172,6 +173,16 @@ describe('PUT /api/raids/[id]/reserves', () => {
     expect((await call(BODY)).status).toBe(409);
     mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 2 * HOUR + 60_000), cancelledAt: null, templateId: 't1' });
     expect((await call(BODY)).status).toBe(200);
+  });
+
+  it('with OPEN_UNTIL_START on, stays open until the start; officers can still change it after', async () => {
+    vi.stubEnv('OPEN_UNTIL_START', 'true');
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 5 * 60_000), cancelledAt: null, templateId: 't1' });
+    expect((await call(BODY)).status).toBe(200);
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() - 1000), cancelledAt: null, templateId: 't1' });
+    expect((await call(BODY)).status).toBe(409);
+    mocks.session = { role: 'officer', discordId: 'd9' };
+    expect((await call({ ...BODY, forUserId: 'u2' })).status).toBe(200);
   });
 
   it('refuses an item outside the table and a raid without a template', async () => {

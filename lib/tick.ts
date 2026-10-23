@@ -8,7 +8,7 @@ import { instanceName, isRosterRank, missingOccurrences, occurrences } from '@/l
 import { trialCheckInDue } from '@/lib/rank-rules';
 import { applicationReminderDue, dueForClose, dueForLock, dueForPost, HOUR_MS, interviewDone, interviewExpired, interviewHeadsUpDue, interviewReminderDue, joinNoticeDue, pacificDay, proposalLapsed, reminderActivityTime, reminderDue, INTERVIEW_JOIN_EARLY_MS, INTERVIEW_JOIN_LATE_MS } from '@/lib/tick-rules';
 import { lootEnabled } from '@/lib/flags';
-import { RESERVE_LOCK_MINUTES, reservesLockAt } from '@/lib/loot-rules';
+import { reserveLockMinutes, reservesLockAt } from '@/lib/loot-rules';
 import { reserveReminderDue, reserveReminderRecipients } from '@/lib/reserve-reminder';
 
 const RECONCILE_MARKER = 'tick:reconcile';
@@ -160,10 +160,11 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
 
   // Reserve reminders use their own lock, not the configurable sign-up lock.
   if (lootEnabled()) {
+    const lockGap = reserveLockMinutes();
     const candidates = await db.raid.findMany({
       where: {
         status: { in: ['SCHEDULED', 'LOCKED'] }, postedAt: { not: null }, remindReservesAt: null,
-        startsAt: { gt: new Date(now.getTime() + RESERVE_LOCK_MINUTES * 60_000), lte: new Date(now.getTime() + (RESERVE_LOCK_MINUTES + 120) * 60_000) },
+        startsAt: { gt: new Date(now.getTime() + lockGap * 60_000), lte: new Date(now.getTime() + (lockGap + 120) * 60_000) },
         template: { lootBosses: { some: { entries: { some: {} } } } },
       },
       select: { id: true, status: true, startsAt: true, postedAt: true, remindReservesAt: true },

@@ -3,7 +3,7 @@ import { FOREVER_ONLY, SOURCE_CONFLICT } from '@/lib/item-sources';
 
 const mocks = vi.hoisted(() => ({ findUnique: vi.fn(), findMany: vi.fn(), upsert: vi.fn(), createEntry: vi.fn() }));
 vi.mock('@/lib/session', () => ({ getSession: async () => ({ role: 'officer' }) }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => true }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => true, openUntilStart: () => false }));
 vi.mock('@/lib/db', () => ({ db: {
   lootItem: { findUnique: mocks.findUnique, findMany: mocks.findMany, upsert: mocks.upsert },
   lootBoss: { findUnique: async () => ({ id: 'b1' }) },

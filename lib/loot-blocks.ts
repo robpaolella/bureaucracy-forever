@@ -2,7 +2,7 @@ import 'server-only';
 
 import { db } from '@/lib/db';
 import type { Prisma } from '@/lib/generated/prisma/client';
-import { RESERVE_LOCK_MINUTES, type WinLimits } from '@/lib/loot-rules';
+import { reserveLockMinutes, type WinLimits } from '@/lib/loot-rules';
 
 /**
  * Shared tier lock for loot-table edits, loads, reserve saves and setting changes.
@@ -55,7 +55,7 @@ export async function setItemWinLimit(templateId: string, itemId: number, winLim
  * (they could be un-cancelled). Locked and past raids keep their reserves.
  */
 function unlockedWhere(templateId: string, itemId: number, now: Date) {
-  const lockedBefore = new Date(now.getTime() + RESERVE_LOCK_MINUTES * 60_000);
+  const lockedBefore = new Date(now.getTime() + reserveLockMinutes() * 60_000);
   return { itemId, raid: { templateId, startsAt: { gt: lockedBefore } } };
 }
 

@@ -9,7 +9,7 @@ import { PrismaClient } from '@/lib/generated/prisma/client';
 // RAID_VIEW_INTEGRATION=1 npx vitest run 'app/api/bot/raids/[id]/route.integration.test.ts'
 const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient, loot: true }));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => state.loot }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => state.loot, openUntilStart: () => false }));
 import { GET } from './route';
 import { POST } from './respond/route';
 import { POST as BENCH } from './bench/route';

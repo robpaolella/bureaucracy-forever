@@ -8,7 +8,7 @@ import { PrismaClient } from '@/lib/generated/prisma/client';
 const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient }));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
 vi.mock('@/lib/session', () => ({ getSession: async () => ({ role: 'officer' }) }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => true }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => true, openUntilStart: () => false }));
 vi.mock('@/lib/users', () => ({ ensureUser: async () => ({ id: 'officer-user' }) }));
 import { lockReserveTier } from './loot-blocks';
 import { DELETE as deleteItem } from '@/app/api/loot/bosses/[bossId]/items/[itemId]/route';

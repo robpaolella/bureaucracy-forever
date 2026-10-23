@@ -8,7 +8,7 @@ const tx = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/db', () => ({ db: { $transaction: (fn: (client: typeof tx) => Promise<unknown>) => fn(tx) } }));
 vi.mock('@/lib/session', () => ({ getSession: async () => ({ role: 'officer', discordId: 'discord-officer', name: 'Sample Officer' }) }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => true }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => true, openUntilStart: () => false }));
 vi.mock('@/lib/users', () => ({ ensureUser: async () => ({ id: 'officer' }) }));
 import { tableStateToken, type LoadTableState } from '@/lib/loot-load';
 import { POST } from './route';
