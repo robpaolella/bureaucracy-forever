@@ -49,13 +49,12 @@ export function InspectorBody({ startsAt, zone, cell, members, memberCount, pass
           )}
         </span>
       </div>
-      <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-fg-2">
+      <dl className="grid grid-cols-3 gap-x-3 gap-y-1.5 text-xs text-fg-2">
         {(
           [
             ['Tanks', cell.roles.tank],
             ['Healers', cell.roles.healer],
-            ['Melee', cell.roles.melee],
-            ['Ranged', cell.roles.ranged],
+            ['DPS', cell.roles.dps],
           ] as const
         ).map(([label, n]) => (
           <div key={label} className="flex gap-1.5">
