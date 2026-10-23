@@ -8,6 +8,8 @@ export const RESERVES = {
   locked: 'Reserves are locked. Please contact an officer to request a change.',
   lockedOfficer: 'Reserves are locked. As an officer, you can still change them.',
   cancelled: 'This raid was cancelled.',
+  /** Officers switched reserves off for this raid. */
+  off: 'Reserves are off for this raid.',
   notEligible: 'You must be signed up for this raid to reserve items.',
   /** A member on trial can't reserve; the same words the reserve route refuses with. */
   trial: REASONS.trial,

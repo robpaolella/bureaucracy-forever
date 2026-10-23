@@ -5,9 +5,11 @@ const mocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
   findTemplate: vi.fn(),
   update: vi.fn(),
+  setReservesAllowed: vi.fn(),
 }));
 
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.session }));
+vi.mock('@/lib/loot-blocks', () => ({ setReservesAllowed: mocks.setReservesAllowed }));
 vi.mock('@/lib/outbox', () => ({ enqueue: vi.fn() }));
 vi.mock('next/server', async (orig) => ({ ...(await orig<typeof import('next/server')>()), after: vi.fn() }));
 vi.mock('@/lib/db', () => ({ db: { raid: { findUnique: mocks.findUnique, update: mocks.update }, raidTemplate: { findFirst: mocks.findTemplate } } }));
@@ -32,6 +34,7 @@ describe('PATCH /api/raids/[id] (edit)', () => {
   beforeEach(() => {
     mocks.session = { role: 'officer' };
     mocks.findUnique.mockReset().mockResolvedValue(raid());
+    mocks.setReservesAllowed.mockReset().mockResolvedValue(true);
     mocks.findTemplate.mockReset().mockResolvedValue({ name: 'Onyxia' });
     mocks.update.mockReset().mockImplementation(async ({ data }) => ({ id: 'r1', name: data.name, startsAt: data.startsAt, discordThreadId: null }));
   });
@@ -62,6 +65,36 @@ describe('PATCH /api/raids/[id] (edit)', () => {
   it('edits an event whose template is now inactive without looking it up', async () => {
     expect((await patch()).status).toBe(200);
     expect(mocks.findTemplate).not.toHaveBeenCalled();
+  });
+
+  describe('reserves allowed', () => {
+    it('switches it off through the setter, which takes the reserve lock', async () => {
+      expect((await patch({ reservesAllowed: false })).status).toBe(200);
+      expect(mocks.setReservesAllowed).toHaveBeenCalledWith('r1', false);
+      expect(mocks.update.mock.calls[0][0].data).not.toHaveProperty('reservesAllowed');
+    });
+
+    it('switches it on through the setter', async () => {
+      await patch({ reservesAllowed: true });
+      expect(mocks.setReservesAllowed).toHaveBeenCalledWith('r1', true);
+    });
+
+    it('keeps the stored value when the body leaves it out', async () => {
+      expect((await patch()).status).toBe(200);
+      expect(mocks.setReservesAllowed).not.toHaveBeenCalled();
+    });
+
+    it('refuses a value that is not on or off, and changes nothing', async () => {
+      const res = await patch({ reservesAllowed: 'no' });
+      expect(res.status).toBe(400);
+      expect(mocks.update).not.toHaveBeenCalled();
+      expect(mocks.setReservesAllowed).not.toHaveBeenCalled();
+    });
+
+    it('says so when the raid was deleted meanwhile', async () => {
+      mocks.setReservesAllowed.mockResolvedValue(false);
+      expect((await patch({ reservesAllowed: false })).status).toBe(404);
+    });
   });
 
   it('ignores a typed name', async () => {

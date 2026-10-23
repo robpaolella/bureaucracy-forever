@@ -86,3 +86,34 @@ describe('RaidForm template', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 });
+
+describe('RaidForm Reserves allowed switch', () => {
+  const sw = () => host.querySelector<HTMLButtonElement>('button[role=switch]');
+  const ready = { ...initial, templateId: 'mc' };
+
+  it('shows while loot is on, on by default when scheduling', async () => {
+    await render([mc], { lootOn: true });
+    expect(sw()?.getAttribute('aria-checked')).toBe('true');
+    expect(host.textContent).toContain('Reserves allowed');
+  });
+
+  it('shows the stored value on Edit', async () => {
+    await render([mc], { lootOn: true, initial: { ...ready, reservesAllowed: false } });
+    expect(sw()?.getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('sends what the officer chose', async () => {
+    await render([mc], { lootOn: true, initial: ready });
+    await act(async () => sw()!.click());
+    await submit();
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ reservesAllowed: false }));
+  });
+
+  it('is hidden and not sent while loot is off', async () => {
+    await render([mc], { initial: { ...ready, reservesAllowed: false } });
+    expect(sw()).toBeNull();
+    await submit();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect((onSubmit.mock.calls as unknown[][])[0][0]).not.toHaveProperty('reservesAllowed');
+  });
+});
