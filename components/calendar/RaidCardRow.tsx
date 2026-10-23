@@ -6,8 +6,8 @@ import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { SegmentedControl } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { GUILD_TIMEZONE } from '@/lib/config';
-import { ROLE_SHORT, ROLES } from '@/lib/design/class-colors';
-import { countTone, type RaidCard, type RaidResponse } from '@/lib/raids';
+import { COMPOSITION_LABELS, COMPOSITION_ROLES, COMPOSITION_SHORT } from '@/lib/design/class-colors';
+import { countTone, toComposition, type RaidCard, type RaidResponse } from '@/lib/raids';
 import { signupsClosed } from '@/lib/raid-detail';
 import { WEEKDAY_NAMES, zonedParts } from '@/lib/time';
 import { RESPONSE_NOTES } from '@/content/raid';
@@ -35,7 +35,7 @@ const RESPONSE_OPTIONS = [
 /**
  * One raid (docs/04 § Raid calendar § Rows): a 56px date block on the viewer's calendar (guild
  * time until their zone is known), so it agrees with the time beside it and the month grid; the
- * name and the viewer's time (guild time on hover); four role stacks that turn warn below the
+ * name and the viewer's time (guild time on hover); three role stacks (tank, healer, DPS) that turn warn below the
  * requirement and stop at zero; and the viewer's three-way response. Tonight's raid takes a sand-dim border and eyebrow.
  */
 export function RaidCardRow({ raid, tonight, canRespond, past, now, onRespond }: Props) {
@@ -43,6 +43,8 @@ export function RaidCardRow({ raid, tonight, canRespond, past, now, onRespond }:
   const p = zonedParts(new Date(raid.startsAt), viewer?.zone ?? GUILD_TIMEZONE);
   // SYNC-SPEC §7: no answers after the lock, and no Absent for a member off the roster.
   const closed = signupsClosed(raid, past, new Date(now));
+  const counts = toComposition(raid.counts);
+  const needs = toComposition(raid.requirements);
   const options = raid.onRoster === false ? RESPONSE_OPTIONS.filter((o) => o.value !== 'absent') : RESPONSE_OPTIONS;
   return (
     <li className={cn('flex flex-col gap-4 rounded-card border bg-ink-850 p-5 md:flex-row md:items-center md:gap-6', tonight ? 'border-sand-dim' : 'border-line', raid.cancelled && 'opacity-60')}>
@@ -71,16 +73,16 @@ export function RaidCardRow({ raid, tonight, canRespond, past, now, onRespond }:
       </div>
 
       <dl className="flex flex-wrap gap-x-4 gap-y-1 md:shrink-0" aria-label="Accepted by role">
-        {ROLES.map((r) => {
-          const tone = countTone(raid.counts[r], raid.requirements[r]);
+        {COMPOSITION_ROLES.map((r) => {
+          const tone = countTone(counts[r], needs[r]);
           return (
             <div key={r} className="flex items-baseline gap-1.5 text-sm">
-              <dt className="text-fg-3" aria-label={r}>
-                {ROLE_SHORT[r]}
+              <dt className="text-fg-3" aria-label={COMPOSITION_LABELS[r]}>
+                {COMPOSITION_SHORT[r]}
               </dt>
               <dd className={cn('tabular font-semibold transition-colors duration-[120ms]', TONE_TEXT[tone])}>
-                {raid.counts[r]}
-                <span className="sr-only"> of {raid.requirements[r]} needed</span>
+                {counts[r]}
+                <span className="sr-only"> of {needs[r]} needed</span>
               </dd>
             </div>
           );
