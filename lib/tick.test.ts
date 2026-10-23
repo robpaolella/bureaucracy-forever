@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/db', () => ({ db: { ...mocks, $transaction: async (fn: (tx: typeof mocks) => unknown) => fn(mocks) } }));
 vi.mock('@/lib/outbox', () => ({ enqueue: mocks.enqueue }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: mocks.enabled }));
+vi.mock('@/lib/flags', async () => ({ ...(await vi.importActual<typeof import('@/lib/flags')>('@/lib/flags')), lootEnabled: mocks.enabled }));
 import { runTick } from './tick';
 
 const now = new Date('2026-10-16T17:00:00Z');
@@ -19,6 +19,7 @@ const signup = (id: string, characters = [{ id: 'char' }]) => ({ userId: id, res
 let marked: boolean;
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.unstubAllEnvs();
   marked = false;
   mocks.enabled.mockReturnValue(true);
   mocks.user.findMany.mockResolvedValue([]);
@@ -69,6 +70,14 @@ describe('tick reserve reminders', () => {
       startsAt: { gt: new Date('2026-10-16T19:00:00Z'), lte: new Date('2026-10-16T21:00:00Z') },
       template: { lootBosses: { some: { entries: { some: {} } } } },
     } }));
+  });
+
+  it('bounds candidates by the start, not two hours before it, with OPEN_UNTIL_START on', async () => {
+    vi.stubEnv('OPEN_UNTIL_START', 'true');
+    await runTick(now);
+    expect(mocks.raid.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({
+      startsAt: { gt: now, lte: new Date('2026-10-16T19:00:00Z') },
+    }) }));
   });
 });
 

@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({ session: vi.fn(), flag: vi.fn(), raid: vi.fn() }));
 vi.mock('@/lib/session', () => ({ getSession: m.session }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: m.flag }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: m.flag, openUntilStart: () => false }));
 vi.mock('@/lib/db', () => ({ db: { raid: { findUnique: m.raid }, lootTableEntry: { count: async () => 1 }, lootAward: { findMany: async () => [] } } }));
 import { GET } from './route';
 const request = () => GET(new Request('http://localhost/members/calendar/r1/loot'), { params: Promise.resolve({ raidId: 'r1' }) });

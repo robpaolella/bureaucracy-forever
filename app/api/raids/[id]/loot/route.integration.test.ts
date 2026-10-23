@@ -8,7 +8,7 @@ import { PrismaClient } from '@/lib/generated/prisma/client';
 const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient, beforeSave: null as null | (() => Promise<unknown>) }));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
 vi.mock('@/lib/session', () => ({ getSession: async () => ({ role: 'officer' }) }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => true }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => true, openUntilStart: () => false }));
 // Runs after the Wowhead lookup and just before the transaction, so a test can break the save.
 vi.mock('@/lib/users', () => ({ ensureUser: async () => { await state.beforeSave?.(); return { id: 'officer-user' }; } }));
 import { POST } from './route';

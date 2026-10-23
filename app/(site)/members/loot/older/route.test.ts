@@ -7,7 +7,7 @@ import { PrismaClient } from '@/lib/generated/prisma/client';
 const m = vi.hoisted(() => ({ db: null as unknown as PrismaClient, session: vi.fn(), flag: vi.fn() }));
 vi.mock('@/lib/db', () => ({ get db() { return m.db; } }));
 vi.mock('@/lib/session', () => ({ getSession: m.session }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: m.flag }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: m.flag, openUntilStart: () => false }));
 import { loadMemberLootHistory } from '@/lib/member-loot';
 import { GET } from './route';
 const request = (query = 'startsAt=2030-01-01T00:00:00.000Z&id=raid') => new Request(`http://localhost/members/loot/older?${query}`);

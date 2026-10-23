@@ -2,7 +2,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ role: 'officer' as string | null, enabled: true, template: vi.fn(), cached: vi.fn(), refresh: vi.fn(), reserves: vi.fn(), awards: vi.fn() }));
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.role ? { role: mocks.role } : null }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.enabled }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.enabled, openUntilStart: () => false }));
 vi.mock('@/lib/db', () => ({ db: { raidTemplate: { findUnique: mocks.template }, lootItem: { findMany: mocks.cached }, reserve: { findMany: mocks.reserves }, lootAward: { findMany: mocks.awards } } }));
 vi.mock('@/lib/loot-items', () => ({ refreshItems: mocks.refresh }));
 import { POST } from './route';

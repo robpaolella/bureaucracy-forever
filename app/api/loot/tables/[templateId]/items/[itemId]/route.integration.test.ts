@@ -10,7 +10,7 @@ import { PrismaClient, type Prisma } from '@/lib/generated/prisma/client';
 const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient, role: 'officer' }));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
 vi.mock('@/lib/session', () => ({ getSession: async () => ({ role: state.role, discordId: 'block-test' }) }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => true }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => true, openUntilStart: () => false }));
 vi.mock('@/lib/users', () => ({ ensureUser: async () => ({ id: 'u1' }) }));
 import { PUT } from './route';
 import { PUT as saveReserves } from '../../../../../raids/[id]/reserves/route';

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, emptyRaidInput, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, linkOpensReserves, parseRequirements, promptsReserves, raidDate, raidWeekday, reservesUrl, responseToast, sourceSplit, totalCounts, viewerReserves, ZERO_COUNTS, type RaidCard, type SignupRow } from './raids';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, emptyRaidInput, locksAtFor, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, linkOpensReserves, parseRequirements, promptsReserves, raidDate, raidWeekday, reservesUrl, responseToast, sourceSplit, totalCounts, viewerReserves, ZERO_COUNTS, type RaidCard, type SignupRow } from './raids';
 
 describe('requirements and counts', () => {
   it('parses a JSON requirements column defensively', () => {
@@ -276,5 +276,20 @@ describe('mergeLocal', () => {
     const fresh = card({ mine: 'accept', counts: { tank: 2, healer: 8, melee: 9, ranged: 11 } });
     expect(mergeLocal([fresh], local)[0]).toBe(fresh);
     expect(mergeLocal([card({ id: 'y' })], local)[0].mine).toBeNull();
+  });
+});
+
+describe('locksAtFor', () => {
+  const start = new Date('2026-11-05T04:00:00Z');
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('is the gap before the start', () => {
+    expect(locksAtFor(start).toISOString()).toBe('2026-11-05T02:00:00.000Z');
+    expect(locksAtFor(start, 30).toISOString()).toBe('2026-11-05T03:30:00.000Z');
+  });
+
+  it('is the start with OPEN_UNTIL_START on, whatever gap is passed', () => {
+    vi.stubEnv('OPEN_UNTIL_START', 'true');
+    for (const gap of [undefined, 0, 30, 1440]) expect(locksAtFor(start, gap).toISOString()).toBe(start.toISOString());
   });
 });
