@@ -1,4 +1,5 @@
 import { after, NextResponse } from 'next/server';
+import { setReservesAllowed } from '@/lib/loot-blocks';
 import { enqueue } from '@/lib/outbox';
 import { db } from '@/lib/db';
 import { locksAtFor, parseRaidInput, PICK_TEMPLATE } from '@/lib/raids';
@@ -70,6 +71,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     data: { name: instanceName(templateName!, parsed.startsAt), templateId: value.templateId, startsAt: parsed.startsAt, locksAt: locksAtFor(parsed.startsAt, Math.round((raid.startsAt.getTime() - raid.locksAt.getTime()) / 60_000)), durationMin: value.durationMin, requirements: value.requirements, notes: value.notes || null, detached: true },
     select: { id: true, name: true, startsAt: true, discordThreadId: true },
   });
+  // Through the setter, which takes the reserve lock so a save in flight commits first or is refused. Left out, the stored value stays.
+  if (value.reservesAllowed !== undefined && !(await setReservesAllowed(raid.id, value.reservesAllowed))) {
+    return NextResponse.json({ error: 'No such raid.' }, { status: 404, headers: NO_STORE });
+  }
   if (updated.discordThreadId) after(() => enqueue('raid.update', { raidId: raid.id }));
   return NextResponse.json({ id: updated.id, name: updated.name, startsAt: updated.startsAt.toISOString() }, { headers: NO_STORE });
 }

@@ -2,7 +2,7 @@
 
 import { useId, useState, type FormEvent } from 'react';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
-import { Button, CONTROL, Field, FIELD_LABEL, Input, Select, Textarea, TextLink } from '@/components/ui';
+import { Button, CONTROL, Field, FIELD_LABEL, Input, Select, Textarea, TextLink, Toggle } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { GUILD_TIMEZONE } from '@/lib/config';
 import { ROLE_LABELS, ROLES } from '@/lib/design/class-colors';
@@ -17,6 +17,8 @@ type Props = {
   templates: RaidTemplateOption[];
   /** The raid already has a template; it is shown but cannot change. */
   templateLocked?: boolean;
+  /** Loot is on: the Reserves allowed switch shows and is sent. Off, it is neither. */
+  lootOn?: boolean;
   submitLabel: string;
   /** Resolve with an error message to show, or null when saved. */
   onSubmit: (input: RaidInput) => Promise<string | null>;
@@ -29,7 +31,7 @@ type Props = {
  * the officer's own zone beneath, so nothing is ever a bare time. Validation is the same
  * `parseRaidInput` the route runs, so the form never shows an error the server would not.
  */
-export function RaidForm({ initial, templates, templateLocked = false, submitLabel, onSubmit, onCancel }: Props) {
+export function RaidForm({ initial, templates, templateLocked = false, lootOn = false, submitLabel, onSubmit, onCancel }: Props) {
   const [input, setInput] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -52,7 +54,8 @@ export function RaidForm({ initial, templates, templateLocked = false, submitLab
     }
     setSaving(true);
     setError(null);
-    const message = await onSubmit(parsed.value);
+    const { reservesAllowed, ...rest } = parsed.value;
+    const message = await onSubmit(lootOn ? { ...rest, reservesAllowed: reservesAllowed ?? true } : rest);
     setSaving(false);
     if (message) setError(message);
   }
@@ -127,6 +130,8 @@ export function RaidForm({ initial, templates, templateLocked = false, submitLab
       <Field label={SCHEDULE_FORM.notes} hint={SCHEDULE_FORM.notesHint}>
         <Textarea rows={3} maxLength={RAID_NOTES_MAX} value={input.notes} onChange={(e) => set('notes', e.target.value)} />
       </Field>
+
+      {lootOn && <Toggle label={SCHEDULE_FORM.reservesAllowed} checked={input.reservesAllowed ?? true} onChange={(on) => set('reservesAllowed', on)} />}
 
       <p className="tabular text-sm text-fg-2" aria-live="polite">
         <span className="text-fg-3">{SCHEDULE_FORM.preview} </span>

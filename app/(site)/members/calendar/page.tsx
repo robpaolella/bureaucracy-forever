@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { CalendarList } from '@/components/calendar/CalendarList';
 import { db } from '@/lib/db';
+import { lootEnabled } from '@/lib/flags';
 import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import type { Role } from '@/lib/design/class-colors';
 import { loadActiveTemplates, loadRaidCards } from '@/lib/raid-cards';
@@ -62,7 +63,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
       <CalendarList
         raids={cards}
         viewer={{ role: session.role, raidRole: (characterBrought({ user: me ?? { characters: [] } })?.raidRole.toLowerCase() as Role | undefined) ?? null, availabilitySubmitted: session.availabilitySubmitted }}
-        schedule={session.role === 'officer' ? { ...scheduleFrom(params), templates } : undefined}
+        schedule={session.role === 'officer' ? { ...scheduleFrom(params), templates, lootOn: lootEnabled() } : undefined}
       />
     </div>
   );
