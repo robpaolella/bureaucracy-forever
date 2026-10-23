@@ -4,7 +4,7 @@ import { CalendarList } from '@/components/calendar/CalendarList';
 import { db } from '@/lib/db';
 import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import type { Role } from '@/lib/design/class-colors';
-import { loadRaidCards } from '@/lib/raid-cards';
+import { loadActiveTemplates, loadRaidCards } from '@/lib/raid-cards';
 import { emptyRaidInput, pastWindowStart } from '@/lib/raids';
 import type { Weekday } from '@/lib/time';
 import { getSession } from '@/lib/session';
@@ -46,9 +46,10 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
   if (!session) notFound();
   const params = await searchParams;
 
-  const [cards, me] = await Promise.all([
+  const [cards, me, templates] = await Promise.all([
     loadRaidCards(pastWindowStart(), session.discordId),
     db.user.findUnique({ where: { discordId: session.discordId }, select: { characters: MAIN_CHARACTER } }),
+    session.role === 'officer' ? loadActiveTemplates() : Promise.resolve([]),
   ]);
 
   return (
@@ -61,7 +62,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
       <CalendarList
         raids={cards}
         viewer={{ role: session.role, raidRole: (characterBrought({ user: me ?? { characters: [] } })?.raidRole.toLowerCase() as Role | undefined) ?? null, availabilitySubmitted: session.availabilitySubmitted }}
-        schedule={session.role === 'officer' ? scheduleFrom(params) : undefined}
+        schedule={session.role === 'officer' ? { ...scheduleFrom(params), templates } : undefined}
       />
     </div>
   );
