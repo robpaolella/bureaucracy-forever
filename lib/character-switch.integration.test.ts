@@ -8,7 +8,7 @@ import { PrismaClient, type Prisma } from '@/lib/generated/prisma/client';
 const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient, loot: true, session: { discordId: 'member', role: 'member' } as { discordId: string; role: string } | null }));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
 vi.mock('@/lib/session', () => ({ getSession: async () => state.session && { ...state.session, name: 'Sample' } }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => state.loot }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => state.loot, openUntilStart: () => false }));
 import { switchCharacter, switchCharacterInTransaction } from './character-switch';
 import { PUT } from '@/app/api/raids/[id]/signup/character/route';
 import { REASONS } from './signup-rules';

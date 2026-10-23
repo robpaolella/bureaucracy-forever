@@ -5,6 +5,7 @@
  */
 import type { Role, WowClass } from '@/lib/design/class-colors';
 import { GUILD_TIMEZONE, SITE_URL } from '@/lib/config';
+import { openUntilStart } from '@/lib/flags';
 import { reservesLocked } from '@/lib/loot-rules';
 import { nextOccurrence, viewerTime, zonedParts, zonedTimeToUtc, type Weekday } from '@/lib/time';
 
@@ -256,6 +257,7 @@ export const DEFAULT_REQUIREMENTS: RoleCounts = { tank: 2, healer: 8, melee: 9, 
 export const DEFAULT_LOCK_MINUTES = 120;
 
 export function locksAtFor(startsAt: Date, lockMinutesBefore = DEFAULT_LOCK_MINUTES): Date {
+  if (openUntilStart()) return new Date(startsAt.getTime());
   return new Date(startsAt.getTime() - lockMinutesBefore * 60_000);
 }
 

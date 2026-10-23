@@ -14,6 +14,7 @@ const NOW = new Date('2026-10-05T18:00:00Z');
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.unstubAllEnvs();
   mocks.transaction.mockImplementation((run) => run(db));
   mocks.query.mockResolvedValue([{ id: 't1' }]);
   mocks.find.mockResolvedValue([]);
@@ -27,6 +28,14 @@ const row = (raidId: string, characterId: string, kind: 'HR' | 'SR', cancelled =
 });
 // Starts later than now + 120 minutes: locked and past raids don't count; no cancelled filter.
 const UNLOCKED = { itemId: 100, raid: { templateId: 't1', startsAt: { gt: new Date('2026-10-05T20:00:00Z') } } };
+
+describe('unlocked holders', () => {
+  it('counts a raid as unlocked until its start with OPEN_UNTIL_START on', async () => {
+    vi.stubEnv('OPEN_UNTIL_START', 'true');
+    await unlockedHolders(db, 't1', 100, NOW);
+    expect(mocks.holders).toHaveBeenCalledWith(expect.objectContaining({ where: { itemId: 100, raid: { templateId: 't1', startsAt: { gt: NOW } } } }));
+  });
+});
 
 describe('tier reserve settings', () => {
   it('defaults to no blocks, and reads only blocked items in the requested tier', async () => {
