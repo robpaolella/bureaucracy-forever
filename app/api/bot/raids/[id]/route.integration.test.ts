@@ -95,6 +95,14 @@ describe.skipIf(process.env.RAID_VIEW_INTEGRATION !== '1')('GET /api/bot/raids/:
     expect((await viewer('r-locked')).reservesLocked).toBe(true);
   });
 
+  it('sends requirements and bars as exactly tank, healer and dps', async () => {
+    await client.raid.create({ data: { id: 'r-comp', name: 'r-comp', templateId: 't-table', startsAt: new Date('2099-06-01'), locksAt: new Date('2099-06-01'), requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 } } });
+    const res = await GET(new Request('http://localhost/api/bot/raids/r-comp', { headers: { authorization: `Bearer ${SECRET}` } }), { params: Promise.resolve({ id: 'r-comp' }) });
+    const body = await res.json();
+    expect(body.requirements).toEqual({ tank: 2, healer: 8, dps: 20 });
+    expect(body.bars).toEqual({ tank: 0, healer: 0, dps: 0 });
+  });
+
   it('gives no viewer to a member without a sign-up', async () => {
     expect(await viewer('r-unsigned')).toBeNull();
   });
@@ -153,6 +161,7 @@ describe.skipIf(process.env.RAID_VIEW_INTEGRATION !== '1')('GET /api/bot/raids/:
     expect(body.removedReserves).toEqual([{ kind: 'HR', itemName: 'Item 100', reason: 'Not open to reserves' }]);
     expect(body.viewer.character.id).toBe('alt');
     expect(body.bars).toEqual({ tank: 0, healer: 1, dps: 0 });
+    expect(Object.keys(body.bars).sort()).toEqual(['dps', 'healer', 'tank']);
     expect(await saved('removals')).toMatchObject({ characterId: 'alt', response: 'ACCEPT', source: 'DISCORD' });
     expect(await client.reserve.findMany({ where: { raidId: 'removals' } })).toMatchObject([{ kind: 'SR', characterId: 'alt' }]);
     const replay = await answer('removals', { characterId: 'alt' }, 'choose-alt');

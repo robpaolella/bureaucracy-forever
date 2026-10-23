@@ -250,6 +250,12 @@ describe('schedule form input', () => {
     expect(parseRaidInput({ ...good, notes: 'x'.repeat(501) })).toMatchObject({ ok: false, error: /notes/ });
   });
 
+  it('keeps four requirement keys through parsing and the edit prefill', () => {
+    const parsed = parseRaidInput(good);
+    expect(parsed).toMatchObject({ ok: true, value: { requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 } } });
+    expect(raidToInput({ templateId: 't1', startsAt: '2026-10-08T02:00:00.000Z', durationMin: 180, requirements: good.requirements, notes: null }).requirements).toEqual({ tank: 2, healer: 8, melee: 9, ranged: 11 });
+  });
+
   it('round-trips a stored raid through the form values', () => {
     const input = raidToInput({ templateId: 't1', startsAt: '2026-10-08T02:00:00.000Z', durationMin: 180, requirements: good.requirements, notes: null });
     expect(input).toMatchObject({ templateId: 't1', date: '2026-10-07', time: '19:00', notes: '' });
