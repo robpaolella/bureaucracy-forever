@@ -37,6 +37,8 @@ export type RaidCard = {
   short?: string | null;
   /** The viewer holds a roster row on this raid (answered or not). */
   onRoster?: boolean;
+  /** Officers have not switched reserves off for this raid; the edit form shows it. */
+  reservesAllowed?: boolean;
 };
 
 export function isRaidResponse(value: unknown): value is RaidResponse {
@@ -132,10 +134,10 @@ export function raidDate(startsAt: string): string {
  */
 export function promptsReserves(
   answer: RaidResponse | null,
-  window: { locked: boolean; cancelled: boolean; targets: readonly { self: boolean; current: { hr: number | null; sr: number | null } }[] } | null,
+  window: { locked: boolean; cancelled: boolean; reservesAllowed?: boolean; targets: readonly { self: boolean; current: { hr: number | null; sr: number | null } }[] } | null,
 ): boolean {
   const me = window?.targets.find((t) => t.self);
-  return (answer === 'accept' || answer === 'tentative') && !!window && !window.locked && !window.cancelled && !!me && me.current.hr === null && me.current.sr === null;
+  return (answer === 'accept' || answer === 'tentative') && !!window && window.reservesAllowed !== false && !window.locked && !window.cancelled && !!me && me.current.hr === null && me.current.sr === null;
 }
 
 /** The query that opens the raid page with the reserves window up, for the bot's messages. */
@@ -247,6 +249,8 @@ export type RaidInput = {
   durationMin: number;
   requirements: RoleCounts;
   notes: string;
+  /** Reserves allowed for this raid. Left out, a new raid stores yes and an edit keeps the stored value. */
+  reservesAllowed?: boolean;
 };
 
 export const RAID_NOTES_MAX = 500;
@@ -332,13 +336,15 @@ export function parseRaidInput(body: unknown): ParsedRaid {
   const notes = typeof b.notes === 'string' ? b.notes.trim() : '';
   if (notes.length > RAID_NOTES_MAX) return { ok: false, error: `Keep the notes under ${RAID_NOTES_MAX} characters.` };
 
-  return { ok: true, value: { templateId, date, time, durationMin, requirements: req, notes }, startsAt };
+  if (b.reservesAllowed !== undefined && typeof b.reservesAllowed !== 'boolean') return { ok: false, error: 'Reserves allowed must be on or off.' };
+
+  return { ok: true, value: { templateId, date, time, durationMin, requirements: req, notes, ...(b.reservesAllowed === undefined ? {} : { reservesAllowed: b.reservesAllowed }) }, startsAt };
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
 /** The form values for an existing raid, in guild time. */
-export function raidToInput(raid: { templateId?: string | null; startsAt: string; durationMin: number; requirements: RoleCounts; notes: string | null }): RaidInput {
+export function raidToInput(raid: { templateId?: string | null; startsAt: string; durationMin: number; requirements: RoleCounts; notes: string | null; reservesAllowed?: boolean }): RaidInput {
   const p = zonedParts(new Date(raid.startsAt), GUILD_TIMEZONE);
   return {
     templateId: raid.templateId ?? '',
@@ -347,6 +353,7 @@ export function raidToInput(raid: { templateId?: string | null; startsAt: string
     durationMin: raid.durationMin,
     requirements: raid.requirements,
     notes: raid.notes ?? '',
+    reservesAllowed: raid.reservesAllowed ?? true,
   };
 }
 
@@ -366,5 +373,6 @@ export function emptyRaidInput(prefill: { weekday?: Weekday; time?: string; leng
     durationMin: length,
     requirements: DEFAULT_REQUIREMENTS,
     notes: '',
+    reservesAllowed: true,
   };
 }

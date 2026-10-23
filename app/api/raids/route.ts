@@ -19,7 +19,7 @@ export async function GET() {
 
 /**
  * POST /api/raids — schedule a raid (officers). Body is the form's guild-time wall clock:
- * `{ templateId, date, time, durationMin, requirements, notes }`; the instant is derived here
+ * `{ templateId, date, time, durationMin, requirements, notes, reservesAllowed? }`; the instant is derived here
  * and the name comes from the template, like a weekly raid's. A typed `name` is ignored.
  */
 export async function POST(request: Request) {
@@ -46,6 +46,7 @@ export async function POST(request: Request) {
       durationMin: value.durationMin,
       requirements: value.requirements,
       notes: value.notes || null,
+      reservesAllowed: value.reservesAllowed ?? true,
       signups: { create: await rosterSignups(roster) },
     },
     select: { id: true, name: true, startsAt: true, durationMin: true, notes: true, cancelledAt: true, discordEventId: true },
