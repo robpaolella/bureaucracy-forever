@@ -21,8 +21,11 @@ export const SCHEDULE_RAID = 'Schedule a raid';
 /** The schedule form (docs/04 § Raid calendar head). */
 export const SCHEDULE_FORM = {
   title: 'Schedule a raid',
-  name: 'Raid',
-  namePlaceholder: 'Blackwing Lair',
+  template: 'Raid',
+  templatePlaceholder: 'Pick a raid template',
+  templateLocked: "A raid's template can't be changed. To fix it, delete the raid and schedule it again.",
+  templateNeeded: 'Set up a raid template before you schedule a raid.',
+  templateNeededLink: 'Open raid management',
   date: 'Date',
   time: 'Start',
   guildHint: 'Guild time. Members see it in their own zone too.',
