@@ -8,7 +8,7 @@ export const PLANNER_HEAD = {
 
 export const TEMPLATES = {
   heading: 'Templates',
-  lede: 'One per raid tier. The size and the four requirements drive the composition bars.',
+  lede: 'One per raid tier. The size and the role requirements drive the composition bars.',
   edit: 'Edit',
   name: 'Name',
   short: 'Short',
