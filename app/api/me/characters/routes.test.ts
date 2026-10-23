@@ -12,8 +12,8 @@ vi.mock('@/lib/roles-sync', () => ({ refreshPostedRaidsForCharacter: m.refresh }
 import { GET, POST } from './route';
 import { PATCH, DELETE } from './[characterId]/route';
 
-const alt = { id: 'alt', userId: 'owner', name: 'Sample', isMain: false, raidRole: 'TANK' };
-const body = { name: 'Sample', wowClass: 'paladin', spec: 'Protection', role: 'tank', rank: 'officer', isMain: true, userId: 'other' };
+const alt = { id: 'alt', userId: 'owner', name: 'Sample Name', isMain: false, raidRole: 'TANK' };
+const body = { name: 'Sample Name', wowClass: 'paladin', spec: 'Protection', role: 'tank', rank: 'officer', isMain: true, userId: 'other' };
 const tx = { user: { findUnique: m.txUser }, character: {
   findFirst: m.find, create: m.create, update: m.update, delete: m.remove, count: m.count,
 } };
@@ -60,13 +60,13 @@ it.each(['member', 'officer', 'social'])('%s with a main can list, add, edit and
     const response = await call(method);
     expect(response.status).toBe(method === 'POST' ? 201 : 200);
     expect(response.headers.get('Cache-Control')).toBe('private, no-store');
-    expect(await response.json()).toEqual(method === 'GET' ? [alt] : { id: 'alt', name: 'Sample' });
+    expect(await response.json()).toEqual(method === 'GET' ? [alt] : { id: 'alt', name: 'Sample Name' });
   }
   expect(m.user).toHaveBeenCalledWith({ where: { discordId: 'discord-owner' }, select: { id: true } });
   expect(m.list).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'owner' } }));
   // Neither supplied userId, isMain nor rank is writable, including by officers here.
-  expect(m.create).toHaveBeenCalledWith({ data: { name: 'Sample', class: 'PALADIN', spec: 'Protection', raidRole: 'TANK', userId: 'owner', isMain: false, rank } });
-  expect(m.update).toHaveBeenCalledWith({ where: { id: 'alt' }, data: { name: 'Sample', class: 'PALADIN', spec: 'Protection', raidRole: 'TANK' } });
+  expect(m.create).toHaveBeenCalledWith({ data: { name: 'Sample Name', class: 'PALADIN', spec: 'Protection', raidRole: 'TANK', userId: 'owner', isMain: false, rank } });
+  expect(m.update).toHaveBeenCalledWith({ where: { id: 'alt' }, data: { name: 'Sample Name', class: 'PALADIN', spec: 'Protection', raidRole: 'TANK' } });
   expect(m.find).toHaveBeenCalledWith({ where: { id: 'alt', userId: 'owner' } });
   expect(m.refresh).toHaveBeenCalledWith(alt, tx);
 });

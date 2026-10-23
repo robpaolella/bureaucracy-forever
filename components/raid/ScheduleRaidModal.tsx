@@ -1,7 +1,7 @@
 'use client';
 
 import { Modal } from '@/components/ui';
-import type { RaidInput } from '@/lib/raids';
+import type { RaidInput, RaidTemplateOption } from '@/lib/raids';
 import { SAVE_FAILED, SCHEDULE_FORM } from '@/content/calendar';
 import { RaidForm } from './RaidForm';
 
@@ -10,12 +10,13 @@ type Created = { id: string; name: string; startsAt: string };
 type Props = {
   open: boolean;
   initial: RaidInput;
+  templates: RaidTemplateOption[];
   onClose: () => void;
   onScheduled: (raid: Created) => void;
 };
 
 /** The schedule form in a modal, posting to /api/raids. Officers only reach it. */
-export function ScheduleRaidModal({ open, initial, onClose, onScheduled }: Props) {
+export function ScheduleRaidModal({ open, initial, templates, onClose, onScheduled }: Props) {
   async function submit(input: RaidInput): Promise<string | null> {
     try {
       const res = await fetch('/api/raids', {
@@ -35,7 +36,7 @@ export function ScheduleRaidModal({ open, initial, onClose, onScheduled }: Props
 
   return (
     <Modal open={open} onClose={onClose} title={SCHEDULE_FORM.title}>
-      {open && <RaidForm key={initial.date + initial.time} initial={initial} submitLabel={SCHEDULE_FORM.submit} onSubmit={submit} onCancel={onClose} />}
+      {open && <RaidForm key={initial.date + initial.time} initial={initial} templates={templates} submitLabel={SCHEDULE_FORM.submit} onSubmit={submit} onCancel={onClose} />}
     </Modal>
   );
 }

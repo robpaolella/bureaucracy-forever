@@ -3,7 +3,7 @@ import { FOREVER_ONLY } from '@/lib/item-sources';
 
 const session = vi.hoisted(() => ({ role: 'officer' as string | null }));
 vi.mock('@/lib/session', () => ({ getSession: async () => (session.role ? { role: session.role } : null) }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => true }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => true, openUntilStart: () => false }));
 
 import { GET, POST } from './route';
 

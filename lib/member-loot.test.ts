@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({ session: vi.fn(), flag: vi.fn(), raid: vi.fn(), entries: vi.fn(), awards: vi.fn(), transaction: vi.fn() }));
 vi.mock('@/lib/session', () => ({ getSession: m.session }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: m.flag }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: m.flag, openUntilStart: () => false }));
 vi.mock('@/lib/db', () => ({ db: { $transaction: m.transaction, raid: { findUnique: m.raid }, lootTableEntry: { count: m.entries }, lootAward: { findMany: m.awards } } }));
 import { loadMemberLootHistory, loadMemberRaidLoot } from './member-loot';
 

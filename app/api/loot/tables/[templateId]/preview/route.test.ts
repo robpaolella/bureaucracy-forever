@@ -2,7 +2,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ role: 'officer' as string | null, enabled: true, template: vi.fn(), cached: vi.fn(), refresh: vi.fn(), reserves: vi.fn(), awards: vi.fn() }));
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.role ? { role: mocks.role } : null }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.enabled }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.enabled, openUntilStart: () => false }));
 vi.mock('@/lib/db', () => ({ db: { raidTemplate: { findUnique: mocks.template }, lootItem: { findMany: mocks.cached }, reserve: { findMany: mocks.reserves }, lootAward: { findMany: mocks.awards } } }));
 vi.mock('@/lib/loot-items', () => ({ refreshItems: mocks.refresh }));
 import { POST } from './route';
@@ -106,5 +106,14 @@ describe('loot table preview route', () => {
     const body = await (await call({ file: file([1]), replace: true })).json();
     expect(body.preview).toMatchObject({ removed: 1, kept: 1, bosses: [{ remove: [5], kept: [{ id: 6, has: 'reserves' }], absent: null }] });
     expect(mocks.cached).toHaveBeenLastCalledWith(expect.objectContaining({ where: { id: { in: [1, 5, 6] } } }));
+  });
+  it('checks boss names against the template’s instance only when asked', async () => {
+    mocks.template.mockResolvedValue({ id: 'mc', instance: 3065, lootBosses: [], reserveSettings: [] });
+    const two = { bosses: [{ name: 'Magmatus', items: [1] }, { name: 'Plunder', items: [2] }] };
+    expect(await (await call({ file: two })).json()).not.toHaveProperty('bossCheck');
+    const body = await (await call({ file: two, checkNames: true })).json();
+    expect(body.bossCheck).toEqual({ kind: 'checked', flagged: ['Magmatus'], unmatched: ['Faldrim Anvilmar', 'Infurnus', 'Durgen Dirgehammer'] });
+    mocks.template.mockResolvedValue({ id: 'mc', instance: null, lootBosses: [], reserveSettings: [] });
+    expect((await (await call({ file: two, checkNames: true })).json()).bossCheck).toEqual({ kind: 'unchecked', reason: 'no-instance' });
   });
 });

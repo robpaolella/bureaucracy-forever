@@ -8,6 +8,7 @@
  * as many times as its win limit (1 unless an officer raised it) cannot reserve it again;
  * `exceptions` is where officer-granted exceptions will come in.
  */
+import { openUntilStart } from '@/lib/flags';
 import type { RaidResponse } from '@/lib/raids';
 
 export type ReserveKind = 'HR' | 'SR';
@@ -37,8 +38,13 @@ export const REASONS = {
   alreadyVoided: 'That record is already void.',
 };
 
+/** The reserve lock's gap before the start: none while OPEN_UNTIL_START is on (staging tests). */
+export function reserveLockMinutes(env: Record<string, string | undefined> = process.env): number {
+  return openUntilStart(env) ? 0 : RESERVE_LOCK_MINUTES;
+}
+
 export function reservesLockAt(startsAt: Date): Date {
-  return new Date(startsAt.getTime() - RESERVE_LOCK_MINUTES * 60_000);
+  return new Date(startsAt.getTime() - reserveLockMinutes() * 60_000);
 }
 
 export function reservesLocked(startsAt: Date, now: Date): boolean {

@@ -22,7 +22,7 @@ export type RaidWindow = {
 
 /** Raid lengths offered, in slots: 2h, 3h, 4h. */
 export const WINDOW_LENGTHS = [4, 6, 8] as const;
-export const DEFAULT_MINIMA: RoleCounts = { tank: 2, healer: 8, melee: 9, ranged: 11 };
+export const DEFAULT_MINIMA: RoleCounts = { tank: 2, healer: 8, dps: 20 };
 
 /** Every qualifying window, sorted by score descending, then day, then start. */
 export function findWindows(cells: WindowCell[][], length: number, minima: RoleCounts): RaidWindow[] {
@@ -30,7 +30,7 @@ export function findWindows(cells: WindowCell[][], length: number, minima: RoleC
   for (let day = 0; day < cells.length; day++) {
     for (let start = 0; start + length <= SLOTS; start++) {
       let score = Infinity;
-      const roles: RoleCounts = { tank: Infinity, healer: Infinity, melee: Infinity, ranged: Infinity };
+      const roles: RoleCounts = { tank: Infinity, healer: Infinity, dps: Infinity };
       for (let k = 0; k < length; k++) {
         const cell = cells[day][start + k];
         if (cell.total < score) score = cell.total;
@@ -55,9 +55,9 @@ export function topWindows(windows: RaidWindow[], limit = 5): RaidWindow[] {
   return top;
 }
 
-/** "2T · 8H · 9M · 11R" */
+/** "2T · 8H · 20D" */
 export function formatRoleMinima(roles: RoleCounts): string {
-  return `${roles.tank}T · ${roles.healer}H · ${roles.melee}M · ${roles.ranged}R`;
+  return `${roles.tank}T · ${roles.healer}H · ${roles.dps}D`;
 }
 
 /**

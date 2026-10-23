@@ -5,6 +5,7 @@
  */
 import type { Role, WowClass } from '@/lib/design/class-colors';
 import { GUILD_TIMEZONE, SITE_URL } from '@/lib/config';
+import { openUntilStart } from '@/lib/flags';
 import { reservesLocked } from '@/lib/loot-rules';
 import { nextOccurrence, viewerTime, zonedParts, zonedTimeToUtc, type Weekday } from '@/lib/time';
 
@@ -237,7 +238,8 @@ export function totalCounts(counts: RoleCounts): number {
 
 /** What the schedule form submits: guild-time wall clock, never an instant. */
 export type RaidInput = {
-  name: string;
+  /** The raid template the event starts from; the name is derived from it. */
+  templateId: string;
   /** YYYY-MM-DD in guild time. */
   date: string;
   /** HH:MM, 24-hour, in guild time. */
@@ -247,15 +249,46 @@ export type RaidInput = {
   notes: string;
 };
 
-export const RAID_NAME_MAX = 80;
 export const RAID_NOTES_MAX = 500;
+/** The Length dropdown's usual choices; any template length is added when it is not one of them. */
 export const DURATIONS = [90, 120, 150, 180, 210, 240, 270, 300, 330, 360] as const;
+/** The lengths a raid may have: the same as a template's (30–480 minutes, quarter hours). */
+export const RAID_MIN_DURATION = 30;
+export const RAID_MAX_DURATION = 480;
+export const RAID_DURATION_STEP = 15;
+export const PICK_TEMPLATE = 'Pick a raid template.';
+
+export function isRaidLength(min: number): boolean {
+  return Number.isInteger(min) && min >= RAID_MIN_DURATION && min <= RAID_MAX_DURATION && min % RAID_DURATION_STEP === 0;
+}
+
+/** The Length dropdown's choices, with `current` added when it is not a usual one. */
+export function durationOptions(current: number): number[] {
+  const all: number[] = [...DURATIONS];
+  if (isRaidLength(current) && !all.includes(current)) all.push(current);
+  return all.sort((a, b) => a - b);
+}
+
+/** "45 minutes", "1 hour 15 minutes", "1½ hours", "3 hours". */
+export function durationLabel(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  const hours = (n: number) => `${n} ${n === 1 ? 'hour' : 'hours'}`;
+  if (h === 0) return `${m} minutes`;
+  if (m === 0) return hours(h);
+  if (m === 30) return `${h}½ hours`;
+  return `${hours(h)} ${m} minutes`;
+}
+
+/** An active raid template as the schedule form needs it. */
+export type RaidTemplateOption = { id: string; name: string; durationMin: number; requirements: RoleCounts };
 export const DEFAULT_REQUIREMENTS: RoleCounts = { tank: 2, healer: 8, melee: 9, ranged: 11 };
 
 /** SYNC-SPEC §3: sign-ups close this long before the start unless a series says otherwise. */
 export const DEFAULT_LOCK_MINUTES = 120;
 
 export function locksAtFor(startsAt: Date, lockMinutesBefore = DEFAULT_LOCK_MINUTES): Date {
+  if (openUntilStart()) return new Date(startsAt.getTime());
   return new Date(startsAt.getTime() - lockMinutesBefore * 60_000);
 }
 
@@ -267,9 +300,8 @@ export type ParsedRaid = { ok: true; value: RaidInput; startsAt: Date } | { ok: 
  */
 export function parseRaidInput(body: unknown): ParsedRaid {
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
-  const name = typeof b.name === 'string' ? b.name.trim() : '';
-  if (!name) return { ok: false, error: 'Give the raid a name.' };
-  if (name.length > RAID_NAME_MAX) return { ok: false, error: `Keep the name under ${RAID_NAME_MAX} characters.` };
+  const templateId = typeof b.templateId === 'string' ? b.templateId : '';
+  if (!templateId) return { ok: false, error: PICK_TEMPLATE };
 
   const date = typeof b.date === 'string' ? b.date : '';
   const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
@@ -287,7 +319,7 @@ export function parseRaidInput(body: unknown): ParsedRaid {
   }
 
   const durationMin = typeof b.durationMin === 'number' ? b.durationMin : Number(b.durationMin);
-  if (!(DURATIONS as readonly number[]).includes(durationMin)) return { ok: false, error: 'Pick a raid length.' };
+  if (!isRaidLength(durationMin)) return { ok: false, error: 'Pick a raid length.' };
 
   const req = parseRequirements(b.requirements);
   const given = (b.requirements && typeof b.requirements === 'object' ? b.requirements : {}) as Record<string, unknown>;
@@ -300,16 +332,16 @@ export function parseRaidInput(body: unknown): ParsedRaid {
   const notes = typeof b.notes === 'string' ? b.notes.trim() : '';
   if (notes.length > RAID_NOTES_MAX) return { ok: false, error: `Keep the notes under ${RAID_NOTES_MAX} characters.` };
 
-  return { ok: true, value: { name, date, time, durationMin, requirements: req, notes }, startsAt };
+  return { ok: true, value: { templateId, date, time, durationMin, requirements: req, notes }, startsAt };
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
 /** The form values for an existing raid, in guild time. */
-export function raidToInput(raid: { name: string; startsAt: string; durationMin: number; requirements: RoleCounts; notes: string | null }): RaidInput {
+export function raidToInput(raid: { templateId?: string | null; startsAt: string; durationMin: number; requirements: RoleCounts; notes: string | null }): RaidInput {
   const p = zonedParts(new Date(raid.startsAt), GUILD_TIMEZONE);
   return {
-    name: raid.name,
+    templateId: raid.templateId ?? '',
     date: `${p.year}-${pad(p.month)}-${pad(p.day)}`,
     time: `${pad(p.hour)}:${pad(p.minute)}`,
     durationMin: raid.durationMin,
@@ -328,7 +360,7 @@ export function emptyRaidInput(prefill: { weekday?: Weekday; time?: string; leng
   const p = zonedParts(at, GUILD_TIMEZONE);
   const length = prefill.length && (DURATIONS as readonly number[]).includes(prefill.length) ? prefill.length : 180;
   return {
-    name: '',
+    templateId: '',
     date: `${p.year}-${pad(p.month)}-${pad(p.day)}`,
     time,
     durationMin: length,

@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.session }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.loot }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.loot, openUntilStart: () => false }));
 vi.mock('@/lib/loot-items', () => ({ refreshItems: mocks.refresh }));
 vi.mock('@/lib/db', () => {
   const tx = {
