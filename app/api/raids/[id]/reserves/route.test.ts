@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@/lib/generated/prisma/client';
+import { REASONS } from '@/lib/loot-rules';
 
 const mocks = vi.hoisted(() => ({
   switchCharacter: vi.fn(),
@@ -54,7 +55,7 @@ beforeEach(() => {
   mocks.session = { role: 'member', discordId: 'd1' };
   mocks.loot = true;
   for (const m of [mocks.raid, mocks.user, mocks.signup, mocks.items, mocks.awards, mocks.deleteMany, mocks.createMany, mocks.transaction]) m.mockReset();
-  mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: null, templateId: 't1' });
+  mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: null, templateId: 't1', reservesAllowed: true });
   mocks.user.mockResolvedValue({ id: 'u1', characters: [{ id: 'c1' }, { id: 'c2' }] });
   mocks.signup.mockResolvedValue({ response: 'ACCEPT', character: { id: 'c1' }, user: { characters: [{ id: 'c1' }] } });
   mocks.switchCharacter.mockReset().mockResolvedValue({ ok: true, removed: [] });
@@ -84,7 +85,7 @@ describe('PUT /api/raids/[id]/reserves', () => {
     ['member', false], ['officer', false], ['officer', true],
   ] as const)('refuses previously won HR and SR for %s (locked: %s), including kept reserves', async (role, locked) => {
     mocks.session = { role, discordId: 'd1' };
-    if (locked) mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1' });
+    if (locked) mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1', reservesAllowed: true });
     const forUserId = role === 'officer' ? 'u1' : undefined;
     // Save first, then win: the stored reserve must survive a refused re-save.
     expect((await call({ ...BODY, forUserId })).status).toBe(200);
@@ -117,7 +118,7 @@ describe('PUT /api/raids/[id]/reserves', () => {
 
   it('refuses a trial even after the lock, for an officer with the override', async () => {
     mocks.session = { role: 'officer', discordId: 'd1' };
-    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1' });
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1', reservesAllowed: true });
     mocks.query.mockResolvedValue([{ rank: 'TRIAL' }]);
     expect((await call({ ...BODY, forUserId: 'u1' })).status).toBe(409);
     expect(mocks.createMany).not.toHaveBeenCalled();
@@ -140,6 +141,29 @@ describe('PUT /api/raids/[id]/reserves', () => {
     expect(mocks.createMany.mock.calls[0][0].data).toEqual([]);
   });
 
+  it.each([
+    ['a member\'s save', 'member', BODY],
+    ['an officer\'s change for someone else', 'officer', { ...BODY, forUserId: 'u1' }],
+    ['a clear', 'member', { characterId: 'c1', hr: null, sr: null }],
+  ])('refuses %s with 409 while the raid\'s reserves are off, before switching characters or writing', async (_label, role, body) => {
+    mocks.session = { role, discordId: 'd1' };
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: null, templateId: 't1', reservesAllowed: false });
+    const res = await call(body);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: REASONS.reservesOff });
+    expect(mocks.switchCharacter).not.toHaveBeenCalled();
+    expect(mocks.deleteMany).not.toHaveBeenCalled();
+    expect(mocks.createMany).not.toHaveBeenCalled();
+  });
+
+  it('reads the switch after taking the tier lock, not from the first read', async () => {
+    const on = { startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: null, templateId: 't1', reservesAllowed: true };
+    mocks.raid.mockReset().mockResolvedValueOnce(on).mockResolvedValue({ ...on, reservesAllowed: false });
+    expect((await call(BODY)).status).toBe(409);
+    expect(mocks.query.mock.invocationCallOrder[0]).toBeLessThan(mocks.raid.mock.invocationCallOrder[1]);
+    expect(mocks.createMany).not.toHaveBeenCalled();
+  });
+
   it('is a 404 while the loot flag is off, and needs a login', async () => {
     mocks.loot = false;
     expect((await call(BODY)).status).toBe(404);
@@ -151,8 +175,8 @@ describe('PUT /api/raids/[id]/reserves', () => {
   it.each([
     ['an absent sign-up', () => mocks.signup.mockResolvedValue({ response: 'ABSENT', character: { id: 'c1' }, user: { characters: [] } }), 409, 'Sign up as Accept or Tentative to reserve.'],
     ['no sign-up', () => mocks.signup.mockResolvedValue(null), 409, 'Sign up as Accept or Tentative to reserve.'],
-    ['a cancelled raid', () => mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: new Date(), templateId: 't1' }), 409, 'This raid was cancelled.'],
-    ['a locked raid', () => mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1' }), 409, 'Reserves are locked. Ask an officer to change them.'],
+    ['a cancelled raid', () => mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: new Date(), templateId: 't1', reservesAllowed: true }), 409, 'This raid was cancelled.'],
+    ['a locked raid', () => mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1', reservesAllowed: true }), 409, 'Reserves are locked. Ask an officer to change them.'],
     ['a raid without a table', () => mocks.items.mockResolvedValue(new Set()), 409, 'This raid has no loot table yet.'],
     ['an HR already won', () => mocks.awards.mockResolvedValue([{ characterId: 'c1', itemId: 100 }]), 409, 'This character already won that item.'],
   ])('refuses %s', async (_label, arrange, status, error) => {
@@ -169,17 +193,17 @@ describe('PUT /api/raids/[id]/reserves', () => {
   });
 
   it('locks a member out from exactly two hours before the start', async () => {
-    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 2 * HOUR - 1000), cancelledAt: null, templateId: 't1' });
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 2 * HOUR - 1000), cancelledAt: null, templateId: 't1', reservesAllowed: true });
     expect((await call(BODY)).status).toBe(409);
-    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 2 * HOUR + 60_000), cancelledAt: null, templateId: 't1' });
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 2 * HOUR + 60_000), cancelledAt: null, templateId: 't1', reservesAllowed: true });
     expect((await call(BODY)).status).toBe(200);
   });
 
   it('with OPEN_UNTIL_START on, stays open until the start; officers can still change it after', async () => {
     vi.stubEnv('OPEN_UNTIL_START', 'true');
-    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 5 * 60_000), cancelledAt: null, templateId: 't1' });
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 5 * 60_000), cancelledAt: null, templateId: 't1', reservesAllowed: true });
     expect((await call(BODY)).status).toBe(200);
-    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() - 1000), cancelledAt: null, templateId: 't1' });
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() - 1000), cancelledAt: null, templateId: 't1', reservesAllowed: true });
     expect((await call(BODY)).status).toBe(409);
     mocks.session = { role: 'officer', discordId: 'd9' };
     expect((await call({ ...BODY, forUserId: 'u2' })).status).toBe(200);
@@ -187,7 +211,7 @@ describe('PUT /api/raids/[id]/reserves', () => {
 
   it('refuses an item outside the table and a raid without a template', async () => {
     expect(await (await call({ ...BODY, sr: 999 })).json()).toEqual({ error: "That item isn't in this raid's loot table." });
-    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: null, templateId: null });
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: null, templateId: null, reservesAllowed: true });
     expect(await (await call(BODY)).json()).toEqual({ error: 'This raid has no loot table yet.' });
   });
 
@@ -200,7 +224,7 @@ describe('PUT /api/raids/[id]/reserves', () => {
   it('lets only officers set someone else’s, and past the lock', async () => {
     expect((await call({ ...BODY, forUserId: 'u2' })).status).toBe(403);
     mocks.session = { role: 'officer', discordId: 'd9' };
-    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1' });
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1', reservesAllowed: true });
     expect((await call({ ...BODY, forUserId: 'u2' })).status).toBe(200);
     expect(mocks.user).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'u2' } }));
     expect(mocks.createMany.mock.calls[0][0].data[0]).toMatchObject({ setById: 'officer-user' });
@@ -208,7 +232,7 @@ describe('PUT /api/raids/[id]/reserves', () => {
 
   it.each(['member', 'officer'] as const)('preserves the stored blocked row when %s edits the other slot', async (role) => {
     mocks.session = { role, discordId: 'd1' };
-    if (role === 'officer') mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() - HOUR), cancelledAt: null, templateId: 't1' });
+    if (role === 'officer') mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() - HOUR), cancelledAt: null, templateId: 't1', reservesAllowed: true });
     mocks.settings.mockResolvedValue([{ itemId: 100 }]);
     mocks.existing.mockResolvedValue([{ id: 'kept', characterId: 'c1', kind: 'HR', itemId: 100 }]);
     expect((await call({ ...BODY, sr: 300 })).status).toBe(200);
@@ -292,15 +316,23 @@ describe('GET /api/raids/[id]/reserves', () => {
     const res = await get();
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toMatchObject({ table: TABLE, reserves: [{ itemId: 100 }], targets: [{ userId: 'u1', self: true }], locked: false, cancelled: false });
+    expect(body).toMatchObject({ table: TABLE, reserves: [{ itemId: 100 }], targets: [{ userId: 'u1', self: true }], locked: false, cancelled: false, reservesAllowed: true });
     expect(Date.parse(body.lockAt)).toBeGreaterThan(Date.now());
     expect(mocks.table).toHaveBeenCalledWith('t1');
     expect(mocks.targets).toHaveBeenCalledWith('r1', 'd1', false);
   });
 
+  it('reports reserves switched off, with what the loaders return for that raid', async () => {
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: null, templateId: 't1', reservesAllowed: false });
+    mocks.reserves.mockResolvedValue([]);
+    const res = await get();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ reservesAllowed: false, reserves: [] });
+  });
+
   it('lets an officer load everyone they can reserve for, and reports a lock', async () => {
     mocks.session = { role: 'officer', discordId: 'd9' };
-    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1' });
+    mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + HOUR), cancelledAt: null, templateId: 't1', reservesAllowed: true });
     expect(await (await get()).json()).toMatchObject({ locked: true });
     expect(mocks.targets).toHaveBeenCalledWith('r1', 'd9', true);
   });
@@ -309,7 +341,7 @@ describe('GET /api/raids/[id]/reserves', () => {
     ['loot is off', () => { mocks.loot = false; }],
     ['the viewer is a social', () => { mocks.session = { role: 'social', discordId: 'd1' }; }],
     ['there is no such raid', () => mocks.raid.mockResolvedValue(null)],
-    ['the raid has no template', () => mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: null, templateId: null })],
+    ['the raid has no template', () => mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: null, templateId: null, reservesAllowed: true })],
     ['the table is empty', () => mocks.table.mockResolvedValue(null)],
   ])('is a 404 when %s', async (_label, arrange) => {
     arrange();

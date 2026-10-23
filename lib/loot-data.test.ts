@@ -172,9 +172,9 @@ describe('loadActiveReserves', () => {
     expect((await loadActiveReserves('r1')).map((r) => r.onTrial)).toEqual([true, false]);
   });
 
-  it('asks only for holders whose sign-up is Accept or Tentative', async () => {
+  it('asks only for holders whose sign-up is Accept or Tentative, on a raid with reserves on', async () => {
     mocks.reserves.mockResolvedValue([]);
     await loadActiveReserves('r1');
-    expect(mocks.reserves.mock.calls[0][0].where).toEqual({ raidId: 'r1', user: { signups: { some: { raidId: 'r1', response: { in: ['ACCEPT', 'TENTATIVE'] } } } } });
+    expect(mocks.reserves.mock.calls[0][0].where).toEqual({ raidId: 'r1', raid: { reservesAllowed: true }, user: { signups: { some: { raidId: 'r1', response: { in: ['ACCEPT', 'TENTATIVE'] } } } } });
   });
 });

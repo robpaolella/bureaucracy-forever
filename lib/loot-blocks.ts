@@ -51,12 +51,28 @@ export async function setItemWinLimit(templateId: string, itemId: number, winLim
 }
 
 /**
+ * Server-only; callers must authorize officers. Turns a raid's reserves on or off under its
+ * tier's lock, so a reserve save commits before the switch or reads it off and is refused.
+ * Removes no reserves: switching back on shows the stored ones again. False when no such raid.
+ */
+export async function setReservesAllowed(raidId: string, allowed: boolean): Promise<boolean> {
+  return db.$transaction(async (tx) => {
+    const raid = await tx.raid.findUnique({ where: { id: raidId }, select: { templateId: true } });
+    if (!raid) return false;
+    if (raid.templateId) await lockReserveTier(tx, raid.templateId);
+    await tx.raid.update({ where: { id: raidId }, data: { reservesAllowed: allowed } });
+    return true;
+  }, { isolationLevel: 'ReadCommitted' });
+}
+
+/**
  * Reserves on this tier's raids whose reserve lock hasn't passed, cancelled raids included
- * (they could be un-cancelled). Locked and past raids keep their reserves.
+ * (they could be un-cancelled). Locked and past raids keep their reserves, and so do raids with
+ * reserves off, whose reserves are hidden until they're switched back on.
  */
 function unlockedWhere(templateId: string, itemId: number, now: Date) {
   const lockedBefore = new Date(now.getTime() + reserveLockMinutes() * 60_000);
-  return { itemId, raid: { templateId, startsAt: { gt: lockedBefore } } };
+  return { itemId, raid: { templateId, reservesAllowed: true, startsAt: { gt: lockedBefore } } };
 }
 
 /**

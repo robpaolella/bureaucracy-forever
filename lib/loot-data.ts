@@ -60,10 +60,10 @@ export type ReserveView = {
 
 const lower = <T extends string>(v: T) => v.toLowerCase() as Lowercase<T>;
 
-/** A raid's reserves whose holders are still eligible, in a stable order. */
+/** A raid's reserves whose holders are still eligible, in a stable order; none while its reserves are off. */
 export async function loadActiveReserves(raidId: string): Promise<ReserveView[]> {
   const rows = await db.reserve.findMany({
-    where: { raidId, user: { signups: { some: { raidId, response: { in: ['ACCEPT', 'TENTATIVE'] } } } } },
+    where: { raidId, raid: { reservesAllowed: true }, user: { signups: { some: { raidId, response: { in: ['ACCEPT', 'TENTATIVE'] } } } } },
     orderBy: [{ itemId: 'asc' }, { kind: 'asc' }, { userId: 'asc' }],
     select: { userId: true, characterId: true, itemId: true, kind: true, user: { select: { discordName: true, rank: true } }, character: { select: { name: true, class: true } } },
   });
@@ -97,7 +97,7 @@ export type ReserveTargetRow = {
 /**
  * Whose reserves the viewer may set on this raid: themselves when their sign-up is eligible
  * and they have a character; an officer also everyone else who is eligible. `reason` says
- * why the viewer has nothing to set.
+ * why the viewer has nothing to set. While the raid's reserves are off, no one has current picks.
  */
 export async function loadReserveTargets(raidId: string, viewerDiscordId: string, officer: boolean): Promise<{ targets: ReserveTargetRow[]; reason: 'notEligible' | 'noCharacter' | 'trial' | null; trialClear: { characterId: string } | null }> {
   const raid = await db.raid.findUnique({ where: { id: raidId }, select: { templateId: true } });
@@ -113,7 +113,7 @@ export async function loadReserveTargets(raidId: string, viewerDiscordId: string
           discordName: true,
           rank: true,
           characters: { orderBy: [{ isMain: 'desc' }, { name: 'asc' }], select: { id: true, name: true, class: true, isMain: true } },
-          reserves: { where: { raidId }, select: { characterId: true, itemId: true, kind: true } },
+          reserves: { where: { raidId, raid: { reservesAllowed: true } }, select: { characterId: true, itemId: true, kind: true } },
         },
       },
     },
@@ -153,7 +153,11 @@ export async function loadReserveTargets(raidId: string, viewerDiscordId: string
 }
 
 /** GET /api/raids/[id]/reserves: what the reserves window needs away from the raid page. */
-export type ReserveWindowData = { table: LootTableView; reserves: ReserveView[]; targets: ReserveTargetRow[]; lockAt: string; locked: boolean; cancelled: boolean };
+export type ReserveWindowData = {
+  table: LootTableView; reserves: ReserveView[]; targets: ReserveTargetRow[]; lockAt: string; locked: boolean; cancelled: boolean;
+  /** Off: officers switched reserves off for this raid; `reserves` is empty and no target has picks. */
+  reservesAllowed: boolean;
+};
 
 export type AwardView = {
   id: string;
