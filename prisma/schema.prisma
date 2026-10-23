@@ -320,6 +320,8 @@ model Raid {
   remind24At       DateTime?
   /// Set when reserve reminders were evaluated, including when nobody was owed one.
   remindReservesAt DateTime?
+  /// Off: nobody reserves and stored reserves are hidden, not deleted. Set only under the tier lock (lib/loot-blocks.ts setReservesAllowed).
+  reservesAllowed  Boolean       @default(true)
   /// Optimistic concurrency for officer edits.
   updatedAt        DateTime      @updatedAt
   reserves         Reserve[]
