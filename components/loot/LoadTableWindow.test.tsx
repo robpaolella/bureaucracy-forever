@@ -263,7 +263,7 @@ describe('LoadTableWindow WoW Forever', () => {
     client.previewLoadTable.mockResolvedValue({ ...base, bossCheck: { kind: 'checked', flagged: ['Magmatus'], unmatched: ['Infurnus'] } });
     await render(); await useForever(); await click('Preview');
     expect(client.previewLoadTable).toHaveBeenCalledWith(expect.objectContaining({ checkNames: true }));
-    expect(host.textContent).toContain('Magmatus not a boss name in the game’s data. It may be a rare monster, or named differently in game');
+    expect(host.textContent).toContain('Magmatus: not a boss name in the game’s data. It may be a rare monster, or named differently in game');
     expect(host.textContent).toContain('Infurnus');
     client.applyLoadTable.mockResolvedValue({ kind: 'success', added: 4, newBosses: 1, removed: 0 });
     await click('Load 4 items');

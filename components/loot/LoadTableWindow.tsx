@@ -593,7 +593,7 @@ function BossNames({ check }: { check: Ready['bossCheck'] }) {
   return (
     <div className="flex flex-col gap-1.5 rounded-card border border-warn-line bg-warn-wash px-3.5 py-3 text-fg">
       {check.flagged.map((name) => (
-        <span key={name}><strong className="font-semibold text-warn">{name}</strong> {LOOT_LOAD.bossFlag}</span>
+        <span key={name}><strong className="font-semibold text-warn">{name}</strong>: {LOOT_LOAD.bossFlag}</span>
       ))}
       {check.unmatched.length > 0 && <span className="text-fg-2">{LOOT_LOAD.bossUnmatched} {check.unmatched.join(', ')}</span>}
     </div>
