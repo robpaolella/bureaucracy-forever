@@ -42,6 +42,10 @@ describe('checkBossNames', () => {
     const rows = [...hall.slice(0, 2), { name: 'Infurnus', isTrash: false }, hall[3], { name: 'Sneed’s Shredder', isTrash: false }, { name: 'Trash mobs', isTrash: true }];
     expect(checkBossNames(3065, rows)).toEqual({ kind: 'checked', flagged: ['Sneed’s Shredder'], unmatched: [] });
   });
+  it('counts a name the map has twice as matched, and still flags a name that is on no map row', () => {
+    const rows = [{ name: 'grubbis', isTrash: false }, { name: 'Mekgineer Thermaplugg', isTrash: false }, { name: 'Made Up', isTrash: false }];
+    expect(checkBossNames(90, rows)).toMatchObject({ kind: 'checked', flagged: ['Made Up'] });
+  });
   it('checks nothing without an instance number or for one the list does not cover', () => {
     expect(checkBossNames(null, hall)).toEqual({ kind: 'unchecked', reason: 'no-instance' });
     expect(checkBossNames(undefined, hall)).toEqual({ kind: 'unchecked', reason: 'no-instance' });
