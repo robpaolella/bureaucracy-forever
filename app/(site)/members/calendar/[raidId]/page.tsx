@@ -22,6 +22,7 @@ import { discordThreadUrl } from '@/lib/discord-links';
 import { lootEnabled } from '@/lib/flags';
 import { loadActiveReserves, loadAwards, loadLootLogContext, loadLootTable, loadReserveTargets } from '@/lib/loot-data';
 import { reservesLockAt, reservesLocked } from '@/lib/loot-rules';
+import { loadActiveTemplates } from '@/lib/raid-cards';
 import { splitStanding, type DetailRow } from '@/lib/raid-detail';
 import { countAccepted, isUpcoming, linkOpensReserves, parseRequirements, RESERVES_PARAM, sourceSplit, type RaidCard, type RaidResponse } from '@/lib/raids';
 import { getSession } from '@/lib/session';
@@ -49,7 +50,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
   const [{ raidId }, query] = await Promise.all([params, searchParams]);
   const officer = session.role === 'officer';
 
-  const [raid, me, members] = await Promise.all([
+  const [raid, me, members, templates] = await Promise.all([
     db.raid.findUnique({
       where: { id: raidId },
       select: {
@@ -66,7 +67,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
         discordThreadId: true,
         seriesId: true,
         templateId: true,
-        template: { select: { short: true, name: true } },
+        template: { select: { id: true, short: true, name: true } },
         signups: {
           select: {
             userId: true,
@@ -90,6 +91,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
     officer
       ? db.user.findMany({ where: { role: { in: ['MEMBER', 'OFFICER'] } }, select: { id: true, discordName: true }, orderBy: { discordName: 'asc' } })
       : Promise.resolve([]),
+    officer ? loadActiveTemplates() : Promise.resolve([]),
   ]);
   if (!raid) notFound();
 
@@ -204,7 +206,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
 
         <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_380px] md:items-start">
           <div className="order-2 flex flex-col gap-6 md:order-1">
-            {officer && <OfficerActions raid={card} members={memberOptions} past={past} threadUrl={discordThreadUrl(raid.discordThreadId)} fromSeries={raid.seriesId !== null} />}
+            {officer && <OfficerActions raid={card} members={memberOptions} past={past} threadUrl={discordThreadUrl(raid.discordThreadId)} fromSeries={raid.seriesId !== null} template={raid.template ? { id: raid.template.id, name: raid.template.name } : null} templates={templates} />}
             {officer && past && !card.cancelled && <AttendanceForm raidId={raid.id} rows={rows} />}
             <RosterByRole raidId={raid.id} rows={roster} now={now.toISOString()} canAnswerFor={officer && !past && !card.cancelled} showAttendance={past} />
           </div>

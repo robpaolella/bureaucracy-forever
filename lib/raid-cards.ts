@@ -2,7 +2,7 @@ import 'server-only';
 import { db } from '@/lib/db';
 import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import type { Role } from '@/lib/design/class-colors';
-import { countAccepted, parseRequirements, type RaidCard, type RaidResponse } from '@/lib/raids';
+import { countAccepted, parseRequirements, type RaidCard, type RaidResponse, type RaidTemplateOption } from '@/lib/raids';
 
 /**
  * Raids from `since` onward as calendar cards, with accepted counts per role from each
@@ -53,4 +53,10 @@ export async function loadRaidCards(since: Date, viewerDiscordId: string | null)
       onRoster: me?.standing === 'ROSTER',
     };
   });
+}
+
+/** The active raid templates the schedule form offers, by name. */
+export async function loadActiveTemplates(): Promise<RaidTemplateOption[]> {
+  const rows = await db.raidTemplate.findMany({ where: { active: true }, select: { id: true, name: true, durationMin: true, requirements: true }, orderBy: { name: 'asc' } });
+  return rows.map((t) => ({ id: t.id, name: t.name, durationMin: t.durationMin, requirements: parseRequirements(t.requirements) }));
 }

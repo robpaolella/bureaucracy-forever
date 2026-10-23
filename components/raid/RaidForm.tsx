@@ -2,31 +2,34 @@
 
 import { useId, useState, type FormEvent } from 'react';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
-import { Button, CONTROL, Field, FIELD_LABEL, Input, Select, Textarea } from '@/components/ui';
+import { Button, CONTROL, Field, FIELD_LABEL, Input, Select, Textarea, TextLink } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { GUILD_TIMEZONE } from '@/lib/config';
 import { ROLE_LABELS, ROLES } from '@/lib/design/class-colors';
-import { DURATIONS, parseRaidInput, RAID_NAME_MAX, RAID_NOTES_MAX, type RaidInput } from '@/lib/raids';
+import { durationLabel, durationOptions, parseRaidInput, RAID_NOTES_MAX, type RaidInput, type RaidTemplateOption } from '@/lib/raids';
+import { instanceName } from '@/lib/series';
 import { formatRange, WEEKDAY_NAMES, zoneAbbreviation, zonedParts } from '@/lib/time';
 import { SCHEDULE_FORM } from '@/content/calendar';
 
 type Props = {
   initial: RaidInput;
+  /** The templates to pick from: the active ones, or just the raid's own when `templateLocked`. */
+  templates: RaidTemplateOption[];
+  /** The raid already has a template; it is shown but cannot change. */
+  templateLocked?: boolean;
   submitLabel: string;
   /** Resolve with an error message to show, or null when saved. */
   onSubmit: (input: RaidInput) => Promise<string | null>;
   onCancel: () => void;
 };
 
-const DURATION_LABEL = (min: number) => (min % 60 === 0 ? `${min / 60} hours` : `${Math.floor(min / 60)}½ hours`);
-
 /**
- * Name, guild-time date and start, length, the four requirements and notes. The wall
+ * Template, guild-time date and start, length, the four requirements and notes. The wall
  * clock is entered in guild time (docs/01 § Time: one configured zone) and previewed in
  * the officer's own zone beneath, so nothing is ever a bare time. Validation is the same
  * `parseRaidInput` the route runs, so the form never shows an error the server would not.
  */
-export function RaidForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
+export function RaidForm({ initial, templates, templateLocked = false, submitLabel, onSubmit, onCancel }: Props) {
   const [input, setInput] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -34,13 +37,15 @@ export function RaidForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
   const reqId = useId();
 
   const parsed = parseRaidInput(input);
-  // The preview only needs the date and time; a blank name must not hide it.
-  const previewParse = parsed.ok ? parsed : parseRaidInput({ ...input, name: input.name.trim() || SCHEDULE_FORM.namePlaceholder });
+  const template = templates.find((t) => t.id === input.templateId);
+  // The preview only needs the date and time; a blank template must not hide it.
+  const previewParse = parsed.ok ? parsed : parseRaidInput({ ...input, templateId: input.templateId || 'preview' });
   const preview = previewParse.ok ? previewParse.startsAt : null;
+  const noTemplates = templates.length === 0;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (saving) return;
+    if (saving || noTemplates) return;
     if (!parsed.ok) {
       setError(parsed.error);
       return;
@@ -57,11 +62,30 @@ export function RaidForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
     setError(null);
   };
 
+  /** Picking a template fills Length and Needed from it, replacing whatever was there. */
+  const pick = (id: string) => {
+    const t = templates.find((x) => x.id === id);
+    setInput((v) => ({ ...v, templateId: id, ...(t ? { durationMin: t.durationMin, requirements: t.requirements } : {}) }));
+    setError(null);
+  };
+
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-      <Field label={SCHEDULE_FORM.name}>
-        <Input value={input.name} maxLength={RAID_NAME_MAX} placeholder={SCHEDULE_FORM.namePlaceholder} autoComplete="off" onChange={(e) => set('name', e.target.value)} />
-      </Field>
+      {noTemplates ? (
+        <p className="text-sm text-fg-2">
+          {SCHEDULE_FORM.templateNeeded}{' '}
+          <TextLink href="/officers/raids">{SCHEDULE_FORM.templateNeededLink}</TextLink>
+        </p>
+      ) : (
+        <Select
+          label={SCHEDULE_FORM.template}
+          options={[...(templateLocked ? [] : [{ value: '', label: SCHEDULE_FORM.templatePlaceholder }]), ...templates.map((t) => ({ value: t.id, label: t.name }))]}
+          value={input.templateId}
+          disabled={templateLocked}
+          hint={templateLocked ? SCHEDULE_FORM.templateLocked : undefined}
+          onChange={(e) => pick(e.target.value)}
+        />
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={SCHEDULE_FORM.date}>
@@ -72,7 +96,7 @@ export function RaidForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
         </Field>
       </div>
 
-      <Select label={SCHEDULE_FORM.duration} options={DURATIONS.map((d) => ({ value: String(d), label: DURATION_LABEL(d) }))} value={String(input.durationMin)} onChange={(e) => set('durationMin', Number(e.target.value))} />
+      <Select label={SCHEDULE_FORM.duration} options={durationOptions(input.durationMin).map((d) => ({ value: String(d), label: durationLabel(d) }))} value={String(input.durationMin)} onChange={(e) => set('durationMin', Number(e.target.value))} />
 
       <fieldset className="flex flex-col gap-2">
         <legend className={FIELD_LABEL}>{SCHEDULE_FORM.requirements}</legend>
@@ -109,7 +133,7 @@ export function RaidForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
         {preview ? (
           <>
             <span className="font-semibold text-fg">
-              {WEEKDAY_NAMES[zonedParts(preview, GUILD_TIMEZONE).weekday]} {formatRange(preview, new Date(preview.getTime() + input.durationMin * 60_000), GUILD_TIMEZONE)}
+              {template ? instanceName(template.name, preview) : WEEKDAY_NAMES[zonedParts(preview, GUILD_TIMEZONE).weekday]} · {formatRange(preview, new Date(preview.getTime() + input.durationMin * 60_000), GUILD_TIMEZONE)}
             </span>{' '}
             <span className="text-fg-3">guild ({zoneAbbreviation(preview, GUILD_TIMEZONE)})</span>
             {viewer && viewer.zone !== GUILD_TIMEZONE && (
@@ -131,7 +155,7 @@ export function RaidForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
         <Button variant="ghost" onClick={onCancel}>
           {SCHEDULE_FORM.cancel}
         </Button>
-        <Button type="submit" loading={saving}>
+        <Button type="submit" loading={saving} disabled={noTemplates}>
           {submitLabel}
         </Button>
       </div>

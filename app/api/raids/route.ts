@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { loadRaidCards } from '@/lib/raid-cards';
-import { isUpcoming, locksAtFor, parseRaidInput } from '@/lib/raids';
+import { isUpcoming, locksAtFor, parseRaidInput, PICK_TEMPLATE } from '@/lib/raids';
+import { instanceName } from '@/lib/series';
 import { getSession } from '@/lib/session';
 import { rosterSignups, rosterUserIds } from '@/lib/tick';
 
@@ -18,7 +19,8 @@ export async function GET() {
 
 /**
  * POST /api/raids — schedule a raid (officers). Body is the form's guild-time wall clock:
- * `{ name, date, time, durationMin, requirements, notes }`; the instant is derived here.
+ * `{ templateId, date, time, durationMin, requirements, notes }`; the instant is derived here
+ * and the name comes from the template, like a weekly raid's. A typed `name` is ignored.
  */
 export async function POST(request: Request) {
   const session = await getSession();
@@ -31,11 +33,14 @@ export async function POST(request: Request) {
   if (parsed.startsAt.getTime() < Date.now()) return NextResponse.json({ error: 'That start is already in the past.' }, { status: 400, headers: NO_STORE });
 
   const { value } = parsed;
+  const template = await db.raidTemplate.findFirst({ where: { id: value.templateId, active: true }, select: { id: true, name: true } });
+  if (!template) return NextResponse.json({ error: PICK_TEMPLATE }, { status: 400, headers: NO_STORE });
   // Rank-based roster (SYNC-SPEC §3): every roster member gets an unanswered row up front.
   const roster = await rosterUserIds();
   const raid = await db.raid.create({
     data: {
-      name: value.name,
+      name: instanceName(template.name, parsed.startsAt),
+      templateId: template.id,
       startsAt: parsed.startsAt,
       locksAt: locksAtFor(parsed.startsAt),
       durationMin: value.durationMin,
