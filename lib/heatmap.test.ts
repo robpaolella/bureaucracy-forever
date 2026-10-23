@@ -68,7 +68,7 @@ describe('stacking', () => {
     expect(cell.available).toBe(2);
     expect(cell.ifNeeded).toBe(2);
     expect(cell.total).toBe(3);
-    expect(cell.roles).toEqual({ tank: 1, healer: 1, melee: 1, ranged: 0 });
+    expect(cell.roles).toEqual({ tank: 1, healer: 1, dps: 1 });
     expect(cell.who.map((w) => w.i)).toEqual([0, 3, 1, 2]);
     expect(h.cells[1][41].total).toBe(1);
     expect(h.memberCount).toBe(5);
@@ -85,11 +85,30 @@ describe('stacking', () => {
     );
     const cell = h.cells[1][40];
     expect(cell.total).toBe(2); // 1 + 0.5 + 0.5
-    const sum = cell.roles.tank + cell.roles.healer + cell.roles.melee + cell.roles.ranged;
+    const sum = cell.roles.tank + cell.roles.healer + cell.roles.dps;
     expect(sum).toBe(cell.total);
-    expect(cell.roles.melee).toBe(1);
+    expect(cell.roles.dps).toBe(1);
     expect(cell.roles.tank + cell.roles.healer).toBe(1); // one half rounds up, the other down
     expect(cell.roles.tank).toBe(1); // ties go to the earlier role
+  });
+
+  it('counts melee and ranged together as DPS, summed before the rounding', () => {
+    const h = buildHeatmap(
+      [member('M', LA, { '1:40': 'if-needed' }, 'melee'), member('R', LA, { '1:40': 'if-needed' }, 'ranged'), member('T', LA, { '1:40': 'if-needed' }, 'tank')],
+      LA,
+      NOW,
+    );
+    const cell = h.cells[1][40];
+    expect(cell.total).toBe(2); // 1.5 rounds up
+    expect(cell.roles).toEqual({ tank: 1, healer: 0, dps: 1 }); // DPS is exactly 1; the leftover half goes to the tank
+  });
+
+  it('has 20 DPS in both cells when 20 melee fill one and 20 ranged the next', () => {
+    const melee = Array.from({ length: 20 }, (_, i) => member(`M${i}`, LA, { '1:40': 'available' }, 'melee'));
+    const ranged = Array.from({ length: 20 }, (_, i) => member(`R${i}`, LA, { '1:41': 'available' }, 'ranged'));
+    const h = buildHeatmap([...melee, ...ranged], LA, NOW);
+    expect(h.cells[1][40].roles.dps).toBe(20);
+    expect(h.cells[1][41].roles.dps).toBe(20);
   });
 
   it('ignores malformed keys rather than throwing', () => {
