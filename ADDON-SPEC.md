@@ -231,6 +231,11 @@ names as operations (section 4). `key` is the award's key. `voided` is true for 
 that already happened. Awards the site holds from before the add-on existed have a key
 made by the site. The catch-up (3.4) carries the same fields, fresher.
 
+**Reserves switched off.** A raid whose officers have switched "Reserves allowed" off has an
+empty `reserves` map; its `bosses` and the rest are unchanged, so the add-on still records
+drops as open rolls. A snapshot already loaded in game keeps its reserves until the helper
+fetches again and the add-on reloads; the format does not change.
+
 **Spending is the add-on's job.** The snapshot holds reserves as they stood at
 `generated`. The add-on subtracts every non-voided award, baseline and its own, the way
 `resolveDrop` does: a holder who has received an item on this raid no longer counts for
