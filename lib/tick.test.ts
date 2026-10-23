@@ -41,7 +41,7 @@ describe('tick reserve reminders', () => {
     expect((await runTick(now)).reservesReminded).toBe(1);
     expect((await runTick(now)).reservesReminded).toBe(0);
     expect(mocks.enqueue).toHaveBeenCalledExactlyOnceWith('raid.reserves.remind', { raidId: 'r', discordIds: ['discord-a'], reservesLockAt: '2026-10-16T18:00:00.000Z' }, mocks);
-    expect(mocks.raid.updateMany).toHaveBeenCalledWith({ where: { id: 'r', remindReservesAt: null, status: { in: ['SCHEDULED', 'LOCKED'] }, startsAt: raid.startsAt }, data: { remindReservesAt: now } });
+    expect(mocks.raid.updateMany).toHaveBeenCalledWith({ where: { id: 'r', remindReservesAt: null, reservesAllowed: true, status: { in: ['SCHEDULED', 'LOCKED'] }, startsAt: raid.startsAt }, data: { remindReservesAt: now } });
   });
   it('conditionally claims stale candidates from overlapping ticks', async () => {
     mocks.raid.findMany.mockImplementation(async (args) => args.where.remindReservesAt === null ? [raid] : []);
@@ -63,10 +63,10 @@ describe('tick reserve reminders', () => {
     expect(mocks.raid.updateMany).not.toHaveBeenCalled();
     expect(mocks.raid.findMany.mock.calls.some(([args]) => args.where.remindReservesAt === null)).toBe(false);
   });
-  it('bounds candidates by reserve time, posting, status, marker and nonempty loot table', async () => {
+  it('bounds candidates by reserve time, posting, status, marker, the reserves switch and nonempty loot table', async () => {
     await runTick(now);
     expect(mocks.raid.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {
-      status: { in: ['SCHEDULED', 'LOCKED'] }, postedAt: { not: null }, remindReservesAt: null,
+      status: { in: ['SCHEDULED', 'LOCKED'] }, postedAt: { not: null }, remindReservesAt: null, reservesAllowed: true,
       startsAt: { gt: new Date('2026-10-16T19:00:00Z'), lte: new Date('2026-10-16T21:00:00Z') },
       template: { lootBosses: { some: { entries: { some: {} } } } },
     } }));

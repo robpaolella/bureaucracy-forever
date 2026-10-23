@@ -26,14 +26,14 @@ const row = (raidId: string, characterId: string, kind: 'HR' | 'SR', cancelled =
   raidId, characterId, kind, character: { name: `Char ${characterId}` },
   raid: { name: 'Sample raid', startsAt: new Date('2026-10-08T03:00:00Z'), cancelledAt: cancelled ? new Date('2026-10-05T00:00:00Z') : null },
 });
-// Starts later than now + 120 minutes: locked and past raids don't count; no cancelled filter.
-const UNLOCKED = { itemId: 100, raid: { templateId: 't1', startsAt: { gt: new Date('2026-10-05T20:00:00Z') } } };
+// Starts later than now + 120 minutes: locked and past raids don't count, nor raids with reserves off; no cancelled filter.
+const UNLOCKED = { itemId: 100, raid: { templateId: 't1', reservesAllowed: true, startsAt: { gt: new Date('2026-10-05T20:00:00Z') } } };
 
 describe('unlocked holders', () => {
   it('counts a raid as unlocked until its start with OPEN_UNTIL_START on', async () => {
     vi.stubEnv('OPEN_UNTIL_START', 'true');
     await unlockedHolders(db, 't1', 100, NOW);
-    expect(mocks.holders).toHaveBeenCalledWith(expect.objectContaining({ where: { itemId: 100, raid: { templateId: 't1', startsAt: { gt: NOW } } } }));
+    expect(mocks.holders).toHaveBeenCalledWith(expect.objectContaining({ where: { itemId: 100, raid: { templateId: 't1', reservesAllowed: true, startsAt: { gt: NOW } } } }));
   });
 });
 

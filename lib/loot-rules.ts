@@ -27,6 +27,7 @@ export const REASONS = {
   social: 'Reserves are for guild members.',
   cancelled: 'This raid was cancelled.',
   noTable: 'This raid has no loot table yet.',
+  reservesOff: "Reserves aren't open for this raid.",
   notEligible: 'Sign up as Accept or Tentative to reserve.',
   trial: 'Reserves open once your trial ends.',
   locked: 'Reserves are locked. Ask an officer to change them.',
