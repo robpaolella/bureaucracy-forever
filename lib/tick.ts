@@ -158,12 +158,12 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
     }
   }
 
-  // Reserve reminders use their own lock, not the configurable sign-up lock.
+  // Reserve reminders use their own lock, not the configurable sign-up lock, and skip raids with reserves off.
   if (lootEnabled()) {
     const lockGap = reserveLockMinutes();
     const candidates = await db.raid.findMany({
       where: {
-        status: { in: ['SCHEDULED', 'LOCKED'] }, postedAt: { not: null }, remindReservesAt: null,
+        status: { in: ['SCHEDULED', 'LOCKED'] }, postedAt: { not: null }, remindReservesAt: null, reservesAllowed: true,
         startsAt: { gt: new Date(now.getTime() + lockGap * 60_000), lte: new Date(now.getTime() + (lockGap + 120) * 60_000) },
         template: { lootBosses: { some: { entries: { some: {} } } } },
       },
@@ -173,7 +173,7 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
       if (!reserveReminderDue(raid, now, true, true)) continue;
       const sent = await db.$transaction(async (tx) => {
         const marked = await tx.raid.updateMany({
-          where: { id: raid.id, remindReservesAt: null, status: { in: ['SCHEDULED', 'LOCKED'] }, startsAt: raid.startsAt },
+          where: { id: raid.id, remindReservesAt: null, reservesAllowed: true, status: { in: ['SCHEDULED', 'LOCKED'] }, startsAt: raid.startsAt },
           data: { remindReservesAt: now },
         });
         if (marked.count === 0) return false;
