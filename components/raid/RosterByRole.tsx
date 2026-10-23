@@ -1,6 +1,6 @@
 import { ClassAvatar, SourceBadge } from '@/components/ui';
 import { cn } from '@/lib/cn';
-import { CLASS_COLORS, ROLE_LABELS } from '@/lib/design/class-colors';
+import { CLASS_COLORS, COMPOSITION_LABELS } from '@/lib/design/class-colors';
 import { groupByRole, type DetailRow } from '@/lib/raid-detail';
 import { relativeDate } from '@/lib/time';
 import { ANSWER_LABEL, ROSTER, SET_BY, UNKNOWN_MAIN } from '@/content/raid';
@@ -20,7 +20,7 @@ type Props = {
 const ANSWER_TONE: Record<string, string> = { accept: 'text-ok', tentative: 'text-warn', absent: 'text-stop' };
 
 /**
- * The roster grouped by role (SYNC-SPEC §9.5): tanks, healers, melee, ranged, then anyone
+ * The roster grouped by role (SYNC-SPEC §9.5): tanks, healers, DPS, then anyone
  * without a main. Each row carries the Answer and Via columns; unanswered members are on
  * the list too, since the roster is derived from rank rather than from who has replied.
  */
@@ -39,7 +39,7 @@ export function RosterByRole({ raidId, rows, now, canAnswerFor, showAttendance }
         groups.map((group) => (
           <div key={group.role} className="flex flex-col gap-2">
             <h3 className="flex items-baseline gap-2 px-1 text-small font-semibold text-fg-2">
-              {group.role === 'none' ? ROSTER.noRole : ROLE_LABELS[group.role]}
+              {group.role === 'none' ? ROSTER.noRole : COMPOSITION_LABELS[group.role]}
               <span className="tabular text-fg-3">{group.rows.length}</span>
             </h3>
             <ul className="divide-y divide-line-faint rounded-card border border-line bg-ink-850">

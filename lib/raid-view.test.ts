@@ -34,7 +34,7 @@ it('reports the saved alt and requests the complete list in main-first, name ord
     { id: 'alt', name: 'Samplealt', wowClass: 'priest', spec: 'Holy', raidRole: 'healer', isMain: false },
   ]);
   expect(mocks.characters).toHaveBeenCalledWith(expect.objectContaining({ where: { user: { discordId: 'member' } }, orderBy: [{ isMain: 'desc' }, { name: 'asc' }] }));
-  expect(view?.bars).toEqual({ tank: 0, healer: 1, melee: 0, ranged: 0 });
+  expect(view?.bars).toEqual({ tank: 0, healer: 1, dps: 0 });
 });
 it('falls back to the main for a legacy null choice, never an arbitrary alt', async () => {
   mocks.raid.mockResolvedValue(raid(null));
@@ -46,4 +46,12 @@ it('falls back to the main for a legacy null choice, never an arbitrary alt', as
 it.each([null, 'stranger'])('keeps viewer null without a matching sign-up (%s)', async (discordId) => {
   expect((await loadRaidView('raid', discordId))?.viewer).toBeNull();
   expect(mocks.characters).not.toHaveBeenCalled();
+});
+
+it('sends requirements and bars as exactly tank, healer and dps', async () => {
+  mocks.raid.mockResolvedValue({ ...raid(), requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 } });
+  const view = await loadRaidView('raid', null);
+  expect(view?.requirements).toEqual({ tank: 2, healer: 8, dps: 20 });
+  expect(Object.keys(view!.bars).sort()).toEqual(['dps', 'healer', 'tank']);
+  expect(Object.keys(view!.requirements).sort()).toEqual(['dps', 'healer', 'tank']);
 });

@@ -3,7 +3,7 @@
  * the bench, who has not answered, and who can be marked attended. Pure, so the grouping
  * and the attendance defaults are unit-tested instead of improvised in the page.
  */
-import type { Role, WowClass } from '@/lib/design/class-colors';
+import { compositionRole, COMPOSITION_ROLES, type CompositionRole, type Role, type WowClass } from '@/lib/design/class-colors';
 import type { RaidResponse, SignupSource } from '@/lib/raids';
 
 export type Standing = 'ROSTER' | 'BENCH';
@@ -28,8 +28,7 @@ export type DetailRow = {
   updatedAt: string;
 };
 
-export const ROLE_ORDER: readonly Role[] = ['tank', 'healer', 'melee', 'ranged'];
-export type RoleGroupKey = Role | 'none';
+export type RoleGroupKey = CompositionRole | 'none';
 export type RoleGroup = { role: RoleGroupKey; rows: DetailRow[] };
 
 /** Accepted first, then tentative, unanswered, absent; alphabetical inside each. */
@@ -40,10 +39,10 @@ export function compareRows(a: DetailRow, b: DetailRow): number {
   return byAnswer !== 0 ? byAnswer : a.name.localeCompare(b.name);
 }
 
-/** Roster rows by main role in raid order; members without a main land last under `none`. Empty groups are dropped. */
+/** Roster rows by main role (melee and ranged together as DPS) in raid order; members without a main land last under `none`. Empty groups are dropped. */
 export function groupByRole(rows: DetailRow[]): RoleGroup[] {
-  const groups: RoleGroup[] = [...ROLE_ORDER, 'none' as const].map((role) => ({ role, rows: [] }));
-  for (const row of rows) groups.find((g) => g.role === (row.role ?? 'none'))!.rows.push(row);
+  const groups: RoleGroup[] = [...COMPOSITION_ROLES, 'none' as const].map((role) => ({ role, rows: [] }));
+  for (const row of rows) groups.find((g) => g.role === (row.role ? compositionRole(row.role) : 'none'))!.rows.push(row);
   for (const g of groups) g.rows.sort(compareRows);
   return groups.filter((g) => g.rows.length > 0);
 }
