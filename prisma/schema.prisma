@@ -135,6 +135,40 @@ enum LootMethod {
   DISENCHANT_BANK
 }
 
+/// Where an award came from: typed into the loot log, or sent by the loot add-on.
+enum LootSource {
+  LOOT_LOG
+  ADDON
+}
+
+/// How an add-on award reached the site: the helper's upload or a pasted import.
+enum LootDelivery {
+  HELPER
+  IMPORT
+}
+
+/// Whether the game confirmed a hand-out (ADDON-SPEC section 4.1).
+enum LootConfirmation {
+  ANNOUNCED
+  CONFIRMED
+  NOT_CONFIRMED
+}
+
+/// The add-on's operations (ADDON-SPEC section 4).
+enum LootOperationType {
+  AWARD
+  CONFIRM
+  NOT_CONFIRMED
+  VOID
+  REPLACE
+}
+
+/// PENDING: waiting for the award it names (ADDON-SPEC section 4.2).
+enum LootOperationStatus {
+  PENDING
+  APPLIED
+}
+
 /// Which Wowhead database an item's details come from.
 enum ItemSource {
   CLASSIC
@@ -173,6 +207,7 @@ model User {
   decisions       Application[] @relation("applicationDecidedBy")
   reserves        Reserve[]
   lootAwards      LootAward[]
+  helperKeys      HelperKey[]
   createdAt       DateTime      @default(now())
 }
 
@@ -218,6 +253,8 @@ model RaidTemplate {
   /// { tank, healer, melee, ranged } — sums to size.
   requirements Json
   active       Boolean      @default(true)
+  /// The in-game instance id (GetInstanceInfo) the loot add-on matches on; null when not set.
+  instance     Int?
   series       RaidSeries[]
   raids        Raid[]
   lootBosses   LootBoss[]
@@ -289,6 +326,7 @@ model Raid {
   updatedAt        DateTime      @updatedAt
   reserves         Reserve[]
   lootAwards       LootAward[]
+  lootOperations   LootOperation[]
 
   /// One instance per series per instant: the officer's request and the bot's tick can both generate.
   @@unique([seriesId, startsAt])
@@ -658,8 +696,83 @@ model LootAward {
   voidReason    String?
   /// The client's key for the submission, so a retry after a timeout returns this record
   /// instead of recording a second one. Null on records made before it existed.
+  /// An add-on award's key is its operation id (ADDON-SPEC section 4).
   requestKey    String?    @unique
+  source        LootSource       @default(LOOT_LOG)
+  /// Add-on awards: game time of the hand-out. `createdAt` is when the site received it.
+  awardedAt     DateTime?
+  /// Add-on awards: the loot master's character as the add-on reported it, and that
+  /// character's officer. `recordedById` is the officer whose helper key or session
+  /// delivered it (ADDON-SPEC section 5).
+  handedOutByName String?
+  handedOutById   String?
+  /// Add-on awards: how it arrived. Null on those stored before the column existed.
+  deliveredVia    LootDelivery?
+  /// Hand-recorded awards are confirmed; an add-on award is announced until the game says.
+  confirmation  LootConfirmation @default(CONFIRMED)
+  /// Game time of the confirmation that set `confirmation`; the later one wins.
+  confirmedAt   DateTime?
+  /// A practice record (ADDON-SPEC section 2); only staging stores them.
+  practice      Boolean          @default(false)
 
   @@index([raidId])
   @@index([characterId, itemId])
+}
+
+/// Every add-on operation the site accepted, so a repeat is answered from its first
+/// arrival and a correction that comes before its award is kept until the award arrives.
+model LootOperation {
+  id            String              @id @default(cuid())
+  /// The operation's own id. For an award it is also the award's key.
+  opId          String              @unique
+  /// Restrict, like LootAward: the receipts are part of the loot record.
+  raidId        String
+  raid          Raid                @relation(fields: [raidId], references: [id], onDelete: Restrict)
+  type          LootOperationType
+  /// The award it names: an award's own id, otherwise its `key`.
+  key           String
+  /// The operation as parsed by lib/addon-operations.ts, practice mark included.
+  payload       Json
+  /// Game time (`at`).
+  at            DateTime
+  status        LootOperationStatus
+  /// The officer whose helper key or session delivered it. A plain id, like recordedById.
+  deliveredById String
+  receivedAt    DateTime            @default(now())
+  appliedAt     DateTime?
+
+  @@index([raidId, key])
+}
+
+/// An add-on operation the site refused, kept for the raid's problems list
+/// (ADDON-SPEC section 7.4). Plain ids: it may name a raid this site doesn't hold.
+model LootOperationRejection {
+  id            String   @id @default(cuid())
+  raidId        String
+  opId          String
+  /// The rejection code, such as `key-conflict` or `practice-refused`.
+  code          String
+  /// The operation as received.
+  payload       Json
+  deliveredById String
+  receivedAt    DateTime @default(now())
+
+  @@index([raidId])
+}
+
+/// An officer's key for the loot helper (ADDON-SPEC section 7.2). Only the key's SHA-256
+/// hash is stored; the key itself is shown once, at creation (lib/helper-keys.ts).
+/// Revoking keeps the row and sets `revokedAt`.
+model HelperKey {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  /// Hex SHA-256 of the whole key, `bfh_` prefix included. Lookup is by this.
+  keyHash    String    @unique
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  @@index([userId])
 }

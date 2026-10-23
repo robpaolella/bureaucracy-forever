@@ -8,7 +8,7 @@ vi.mock('@/lib/db', () => ({ db: { raidTemplate: { create: mocks.create } } }));
 
 import { POST } from './route';
 
-const BODY = { name: 'Blackwing Lair', short: 'BWL', size: 40, durationMin: 180, requirements: { tank: 4, healer: 10, melee: 12, ranged: 14 }, active: true };
+const BODY = { name: 'Blackwing Lair', short: 'BWL', size: 40, durationMin: 180, requirements: { tank: 4, healer: 10, melee: 12, ranged: 14 }, active: true, instance: null };
 const request = (body: unknown) => new Request('https://example.test/api/raid-templates', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 
 describe('POST /api/raid-templates', () => {
@@ -29,6 +29,17 @@ describe('POST /api/raid-templates', () => {
     expect(mocks.create.mock.calls[0][0].data).toMatchObject({ name: 'Blackwing Lair', short: 'BWL' });
     const bad = await POST(new Request('https://example.test/api/raid-templates', { method: 'POST', body: '{' }));
     expect(bad.status).toBe(400);
+  });
+
+  it('saves a valid instance number and refuses a bad one without saving', async () => {
+    await POST(request({ ...BODY, instance: 249 }));
+    expect(mocks.create.mock.calls[0][0].data).toMatchObject({ instance: 249 });
+    for (const bad of ['24.9', 0, -5, 99_999_999_999]) {
+      const res = await POST(request({ ...BODY, instance: bad }));
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'The instance number is a whole number above 0, or leave it blank.' });
+    }
+    expect(mocks.create).toHaveBeenCalledTimes(1);
   });
 
   it('refuses anyone but an officer', async () => {
