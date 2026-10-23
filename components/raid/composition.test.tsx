@@ -28,6 +28,7 @@ describe('composition displays', () => {
         tonight={false} canRespond={false} past={false} now="2029-12-01T00:00:00Z" onRespond={() => {}} />,
     );
     expect(html.match(/<dt /g)).toHaveLength(3);
+    expect(html).toContain('<span class="sr-only">DPS</span>');
     expect(html).toContain('7<span class="sr-only"> of 25 needed</span>');
   });
 

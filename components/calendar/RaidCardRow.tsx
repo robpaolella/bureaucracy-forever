@@ -77,8 +77,9 @@ export function RaidCardRow({ raid, tonight, canRespond, past, now, onRespond }:
           const tone = countTone(counts[r], needs[r]);
           return (
             <div key={r} className="flex items-baseline gap-1.5 text-sm">
-              <dt className="text-fg-3" aria-label={COMPOSITION_LABELS[r]}>
-                {COMPOSITION_SHORT[r]}
+              <dt className="text-fg-3">
+                <span aria-hidden>{COMPOSITION_SHORT[r]}</span>
+                <span className="sr-only">{COMPOSITION_LABELS[r]}</span>
               </dt>
               <dd className={cn('tabular font-semibold transition-colors duration-[120ms]', TONE_TEXT[tone])}>
                 {counts[r]}
