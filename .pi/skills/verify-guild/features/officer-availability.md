@@ -6,7 +6,7 @@ who has not submitted. The heatmap itself is read-only.
 ## Sub-features
 
 - `roster-heatmap`: submitted count, desktop half-hour grid and phone day summary.
-- `raid-windows`: duration/role minimums and matching windows with `Schedule` links.
+- `raid-windows`: duration/role minimums (tanks, healers, DPS) and matching windows with `Schedule` links.
 - `not-submitted`: expandable member list; Discord nudge is outside this proof.
 
 ## How to get to it (user POV)
@@ -26,9 +26,9 @@ Preconditions: `../SKILL.md` Launch and Doctor PASS; shared rules in [the index]
   Fresh seed includes submissions and seven people under `Hasn't submitted`.
   Click `Show all seven`; snapshot the expanded list. Do not hard-code that count
   after other feature tests change the roster or availability.
-- **Find windows.** Fresh defaults are 3 hours and minimums 2/8/9/11, with
-  `0 found`. Fill `MIN TANKS`, `MIN HEALERS`, `MIN MELEE`, `MIN RANGED` with
-  0/0/0/1. Expect matching windows and named `Schedule <day> <time>` links.
+- **Find windows.** Fresh defaults are 3 hours and minimums 2/8/20 (`MIN TANKS`,
+  `MIN HEALERS`, `MIN DPS`); the fresh seed shows one window at the defaults.
+  Lower `MIN DPS` or raise a minimum to change the list. Expect matching windows and named `Schedule <day> <time>` links.
   Record the displayed windows and guild-time labels; scheduling itself belongs
   to the calendar workflow and is not exercised here.
 - **Phone/end state.** Capture the desktop result, `resize 390 844`, then capture
