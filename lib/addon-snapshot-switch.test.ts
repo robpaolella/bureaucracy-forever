@@ -64,12 +64,12 @@ describe('the reserve snapshot and the Reserves allowed switch', () => {
     expect(body.bosses).toEqual(bosses);
   });
 
-  it('gives Copy reserves no reserve lines while they are off', async () => {
-    const lines = async () => ((await (await copySnapshot(new Request('https://example.test/x'), { params: Promise.resolve({ id }) })).json()) as { parts: string[] }).parts.join('');
-    const on = await lines();
+  it('gives Copy reserves an empty reserves table while they are off', async () => {
+    const table = async () => ((await (await copySnapshot(new Request('https://example.test/x'), { params: Promise.resolve({ id }) })).json()) as { parts: string[] }).parts.map((p) => p.replace(/^BFSNAP1:\d+\/\d+:/, '')).join('');
+    expect(await table()).toContain('reserves={[16800]=');
     state.reservesAllowed = false;
-    const off = await lines();
-    expect(on).not.toBe(off);
-    expect(off.length).toBeLessThan(on.length);
+    const off = await table();
+    expect(off).toContain('reserves={}');
+    expect(off).toContain('name="Lucifron"');
   });
 });
