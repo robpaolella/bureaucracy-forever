@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   if (!page.ok) return pageFailure(page.reason);
   try {
     const table = parseForeverDungeon(page.html);
-    return NextResponse.json({ source: 'FOREVER', name: `WoW Forever: ${dungeon.name}`, file: toIdsFile(table) }, { headers: NO_STORE });
+    return NextResponse.json({ source: 'FOREVER', name: `foreverchanges.pro: ${dungeon.name}`, file: toIdsFile(table) }, { headers: NO_STORE });
   } catch (error) {
     return fail(`${dungeon.name} on foreverchanges.pro couldn’t be read: ${(error as Error).message} ${FALLBACK}`, 422);
   }

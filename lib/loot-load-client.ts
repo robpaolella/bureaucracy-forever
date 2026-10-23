@@ -94,10 +94,37 @@ export async function loadAtlasRaids(fetcher: Fetcher = fetch): Promise<AtlasRai
 }
 
 /** One raid's table. Sends the raid key only; the result is the same LoadFile a chosen file makes. */
-export async function fetchAtlasTable(raidKey: string, fetcher: Fetcher = fetch): Promise<AtlasTableResult> {
+export function fetchAtlasTable(raidKey: string, fetcher: Fetcher = fetch): Promise<AtlasTableResult> {
+  return fetchTable(fetcher, '/api/loot/atlasloot', { raidKey });
+}
+
+/** foreverchanges.pro's dungeons, as the same key/name list the raid choice uses (the key is the slug). */
+export async function loadForeverDungeons(fetcher: Fetcher = fetch): Promise<AtlasRaidsResult> {
   let response: Response;
   try {
-    response = await request(fetcher, '/api/loot/atlasloot', { raidKey });
+    response = await fetcher('/api/loot/foreverchanges', { credentials: 'same-origin' });
+  } catch {
+    return { kind: 'error', error: UNREACHABLE };
+  }
+  const json = await responseJson(response);
+  if (!response.ok) return { kind: 'error', error: routeError(json) };
+  if (!json || !Array.isArray(json.dungeons)) return { kind: 'error', error: UNREACHABLE };
+  const dungeons = json.dungeons.flatMap((d: unknown) => {
+    const { slug, name } = (d && typeof d === 'object' ? d : {}) as { slug?: unknown; name?: unknown };
+    return typeof slug === 'string' && typeof name === 'string' ? [{ key: slug, name }] : [];
+  });
+  return { kind: 'ready', raids: dungeons, source: 'FOREVER' };
+}
+
+/** One dungeon's table, by slug only. */
+export function fetchForeverTable(slug: string, fetcher: Fetcher = fetch): Promise<AtlasTableResult> {
+  return fetchTable(fetcher, '/api/loot/foreverchanges', { slug });
+}
+
+async function fetchTable(fetcher: Fetcher, url: string, body: unknown): Promise<AtlasTableResult> {
+  let response: Response;
+  try {
+    response = await request(fetcher, url, body);
   } catch {
     return { kind: 'error', error: UNREACHABLE };
   }

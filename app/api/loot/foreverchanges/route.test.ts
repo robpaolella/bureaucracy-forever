@@ -37,7 +37,7 @@ describe('foreverchanges route', () => {
   it('returns a dungeon in the file format, to preview as WoW Forever', async () => {
     const body = await (await post({ slug: 'the-deadmines' })).json();
     expect(body.source).toBe('FOREVER');
-    expect(body.name).toBe('WoW Forever: The Deadmines');
+    expect(body.name).toBe('foreverchanges.pro: The Deadmines');
     expect(body.file.bosses.map((b: { name: string }) => b.name)).toContain('Trash');
     expect(body.file.bosses[0]).toMatchObject({ name: 'Rhahk\'Zor', trash: false });
     expect(fetcher.mock.calls.map(([url]) => String(url))).toEqual(['https://foreverchanges.pro/dungeons', 'https://foreverchanges.pro/dungeons/the-deadmines']);

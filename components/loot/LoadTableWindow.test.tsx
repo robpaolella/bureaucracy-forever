@@ -6,7 +6,7 @@ import { ToastHost } from '@/components/ui';
 import type { ApplyResult, LoadFile, PreviewResult } from '@/lib/loot-load-client';
 import { LoadTableWindow } from './LoadTableWindow';
 
-const client = vi.hoisted(() => ({ readLoadFile: vi.fn(), previewLoadTable: vi.fn(), applyLoadTable: vi.fn(), loadAtlasRaids: vi.fn(), fetchAtlasTable: vi.fn() }));
+const client = vi.hoisted(() => ({ readLoadFile: vi.fn(), previewLoadTable: vi.fn(), applyLoadTable: vi.fn(), loadAtlasRaids: vi.fn(), fetchAtlasTable: vi.fn(), loadForeverDungeons: vi.fn(), fetchForeverTable: vi.fn() }));
 vi.mock('@/lib/loot-load-client', async (real) => ({ ...(await real<object>()), ...client }));
 
 const loadFile: LoadFile = {
@@ -24,6 +24,7 @@ const ready = (failed: number[] = [6], added = 4): PreviewResult => ({
   ] },
 });
 
+const dungeons = [{ key: 'the-deadmines', name: 'The Deadmines' }, { key: 'molten-core', name: 'Molten Core' }];
 const atlasRaids = [{ key: 'MoltenCore', name: 'Molten Core' }, { key: 'Onyxia', name: 'Onyxia’s Lair' }];
 let root: Root, host: HTMLDivElement;
 const onClose = vi.fn(), onLoaded = vi.fn();
@@ -34,6 +35,7 @@ beforeEach(() => {
   HTMLDialogElement.prototype.close = function () { this.open = false; };
   client.readLoadFile.mockResolvedValue({ ok: true, value: loadFile });
   client.loadAtlasRaids.mockResolvedValue({ kind: 'ready', source: 'CLASSIC', raids: atlasRaids });
+  client.loadForeverDungeons.mockResolvedValue({ kind: 'ready', source: 'FOREVER', raids: dungeons });
   host = document.createElement('div'); document.body.append(host); root = createRoot(host);
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals(); });
@@ -225,6 +227,67 @@ describe('LoadTableWindow confirm', () => {
     expect(toasts()).toContain('Item ids 2: already cached for Classic.');
     expect(button('Retry')).toBeUndefined();
     expect(button('Load 4 items')).toBeDefined();
+  });
+});
+
+describe('LoadTableWindow WoW Forever', () => {
+  const select = () => host.querySelector<HTMLSelectElement>('select')!;
+  const useForever = async () => act(async () => host.querySelector<HTMLInputElement>('input[value="forever"]')!.click());
+
+  it('asks for the dungeons only once chosen, preselects the template’s match and says where they come from', async () => {
+    await render();
+    expect(client.loadForeverDungeons).not.toHaveBeenCalled();
+    await useForever();
+    expect(select().value).toBe('molten-core');
+    expect([...select().options].map((o) => o.textContent)).toEqual(['Choose a dungeon', 'The Deadmines', 'Molten Core']);
+    expect(host.textContent).toContain('foreverchanges.pro, a fan site for WoW Forever');
+    expect(button('Preview')!.disabled).toBe(false);
+  });
+
+  it('previews the chosen dungeon with Wowhead Forever items, then applies; history gets the dungeon’s name', async () => {
+    client.fetchForeverTable.mockResolvedValue({ kind: 'ok', source: 'FOREVER', value: { ...loadFile, name: 'foreverchanges.pro: Molten Core' } });
+    client.previewLoadTable.mockResolvedValue(ready());
+    await render(); await useForever(); await click('Preview');
+    expect(client.fetchForeverTable).toHaveBeenCalledWith('molten-core');
+    expect(client.fetchAtlasTable).not.toHaveBeenCalled();
+    expect(client.previewLoadTable).toHaveBeenCalledWith(expect.objectContaining({ source: 'FOREVER' }));
+    expect(host.textContent).toContain('From foreverchanges.pro: Molten Core · merge');
+    client.applyLoadTable.mockResolvedValue({ kind: 'success', added: 4, newBosses: 1, removed: 0 });
+    await click('Load 4 items');
+    expect(client.applyLoadTable).toHaveBeenCalledWith(expect.objectContaining({ source: 'FOREVER', token: 'tok', loadFile: expect.objectContaining({ name: 'foreverchanges.pro: Molten Core' }) }));
+  });
+
+  it('shows a failed dungeon list in plain words and applies nothing', async () => {
+    client.loadForeverDungeons.mockResolvedValue({ kind: 'error', error: 'Couldn’t reach foreverchanges.pro, or it was too slow. Try again later, or load a file manually.' });
+    await render(); await useForever();
+    expect(host.querySelector('[role="alert"]')!.textContent).toContain('Try again later, or load a file manually.');
+    expect(button('Preview')!.disabled).toBe(true);
+    expect(client.applyLoadTable).not.toHaveBeenCalled();
+  });
+
+  it('asks again when chosen again after a failure', async () => {
+    client.loadForeverDungeons.mockResolvedValueOnce({ kind: 'error', error: 'Try again later, or load a file manually.' });
+    await render(); await useForever();
+    await act(async () => host.querySelector<HTMLInputElement>('input[value="file"]')!.click());
+    await useForever();
+    expect(client.loadForeverDungeons).toHaveBeenCalledTimes(2);
+    expect(select().value).toBe('molten-core');
+  });
+
+  it('shows a failed dungeon table in plain words, stays on step 1 and applies nothing', async () => {
+    client.fetchForeverTable.mockResolvedValue({ kind: 'error', error: 'Molten Core on foreverchanges.pro couldn’t be read. Try again later, or load a file manually.' });
+    await render(); await useForever(); await click('Preview');
+    expect(host.querySelector('[role="alert"]')!.textContent).toContain('Try again later, or load a file manually.');
+    expect(client.previewLoadTable).not.toHaveBeenCalled();
+    expect(client.applyLoadTable).not.toHaveBeenCalled();
+  });
+
+  it('says so when no dungeon matches the template, until one is chosen', async () => {
+    client.loadForeverDungeons.mockResolvedValue({ kind: 'ready', source: 'FOREVER', raids: [dungeons[0]] });
+    await render(); await useForever();
+    expect(select().value).toBe('');
+    expect(host.querySelector('[role="alert"]')!.textContent).toBe('foreverchanges.pro has no Molten Core. Choose another dungeon or load a file manually.');
+    expect(button('Preview')!.disabled).toBe(true);
   });
 });
 
