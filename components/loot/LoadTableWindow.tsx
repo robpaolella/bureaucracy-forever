@@ -7,8 +7,10 @@ import { cn } from '@/lib/cn';
 import {
   applyLoadTable,
   fetchAtlasTable,
+  fetchForeverTable,
   LOAD_TABLE_MESSAGES,
   loadAtlasRaids,
+  loadForeverDungeons,
   previewLoadTable,
   readLoadFile,
   type AtlasRaidsResult,
@@ -22,7 +24,7 @@ import { ItemLabel } from './ItemName';
 
 type Ready = Extract<PreviewResult, { kind: 'preview' }>;
 type Phase = 'source' | 'fetching' | 'preview' | 'stale';
-type Mode = 'file' | 'atlas';
+type Mode = 'file' | 'atlas' | 'forever';
 
 type Props = {
   open: boolean;
@@ -46,6 +48,9 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
   // null until the server has answered; it also says whether production refuses AtlasLoot's items.
   const [atlas, setAtlas] = useState<AtlasRaidsResult | null>(null);
   const [raidKey, setRaidKey] = useState('');
+  // foreverchanges.pro's dungeons, asked for when that source is first chosen (it is a slow outside site).
+  const [forever, setForever] = useState<AtlasRaidsResult | null>(null);
+  const [dungeonKey, setDungeonKey] = useState('');
   // A raid the server refused as missing; Preview waits until the raid or source changes.
   const [refusedKey, setRefusedKey] = useState<string | null>(null);
   // Replace is chosen on step 1; `loadReplace` is what the current preview was made with.
@@ -63,6 +68,8 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
   const dismiss = useCallback(() => setToast(null), []);
   // Each run gets a number; closing, Stop or a newer run makes an older answer stale.
   const run = useRef(0);
+  // Numbered like `run`, for the dungeon list: closing the window makes a late answer stale.
+  const foreverRun = useRef(0);
   const stopRequested = useRef(false);
   // Saving can't be called back, so the window stays open until its answer arrives.
   const applying = useRef(false);
@@ -79,6 +86,9 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
     setAtlas(null);
     setMode('file');
     setRaidKey('');
+    foreverRun.current++;
+    setForever(null);
+    setDungeonKey('');
     setRefusedKey(null);
     setReplace(false);
     setLoadReplace(false);
@@ -116,6 +126,15 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
     setMode(next);
     setError(null);
     setStopped(false);
+    if (next === 'forever' && (forever === null || forever.kind === 'error')) {
+      const id = ++foreverRun.current;
+      setForever(null);
+      void loadForeverDungeons().then((result) => {
+        if (id !== foreverRun.current) return;
+        setForever(result);
+        if (result.kind === 'ready') setDungeonKey(matchAtlasRaid(result.raids, templateName)?.key ?? '');
+      });
+    }
   }
 
   async function chooseFile(file: File) {
@@ -141,17 +160,18 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
     let itemSource = source;
     let replacing = loadReplace;
     if (!retry) {
-      if (mode === 'atlas') {
-        // A fresh read each time, so Preview again after a stale table sees AtlasLoot as it is now.
-        if (!raidKey) return;
+      if (mode !== 'file') {
+        // A fresh read each time, so Preview again after a stale table sees the source as it is now.
+        const key = mode === 'atlas' ? raidKey : dungeonKey;
+        if (!key) return;
         setBusy('table');
-        const table = await fetchAtlasTable(raidKey);
+        const table = await (mode === 'atlas' ? fetchAtlasTable(key) : fetchForeverTable(key));
         if (id !== run.current) return;
         setBusy(null);
         if (table.kind === 'error') {
           setError(table.error);
           setPhase('source'); // from the stale screen, which never shows the error
-          if (table.missing) setRefusedKey(raidKey);
+          if (table.missing) setRefusedKey(key);
           return;
         }
         current = table.value;
@@ -259,7 +279,7 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
   ) : (
     <Foot note={LOOT_LOAD.confirmHint}>
       <Button variant="ghost" onClick={close}>{LOOT_LOAD.cancel}</Button>
-      <Button loading={busy === 'table'} disabled={mode === 'atlas' ? !raidKey || raidKey === refusedKey || atlas?.kind !== 'ready' : !picked} onClick={() => void startPreview()}>{LOOT_LOAD.preview}</Button>
+      <Button loading={busy === 'table'} disabled={mode === 'atlas' ? !raidKey || raidKey === refusedKey || atlas?.kind !== 'ready' : mode === 'forever' ? !dungeonKey || dungeonKey === refusedKey || forever?.kind !== 'ready' : !picked} onClick={() => void startPreview()}>{LOOT_LOAD.preview}</Button>
     </Foot>
   );
 
@@ -297,6 +317,9 @@ export function LoadTableWindow({ open, onClose, templateId, templateName, onLoa
           atlas={atlas}
           raidKey={raidKey}
           onRaid={(key) => { invalidateTable(); setRaidKey(key); setError(null); }}
+          forever={forever}
+          dungeonKey={dungeonKey}
+          onDungeon={(key) => { invalidateTable(); setDungeonKey(key); setError(null); }}
           templateName={templateName}
           replace={replace}
           onReplace={setReplace}
@@ -322,12 +345,13 @@ function Foot({ note, children }: { note?: string; children: ReactNode }) {
 type SourceStepProps = {
   fileName: string | null; error: string | null; stopped: boolean; onChoose: (file: File) => void;
   mode: Mode; onMode: (mode: Mode) => void; atlas: AtlasRaidsResult | null; raidKey: string; onRaid: (key: string) => void; templateName: string;
+  forever: AtlasRaidsResult | null; dungeonKey: string; onDungeon: (key: string) => void;
   replace: boolean; onReplace: (replace: boolean) => void;
   /** An AtlasLoot table is downloading for the current choices; they stay as they were when Preview was pressed. */
   locked: boolean;
 };
 
-function SourceStep({ fileName, error, stopped, onChoose, mode, onMode, atlas, raidKey, onRaid, templateName, replace, onReplace, locked }: SourceStepProps) {
+function SourceStep({ fileName, error, stopped, onChoose, mode, onMode, atlas, raidKey, onRaid, forever, dungeonKey, onDungeon, templateName, replace, onReplace, locked }: SourceStepProps) {
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
   return (
@@ -351,9 +375,19 @@ function SourceStep({ fileName, error, stopped, onChoose, mode, onMode, atlas, r
           onChange={() => onMode('atlas')}
           className={atlas?.kind === 'off' ? 'cursor-not-allowed border-line bg-ink-800 text-fg-3' : undefined}
         />
+        <Choice card type="radio" name="load-source" value="forever" label={LOOT_LOAD.sourceForever} checked={mode === 'forever'} onChange={() => onMode('forever')} />
       </ChoiceGroup>
       {mode === 'atlas' ? (
         <AtlasRaid atlas={atlas} raidKey={raidKey} onRaid={onRaid} error={error} templateName={templateName} />
+      ) : mode === 'forever' ? (
+        <AtlasRaid
+          atlas={forever}
+          raidKey={dungeonKey}
+          onRaid={onDungeon}
+          error={error}
+          templateName={templateName}
+          copy={{ label: LOOT_LOAD.dungeonLabel, placeholder: LOOT_LOAD.dungeonPlaceholder, loading: LOOT_LOAD.dungeonsLoading, hint: LOOT_LOAD.dungeonHint, missing: LOOT_LOAD.dungeonMissing }}
+        />
       ) : (
       <div>
         <span id={`${id}-label`} className={cn(FIELD_LABEL, 'mb-2 block')}>{LOOT_LOAD.fileLabel}</span>
@@ -401,18 +435,21 @@ function SourceStep({ fileName, error, stopped, onChoose, mode, onMode, atlas, r
   );
 }
 
-function AtlasRaid({ atlas, raidKey, onRaid, error, templateName }: { atlas: AtlasRaidsResult | null; raidKey: string; onRaid: (key: string) => void; error: string | null; templateName: string }) {
+const RAID_COPY = { label: LOOT_LOAD.raidLabel, placeholder: LOOT_LOAD.raidPlaceholder, loading: LOOT_LOAD.raidsLoading, hint: LOOT_LOAD.raidHint, missing: LOOT_LOAD.raidMissing };
+
+/** The choice of one raid (AtlasLoot) or dungeon (foreverchanges.pro) to load. */
+function AtlasRaid({ atlas, raidKey, onRaid, error, templateName, copy = RAID_COPY }: { atlas: AtlasRaidsResult | null; raidKey: string; onRaid: (key: string) => void; error: string | null; templateName: string; copy?: typeof RAID_COPY }) {
   const raids = atlas?.kind === 'ready' ? atlas.raids : [];
   // No raid chosen once the list is here means nothing matched the tier's name.
-  const message = atlas?.kind === 'error' ? atlas.error : atlas?.kind === 'ready' && !raidKey ? LOOT_LOAD.raidMissing(templateName) : error;
+  const message = atlas?.kind === 'error' ? atlas.error : atlas?.kind === 'ready' && !raidKey ? copy.missing(templateName) : error;
   return (
     <Select
-      label={LOOT_LOAD.raidLabel}
+      label={copy.label}
       value={raidKey}
       disabled={atlas?.kind !== 'ready'}
       onChange={(event) => onRaid(event.target.value)}
-      options={[{ value: '', label: atlas === null ? LOOT_LOAD.raidsLoading : LOOT_LOAD.raidPlaceholder }, ...raids.map((raid) => ({ value: raid.key, label: raid.name }))]}
-      hint={LOOT_LOAD.raidHint}
+      options={[{ value: '', label: atlas === null ? copy.loading : copy.placeholder }, ...raids.map((raid) => ({ value: raid.key, label: raid.name }))]}
+      hint={copy.hint}
       error={message ? <span role="alert">{message}</span> : undefined}
     />
   );
