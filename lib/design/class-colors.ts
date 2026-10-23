@@ -41,7 +41,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   ranged: 'Ranged DPS',
 };
 
-/** Short forms for the officer heatmap tooltip and window results: "2T · 8H · 9M · 11R". */
+/** Short forms for a raid's role counts on the calendar cards. */
 export const ROLE_SHORT: Record<Role, string> = {
   tank: 'T', healer: 'H', melee: 'M', ranged: 'R',
 };
