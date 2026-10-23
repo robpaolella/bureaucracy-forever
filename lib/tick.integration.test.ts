@@ -8,7 +8,7 @@ import { PrismaClient } from '@/lib/generated/prisma/client';
 const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient }));
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => false }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => false, openUntilStart: () => false }));
 import { notifyVoiceJoin, runTick } from './tick';
 
 // TICK_INTEGRATION=1 npx vitest run lib/tick.integration.test.ts

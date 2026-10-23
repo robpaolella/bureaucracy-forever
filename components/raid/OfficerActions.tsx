@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useId, useState, type FormEvent } from 'react';
 import { Button, ButtonLink, Field, Modal, Select, Sheet, Textarea, useToast, type ToastData } from '@/components/ui';
-import { raidToInput, RESPONSES, type RaidCard, type RaidInput, type RaidResponse } from '@/lib/raids';
+import { raidToInput, RESPONSES, type RaidCard, type RaidInput, type RaidResponse, type RaidTemplateOption } from '@/lib/raids';
 import { SAVE_FAILED } from '@/content/calendar';
 import { OFFICER_ACTIONS, onBehalfToast, RAID_TOASTS } from '@/content/raid';
 import { RaidForm } from './RaidForm';
@@ -19,6 +19,10 @@ type Props = {
   threadUrl: string | null;
   /** Generated from a weekly series: deleting it skips that week. */
   fromSeries: boolean;
+  /** The raid's own template, once it has one; it cannot be changed. */
+  template: { id: string; name: string } | null;
+  /** Active templates, for an older raid that has none yet. */
+  templates: RaidTemplateOption[];
 };
 
 const RESPONSE_LABEL: Record<RaidResponse, string> = { accept: 'Accept', tentative: 'Tentative', absent: 'Absent' };
@@ -42,7 +46,7 @@ async function failureMessage(res: Response): Promise<string> {
  * with Restore; Delete removes the raid for good, quietly. On phones the row collapses
  * into one button that opens a sheet.
  */
-export function OfficerActions({ raid, members, past, threadUrl, fromSeries }: Props) {
+export function OfficerActions({ raid, members, past, threadUrl, fromSeries, template, templates }: Props) {
   const router = useRouter();
   const setToast = useToast();
   const [open, setOpen] = useState(false);
@@ -58,8 +62,9 @@ export function OfficerActions({ raid, members, past, threadUrl, fromSeries }: P
     try {
       const res = await patchRaid(raid.id, input);
       if (!res.ok) return failureMessage(res);
+      const saved = (await res.json().catch(() => null)) as { name?: string } | null;
       setEditing(false);
-      setToast({ tone: 'ok', title: RAID_TOASTS.edited(input.name) });
+      setToast({ tone: 'ok', title: RAID_TOASTS.edited(saved?.name ?? raid.name) });
       router.refresh();
       return null;
     } catch {
@@ -179,7 +184,7 @@ export function OfficerActions({ raid, members, past, threadUrl, fromSeries }: P
       </div>
 
       <Modal open={editing} onClose={() => setEditing(false)} title={OFFICER_ACTIONS.editTitle}>
-        {editing && <RaidForm initial={raidToInput(raid)} submitLabel={OFFICER_ACTIONS.save} onSubmit={saveEdit} onCancel={() => setEditing(false)} />}
+        {editing && <RaidForm initial={raidToInput({ ...raid, templateId: template?.id })} templates={template ? [{ ...template, durationMin: raid.durationMin, requirements: raid.requirements }] : templates} templateLocked={template !== null} submitLabel={OFFICER_ACTIONS.save} onSubmit={saveEdit} onCancel={() => setEditing(false)} />}
       </Modal>
 
       <Modal

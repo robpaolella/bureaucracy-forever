@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.session }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.loot }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.loot, openUntilStart: () => false }));
 vi.mock('@/lib/db', () => ({ db: { lootTableEntry: { findFirst: mocks.entry } } }));
 vi.mock('@/lib/loot-blocks', () => ({ setItemBlocked: mocks.setBlocked, blockItem: mocks.block, unlockedHolders: mocks.holders, itemWinLimit: mocks.limit, setItemWinLimit: mocks.setLimit }));
 

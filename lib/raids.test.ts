@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, emptyRaidInput, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, linkOpensReserves, parseRequirements, promptsReserves, raidDate, raidWeekday, reservesUrl, responseToast, sourceSplit, totalCounts, viewerReserves, ZERO_COUNTS, type RaidCard, type SignupRow } from './raids';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, durationLabel, durationOptions, emptyRaidInput, locksAtFor, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, linkOpensReserves, parseRequirements, promptsReserves, raidDate, raidWeekday, reservesUrl, responseToast, sourceSplit, totalCounts, viewerReserves, ZERO_COUNTS, type RaidCard, type SignupRow } from './raids';
 
 describe('requirements and counts', () => {
   it('parses a JSON requirements column defensively', () => {
@@ -202,7 +202,7 @@ describe('raid detail', () => {
 });
 
 describe('schedule form input', () => {
-  const good = { name: 'Blackwing Lair', date: '2026-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 }, notes: '' };
+  const good = { templateId: 't1', date: '2026-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 }, notes: '' };
 
   it('derives the instant in guild time', () => {
     const r = parseRaidInput(good);
@@ -210,14 +210,16 @@ describe('schedule form input', () => {
     if (r.ok) {
       // 4 Nov 2026 is after the US fall-back: 19:00 PST is 03:00Z next day.
       expect(r.startsAt.toISOString()).toBe('2026-11-05T03:00:00.000Z');
-      expect(r.value.name).toBe('Blackwing Lair');
+      expect(r.value.templateId).toBe('t1');
+      expect(r.value).not.toHaveProperty('name');
     }
     const summer = parseRaidInput({ ...good, date: '2026-10-07' });
     if (summer.ok) expect(summer.startsAt.toISOString()).toBe('2026-10-08T02:00:00.000Z');
   });
 
   it('names the field that failed', () => {
-    expect(parseRaidInput({ ...good, name: ' ' })).toMatchObject({ ok: false, error: /name/ });
+    expect(parseRaidInput({ ...good, templateId: '' })).toMatchObject({ ok: false, error: 'Pick a raid template.' });
+    expect(parseRaidInput({ ...good, name: 'Typed', templateId: undefined })).toMatchObject({ ok: false, error: 'Pick a raid template.' });
     expect(parseRaidInput({ ...good, date: '2026-13-01' })).toMatchObject({ ok: false, error: /not real/ });
     expect(parseRaidInput({ ...good, date: '2026-02-30' })).toMatchObject({ ok: false, error: /not real/ });
     // 14 Mar 2027 the clocks jump 02:00 → 03:00 in Los Angeles: 02:30 never happens.
@@ -231,8 +233,9 @@ describe('schedule form input', () => {
   });
 
   it('round-trips a stored raid through the form values', () => {
-    const input = raidToInput({ name: 'MC', startsAt: '2026-10-08T02:00:00.000Z', durationMin: 180, requirements: good.requirements, notes: null });
-    expect(input).toMatchObject({ date: '2026-10-07', time: '19:00', notes: '' });
+    const input = raidToInput({ templateId: 't1', startsAt: '2026-10-08T02:00:00.000Z', durationMin: 180, requirements: good.requirements, notes: null });
+    expect(input).toMatchObject({ templateId: 't1', date: '2026-10-07', time: '19:00', notes: '' });
+    expect(raidToInput({ templateId: null, startsAt: '2026-10-08T02:00:00.000Z', durationMin: 180, requirements: good.requirements, notes: null }).templateId).toBe('');
   });
 
   it('prefills the next matching guild-time weekday from a heatmap window', () => {
@@ -240,6 +243,25 @@ describe('schedule form input', () => {
     const now = new Date('2026-09-26T17:00:00.000Z');
     expect(emptyRaidInput({ weekday: 3, time: '20:00', length: 240 }, now)).toMatchObject({ date: '2026-09-30', time: '20:00', durationMin: 240 });
     expect(emptyRaidInput({}, now)).toMatchObject({ date: '2026-09-26', time: '19:00', durationMin: 180, requirements: DEFAULT_REQUIREMENTS });
+  });
+});
+
+describe('raid lengths', () => {
+  const good = { templateId: 't1', date: '2026-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 }, notes: '' };
+
+  it('accepts template lengths: 30–480 minutes in quarter hours', () => {
+    for (const m of [30, 45, 75, 180, 420, 480]) expect(parseRaidInput({ ...good, durationMin: m }).ok).toBe(true);
+    for (const m of [20, 500, 100, 15, 495, 90.5]) expect(parseRaidInput({ ...good, durationMin: m })).toMatchObject({ ok: false, error: /length/ });
+  });
+
+  it('adds a template length to the dropdown choices, in order', () => {
+    expect(durationOptions(180)).toEqual([90, 120, 150, 180, 210, 240, 270, 300, 330, 360]);
+    expect(durationOptions(75)).toEqual([75, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360]);
+    expect(durationOptions(420)[10]).toBe(420);
+  });
+
+  it('labels quarter hours', () => {
+    expect([45, 60, 75, 90, 120, 135, 150].map(durationLabel)).toEqual(['45 minutes', '1 hour', '1 hour 15 minutes', '1½ hours', '2 hours', '2 hours 15 minutes', '2½ hours']);
   });
 });
 
@@ -276,5 +298,20 @@ describe('mergeLocal', () => {
     const fresh = card({ mine: 'accept', counts: { tank: 2, healer: 8, melee: 9, ranged: 11 } });
     expect(mergeLocal([fresh], local)[0]).toBe(fresh);
     expect(mergeLocal([card({ id: 'y' })], local)[0].mine).toBeNull();
+  });
+});
+
+describe('locksAtFor', () => {
+  const start = new Date('2026-11-05T04:00:00Z');
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('is the gap before the start', () => {
+    expect(locksAtFor(start).toISOString()).toBe('2026-11-05T02:00:00.000Z');
+    expect(locksAtFor(start, 30).toISOString()).toBe('2026-11-05T03:30:00.000Z');
+  });
+
+  it('is the start with OPEN_UNTIL_START on, whatever gap is passed', () => {
+    vi.stubEnv('OPEN_UNTIL_START', 'true');
+    for (const gap of [undefined, 0, 30, 1440]) expect(locksAtFor(start, gap).toISOString()).toBe(start.toISOString());
   });
 });

@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ raid: vi.fn(), characters: vi.fn() }));
 vi.mock('@/lib/db', () => ({ db: { raid: { findUnique: mocks.raid }, character: { findMany: mocks.characters } } }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => false }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => false, openUntilStart: () => false }));
 import { loadRaidView } from './raid-view';
 
 const main = { id: 'main', name: 'Samplemain', class: 'WARRIOR', spec: 'Protection', raidRole: 'TANK' };

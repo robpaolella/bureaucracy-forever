@@ -29,7 +29,7 @@ mocks.tx = {
 };
 
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.session }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.loot }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.loot, openUntilStart: () => false }));
 vi.mock('@/lib/users', () => ({ ensureUser: async () => ({ id: 'officer-user' }) }));
 vi.mock('@/lib/loot-blocks', () => ({ lockReserveTier: mocks.lock }));
 vi.mock('@/lib/loot-data', () => ({ tableItemIds: mocks.items }));

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ loot: true, findMany: vi.fn(), findUnique: vi.fn(), refresh: vi.fn() }));
 
 vi.mock('@/lib/session', () => ({ getSession: async () => ({ role: 'officer' }) }));
-vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.loot }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => mocks.loot, openUntilStart: () => false }));
 vi.mock('@/lib/loot-items', () => ({ refreshItems: mocks.refresh }));
 vi.mock('@/lib/db', () => ({ db: { lootItem: { findMany: mocks.findMany, findUnique: mocks.findUnique } } }));
 

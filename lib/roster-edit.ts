@@ -21,13 +21,13 @@ export type ParsedCharacter = { ok: true; value: CharacterInput } | { ok: false;
 
 /**
  * WoW Forever names are two parts, a first and a second name, each 2–12 letters, shown as
- * "First Second". One part alone is still accepted for characters named before the second
- * name existed. Each part is normalised the way the game does: one capital, the rest lower.
+ * "First Second". Both are required when a name is entered; characters stored with one part
+ * still display (see `splitName`) but need the second name to be saved again. Each part is normalised the way the game does: one capital, the rest lower.
  * (× and ÷ sit inside the Latin-1 letter block and are skipped.)
  */
 export const NAME_PART = /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,12}$/;
-export const NAME_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,12}( [A-Za-zÀ-ÖØ-öø-ÿ]{2,12})?$/;
-export const NAME_ERROR = 'Character names are a first name, and a second name if the character has one, 2 to 12 letters each.';
+export const NAME_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,12}( [A-Za-zÀ-ÖØ-öø-ÿ]{2,12})$/;
+export const NAME_ERROR = 'Character names are a first and a second name, 2 to 12 letters each, exactly as in game.';
 
 export function normaliseName(raw: string): string {
   return raw
@@ -39,15 +39,15 @@ export function normaliseName(raw: string): string {
 }
 
 /**
- * "First Second" from the two parts; the second may be empty. Null when either part is not a
- * name. The pattern is tested on the normalised form, since capitalising can leave the
+ * "First Second" from the two parts; Null when either part is not a
+ * name, including an empty second name. The pattern is tested on the normalised form, since capitalising can leave the
  * Latin-1 block (ÿ → Ÿ) or lengthen a name (ß → SS).
  */
 export function fullName(first: string, second: string): string | null {
   const a = normaliseName(first);
   const b = normaliseName(second);
-  if (!NAME_PART.test(a) || (b && !NAME_PART.test(b))) return null;
-  return b ? `${a} ${b}` : a;
+  if (!NAME_PART.test(a) || !NAME_PART.test(b)) return null;
+  return `${a} ${b}`;
 }
 
 /** The two parts of a stored name, for the form. */

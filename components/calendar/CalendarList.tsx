@@ -8,7 +8,7 @@ import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { Button, EmptyState, SegmentedControl, Toast, type ToastData } from '@/components/ui';
 import type { Role } from '@/lib/design/class-colors';
 import { sortNeedsAnswerFirst } from '@/lib/calendar-grid';
-import { isTonight, isUpcoming, raidWeekday, responseToast, type RaidCard, type RaidInput, type RaidResponse } from '@/lib/raids';
+import { isTonight, isUpcoming, raidWeekday, responseToast, type RaidCard, type RaidInput, type RaidResponse, type RaidTemplateOption } from '@/lib/raids';
 import { MonthGrid } from './MonthGrid';
 import { AVAILABILITY_PROMPT, CALENDAR_EMPTY, CALENDAR_PAST_EMPTY, MONTH, SAVE_FAILED, SCHEDULE_RAID, scheduledToast } from '@/content/calendar';
 import { RaidCardRow } from './RaidCardRow';
@@ -21,7 +21,7 @@ type Props = {
   raids: RaidCard[];
   viewer: { role: 'social' | 'member' | 'officer'; raidRole: Role | null; availabilitySubmitted: boolean };
   /** Officers only: the blank (or window-prefilled) form, and whether `?new=1` asked for it open. */
-  schedule?: { initial: RaidInput; openOnLoad: boolean };
+  schedule?: { initial: RaidInput; templates: RaidTemplateOption[]; openOnLoad: boolean };
 };
 
 /**
@@ -153,7 +153,7 @@ export function CalendarList({ raids: initial, viewer, schedule }: Props) {
         </ol>
       )}
 
-      {schedule && <ScheduleRaidModal open={scheduling} initial={schedule.initial} onClose={closeSchedule} onScheduled={onScheduled} />}
+      {schedule && <ScheduleRaidModal open={scheduling} initial={schedule.initial} templates={schedule.templates} onClose={closeSchedule} onScheduled={onScheduled} />}
       {reserveWindow}
       <Toast toast={toast} onDismiss={() => setToast(null)} />
     </div>

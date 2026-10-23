@@ -1,8 +1,8 @@
 import { after, NextResponse } from 'next/server';
 import { enqueue } from '@/lib/outbox';
 import { db } from '@/lib/db';
-import { locksAtFor, parseRaidInput } from '@/lib/raids';
-import { skippedDatesFor } from '@/lib/series';
+import { locksAtFor, parseRaidInput, PICK_TEMPLATE } from '@/lib/raids';
+import { instanceName, skippedDatesFor } from '@/lib/series';
 import { getSession } from '@/lib/session';
 
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
@@ -19,7 +19,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (session.role !== 'officer') return NextResponse.json({ error: 'Officers manage raids.' }, { status: 403, headers: NO_STORE });
 
   const { id } = await params;
-  const raid = await db.raid.findUnique({ where: { id }, select: { id: true, startsAt: true, durationMin: true, cancelledAt: true, discordThreadId: true, locksAt: true } });
+  const raid = await db.raid.findUnique({ where: { id }, select: { id: true, startsAt: true, durationMin: true, cancelledAt: true, discordThreadId: true, locksAt: true, templateId: true, template: { select: { name: true } } } });
   if (!raid) return NextResponse.json({ error: 'No such raid.' }, { status: 404, headers: NO_STORE });
   if (raid.startsAt.getTime() + raid.durationMin * 60_000 < Date.now()) {
     return NextResponse.json({ error: 'This raid has already happened.' }, { status: 409, headers: NO_STORE });
@@ -47,16 +47,27 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   // Restore first, then edit: the page disables Edit on a cancelled raid, and the route agrees.
   if (raid.cancelledAt) return NextResponse.json({ error: 'Restore the raid before editing it.' }, { status: 409, headers: NO_STORE });
-  const parsed = parseRaidInput(b);
+  // A raid keeps the template it was made from; one made without a template must be given an active one.
+  const sent = typeof b.templateId === 'string' ? b.templateId : null;
+  if (raid.templateId && sent !== null && sent !== raid.templateId) {
+    return NextResponse.json({ error: "A raid's template can't be changed. Delete it and schedule it again." }, { status: 400, headers: NO_STORE });
+  }
+  const parsed = parseRaidInput({ ...b, templateId: raid.templateId ?? sent });
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400, headers: NO_STORE });
   if (parsed.startsAt.getTime() + parsed.value.durationMin * 60_000 < Date.now()) {
     return NextResponse.json({ error: 'That start is already in the past.' }, { status: 400, headers: NO_STORE });
   }
   const { value } = parsed;
-  // Moving the start moves the lock with it; an edited instance leaves its series' edits (SYNC-SPEC §3 detached).
+  let templateName = raid.template?.name;
+  if (!raid.templateId) {
+    const picked = await db.raidTemplate.findFirst({ where: { id: value.templateId, active: true }, select: { name: true } });
+    if (!picked) return NextResponse.json({ error: PICK_TEMPLATE }, { status: 400, headers: NO_STORE });
+    templateName = picked.name;
+  }
+  // The name is recomputed from the template's current name and the date. Moving the start moves the lock with it; an edited instance leaves its series' edits (SYNC-SPEC §3 detached).
   const updated = await db.raid.update({
     where: { id: raid.id },
-    data: { name: value.name, startsAt: parsed.startsAt, locksAt: locksAtFor(parsed.startsAt, Math.round((raid.startsAt.getTime() - raid.locksAt.getTime()) / 60_000)), durationMin: value.durationMin, requirements: value.requirements, notes: value.notes || null, detached: true },
+    data: { name: instanceName(templateName!, parsed.startsAt), templateId: value.templateId, startsAt: parsed.startsAt, locksAt: locksAtFor(parsed.startsAt, Math.round((raid.startsAt.getTime() - raid.locksAt.getTime()) / 60_000)), durationMin: value.durationMin, requirements: value.requirements, notes: value.notes || null, detached: true },
     select: { id: true, name: true, startsAt: true, discordThreadId: true },
   });
   if (updated.discordThreadId) after(() => enqueue('raid.update', { raidId: raid.id }));
