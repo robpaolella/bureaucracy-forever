@@ -23,7 +23,7 @@ rules in [the index](README.md). Use fresh handles after every action.
   `1440 900`, snapshot. Fresh seed: Barrow Deeps, Hyjal Summit and Onyxia's Lair, with `No series yet…`.
 - **Template.** Click `New template`. Fill `NAME` = `Verification 85`, `SHORT` =
   `V85`, leave `SIZE` = 40 and `LENGTH (MINUTES)` = 180. Fill `Tank`, `Healer`,
-  `Melee DPS`, `Ranged DPS` with 4, 12, 10, 14; keep `Active` checked. Capture
+  `DPS` with 4, 12, 24; keep `Active` checked. Capture
   the filled dialog, click `Save template`, and wait for the dialog to close.
   Fully reopen `/officers/raids`; expect the named row with those saved values.
 - **Series.** In `New series`, select Onyxia's Lair, Thursday, `START (GUILD TIME)`
