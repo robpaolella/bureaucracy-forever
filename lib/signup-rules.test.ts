@@ -51,6 +51,18 @@ describe('sign-up rules', () => {
         { standing: 'BENCH', response: 'accept', role: 'healer' },
         { standing: 'ROSTER', response: 'accept', role: null },
       ]),
-    ).toEqual({ tank: 1, healer: 0, melee: 0, ranged: 0 });
+    ).toEqual({ tank: 1, healer: 0, dps: 0 });
+  });
+
+  it('bars count melee and ranged roster acceptances as DPS, and never a tentative one', () => {
+    expect(
+      countsForBars([
+        { standing: 'ROSTER', response: 'accept', role: 'melee' },
+        { standing: 'ROSTER', response: 'accept', role: 'ranged' },
+        { standing: 'ROSTER', response: 'tentative', role: 'ranged' },
+        { standing: 'BENCH', response: 'accept', role: 'melee' },
+        { standing: 'ROSTER', response: 'accept', role: 'unknown' },
+      ]),
+    ).toEqual({ tank: 0, healer: 0, dps: 2 });
   });
 });

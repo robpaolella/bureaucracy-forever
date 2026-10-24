@@ -3,7 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button, Card, Modal, StatusPill, ToastHost, useToast } from '@/components/ui';
-import { ROLES } from '@/lib/design/class-colors';
+import { COMPOSITION_LABELS, COMPOSITION_ROLES } from '@/lib/design/class-colors';
+import { toComposition } from '@/lib/raids';
 import { WEEKDAY_LABELS, type SeriesInput, type TemplateInput } from '@/lib/raid-series-rules';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { GUILD_TIMEZONE } from '@/lib/config';
@@ -144,7 +145,7 @@ function Planner({ templates, series, canDeleteTemplates }: Props) {
                     {t.name} <span className="text-fg-3">· {t.short}</span>
                   </span>
                   <span className="tabular text-[13px] text-fg-3">
-                    {t.size}-player · {t.durationMin} min · {ROLES.map((r) => t.requirements[r]).join(' / ')} · {t.instance === null ? TEMPLATES.instanceNone : TEMPLATES.instanceSet(t.instance)}
+                    {t.size}-player · {t.durationMin} min · {COMPOSITION_ROLES.map((r) => `${COMPOSITION_LABELS[r]} ${toComposition(t.requirements)[r]}`).join(' · ')} · {t.instance === null ? TEMPLATES.instanceNone : TEMPLATES.instanceSet(t.instance)}
                   </span>
                 </div>
                 <StatusPill tone={t.active ? 'ok' : 'closed'}>{t.active ? TEMPLATES.active : TEMPLATES.inactive}</StatusPill>
