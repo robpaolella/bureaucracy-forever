@@ -2,12 +2,12 @@ import { LocalTime } from '@/components/time/LocalTime';
 import { ProgressTrack } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { COMPOSITION_LABELS, COMPOSITION_ROLES } from '@/lib/design/class-colors';
-import { countTone, toComposition, totalCounts, type RoleCounts } from '@/lib/raids';
+import { countTone, toComposition, totalCounts, type Composition, type RoleCounts } from '@/lib/raids';
 import { SUMMARY } from '@/content/raid';
 
 type Props = {
   counts: RoleCounts;
-  requirements: RoleCounts;
+  requirements: Composition;
   split: { web: number; discord: number };
   notes: string | null;
   cancelled: boolean;
@@ -23,11 +23,10 @@ const TONE_TEXT = { ok: 'text-ok', warn: 'text-warn', stop: 'text-stop' } as con
  * large tabular figure, a 6px track per role, the web / Discord split so officers see
  * which surface answers came from, when sign-ups lock, then the officer's notes as prose.
  */
-export function RaidSummary({ counts: stored, requirements: needs, split, notes, cancelled, status, locksAt }: Props) {
+export function RaidSummary({ counts: stored, requirements, split, notes, cancelled, status, locksAt }: Props) {
   const counts = toComposition(stored);
-  const requirements = toComposition(needs);
   const total = totalCounts(stored);
-  const required = totalCounts(needs);
+  const required = totalCounts(requirements);
   return (
     <aside className="flex flex-col gap-5 rounded-card border border-line bg-ink-850 p-5" aria-labelledby="raid-summary">
       <div className="flex flex-col gap-1">
