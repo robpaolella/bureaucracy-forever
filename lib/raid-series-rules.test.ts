@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { parseSeriesInput, parseTemplateInput } from './raid-series-rules';
 
 describe('template and series input', () => {
+  it('keeps storing four requirement keys', () => {
+    const parsed = parseTemplateInput({ name: 'Molten Core', short: 'MC', size: 40, durationMin: 180, requirements: { tank: 4, healer: 12, melee: 10, ranged: 14 } });
+    expect(parsed).toMatchObject({ ok: true, value: { requirements: { tank: 4, healer: 12, melee: 10, ranged: 14 } } });
+  });
+
   it('requires the requirements to add up to the size', () => {
     const good = { name: 'Molten Core', short: 'MC', size: 40, durationMin: 180, requirements: { tank: 4, healer: 12, melee: 10, ranged: 14 } };
     expect(parseTemplateInput(good)).toMatchObject({ ok: true, value: { active: true } });

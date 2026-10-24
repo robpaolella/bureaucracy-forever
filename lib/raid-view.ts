@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import type { Role } from '@/lib/design/class-colors';
 import { lootEnabled } from '@/lib/flags';
-import { parseRequirements, viewerReserves, type RaidResponse, type RoleCounts } from '@/lib/raids';
+import { toComposition, viewerReserves, type Composition, type RaidResponse } from '@/lib/raids';
 import { countsForBars } from '@/lib/signup-rules';
 import { SITE_URL } from '@/lib/config';
 
@@ -26,9 +26,9 @@ export type RaidView = {
   cancelledReason: string | null;
   late: boolean;
   template: { name: string; short: string; size: number } | null;
-  requirements: RoleCounts;
+  requirements: Composition;
   /** Roster acceptances per role, for the composition bars. */
-  bars: RoleCounts;
+  bars: Composition;
   counts: { accepted: number; tentative: number; declined: number; unanswered: number; bench: number; roster: number; attended: number };
   discord: { threadId: string | null; messageId: string | null };
   url: string;
@@ -69,8 +69,8 @@ export async function loadRaidView(id: string, viewerDiscordId: string | null): 
     cancelledReason: r.status === 'CANCELLED' ? r.cancelReason : null,
     late: r.postedAt !== null && r.startsAt.getTime() - r.postedAt.getTime() < postAhead - 24 * 3_600_000,
     template: r.template,
-    requirements: parseRequirements(r.requirements),
-    bars: countsForBars(rows) as RoleCounts,
+    requirements: toComposition(r.requirements),
+    bars: countsForBars(rows),
     counts: {
       accepted: roster.filter((s) => s.response === 'accept').length,
       tentative: rows.filter((s) => s.response === 'tentative').length,

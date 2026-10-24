@@ -3,7 +3,7 @@
  * and the sign-up hook lean on these so the optimistic update and the toast copy are
  * unit-tested rather than improvised in components.
  */
-import type { Role, WowClass } from '@/lib/design/class-colors';
+import type { CompositionRole, Role, WowClass } from '@/lib/design/class-colors';
 import { GUILD_TIMEZONE, SITE_URL } from '@/lib/config';
 import { openUntilStart } from '@/lib/flags';
 import { reservesLocked } from '@/lib/loot-rules';
@@ -43,6 +43,19 @@ export type RaidCard = {
 
 export function isRaidResponse(value: unknown): value is RaidResponse {
   return typeof value === 'string' && (RESPONSES as readonly string[]).includes(value);
+}
+
+/** What displays and the bot show: Tanks, Healers and DPS. Storage and forms stay `RoleCounts` until #455. */
+export type Composition = Record<CompositionRole, number>;
+
+/**
+ * Display adapter for stored requirements or role counts. A stored `dps` is used as is;
+ * otherwise DPS is melee plus ranged. Anything malformed reads as zeros.
+ */
+export function toComposition(value: unknown): Composition {
+  const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  const n = (k: string) => (typeof v[k] === 'number' && Number.isFinite(v[k]) && (v[k] as number) >= 0 ? Math.floor(v[k] as number) : 0);
+  return { tank: n('tank'), healer: n('healer'), dps: typeof v.dps === 'number' ? n('dps') : n('melee') + n('ranged') };
 }
 
 /** Requirements come from a JSON column; anything malformed reads as zero rather than throwing. */
