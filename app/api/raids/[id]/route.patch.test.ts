@@ -110,9 +110,11 @@ describe('PATCH /api/raids/[id] (edit)', () => {
     });
 
     it('must add up to the template size', async () => {
-      const res = await patch({ requirements: { tank: 1, healer: 8, dps: 20 } });
-      expect(res.status).toBe(400);
-      expect(await res.json()).toEqual({ error: 'Tank, healer and DPS must add up to 30.' });
+      for (const requirements of [{ tank: 1, healer: 8, dps: 20 }, { tank: 0, healer: 0, dps: 0 }]) {
+        const res = await patch({ requirements });
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({ error: 'Tank, healer and DPS must add up to 30.' });
+      }
       expect(mocks.update).not.toHaveBeenCalled();
     });
 
@@ -150,7 +152,9 @@ describe('PATCH /api/raids/[id] (edit)', () => {
 
     it('only needs someone, not the picked template size', async () => {
       expect((await patch({ templateId: 't2', requirements: { tank: 1, healer: 0, dps: 0 } })).status).toBe(200);
-      expect((await patch({ templateId: 't2', requirements: { tank: 0, healer: 0, dps: 0 } })).status).toBe(400);
+      const res = await patch({ templateId: 't2', requirements: { tank: 0, healer: 0, dps: 0 } });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'A raid needs at least one person.' });
     });
 
     it('gets the template and the name', async () => {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { toComposition, applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, durationLabel, durationOptions, emptyRaidInput, locksAtFor, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, linkOpensReserves, parseRequirements, parseRequirementsInput, promptsReserves, raidDate, raidWeekday, reservesUrl, responseToast, sourceSplit, totalCounts, viewerReserves, type RaidCard, type SignupRow } from './raids';
+import { toComposition, applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, durationLabel, durationOptions, emptyRaidInput, locksAtFor, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, linkOpensReserves, neededError, parseRequirements, parseRequirementsInput, promptsReserves, raidDate, raidWeekday, reservesUrl, responseToast, sourceSplit, totalCounts, viewerReserves, type RaidCard, type SignupRow } from './raids';
 
 describe('requirements and counts', () => {
   it('parses a JSON requirements column defensively', () => {
@@ -257,8 +257,12 @@ describe('schedule form input', () => {
     expect(parseRaidInput({ ...good, time: '7pm' })).toMatchObject({ ok: false, error: /start time/ });
     expect(parseRaidInput({ ...good, durationMin: 100 })).toMatchObject({ ok: false, error: /length/ });
     expect(parseRaidInput({ ...good, requirements: { tank: 2, healer: 8, dps: 41 } })).toMatchObject({ ok: false, error: /0 to 40/ });
-    expect(parseRaidInput({ ...good, requirements: { tank: 0, healer: 0, dps: 0 } })).toMatchObject({ ok: false, error: /at least one/ });
-    expect(parseRaidInput({ ...good, requirements: { tank: 0, healer: 0, melee: 0, ranged: 0 } })).toMatchObject({ ok: false, error: /at least one/ });
+    // The total is the route's check, against the template.
+    expect(parseRaidInput({ ...good, requirements: { tank: 0, healer: 0, dps: 0 } })).toMatchObject({ ok: true });
+    expect(neededError({ tank: 0, healer: 0, dps: 0 }, 20)).toBe('Tank, healer and DPS must add up to 20.');
+    expect(neededError({ tank: 2, healer: 3, dps: 15 }, 20)).toBeNull();
+    expect(neededError({ tank: 0, healer: 0, dps: 0 }, null)).toBe('A raid needs at least one person.');
+    expect(neededError({ tank: 0, healer: 0, dps: 3 }, null)).toBeNull();
     expect(parseRaidInput({ ...good, notes: 'x'.repeat(501) })).toMatchObject({ ok: false, error: /notes/ });
   });
 

@@ -2,7 +2,7 @@ import { after, NextResponse } from 'next/server';
 import { setReservesAllowed } from '@/lib/loot-blocks';
 import { enqueue } from '@/lib/outbox';
 import { db } from '@/lib/db';
-import { locksAtFor, mustAddUpTo, parseRaidInput, PICK_TEMPLATE, totalCounts } from '@/lib/raids';
+import { locksAtFor, neededError, parseRaidInput, PICK_TEMPLATE } from '@/lib/raids';
 import { instanceName, skippedDatesFor } from '@/lib/series';
 import { getSession } from '@/lib/session';
 
@@ -59,9 +59,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'That start is already in the past.' }, { status: 400, headers: NO_STORE });
   }
   const { value } = parsed;
-  // A raid with a template must add up to its current size, so one made before the template was resized is fixed before it saves.
-  // An older raid without one only needs someone (parseRaidInput), even while it is given a template here.
-  if (raid.template && totalCounts(value.requirements) !== raid.template.size) return NextResponse.json({ error: mustAddUpTo(raid.template.size) }, { status: 400, headers: NO_STORE });
+  // An older raid without a template only needs someone, even while it is given one here.
+  const needed = neededError(value.requirements, raid.template ? raid.template.size : null);
+  if (needed) return NextResponse.json({ error: needed }, { status: 400, headers: NO_STORE });
   let templateName = raid.template?.name;
   if (!raid.templateId) {
     const picked = await db.raidTemplate.findFirst({ where: { id: value.templateId, active: true }, select: { name: true } });

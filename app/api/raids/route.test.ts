@@ -77,9 +77,11 @@ describe('POST /api/raids', () => {
   });
 
   it('refuses Needed that does not add up to the template size', async () => {
-    const res = await post({ requirements: { tank: 2, healer: 9, dps: 20 } });
-    expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: 'Tank, healer and DPS must add up to 30.' });
+    for (const requirements of [{ tank: 2, healer: 9, dps: 20 }, { tank: 0, healer: 0, dps: 0 }]) {
+      const res = await post({ requirements });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'Tank, healer and DPS must add up to 30.' });
+    }
     expect(mocks.create).not.toHaveBeenCalled();
   });
 

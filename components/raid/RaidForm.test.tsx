@@ -65,6 +65,16 @@ describe('RaidForm template', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ templateId: 'mc', durationMin: 300, requirements: { tank: 4, healer: 9, dps: 23 } }));
   });
 
+  it('leaves the Needed total to the server and shows its message', async () => {
+    onSubmit.mockResolvedValueOnce('Tank, healer and DPS must add up to 40.' as never);
+    await render([mc]);
+    await change(field('Raid'), 'mc');
+    for (const role of ['tank', 'healer', 'dps']) await change(host.querySelector(`input[type=number][id$="-${role}"]`) as HTMLInputElement, '0');
+    await submit();
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ requirements: { tank: 0, healer: 0, dps: 0 } }));
+    expect(host.querySelector('[role=alert]')?.textContent).toBe('Tank, healer and DPS must add up to 40.');
+  });
+
   it('will not submit without a template', async () => {
     await render([mc]);
     await submit();

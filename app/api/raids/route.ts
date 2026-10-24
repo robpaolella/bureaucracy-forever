@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { loadRaidCards } from '@/lib/raid-cards';
-import { isUpcoming, locksAtFor, mustAddUpTo, parseRaidInput, PICK_TEMPLATE, totalCounts } from '@/lib/raids';
+import { isUpcoming, locksAtFor, neededError, parseRaidInput, PICK_TEMPLATE } from '@/lib/raids';
 import { instanceName } from '@/lib/series';
 import { getSession } from '@/lib/session';
 import { rosterSignups, rosterUserIds } from '@/lib/tick';
@@ -35,7 +35,8 @@ export async function POST(request: Request) {
   const { value } = parsed;
   const template = await db.raidTemplate.findFirst({ where: { id: value.templateId, active: true }, select: { id: true, name: true, size: true } });
   if (!template) return NextResponse.json({ error: PICK_TEMPLATE }, { status: 400, headers: NO_STORE });
-  if (totalCounts(value.requirements) !== template.size) return NextResponse.json({ error: mustAddUpTo(template.size) }, { status: 400, headers: NO_STORE });
+  const needed = neededError(value.requirements, template.size);
+  if (needed) return NextResponse.json({ error: needed }, { status: 400, headers: NO_STORE });
   // Rank-based roster (SYNC-SPEC §3): every roster member gets an unanswered row up front.
   const roster = await rosterUserIds();
   const raid = await db.raid.create({

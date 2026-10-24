@@ -71,6 +71,16 @@ export function mustAddUpTo(size: number): string {
 }
 
 /**
+ * Needed against the raid's template: a raid with one must add up to its current size, so one
+ * made before the template was resized is fixed before it saves; an older raid without one
+ * (`size` null) only needs someone.
+ */
+export function neededError(requirements: Composition, size: number | null): string | null {
+  if (size !== null) return totalCounts(requirements) === size ? null : mustAddUpTo(size);
+  return totalCounts(requirements) === 0 ? 'A raid needs at least one person.' : null;
+}
+
+/**
  * Strictly validate requirements a form or client sends, before they are stored as exactly
  * `{ tank, healer, dps }`. A body without `dps` is the older four-number shape (a form opened
  * before the change), so DPS is melee plus ranged; with `dps`, melee and ranged are ignored.
@@ -359,10 +369,10 @@ export function parseRaidInput(body: unknown): ParsedRaid {
   const durationMin = typeof b.durationMin === 'number' ? b.durationMin : Number(b.durationMin);
   if (!isRaidLength(durationMin)) return { ok: false, error: 'Pick a raid length.' };
 
+  // The total is checked by the route against the template (`neededError`).
   const parsedReq = parseRequirementsInput(b.requirements);
   if (!parsedReq.ok) return parsedReq;
   const req = parsedReq.value;
-  if (totalCounts(req) === 0) return { ok: false, error: 'A raid needs at least one person.' };
 
   const notes = typeof b.notes === 'string' ? b.notes.trim() : '';
   if (notes.length > RAID_NOTES_MAX) return { ok: false, error: `Keep the notes under ${RAID_NOTES_MAX} characters.` };
