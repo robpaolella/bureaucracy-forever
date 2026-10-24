@@ -74,9 +74,19 @@ model Application {
   reminderChannelId   String?                  // the live reminder's channel (thread or #officers)
   reminderMessageId   String?                  // the live reminder's message
   relayPingAt         DateTime?                // the last relay ping (§13); null until one is sent
+  // Decision messages (§4, Decision request). All additive and nullable. A "decision message" is
+  // the DM that tells the applicant the outcome; it is not one of the §13 relay messages.
+  decisionMessageKind    DecisionMessageKind?    // STANDARD, CUSTOM or NONE; null = decided before this existed
+  decisionMessageText    String?                 // the exact text queued; null for NONE
+  decisionMessageStatus  DecisionMessageStatus?  // null for NONE, and for a decision from before this existed
+  decisionId             String?                 // the current decision's id (the application.decide payload's decisionId)
+  switchedAt             DateTime?               // first move to the social path after submitting; never cleared
   interviews        Interview[]
   messages          ApplicantMessage[]
 }
+
+enum DecisionMessageKind   { STANDARD CUSTOM NONE }
+enum DecisionMessageStatus { QUEUED SENT NOT_DELIVERED UNCONFIRMED }
 
 model OfficerNote {
   // existing fields unchanged, plus:
@@ -283,9 +293,9 @@ Any route that takes `Idempotency-Key` may also answer `409 { reason: "in_progre
 | GET | `/outbox?limit=20` | Next pending jobs whose `runAfter` has passed. Marks them RUNNING with `lockedAt`. Jobs locked > 5 min are returned again. |
 | POST | `/outbox/:id/ack` | `{ ok: true, result? }` → DONE, store result, apply it (see §5). `{ ok: false, error }` → attempts+1, PENDING with `runAfter = now + 2^attempts min`, FAILED after 5. |
 | POST | `/tick` | Runs everything due (§6). Idempotent. Returns counts of what it did. |
-| GET | `/applications/:id` | Full application + notes, for rendering, plus `interview`: the latest attempt in the `GET /interviews/:id` shape without `slots`, or `null` if there is none, and `reminder`: `{ pending, live }` (§6 step 14, Fresh check). |
-| POST | `/applications/:id/decision` | `{ status: ACCEPTED\|DECLINED, byDiscordId, reason? }`. 409 if not PENDING. |
-| POST | `/applications/:id/reopen` | `{ byDiscordId }`. 409 if PENDING. |
+| GET | `/applications/:id` | Full application + notes, for rendering, plus `interview`: the latest attempt in the `GET /interviews/:id` shape without `slots`, or `null` if there is none, `reminder`: `{ pending, live }` (§6 step 14, Fresh check), `switched`: boolean (true once `switchedAt` is set), and `declineMessage`: the standard decline message for this applicant (text below), for the Discord preview. It is built by the same function the decision uses, so the preview is what a standard decline sends. |
+| POST | `/applications/:id/decision` | `{ status: ACCEPTED\|DECLINED, byDiscordId, reason?, message?, acceptAs? }`. `message` (Decline only) and `acceptAs` (Accept only) are described under [Decision request](#decision-request), with every 400 and 409. 409 if not PENDING. The unused `reason` field is unchanged. |
+| POST | `/applications/:id/reopen` | `{ byDiscordId }`. 409 if PENDING. Clears the decision message fields and `decisionId`; `switchedAt` stays. |
 | POST | `/applications/:id/notes` | `{ discordMessageId, authorDiscordId, body, createdAt, mentions? }` ([Mentions](#mentions)). Author must resolve to an OFFICER; otherwise 403 and the bot ignores the message. |
 | PATCH | `/notes/by-message/:discordMessageId` | `{ body, mentions? }` ([Mentions](#mentions)): replaces the stored `mentions`; omitted, it clears them. |
 | DELETE | `/notes/by-message/:discordMessageId` | soft delete |
@@ -326,6 +336,93 @@ posts the response, the site stores it and enqueues `raid.update`, the bot picks
 its next poll and re-renders from `GET /raids/:id`. The bot must not update the embed
 directly from the click; it may reply ephemerally ("You're set to Accept") immediately.
 
+### Decision request
+
+Both `POST /api/bot/applications/:id/decision` (uppercase `status`, `byDiscordId`) and the web
+`PATCH /api/applications/:id` (lowercase `status`, or `{ path: "social" }` for Move to social)
+take the same two optional fields and follow the same rules. The route keeps its own `status`
+case; the unused `reason` is unchanged. The site owns every rule and every message text.
+
+- `message?: { kind: "standard" | "custom" | "none", text? }`, on Decline only.
+  - Omitted means `standard`, which is today's behaviour.
+  - `custom` needs `text`: trimmed, 1–2,000 characters, counted as Unicode code points (never
+    UTF-16 units or bytes) on the site and the bot alike. The trimmed text is stored and sent;
+    line breaks inside it stay.
+  - `standard` and `none` take no `text`.
+- `acceptAs?: "raider" | "social"`, on Accept only.
+  - Omitted means accept on the application's current path. Only clients from before this
+    change omit it. New clients always send it: Confirm sends `raider`, Accept as Social sends
+    `social`, from the web and from Discord.
+  - `raider` on an application that is on the social path now is 409 (below).
+  - `social` on a raider-path application switches the path, records the switch (`switchedAt`
+    set if null) and accepts as social, all in one transaction. On a social-path application it
+    is a plain accept.
+
+**Malformed requests.** Each is a 400 with `error` (the message to show). On the bot route it
+is `{ reason: "invalid", error }`, as for its other fields; on the web route `{ error }`.
+Validation runs before any state check, so a malformed request is a 400 whatever the
+application's state.
+
+| Request | Answer |
+|---|---|
+| `message` on Accept | 400 |
+| `acceptAs` on Decline | 400 |
+| `message.kind` or `acceptAs` not one of the values above | 400 |
+| `message` present but not an object (a string, array, number or `null`) | 400 |
+| `text` with `standard` or `none` (even an empty string) | 400 |
+| `custom` with `text` missing, empty, whitespace-only or not a string | 400 |
+| `custom` text over 2,000 characters after trimming | 400 |
+
+**409s.**
+- Not `PENDING`: as today (the route's existing "already decided" `reason` on the bot route,
+  `error` on the web route).
+- `acceptAs: "raider"` on an application that is now on the social path: `reason` (web:
+  `error`) "This application was moved to the social path in the meantime. Check it and
+  decide again." Nothing is changed.
+- The decision update is guarded on `PENDING` **and** on the path that was read. When the guard
+  fails, the site re-reads once: no longer `PENDING` is the first 409; a changed path gives the
+  `raider` request the second 409, and any other request is re-evaluated on the new path.
+
+**Message texts** (approved by Robert, 2026-10-24; `{name}` is the application's character
+name; everything people see says "message"):
+- Standard decline, unchanged: "Thanks for applying to Bureaucracy with {name}. We're not able
+  to take you on right now. You're welcome to stay in the Discord and apply again later;
+  officers will say if anything changes."
+- Raider acceptance, new: "Your application to Bureaucracy for {name} was accepted. Your
+  two-week trial starts today. You now have the Guild Member role; the raid calendar and
+  roster are on https://www.bureauguild.com. Welcome aboard."
+- Social acceptance, new: "Your application to Bureaucracy for {name} was accepted as a social
+  member. You now have the Guild Member role. Welcome aboard."
+
+An Accept always sends its standard message (raider or social by the path it ends on). A Decline
+sends the standard message, the custom text, or nothing.
+
+**What is stored** (§3), set in the decision's own transaction together with a new
+`decisionId` and the `application.decide` job:
+- kind: `STANDARD` (every Accept, and a standard or omitted Decline), `CUSTOM` or `NONE`;
+- text: the exact text queued (null for `NONE`);
+- status: `QUEUED` when decided, then `SENT`, `NOT_DELIVERED` or `UNCONFIRMED` from the bot's
+  ack (§5). `UNCONFIRMED` means the bot started the DM and cannot tell whether it arrived.
+  `NONE` has no status.
+
+Meaning of each combination, for the site's page and for anything that reads it:
+- Nothing stored (kind null): a decision from before this change. Show no message line; never
+  "No message sent".
+- `NONE`: "No message sent". No status line.
+- `QUEUED`: the bot has not reported yet.
+- `SENT`: delivered.
+- `NOT_DELIVERED`: Discord refused the DM (DMs closed, or the applicant isn't in the server).
+- `UNCONFIRMED`: the bot started the DM and cannot tell whether it arrived ("Delivery not
+  confirmed").
+
+Reopen clears the kind, text, status and `decisionId`. `switchedAt` stays. A later decision
+stores its own.
+
+**Move to social** (web `PATCH { path: "social" }`) changes the path, sets `switchedAt` if null
+and enqueues `application.update`, all in one transaction, so the Discord tag follows. Before
+this change it queued nothing and the tag stayed Raider until a decision. Applications moved
+before this ships have no `switchedAt` and so no `Switched` tag.
+
 ### Mentions
 The four routes that carry a Discord message's text (`POST /applications/:id/notes`,
 `PATCH /notes/by-message/:discordMessageId`, `POST /applicant-messages`,
@@ -363,11 +460,11 @@ mentions: {
 | `application.post` | Create forum post in `APPLICATIONS_FORUM_ID`: title `Name — Class (Spec) — Path` (Social: `Name — Social`), tags `[path, Pending]`, starter = embed of all answers + buttons Accept / Decline / Open on web (link). | `{ threadId, messageId }` | store on Application |
 | `application.message.send` | `{ applicationId, messageId }`. DM the applicant an officer's relay message (§13). | `{ dmChannelId, dmMessageId }`, `{ dmDelivered: false }` or `{ notSent: true }` | `SENT` and store the DM ids; `NOT_DELIVERED`; `NOT_SENT`. The site then enqueues `application.message.copy` |
 | `application.message.copy` | `{ applicationId, messageId }`. Post the relay message's thread copy, or edit it in place (§13). | `{ channelId, messageId, pinged }`, or `{ skipped }` | store the copy ids; `pinged` sets `relayPingAt`. `skipped` stores nothing |
-| `application.update` | Re-render starter embed and tags from `GET /applications/:id`. | — | — |
+| `application.update` | Re-render starter embed and tags from `GET /applications/:id` (path tag, status tag, `Interview` (§8), and `Switched` while `switched` is true). | — | — |
 | `application.note.post` | Post `**Name** (web) · body` in the thread. | `{ messageId }` | store on OfficerNote |
 | `application.note.edit` | Edit that message. | — | — |
 | `application.note.delete` | Delete that message. | — | — |
-| `application.decide` | Strip the buttons from the live reminder (`reminder.live`, §6 step 14), if any. Post decision embed (green Accepted / red Declined, by whom, via web or Discord). Retag. DM applicant from the template in `content/dm-templates` (site serves it in the job payload). On ACCEPTED: apply `payload.roles` (`{ add, remove }`, computed by the site: Guild Member, Raider and Trial in, Guest and Social out for the raider path; Guild Member and Social in, Guest out for social). Archive + lock the thread. With no reachable thread (none recorded, deleted, or no access), the bot still applies the roles and sends the DM, skips the thread steps and posts nothing in `#officers`; a transient Discord error still retries. | `{ dmDelivered: bool }` | — |
+| `application.decide` | `{ applicationId, status, path, roles, character, applicantDiscordId, applicantName, decidedBy, source, reason, dm, decisionId, message, switched }`. `path` is the path **after** any switch. `message` is `{ kind: "standard"\|"custom"\|"none", text: string \| null }`, the exact text queued (null for none); `dm` stays, set to that text or `null` for none, so a bot from before this change keeps working. `switched` is true when `switchedAt` is set. In this order: strip the buttons from the live reminder (`reminder.live`, §6 step 14), if any; on ACCEPTED apply `payload.roles` (`{ add, remove }`, computed by the site: Guild Member, Raider and Trial in, Guest and Social out for the raider path; Guild Member and Social in, Guest out for social); send the DM from `payload.message` (none: no DM at all); post the decision notice (§8, Decision notice) with what was sent and the result; retag (path, Accepted or Declined, and `Switched` when `switched`); archive + lock the thread. With no reachable thread (none recorded, deleted, or no access), the bot still applies the roles and sends the DM, skips the thread steps and posts nothing in `#officers`; a transient Discord error still retries. **A retried job never DMs twice and never posts a second notice**: see [Decision messages](#decision-messages) below. | `{ dmDelivered: true\|false\|null }` | Only while the payload's `decisionId` equals the application's current `decisionId`: `true` → `SENT`, `false` → `NOT_DELIVERED`, `null` → `UNCONFIRMED`. A stale ack (the application was reopened and decided again) or a repeated one changes nothing. Ignored for kind `NONE`. |
 | `application.reopen` | Unarchive, unlock, retag Pending, post "Reopened by X". | — | — |
 | `application.nudge` | `{ applicationId, key }`. A pending-application reminder (§6 step 14, §8 Reminders): re-read `GET /applications/:id`, compare keys, post one line with buttons in the application's thread. The site no longer queues the old once-only nudge (a job **without `key`**, §6 step 7); one still in the queue from before the switch is handled as before: message in `OFFICERS_CHANNEL_ID`, "Application from X has been pending 24h" + link. | `{ channelId, messageId }`, or `{ skipped: "<reason>" }` | applied only if `key` still equals `reminderKey`: store `reminderChannelId` / `reminderMessageId`, count it, set `reminderLastOn`, clear `reminderKey`. Skipped: clear `reminderKey`, count nothing |
 | `raid.post` | Post one message in `RAID_SIGNUPS_CHANNEL_ID`: embed (§8) titled `🟢 Template — Ddd Mon D` (+ " · added late" when `payload.late`) + buttons Accept / Tentative / Decline / Join bench / View roster (link); open a thread on it named like the title minus the state marker. | `{ threadId, messageId }` | store on Raid |
@@ -399,6 +496,26 @@ message, `Raid.discordThreadId` the thread).
 
 The bot processes jobs **in order per entity** (same `applicationId`/`raidId` never in
 parallel) and up to 4 entities concurrently.
+
+### Decision messages
+
+- **Ack values.** `dmDelivered: true` means Discord accepted the DM. `false` means Discord
+  refused it (error 50007: DMs closed, or the applicant isn't in the server). `null` means an
+  attempt started and its outcome is unknown. Kind `none` sends no DM, and its ack is ignored.
+- **No second DM.** The bot keeps per-job progress in its own SQLite file under `/data`, so
+  this also holds across a restart: whether the DM attempt was started and its result, and the
+  id of the notice it posted. A retry skips a DM already attempted, and **edits** the notice
+  instead of posting another. It never resends after an attempt started with an unknown
+  outcome: it acks `dmDelivered: null` instead. Roles, retag and archive are idempotent and
+  simply run again. Records are kept at least 30 days, far past the job's retry window.
+- **Order.** Roles, then the DM, then the notice, so the notice can say how the DM went. With
+  no thread, roles and the DM still go ahead.
+- **Deploy order.** The site ships first and keeps today's behaviour when a request carries no
+  choice. Until the new bot runs, an old bot handles the new payloads this way: `none` arrives
+  as `dm: null`, so it tries an empty DM, Discord refuses it and nothing is sent; a custom
+  message goes out normally, as `dm`; the thread notice lacks the message line, but the site's
+  page shows what was sent. The site package therefore merges first, and the bot package as
+  soon as the site is in production.
 
 ---
 
@@ -559,13 +676,57 @@ rows only; answered rows are kept.
 ## 8. Discord rendering
 
 ### `#applications` (forum, visible to Officer role + bot)
-- Tags: `Raider`, `Social`, `Pending`, `Accepted`, `Declined`. Bot creates missing tags on
-  startup and caches ids.
+- Tags: `Raider`, `Social`, `Pending`, `Accepted`, `Declined`, `Interview` (§8, Interviews)
+  and `Switched`. Bot creates missing tags on startup and caches ids. `Switched` shows beside
+  the path tag from the application's first switch to the social path (Move to social on the
+  web, or Accept as Social), through a decision and a reopen, while `switched` is true on
+  `GET /applications/:id`. Applications switched before this shipped have no record and no
+  tag. The post's title is not renamed after a switch.
 - Starter embed: title `Name · Class · Spec · Role`; one field per answer (long answers as
   full-width fields); footer "Submitted on the web". Buttons: **Accept** (green), **Decline**
   (red), **Open on web** (link). Buttons persist across restarts.
-- Accept/Decline click → `POST /applications/:id/decision` → ephemeral confirmation. 409 →
-  ephemeral with the reason. The visible changes come from the `application.decide` job.
+- Accept/Decline click → the steps below, then `POST /applications/:id/decision` → ephemeral
+  confirmation. 409 → ephemeral with the reason. The visible changes come from the
+  `application.decide` job. **Only the clicking officer sees these steps**, as ephemeral
+  replies, and closing them leaves the application undecided. The first click checks the
+  application is still pending (`GET /applications/:id`); if not, it answers as for a 409 with
+  the site's reason and strips the buttons from the reminder that was clicked. Later steps
+  only show a refusal's reason. A second officer's decision gets the site's 409 as today.
+  - **Decline.** Reply "Decline **<name>**? This message will be sent to them by DM:" with the
+    standard message (`declineMessage` from `GET /applications/:id`) in an embed, and three
+    buttons: **Decline and send this message** (red), **Write my own message** (grey) and
+    **Decline with no message** (grey). The first sends `message: { kind: "standard" }`, the
+    last `{ kind: "none" }`.
+  - **Write my own message.** A popup, title "Message to <name>" (the name cut to fit Discord's
+    45 characters), one paragraph box labelled "Message to send as a DM", 1–2,000 characters,
+    hint "Sent to <name> by DM from the bot when you decline." The popup callback answers with
+    the popup and never defers first. Submitting shows a preview: "Decline **<name>** and send
+    this message?" with the text in an embed, and **Decline and send** (red) and **Edit
+    message** (grey; reopens the popup filled with the text). The text lives in the preview's
+    embed, so both buttons read it back from there; no draft is stored and it survives a
+    restart. Decline and send sends `{ kind: "custom", text }`.
+  - **Accept, raider path.** Reply "Would you like to accept this member as a Raider and begin
+    their trial?" with **Confirm** (green, sends `acceptAs: "raider"`) and **Accept as Social**
+    (grey, sends `acceptAs: "social"`). On a social-path application, Accept is one click and
+    sends `acceptAs: "social"`.
+  - **Reminders** (below) have the same Accept and Decline, with the same steps.
+  - **Confirmations** replace the step message: "Declined <name>. The message is on its way.";
+    "Declined <name>. No message was sent."; "Accepted <name> as a Raider. The message is on
+    its way."; "Accepted <name> as Social. The message is on its way."
+  - **Long text.** A message of up to 2,000 characters is shown in an embed description (limit
+    4,096), with the explanation in the message text, so it always fits. Characters are
+    counted as Unicode code points, as on the site.
+  - **A failed decision.** Any failure (409, 5xx, timeout) replaces the step with "I couldn't
+    decide <name>: <reason>. Nothing was changed." (the site's reason when it gave one,
+    otherwise "Something went wrong. Try again in a moment."). For a custom message it adds
+    "Your message, so you can send it again:" and shows the text back in an embed to its writer.
+- **Decision notice** (`application.decide`). The decision embed shows the outcome ("Accepted",
+  "Accepted as Social" for a social accept, or "Declined"), by whom, via web or Discord, and:
+  - the message's text, under "Message sent", or "No message sent";
+  - when the DM was refused: "Message not delivered: their DMs are closed or they've left the
+    server.";
+  - when the result is unknown: "Delivery not confirmed."
+  A retry edits this notice (§5, Decision messages); it never posts a second one.
 - **Thread messages**: on `on_message` in an application thread, if the author is not the bot
   and the site says they're an officer, `POST /notes`. On edit/delete, PATCH/DELETE. Messages
   from non-officers are ignored (they can't see the channel anyway). Webhook posts
@@ -597,11 +758,12 @@ rows only; answered rows are kept.
   `application.decide` strips the live reminder's buttons too. Failing to strip is logged and
   never retried as a new ping. Ack `{ channelId, messageId }` of the new message.
 - **Buttons** carry the application id, the line's interview id when it has one, and survive
-  restarts. They call the same routes as the thread's own controls (decision, interview start
+  restarts. They call the same routes as the thread's own controls (decision, with the same
+  Accept and Decline steps as the starter message's buttons, interview start
   with its `second_not_confirmed` flow, book, propose). A reminder that was missed and is old
   still works while its action applies; once it doesn't, the click gets the site's refusal
   `error` ephemerally and the bot strips the buttons from that message.
-- A rare duplicate reminder after a lost ack is accepted, as in §12.
+- A rare duplicate reminder after a lost ack is accepted, as for interview jobs (§12).
 
 ### `#raid-signups` (text channel, read-only for members, chat in threads)
 - Permissions: Guild Member — deny Send Messages, allow Send Messages in Threads,
@@ -677,6 +839,19 @@ are in §13 Rendering, so the contract reads in one place.
    source badge (Discord / Web), time; composer at the bottom; "synced with #applications" in
    the card header; link to the thread. Accept/Decline confirmation modal lists what will
    happen (status, tag, thread closed, DM, role change, roster entry).
+   - **Decline** offers the same three choices as Discord: the standard message shown (from
+     `declineMessage`), a text box with a counter (1–2,000 characters, as code points), or no
+     message. A failed decision keeps a custom draft instead of closing the window.
+   - **Accept** on a raider-path application asks "Would you like to accept this member as a
+     Raider and begin their trial?" with **Confirm** (`acceptAs: "raider"`) and **Accept as
+     Social** (`acceptAs: "social"`). On a social-path application Accept is direct. The
+     window lists the message that will go out, by character name.
+   - **Move to social** stays. It sets the switch and queues `application.update` (§4).
+   - Under the decision line the page shows which message went out (standard, custom or none),
+     its text and its delivery state: Sent, "Message not delivered" (DMs closed, or not in the
+     server), "Delivery not confirmed", or Queued while the bot hasn't reported. Nothing stored
+     (a decision from before this change) shows no message line. After a reopen the line is gone
+     until the next decision. A `Switched` note shows beside the path once `switchedAt` is set.
 3. **Templates & series (officers)** — `/officers/raids`: template table (editable), series
    list, "New series" form (template, weekday, time in guild zone, length, notes). Editing a
    series asks "This raid only" (detaches the instance) or "This and future raids".
@@ -730,7 +905,7 @@ Interviews. Interview hours (9:00 to 22:30) and the other interview constants (�
 - An application submitted on the web appears as a forum post within 10 s. A note typed in
   the thread shows on the web within 10 s, and a note typed on the web appears in the thread
   within 10 s, attributed correctly. Accept on either side produces identical results on both,
-  including the role change and the DM. Reopen works from both.
+  including the role change and the DM (when one is chosen). Reopen works from both.
 - Creating a Thursday series produces four raids with the correct `startsAt` across the
   November DST change (8 PM stays 8 PM Pacific). The post appears 14 days out. Clicking Accept
   in Discord updates the web within 10 s and the embed counts within 10 s. Responding on the
@@ -857,7 +1032,8 @@ an unknown type falls to `officers`). `claimJobs` may hand out a newer job befor
 one in backoff, so **every handler re-reads `GET /interviews/:id` and renders from it, never
 from the payload alone, and checks its precondition**. When it fails, ack `{ ok: true, result:
 { skipped: "<reason>" } }` and show nothing. Each job sends at most one DM and one thread
-message; a duplicate after a lost ack is accepted as rare, as for `application.decide`. A DM
+message; a duplicate after a lost ack is accepted as rare (unlike `application.decide`, which
+never repeats, §5). A DM
 Discord refuses (error 50007) counts as not delivered: the thread message says so and the ack
 carries `dmDelivered: false`. Any other error fails the job so it retries.
 
@@ -867,7 +1043,7 @@ carries `dmDelivered: false`. Any other error fails the job so it retries.
 | `interview.times` | `TIMES_RECEIVED` | `timesMessageId` unset: post the times message pinging the Officer role and DM the thanks. Set: edit that message in place, marked "updated", mentions suppressed, no DM |
 | `interview.booked` | `BOOKED` and `bookedStart` = `payload.startsAt` | DM the booking; thread confirmation with **Cancel interview**; strips controls from the times and proposal messages and the request DM |
 | `interview.proposed` | `PROPOSED` and `proposedStart` = `payload.startsAt` | DM the proposal with **Accept** / **Decline**; thread line naming the time and the proposer; strips the times message controls and the request DM's button. A refused DM: the thread line also gives the page URL |
-| `interview.ended` | status ended with the reason for `payload.outcome` (`declined`: `NO_TIME`/`DECLINED`; `expired`: `NO_TIME`/`EXPIRED`; `lapsed`: `NO_TIME`/`PROPOSAL_LAPSED`; `cancelled`: `CANCELLED`; `closed`: `CLOSED`) | DM the outcome copy and post a thread notice; every earlier interview message loses its controls. `closed` sends no DM (the decision DM goes anyway), posts nothing, and only strips controls |
+| `interview.ended` | status ended with the reason for `payload.outcome` (`declined`: `NO_TIME`/`DECLINED`; `expired`: `NO_TIME`/`EXPIRED`; `lapsed`: `NO_TIME`/`PROPOSAL_LAPSED`; `cancelled`: `CANCELLED`; `closed`: `CLOSED`) | DM the outcome copy and post a thread notice; every earlier interview message loses its controls. `closed` sends no DM (the decision's own message, §4, goes as chosen, or none), posts nothing, and only strips controls |
 | `interview.headsup` | `AWAITING_TIMES` and `headsUpAt` set | thread message: no times from <name> after 3 days, 4 days left |
 | `interview.remind` | `BOOKED`, `bookedStart` = `payload.startsAt`, now before the start | DM the reminder; thread message pinging `bookedBy` |
 | `interview.joined` | `BOOKED` and `joinedNotifiedAt` set | thread notice pinging `bookedBy`, "<name> has joined Public Lounge.", with **Move to Raider Interviews** |
