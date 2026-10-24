@@ -105,7 +105,7 @@ describe.skipIf(process.env.SIGNUP_CHARACTER_INTEGRATION !== '1')('sign-up chara
     expect((await signup('web', member.id)).characterId).toBe(original);
     const cards = await loadRaidCards(new Date(0), member.discordId);
     expect(cards.find((c) => c.id === 'web')).toMatchObject({ signupRole: 'tank', counts: { tank: 1, healer: 0 } });
-    expect((await loadRaidView('web', member.discordId))?.bars).toEqual({ tank: 1, healer: 0, melee: 0, ranged: 0 });
+    expect((await loadRaidView('web', member.discordId))?.bars).toEqual({ tank: 1, healer: 0, dps: 0 });
     // Directly choosing the new character changes all role readers, without a chooser UI.
     await db.signup.update({ where: { raidId_userId: { raidId: 'web', userId: member.id } }, data: { characterId: newMain.id } });
     expect((await answer('web', { response: 'accept' })).counts).toEqual({ tank: 0, healer: 1, melee: 0, ranged: 0 });

@@ -2,7 +2,8 @@
  * Sign-up rules (SYNC-SPEC §7). The site enforces them for both surfaces; the bot only
  * shows the `reason` it is given. Pure, so every branch is unit-tested.
  */
-import type { RaidResponse } from '@/lib/raids';
+import { compositionRole, ROLES, type Role } from '@/lib/design/class-colors';
+import type { Composition, RaidResponse } from '@/lib/raids';
 
 export type Standing = 'ROSTER' | 'BENCH';
 export type RaidState = { status: 'SCHEDULED' | 'LOCKED' | 'DONE' | 'CANCELLED'; locksAt: Date };
@@ -53,8 +54,11 @@ export function decideBench(actor: Actor, raid: RaidState, existing: Existing, n
 }
 
 /** Composition bars count roster acceptances only (§7). */
-export function countsForBars(rows: { standing: Standing; response: RaidResponse | null; role: string | null }[]): Record<string, number> {
-  const out: Record<string, number> = { tank: 0, healer: 0, melee: 0, ranged: 0 };
-  for (const r of rows) if (r.standing === 'ROSTER' && r.response === 'accept' && r.role && r.role in out) out[r.role] += 1;
+export function countsForBars(rows: { standing: Standing; response: RaidResponse | null; role: string | null }[]): Composition {
+  const out: Composition = { tank: 0, healer: 0, dps: 0 };
+  for (const r of rows) {
+    if (r.standing !== 'ROSTER' || r.response !== 'accept' || !r.role || !(ROLES as readonly string[]).includes(r.role)) continue;
+    out[compositionRole(r.role as Role)] += 1;
+  }
   return out;
 }

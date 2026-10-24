@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  raid: { findMany: vi.fn(), updateMany: vi.fn() },
+  raid: { findMany: vi.fn(), updateMany: vi.fn(), create: vi.fn() }, character: { findMany: vi.fn() },
   signup: { findMany: vi.fn() }, reserve: { findMany: vi.fn() },
   user: { findMany: vi.fn() }, raidSeries: { findMany: vi.fn() },
   application: { findMany: vi.fn(), updateMany: vi.fn() }, interview: { findMany: vi.fn(), updateMany: vi.fn() }, botRequest: { findUnique: vi.fn() },
@@ -188,5 +188,16 @@ describe('tick application reminders', () => {
     await tickAt(evening, [legacy]);
     expect(nudges()).toHaveLength(1);
     expect(nudges().every(([, payload]) => typeof (payload as { key?: unknown }).key === 'string')).toBe(true);
+  });
+});
+
+describe('tick generation', () => {
+  it('still stores four requirement keys on each generated raid', async () => {
+    mocks.raidSeries.findMany.mockResolvedValue([{ id: 's', templateId: 't', weekday: 3, startTime: '20:00', horizonWeeks: 1, lockMinutesBefore: 120, durationMin: 180, notes: null, skippedDates: [], raids: [], template: { name: 'Onyxia', requirements: { tank: 2, healer: 8, melee: 11, ranged: 14 } } }]);
+    mocks.character.findMany.mockResolvedValue([]);
+    mocks.raid.create.mockResolvedValue({});
+    await runTick(now);
+    expect(mocks.raid.create).toHaveBeenCalled();
+    for (const [{ data }] of mocks.raid.create.mock.calls) expect(data.requirements).toEqual({ tank: 2, healer: 8, melee: 11, ranged: 14 });
   });
 });
