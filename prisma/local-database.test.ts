@@ -42,4 +42,11 @@ describe('local-only connection details', () => {
     expect(result.DOTENV_CONFIG_OVERRIDE).toBe('false');
     expect(inherited.AUTH_SECRET).toBe('real');
   });
+  it('blanks the bot secret unless VERIFY_BOT_SECRET is set, trimming it', () => {
+    const url = localUrl('12345');
+    expect(childEnvironment(url, { BOT_SHARED_SECRET: 'real' }).BOT_SHARED_SECRET).toBe('');
+    expect(childEnvironment(url, { BOT_SHARED_SECRET: 'real', VERIFY_BOT_SECRET: 'made-up' }).BOT_SHARED_SECRET).toBe('made-up');
+    expect(childEnvironment(url, { VERIFY_BOT_SECRET: '  made-up \n' }).BOT_SHARED_SECRET).toBe('made-up');
+    for (const blank of ['', '   ']) expect(childEnvironment(url, { VERIFY_BOT_SECRET: blank }).BOT_SHARED_SECRET).toBe('');
+  });
 });

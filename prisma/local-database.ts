@@ -25,13 +25,15 @@ export function checkedUrl(url: string) {
   return url;
 }
 export function childEnvironment(url: string, inherited: Record<string, string | undefined> = process.env): NodeJS.ProcessEnv {
+  // Opt-in: a made-up secret lets a local run act as the bot; blank unless set.
+  const botSecret = inherited.VERIFY_BOT_SECRET?.trim() ?? '';
   return { ...inherited, DATABASE_URL: checkedUrl(url), DIRECT_URL: checkedUrl(url), DB_TARGET: 'local',
     // dotenv 18 accepts an inherited override flag; keep our local URLs authoritative.
     DOTENV_OVERRIDE: 'false', DOTENV_CONFIG_OVERRIDE: 'false',
     NODE_ENV: 'development', AUTH_SECRET: randomBytes(32).toString('hex'), LOOT_ENABLED: 'true',
     AUTH_DISCORD_ID: '', AUTH_DISCORD_SECRET: '', DISCORD_CLIENT_ID: '', DISCORD_CLIENT_SECRET: '',
     DISCORD_BOT_TOKEN: '', DISCORD_GUILD_ID: '', DISCORD_ROLE_OFFICER: '', DISCORD_ROLE_MEMBER: '',
-    DISCORD_ROLE_GUILD_MASTER: '', DISCORD_ROLE_ADMINISTRATOR: '', BOT_SHARED_SECRET: '',
+    DISCORD_ROLE_GUILD_MASTER: '', DISCORD_ROLE_ADMINISTRATOR: '', BOT_SHARED_SECRET: botSecret,
     AUTH_URL: '', AUTH_TRUST_HOST: 'true' };
 }
 function docker(...args: string[]): string {

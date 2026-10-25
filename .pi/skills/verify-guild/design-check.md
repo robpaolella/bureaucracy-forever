@@ -34,6 +34,7 @@ shared evidence manifest. Reach states as follows:
 | Seeded data | Launch a fresh run; select the named fixture through the UI. IDs and dates vary, so record them rather than copying an old raid URL. Use only the feature map's approved fixture/import recipe. |
 | Saved response or edited data | Use the feature map's real clicks/forms, wait for the result and reload to prove persistence. Never set state with JavaScript, internal actions or ad-hoc database writes. |
 | Open menu, dialog, tab, filter or form validation | Reach it with real UI actions and fresh snapshot handles. Record entered sample values, selected controls and expected labels. |
+| State that appears after the bot reports back | Export a made-up `VERIFY_BOT_SECRET` before Launch, then pull and ack the outbox through the real bot API, as in SKILL.md, "Acting as the bot". Local only. |
 | Empty, loading or error | Use an existing documented fixture/user path. If none reliably produces the approved state, report the missing safe recipe as a blocker to the conductor; do not fabricate the DOM or break the database/server. |
 | Responsive or theme state | Use `resize 390 844` and `resize 1440 900`, plus any approved extra widths; use only a supported site theme/control. Calendar month is desktop-only; phone uses the list. Unsupported design states need Robert's decision. |
 
