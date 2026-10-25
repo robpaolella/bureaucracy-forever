@@ -137,7 +137,7 @@ export function DecisionBar({ id, name, path, pending, messages }: Props) {
         title={declining ? ACTIONS.declineTitle(name) : ACTIONS.acceptTitle(name)}
         actions={
           <>
-            <Button variant="ghost" disabled={busy} onClick={close}>
+            <Button variant="ghost" disabled={busy} onClick={close} className="whitespace-nowrap">
               {ACTIONS.keep}
             </Button>
             {declining ? (
@@ -189,9 +189,14 @@ export function DecisionBar({ id, name, path, pending, messages }: Props) {
                 <li key={line}>{line}</li>
               ))}
             </ul>
-            {raiderAccept && <p>{ACTIONS.acceptAsSocialNote}</p>}
             <p className="text-fg-3">{ACTIONS.messageGoesOut}</p>
             <p className="whitespace-pre-line rounded-control border border-line bg-ink-700 px-3.5 py-3 text-fg">{raiderAccept ? messages.raider : messages.social}</p>
+            {raiderAccept && (
+              <>
+                <p>{ACTIONS.acceptAsSocialNote}</p>
+                <p className="whitespace-pre-line rounded-control border border-line bg-ink-700 px-3.5 py-3 text-fg">{messages.social}</p>
+              </>
+            )}
           </div>
         )}
         {error && (

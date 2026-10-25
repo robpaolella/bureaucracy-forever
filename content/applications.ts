@@ -60,7 +60,7 @@ export const ACTIONS = {
   acceptSocialBody: 'They will be told they are in as a social member. Officer notes stay private.',
   acceptRaiderEffects: ['Status becomes Accepted and the Discord post is tagged Accepted.', 'The #applications thread is closed.', 'Their two-week trial starts today, with the Raider and Trial roles and Guild Member.', 'They can be given a main on the roster, which puts them on future raids.'],
   acceptSocialEffects: ['Status becomes Accepted and the Discord post is tagged Accepted.', 'The #applications thread is closed.', 'No trial: they get the Social role and Guild Member.'],
-  acceptAsSocialNote: 'Accept as Social instead: no trial, the Social role and the social message.',
+  acceptAsSocialNote: 'Accept as Social instead: no trial, the Social role, and this message:',
   messageGoesOut: 'This message goes to them:',
   acceptConfirm: 'Accept the application',
   acceptRaider: 'Confirm',

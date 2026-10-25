@@ -103,6 +103,8 @@ describe('Accept window', () => {
     await click(button('Accept'));
     expect(host.textContent).toContain('Would you like to accept this member as a Raider and begin their trial?');
     expect(host.textContent).not.toMatch(/short chat/i);
+    expect(host.textContent).toContain('Raider text');
+    expect(host.textContent).toContain('Social text');
     await click(button('Confirm'));
     expect(sent()).toEqual({ status: 'accepted', acceptAs: 'raider' });
   });
