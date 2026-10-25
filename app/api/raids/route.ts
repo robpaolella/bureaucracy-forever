@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { loadRaidCards } from '@/lib/raid-cards';
-import { isUpcoming, locksAtFor, parseRaidInput, PICK_TEMPLATE } from '@/lib/raids';
+import { isUpcoming, locksAtFor, neededError, parseRaidInput, PICK_TEMPLATE } from '@/lib/raids';
 import { instanceName } from '@/lib/series';
 import { getSession } from '@/lib/session';
 import { rosterSignups, rosterUserIds } from '@/lib/tick';
@@ -19,7 +19,7 @@ export async function GET() {
 
 /**
  * POST /api/raids — schedule a raid (officers). Body is the form's guild-time wall clock:
- * `{ templateId, date, time, durationMin, requirements, notes }`; the instant is derived here
+ * `{ templateId, date, time, durationMin, requirements, notes, reservesAllowed? }`; the instant is derived here
  * and the name comes from the template, like a weekly raid's. A typed `name` is ignored.
  */
 export async function POST(request: Request) {
@@ -33,8 +33,10 @@ export async function POST(request: Request) {
   if (parsed.startsAt.getTime() < Date.now()) return NextResponse.json({ error: 'That start is already in the past.' }, { status: 400, headers: NO_STORE });
 
   const { value } = parsed;
-  const template = await db.raidTemplate.findFirst({ where: { id: value.templateId, active: true }, select: { id: true, name: true } });
+  const template = await db.raidTemplate.findFirst({ where: { id: value.templateId, active: true }, select: { id: true, name: true, size: true } });
   if (!template) return NextResponse.json({ error: PICK_TEMPLATE }, { status: 400, headers: NO_STORE });
+  const needed = neededError(value.requirements, template.size);
+  if (needed) return NextResponse.json({ error: needed }, { status: 400, headers: NO_STORE });
   // Rank-based roster (SYNC-SPEC §3): every roster member gets an unanswered row up front.
   const roster = await rosterUserIds();
   const raid = await db.raid.create({
@@ -46,6 +48,7 @@ export async function POST(request: Request) {
       durationMin: value.durationMin,
       requirements: value.requirements,
       notes: value.notes || null,
+      reservesAllowed: value.reservesAllowed ?? true,
       signups: { create: await rosterSignups(roster) },
     },
     select: { id: true, name: true, startsAt: true, durationMin: true, notes: true, cancelledAt: true, discordEventId: true },

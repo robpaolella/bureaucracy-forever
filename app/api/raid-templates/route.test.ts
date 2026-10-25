@@ -8,7 +8,7 @@ vi.mock('@/lib/db', () => ({ db: { raidTemplate: { create: mocks.create } } }));
 
 import { POST } from './route';
 
-const BODY = { name: 'Blackwing Lair', short: 'BWL', size: 40, durationMin: 180, requirements: { tank: 4, healer: 10, melee: 12, ranged: 14 }, active: true, instance: null };
+const BODY = { name: 'Blackwing Lair', short: 'BWL', size: 40, durationMin: 180, requirements: { tank: 4, healer: 10, dps: 26 }, active: true, instance: null };
 const request = (body: unknown) => new Request('https://example.test/api/raid-templates', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 
 describe('POST /api/raid-templates', () => {
@@ -51,9 +51,29 @@ describe('POST /api/raid-templates', () => {
   });
 
   it('rejects requirements that do not add up to the size', async () => {
-    const res = await POST(request({ ...BODY, requirements: { tank: 1, healer: 1, melee: 1, ranged: 1 } }));
+    const res = await POST(request({ ...BODY, requirements: { tank: 1, healer: 1, dps: 1 } }));
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: 'The four requirements must add up to 40.' });
+    expect(await res.json()).toEqual({ error: 'Tank, healer and DPS must add up to 40.' });
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it('stores an old four-number body as tank, healer and DPS', async () => {
+    expect((await POST(request({ ...BODY, requirements: { tank: 4, healer: 10, melee: 12, ranged: 14 } }))).status).toBe(201);
+    expect(mocks.create.mock.calls[0][0].data.requirements).toStrictEqual({ tank: 4, healer: 10, dps: 26 });
+  });
+
+  it('uses dps when a body also sends melee and ranged', async () => {
+    expect((await POST(request({ ...BODY, requirements: { tank: 4, healer: 10, dps: 26, melee: 1, ranged: 1 } }))).status).toBe(201);
+    expect(mocks.create.mock.calls[0][0].data.requirements).toStrictEqual({ tank: 4, healer: 10, dps: 26 });
+  });
+
+  it('refuses negative and fractional requirements', async () => {
+    for (const requirements of [{ tank: -4, healer: 18, dps: 26 }, { tank: 4, healer: 9.5, dps: 26.5 }]) {
+      const res = await POST(request({ ...BODY, requirements }));
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'Requirements are whole numbers from 0 to 40.' });
+    }
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 
   it('answers 409 when the name is taken', async () => {

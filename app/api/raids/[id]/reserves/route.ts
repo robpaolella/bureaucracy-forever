@@ -4,7 +4,7 @@ import { switchCharacterInTransaction, type RemovedReserve } from '@/lib/charact
 import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import { lootEnabled } from '@/lib/flags';
 import { hrAwardsFor, loadActiveReserves, loadLootTable, loadReserveTargets, signupAnswer, tableItemIds, type ReserveWindowData } from '@/lib/loot-data';
-import { decideReserve, reservesLockAt, reservesLocked } from '@/lib/loot-rules';
+import { decideReserve, REASONS, reservesLockAt, reservesLocked } from '@/lib/loot-rules';
 import { blockedItemIds, lockReserveTier, winLimits } from '@/lib/loot-blocks';
 import { getSession } from '@/lib/session';
 import { ensureUser } from '@/lib/users';
@@ -21,19 +21,20 @@ const itemOrNull = (v: unknown): number | null | undefined => (v === null || v =
  * GET /api/raids/[id]/reserves — what the reserves window needs when it opens away from the raid
  * page (the calendar list): the loot table, everyone's reserves, whose reserves the viewer may set
  * and the lock. A 404 when loot is off, for socials, or when the raid has no table, as the raid page
- * shows no reserves then either.
+ * shows no reserves then either. With the raid's reserves switched off, `reservesAllowed` is false
+ * and there are no reserves or current picks (lib/loot-data.ts).
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Log in first.' }, { status: 401, headers: NO_STORE });
   const { id: raidId } = await params;
-  const raid = lootEnabled() && session.role !== 'social' ? await db.raid.findUnique({ where: { id: raidId }, select: { startsAt: true, cancelledAt: true, templateId: true } }) : null;
+  const raid = lootEnabled() && session.role !== 'social' ? await db.raid.findUnique({ where: { id: raidId }, select: { startsAt: true, cancelledAt: true, templateId: true, reservesAllowed: true } }) : null;
   const table = raid?.templateId ? await loadLootTable(raid.templateId) : null;
   if (!raid || !table) return NextResponse.json({ error: 'Not found.' }, { status: 404, headers: NO_STORE });
   const [reserves, { targets }] = await Promise.all([loadActiveReserves(raidId), loadReserveTargets(raidId, session.discordId, session.role === 'officer')]);
   const now = new Date();
   return NextResponse.json(
-    { table, reserves, targets, lockAt: reservesLockAt(raid.startsAt).toISOString(), locked: reservesLocked(raid.startsAt, now), cancelled: raid.cancelledAt !== null } satisfies ReserveWindowData,
+    { table, reserves, targets, lockAt: reservesLockAt(raid.startsAt).toISOString(), locked: reservesLocked(raid.startsAt, now), cancelled: raid.cancelledAt !== null, reservesAllowed: raid.reservesAllowed } satisfies ReserveWindowData,
     { headers: NO_STORE },
   );
 }
@@ -42,7 +43,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
  * PUT /api/raids/[id]/reserves — set (or, with two nulls, clear) a member's hard and soft
  * reserve for this raid. Body `{ characterId, hr, sr, forUserId? }`; `forUserId` is an
  * officer setting someone else's, which also works after the reserve lock
- * (lib/loot-rules.ts decideReserve). The unique indexes on Reserve back the rules up.
+ * (lib/loot-rules.ts decideReserve). The unique indexes on Reserve back the rules up. A raid with
+ * reserves switched off refuses every save, read under the tier lock its setter also takes.
  */
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!lootEnabled()) return NextResponse.json({ error: 'Not found.' }, { status: 404, headers: NO_STORE });
@@ -76,6 +78,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   try {
     const removed = await db.$transaction(async (tx) => {
       if (raid.templateId) await lockReserveTier(tx, raid.templateId);
+      // After the lock, so the switch can't go off between this read and the write.
+      const current = await tx.raid.findUnique({ where: { id: raidId }, select: { reservesAllowed: true } });
+      if (!current?.reservesAllowed) throw new ReserveRefusal(409, REASONS.reservesOff);
       const where = { raidId_userId: { raidId, userId: target.id } };
       const brought = await tx.signup.findUnique({ where, include: { character: { select: MAIN_CHARACTER.select }, user: { select: { characters: MAIN_CHARACTER } } } });
       let removed: RemovedReserve[] = [];

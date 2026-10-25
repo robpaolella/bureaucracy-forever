@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import type { Role } from '@/lib/design/class-colors';
 import { lootEnabled } from '@/lib/flags';
-import { parseRequirements, viewerReserves, type RaidResponse, type RoleCounts } from '@/lib/raids';
+import { toComposition, viewerReserves, type Composition, type RaidResponse } from '@/lib/raids';
 import { countsForBars } from '@/lib/signup-rules';
 import { SITE_URL } from '@/lib/config';
 
@@ -26,9 +26,9 @@ export type RaidView = {
   cancelledReason: string | null;
   late: boolean;
   template: { name: string; short: string; size: number } | null;
-  requirements: RoleCounts;
+  requirements: Composition;
   /** Roster acceptances per role, for the composition bars. */
-  bars: RoleCounts;
+  bars: Composition;
   counts: { accepted: number; tentative: number; declined: number; unanswered: number; bench: number; roster: number; attended: number };
   discord: { threadId: string | null; messageId: string | null };
   url: string;
@@ -41,7 +41,7 @@ export async function loadRaidView(id: string, viewerDiscordId: string | null): 
   const r = await db.raid.findUnique({
     where: { id },
     select: {
-      id: true, templateId: true, name: true, status: true, startsAt: true, locksAt: true, durationMin: true, notes: true, cancelReason: true, requirements: true, postedAt: true, discordThreadId: true, discordMessageId: true,
+      id: true, templateId: true, reservesAllowed: true, name: true, status: true, startsAt: true, locksAt: true, durationMin: true, notes: true, cancelReason: true, requirements: true, postedAt: true, discordThreadId: true, discordMessageId: true,
       template: { select: { name: true, short: true, size: true } },
       series: { select: { postAheadDays: true } },
       signups: { select: { standing: true, response: true, attended: true, character: { select: MAIN_CHARACTER.select }, user: { select: { discordId: true, rank: true, reserves: { where: { raidId: id }, select: { kind: true } }, characters: MAIN_CHARACTER } } } },
@@ -53,8 +53,9 @@ export async function loadRaidView(id: string, viewerDiscordId: string | null): 
   const mine = viewerDiscordId ? rows.find((s) => s.discordId === viewerDiscordId) : undefined;
   const characters = mine ? await db.character.findMany({ where: { user: { discordId: viewerDiscordId! } },
     orderBy: [{ isMain: 'desc' }, { name: 'asc' }], select: { ...MAIN_CHARACTER.select, isMain: true } }) : [];
-  // A table counts once it has an item, as for the reserve reminder. A trial can't reserve, so for them there is none.
-  const hasLootTable = !!mine && !mine.trial && lootEnabled() && r.templateId !== null && (await db.lootTableEntry.count({ where: { boss: { templateId: r.templateId } } })) > 0;
+  // A table counts once it has an item, as for the reserve reminder. A trial can't reserve, so for them there is none,
+  // and nor is there for anyone while the raid's reserves are off.
+  const hasLootTable = !!mine && !mine.trial && r.reservesAllowed && lootEnabled() && r.templateId !== null && (await db.lootTableEntry.count({ where: { boss: { templateId: r.templateId } } })) > 0;
   const postAhead = (r.series?.postAheadDays ?? 14) * 24 * 3_600_000;
   return {
     id: r.id,
@@ -68,8 +69,8 @@ export async function loadRaidView(id: string, viewerDiscordId: string | null): 
     cancelledReason: r.status === 'CANCELLED' ? r.cancelReason : null,
     late: r.postedAt !== null && r.startsAt.getTime() - r.postedAt.getTime() < postAhead - 24 * 3_600_000,
     template: r.template,
-    requirements: parseRequirements(r.requirements),
-    bars: countsForBars(rows) as RoleCounts,
+    requirements: toComposition(r.requirements),
+    bars: countsForBars(rows),
     counts: {
       accepted: roster.filter((s) => s.response === 'accept').length,
       tentative: rows.filter((s) => s.response === 'tentative').length,

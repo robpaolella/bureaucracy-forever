@@ -24,8 +24,10 @@ const raider = {
 
 describe('applications copy', () => {
   it('describes the accept window without promising loot or gear', () => {
-    expect(ACTIONS.acceptBody).toContain('two-week trial');
-    expect(ACTIONS.acceptBody).not.toMatch(/loot|gear/i);
+    const raider = [ACTIONS.acceptRaiderQuestion, ...ACTIONS.acceptRaiderEffects].join(' ');
+    expect(raider).toContain('trial');
+    expect(raider).not.toMatch(/loot|gear|short chat/i);
+    expect([ACTIONS.acceptSocialBody, ...ACTIONS.acceptSocialEffects].join(' ')).not.toMatch(/trial\b(?!:)|chat/i);
   });
 });
 

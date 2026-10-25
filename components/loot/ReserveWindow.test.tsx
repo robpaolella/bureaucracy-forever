@@ -15,7 +15,7 @@ vi.mock('./ReservePicker', () => ({ ReservePicker: ({ onChange }: { onChange: (k
 </> }));
 const raid = { id: 'raid', name: 'Molten Core', startsAt: '2030-01-01T20:00:00Z' };
 const fixture = (): ReserveWindowData => ({
-  table: { bosses: [], blocked: [], items: {} }, reserves: [], lockAt: raid.startsAt, locked: false, cancelled: false,
+  table: { bosses: [], blocked: [], items: {} }, reserves: [], lockAt: raid.startsAt, locked: false, cancelled: false, reservesAllowed: true,
   targets: [{ userId: 'member', name: 'Redtape', self: true, blockedHr: {},
     characters: [{ id: 'main', name: 'Redtape', wowClass: 'warrior', isMain: true }, { id: 'alt', name: 'Triplicate', wowClass: 'mage', isMain: false }],
     current: { characterId: 'main', hr: 1, sr: 2 } }],

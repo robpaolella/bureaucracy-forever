@@ -6,6 +6,7 @@ vi.mock('@/lib/interviews', () => ({ latestInterview: store.latest }));
 
 vi.mock('@/lib/application-reminders', () => ({ loadReminder: store.reminder }));
 
+import { DM_TEMPLATES } from '@/content/dm-templates';
 import { GET } from './route';
 
 const call = (id = 'a1') =>
@@ -48,5 +49,13 @@ describe('GET /api/bot/applications/:id interview block', () => {
     store.reminder.mockResolvedValue({ pending: null, live: { channelId: 'c', messageId: 'm' } });
     expect((await (await call()).json()).reminder).toEqual({ pending: null, live: { channelId: 'c', messageId: 'm' } });
     expect(store.reminder).toHaveBeenCalledWith('a1');
+  });
+
+  it('carries switched and the standard decline message, the text a standard decline queues', async () => {
+    store.load.mockResolvedValue({ id: 'a1', discordId: '1', character: 'Thrall', switched: true, answers: [], notes: [] });
+    store.latest.mockResolvedValue(null);
+    const body = await (await call()).json();
+    expect(body.switched).toBe(true);
+    expect(body.declineMessage).toBe(DM_TEMPLATES.declined('Thrall'));
   });
 });

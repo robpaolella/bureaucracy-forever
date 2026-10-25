@@ -1,11 +1,22 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, durationLabel, durationOptions, emptyRaidInput, locksAtFor, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, linkOpensReserves, parseRequirements, promptsReserves, raidDate, raidWeekday, reservesUrl, responseToast, sourceSplit, totalCounts, viewerReserves, ZERO_COUNTS, type RaidCard, type SignupRow } from './raids';
+import { toComposition, applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, durationLabel, durationOptions, emptyRaidInput, locksAtFor, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, linkOpensReserves, neededError, parseRequirements, parseRequirementsInput, promptsReserves, raidDate, raidWeekday, reservesUrl, responseToast, sourceSplit, totalCounts, viewerReserves, type RaidCard, type SignupRow } from './raids';
 
 describe('requirements and counts', () => {
   it('parses a JSON requirements column defensively', () => {
-    expect(parseRequirements({ tank: 2, healer: 8, melee: 11, ranged: 14 })).toEqual({ tank: 2, healer: 8, melee: 11, ranged: 14 });
-    expect(parseRequirements({ tank: '2', healer: -1, melee: 2.7 })).toEqual({ tank: 0, healer: 0, melee: 2, ranged: 0 });
-    expect(parseRequirements(null)).toEqual(ZERO_COUNTS);
+    expect(parseRequirements({ tank: 2, healer: 8, dps: 25 })).toEqual({ tank: 2, healer: 8, dps: 25 });
+    expect(parseRequirements({ tank: 2, healer: 8, melee: 11, ranged: 14 })).toEqual({ tank: 2, healer: 8, dps: 25 });
+    expect(parseRequirements({ tank: '2', healer: -1, melee: 2.7 })).toEqual({ tank: 0, healer: 0, dps: 2 });
+    expect(parseRequirements(null)).toEqual({ tank: 0, healer: 0, dps: 0 });
+  });
+
+  it('validates sent requirements strictly and converts the older shape', () => {
+    expect(parseRequirementsInput({ tank: 2, healer: 8, dps: 20 })).toEqual({ ok: true, value: { tank: 2, healer: 8, dps: 20 } });
+    expect(parseRequirementsInput({ tank: 2, healer: 8, melee: 9, ranged: 11 })).toEqual({ ok: true, value: { tank: 2, healer: 8, dps: 20 } });
+    // With dps, melee and ranged are ignored, even when they would not pass.
+    expect(parseRequirementsInput({ tank: 2, healer: 8, dps: 20, melee: -3, ranged: 'x' })).toEqual({ ok: true, value: { tank: 2, healer: 8, dps: 20 } });
+    for (const bad of [{ tank: -1, healer: 8, dps: 20 }, { tank: 2, healer: 8.5, dps: 20 }, { tank: 2, healer: 8, dps: '20' }, { tank: 2, healer: 8, dps: 41 }, { tank: 2, healer: 8, dps: null }, { tank: 2, healer: 8 }, { tank: 2, healer: 8, melee: 30, ranged: 11 }, null]) {
+      expect(parseRequirementsInput(bad)).toEqual({ ok: false, error: 'Requirements are whole numbers from 0 to 40.' });
+    }
   });
 
   it('counts only accepted sign-ups with a known role', () => {
@@ -27,6 +38,24 @@ describe('requirements and counts', () => {
     expect(applyResponse(c, 'healer', 'tentative', 'absent')).toEqual(c);
     expect(applyResponse(c, null, null, 'accept')).toEqual(c);
     expect(applyResponse({ ...c, healer: 0 }, 'healer', 'accept', null)).toEqual({ ...c, healer: 0 });
+  });
+
+  it('reads stored requirements as tank, healer and DPS', () => {
+    expect(toComposition({ tank: 2, healer: 8, melee: 11, ranged: 14 })).toEqual({ tank: 2, healer: 8, dps: 25 });
+    expect(toComposition({ tank: 2, healer: 8, dps: 20 })).toEqual({ tank: 2, healer: 8, dps: 20 });
+    expect(toComposition({ tank: 2, healer: 8, dps: 20, melee: 9, ranged: 11 }).dps).toBe(20);
+    expect(toComposition(null)).toEqual({ tank: 0, healer: 0, dps: 0 });
+    expect(toComposition('{bad')).toEqual({ tank: 0, healer: 0, dps: 0 });
+    expect(toComposition({ tank: -1, healer: 'x', melee: 3 })).toEqual({ tank: 0, healer: 0, dps: 3 });
+  });
+
+  it.each(['melee', 'ranged'] as const)('moves a %s member through DPS as they accept, withdraw and switch', (role) => {
+    const c = { tank: 2, healer: 8, melee: 11, ranged: 14 };
+    const accepted = applyResponse(c, role, null, 'accept');
+    expect(toComposition(accepted).dps).toBe(26);
+    expect(toComposition(applyResponse(accepted, role, 'accept', 'absent')).dps).toBe(25);
+    const moved = applyResponse(applyResponse(accepted, role, 'accept', null), 'healer', null, 'accept');
+    expect(toComposition(moved)).toEqual({ tank: 2, healer: 9, dps: 25 });
   });
 
   it('tones a count against its requirement', () => {
@@ -202,7 +231,7 @@ describe('raid detail', () => {
 });
 
 describe('schedule form input', () => {
-  const good = { templateId: 't1', date: '2026-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 }, notes: '' };
+  const good = { templateId: 't1', date: '2026-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, dps: 20 }, notes: '' };
 
   it('derives the instant in guild time', () => {
     const r = parseRaidInput(good);
@@ -227,9 +256,22 @@ describe('schedule form input', () => {
     expect(parseRaidInput({ ...good, date: '2027-03-14', time: '03:30' })).toMatchObject({ ok: true });
     expect(parseRaidInput({ ...good, time: '7pm' })).toMatchObject({ ok: false, error: /start time/ });
     expect(parseRaidInput({ ...good, durationMin: 100 })).toMatchObject({ ok: false, error: /length/ });
-    expect(parseRaidInput({ ...good, requirements: { tank: 2, healer: 8, melee: 9, ranged: 41 } })).toMatchObject({ ok: false, error: /0 to 40/ });
-    expect(parseRaidInput({ ...good, requirements: { tank: 0, healer: 0, melee: 0, ranged: 0 } })).toMatchObject({ ok: false, error: /at least one/ });
+    expect(parseRaidInput({ ...good, requirements: { tank: 2, healer: 8, dps: 41 } })).toMatchObject({ ok: false, error: /0 to 40/ });
+    // The total is the route's check, against the template.
+    expect(parseRaidInput({ ...good, requirements: { tank: 0, healer: 0, dps: 0 } })).toMatchObject({ ok: true });
+    expect(neededError({ tank: 0, healer: 0, dps: 0 }, 20)).toBe('Tank, healer and DPS must add up to 20.');
+    expect(neededError({ tank: 2, healer: 3, dps: 15 }, 20)).toBeNull();
+    expect(neededError({ tank: 0, healer: 0, dps: 0 }, null)).toBe('A raid needs at least one person.');
+    expect(neededError({ tank: 0, healer: 0, dps: 3 }, null)).toBeNull();
     expect(parseRaidInput({ ...good, notes: 'x'.repeat(501) })).toMatchObject({ ok: false, error: /notes/ });
+  });
+
+  it('keeps exactly three requirement keys through parsing and the edit prefill', () => {
+    expect(parseRaidInput(good)).toMatchObject({ ok: true, value: { requirements: { tank: 2, healer: 8, dps: 20 } } });
+    const old = parseRaidInput({ ...good, requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 } });
+    expect(old.ok && old.value.requirements).toEqual({ tank: 2, healer: 8, dps: 20 });
+    const stored = parseRequirements({ tank: 2, healer: 8, melee: 9, ranged: 11 });
+    expect(raidToInput({ templateId: 't1', startsAt: '2026-10-08T02:00:00.000Z', durationMin: 180, requirements: stored, notes: null }).requirements).toEqual({ tank: 2, healer: 8, dps: 20 });
   });
 
   it('round-trips a stored raid through the form values', () => {
@@ -246,8 +288,36 @@ describe('schedule form input', () => {
   });
 });
 
+describe('reserves allowed in the raid input', () => {
+  const good = { templateId: 't1', date: '2026-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, dps: 20 }, notes: '' };
+
+  it('passes the switch through, and leaves it out when not sent', () => {
+    expect(parseRaidInput({ ...good, reservesAllowed: false })).toMatchObject({ ok: true, value: { reservesAllowed: false } });
+    expect(parseRaidInput({ ...good, reservesAllowed: true })).toMatchObject({ ok: true, value: { reservesAllowed: true } });
+    const left = parseRaidInput(good);
+    expect(left.ok && 'reservesAllowed' in left.value).toBe(false);
+  });
+
+  it('refuses anything but a boolean', () => {
+    for (const v of ['no', 0, null]) expect(parseRaidInput({ ...good, reservesAllowed: v }).ok).toBe(false);
+  });
+
+  it('defaults to on when scheduling and shows the stored value on edit', () => {
+    expect(emptyRaidInput({}, new Date('2026-09-26T17:00:00.000Z')).reservesAllowed).toBe(true);
+    const raid = { templateId: 't1', startsAt: '2026-10-08T02:00:00.000Z', durationMin: 180, requirements: good.requirements, notes: null };
+    expect(raidToInput({ ...raid, reservesAllowed: false }).reservesAllowed).toBe(false);
+    expect(raidToInput({ ...raid, reservesAllowed: true }).reservesAllowed).toBe(true);
+  });
+
+  it('does not prompt for reserves when they are off', () => {
+    const window = (reservesAllowed: boolean) => ({ locked: false, cancelled: false, reservesAllowed, targets: [{ self: true, current: { hr: null, sr: null } }] });
+    expect(promptsReserves('accept', window(true))).toBe(true);
+    expect(promptsReserves('accept', window(false))).toBe(false);
+  });
+});
+
 describe('raid lengths', () => {
-  const good = { templateId: 't1', date: '2026-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 }, notes: '' };
+  const good = { templateId: 't1', date: '2026-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, dps: 20 }, notes: '' };
 
   it('accepts template lengths: 30–480 minutes in quarter hours', () => {
     for (const m of [30, 45, 75, 180, 420, 480]) expect(parseRaidInput({ ...good, durationMin: m }).ok).toBe(true);
@@ -273,7 +343,7 @@ describe('mergeLocal', () => {
     durationMin: 180,
     notes: null,
     cancelled: false,
-    requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 },
+    requirements: { tank: 2, healer: 8, dps: 20 },
     counts: { tank: 2, healer: 6, melee: 9, ranged: 11 },
     mine: null,
     ...over,

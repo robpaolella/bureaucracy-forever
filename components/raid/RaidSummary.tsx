@@ -1,13 +1,13 @@
 import { LocalTime } from '@/components/time/LocalTime';
 import { ProgressTrack } from '@/components/ui';
 import { cn } from '@/lib/cn';
-import { ROLE_LABELS, ROLES } from '@/lib/design/class-colors';
-import { countTone, totalCounts, type RoleCounts } from '@/lib/raids';
+import { COMPOSITION_LABELS, COMPOSITION_ROLES } from '@/lib/design/class-colors';
+import { countTone, toComposition, totalCounts, type Composition, type RoleCounts } from '@/lib/raids';
 import { SUMMARY } from '@/content/raid';
 
 type Props = {
   counts: RoleCounts;
-  requirements: RoleCounts;
+  requirements: Composition;
   split: { web: number; discord: number };
   notes: string | null;
   cancelled: boolean;
@@ -23,8 +23,9 @@ const TONE_TEXT = { ok: 'text-ok', warn: 'text-warn', stop: 'text-stop' } as con
  * large tabular figure, a 6px track per role, the web / Discord split so officers see
  * which surface answers came from, when sign-ups lock, then the officer's notes as prose.
  */
-export function RaidSummary({ counts, requirements, split, notes, cancelled, status, locksAt }: Props) {
-  const total = totalCounts(counts);
+export function RaidSummary({ counts: stored, requirements, split, notes, cancelled, status, locksAt }: Props) {
+  const counts = toComposition(stored);
+  const total = totalCounts(stored);
   const required = totalCounts(requirements);
   return (
     <aside className="flex flex-col gap-5 rounded-card border border-line bg-ink-850 p-5" aria-labelledby="raid-summary">
@@ -44,16 +45,16 @@ export function RaidSummary({ counts, requirements, split, notes, cancelled, sta
       </div>
 
       <ul className="flex flex-col gap-3">
-        {ROLES.map((r) => (
+        {COMPOSITION_ROLES.map((r) => (
           <li key={r} className="flex flex-col gap-1.5">
             <div className="flex items-baseline justify-between text-sm">
-              <span className="text-fg-2">{ROLE_LABELS[r]}</span>
+              <span className="text-fg-2">{COMPOSITION_LABELS[r]}</span>
               <span className="tabular">
                 <span className={cn('font-semibold', TONE_TEXT[countTone(counts[r], requirements[r])])}>{counts[r]}</span>
                 <span className="text-fg-3"> / {requirements[r]}</span>
               </span>
             </div>
-            <ProgressTrack value={counts[r]} max={requirements[r]} label={ROLE_LABELS[r]} />
+            <ProgressTrack value={counts[r]} max={requirements[r]} label={COMPOSITION_LABELS[r]} />
           </li>
         ))}
       </ul>

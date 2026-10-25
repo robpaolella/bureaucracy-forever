@@ -1,7 +1,8 @@
 import { after, NextResponse } from 'next/server';
+import { setReservesAllowed } from '@/lib/loot-blocks';
 import { enqueue } from '@/lib/outbox';
 import { db } from '@/lib/db';
-import { locksAtFor, parseRaidInput, PICK_TEMPLATE } from '@/lib/raids';
+import { locksAtFor, neededError, parseRaidInput, PICK_TEMPLATE } from '@/lib/raids';
 import { instanceName, skippedDatesFor } from '@/lib/series';
 import { getSession } from '@/lib/session';
 
@@ -19,7 +20,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (session.role !== 'officer') return NextResponse.json({ error: 'Officers manage raids.' }, { status: 403, headers: NO_STORE });
 
   const { id } = await params;
-  const raid = await db.raid.findUnique({ where: { id }, select: { id: true, startsAt: true, durationMin: true, cancelledAt: true, discordThreadId: true, locksAt: true, templateId: true, template: { select: { name: true } } } });
+  const raid = await db.raid.findUnique({ where: { id }, select: { id: true, startsAt: true, durationMin: true, cancelledAt: true, discordThreadId: true, locksAt: true, templateId: true, template: { select: { name: true, size: true } } } });
   if (!raid) return NextResponse.json({ error: 'No such raid.' }, { status: 404, headers: NO_STORE });
   if (raid.startsAt.getTime() + raid.durationMin * 60_000 < Date.now()) {
     return NextResponse.json({ error: 'This raid has already happened.' }, { status: 409, headers: NO_STORE });
@@ -58,6 +59,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'That start is already in the past.' }, { status: 400, headers: NO_STORE });
   }
   const { value } = parsed;
+  // An older raid without a template only needs someone, even while it is given one here.
+  const needed = neededError(value.requirements, raid.template ? raid.template.size : null);
+  if (needed) return NextResponse.json({ error: needed }, { status: 400, headers: NO_STORE });
   let templateName = raid.template?.name;
   if (!raid.templateId) {
     const picked = await db.raidTemplate.findFirst({ where: { id: value.templateId, active: true }, select: { name: true } });
@@ -70,6 +74,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     data: { name: instanceName(templateName!, parsed.startsAt), templateId: value.templateId, startsAt: parsed.startsAt, locksAt: locksAtFor(parsed.startsAt, Math.round((raid.startsAt.getTime() - raid.locksAt.getTime()) / 60_000)), durationMin: value.durationMin, requirements: value.requirements, notes: value.notes || null, detached: true },
     select: { id: true, name: true, startsAt: true, discordThreadId: true },
   });
+  // Through the setter, which takes the reserve lock so a save in flight commits first or is refused. Left out, the stored value stays.
+  if (value.reservesAllowed !== undefined && !(await setReservesAllowed(raid.id, value.reservesAllowed))) {
+    return NextResponse.json({ error: 'No such raid.' }, { status: 404, headers: NO_STORE });
+  }
   if (updated.discordThreadId) after(() => enqueue('raid.update', { raidId: raid.id }));
   return NextResponse.json({ id: updated.id, name: updated.name, startsAt: updated.startsAt.toISOString() }, { headers: NO_STORE });
 }

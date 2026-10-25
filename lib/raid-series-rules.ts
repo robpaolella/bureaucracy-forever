@@ -2,9 +2,9 @@
  * Officer inputs for raid templates and series (SYNC-SPEC §3, §9.3). Pure validation shared
  * by the routes and the forms.
  */
-import { parseRequirements, totalCounts, type RoleCounts } from '@/lib/raids';
+import { mustAddUpTo, parseRequirementsInput, totalCounts, type Composition } from '@/lib/raids';
 
-export type TemplateInput = { name: string; short: string; size: number; durationMin: number; requirements: RoleCounts; active: boolean; /** The in-game instance id (GetInstanceInfo), or null when not set. */ instance: number | null };
+export type TemplateInput = { name: string; short: string; size: number; durationMin: number; requirements: Composition; active: boolean; /** The in-game instance id (GetInstanceInfo), or null when not set. */ instance: number | null };
 export type SeriesInput = { templateId: string; weekday: number; startTime: string; durationMin: number; notes: string; postAheadDays: number; lockMinutesBefore: number; horizonWeeks: number; active: boolean };
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -38,8 +38,10 @@ export function parseTemplateInput(body: unknown): Parsed<TemplateInput> {
   if (!inRange(size, 5, 40)) return { ok: false, error: 'Size is 5 to 40.' };
   const durationMin = int(b.durationMin);
   if (!inRange(durationMin, 30, 480) || durationMin % 15 !== 0) return { ok: false, error: 'Length is 30 to 480 minutes, in quarter hours.' };
-  const requirements = parseRequirements(b.requirements);
-  if (totalCounts(requirements) !== size) return { ok: false, error: `The four requirements must add up to ${size}.` };
+  const parsedReq = parseRequirementsInput(b.requirements);
+  if (!parsedReq.ok) return parsedReq;
+  const requirements = parsedReq.value;
+  if (totalCounts(requirements) !== size) return { ok: false, error: mustAddUpTo(size) };
   const instance = parseInstance(b.instance);
   if (!instance.ok) return { ok: false, error: INSTANCE_ERROR };
   return { ok: true, value: { name, short, size, durationMin, requirements, active: b.active !== false, instance: instance.value } };

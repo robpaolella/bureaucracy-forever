@@ -5,16 +5,18 @@ const mocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
   findTemplate: vi.fn(),
   update: vi.fn(),
+  setReservesAllowed: vi.fn(),
 }));
 
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.session }));
+vi.mock('@/lib/loot-blocks', () => ({ setReservesAllowed: mocks.setReservesAllowed }));
 vi.mock('@/lib/outbox', () => ({ enqueue: vi.fn() }));
 vi.mock('next/server', async (orig) => ({ ...(await orig<typeof import('next/server')>()), after: vi.fn() }));
 vi.mock('@/lib/db', () => ({ db: { raid: { findUnique: mocks.findUnique, update: mocks.update }, raidTemplate: { findFirst: mocks.findTemplate } } }));
 
 import { PATCH } from './route';
 
-const form = { date: '2099-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 }, notes: 'n' };
+const form = { date: '2099-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, dps: 20 }, notes: 'n' };
 const raid = (over: Record<string, unknown> = {}) => ({
   id: 'r1',
   startsAt: new Date('2099-10-01T03:00:00.000Z'),
@@ -23,7 +25,7 @@ const raid = (over: Record<string, unknown> = {}) => ({
   discordThreadId: null,
   locksAt: new Date('2099-10-01T01:00:00.000Z'),
   templateId: 't1',
-  template: { name: 'Molten Core' },
+  template: { name: 'Molten Core', size: 30 },
   ...over,
 });
 const patch = (over: Record<string, unknown> = {}) => PATCH(new Request('https://example.test/api/raids/r1', { method: 'PATCH', body: JSON.stringify({ ...form, ...over }) }), { params: Promise.resolve({ id: 'r1' }) });
@@ -32,6 +34,7 @@ describe('PATCH /api/raids/[id] (edit)', () => {
   beforeEach(() => {
     mocks.session = { role: 'officer' };
     mocks.findUnique.mockReset().mockResolvedValue(raid());
+    mocks.setReservesAllowed.mockReset().mockResolvedValue(true);
     mocks.findTemplate.mockReset().mockResolvedValue({ name: 'Onyxia' });
     mocks.update.mockReset().mockImplementation(async ({ data }) => ({ id: 'r1', name: data.name, startsAt: data.startsAt, discordThreadId: null }));
   });
@@ -54,7 +57,7 @@ describe('PATCH /api/raids/[id] (edit)', () => {
   });
 
   it('uses the template’s current name on a notes-only edit', async () => {
-    mocks.findUnique.mockResolvedValue(raid({ template: { name: 'Molten Core (renamed)' }, startsAt: new Date('2099-11-05T03:00:00.000Z'), locksAt: new Date('2099-11-05T01:00:00.000Z') }));
+    mocks.findUnique.mockResolvedValue(raid({ template: { name: 'Molten Core (renamed)', size: 30 }, startsAt: new Date('2099-11-05T03:00:00.000Z'), locksAt: new Date('2099-11-05T01:00:00.000Z') }));
     await patch();
     expect(mocks.update.mock.calls[0][0].data.name).toBe('Molten Core (renamed) — Wed Nov 4');
   });
@@ -64,9 +67,71 @@ describe('PATCH /api/raids/[id] (edit)', () => {
     expect(mocks.findTemplate).not.toHaveBeenCalled();
   });
 
+  describe('reserves allowed', () => {
+    it('switches it off through the setter, which takes the reserve lock', async () => {
+      expect((await patch({ reservesAllowed: false })).status).toBe(200);
+      expect(mocks.setReservesAllowed).toHaveBeenCalledWith('r1', false);
+      expect(mocks.update.mock.calls[0][0].data).not.toHaveProperty('reservesAllowed');
+    });
+
+    it('switches it on through the setter', async () => {
+      await patch({ reservesAllowed: true });
+      expect(mocks.setReservesAllowed).toHaveBeenCalledWith('r1', true);
+    });
+
+    it('keeps the stored value when the body leaves it out', async () => {
+      expect((await patch()).status).toBe(200);
+      expect(mocks.setReservesAllowed).not.toHaveBeenCalled();
+    });
+
+    it('refuses a value that is not on or off, and changes nothing', async () => {
+      const res = await patch({ reservesAllowed: 'no' });
+      expect(res.status).toBe(400);
+      expect(mocks.update).not.toHaveBeenCalled();
+      expect(mocks.setReservesAllowed).not.toHaveBeenCalled();
+    });
+
+    it('says so when the raid was deleted meanwhile', async () => {
+      mocks.setReservesAllowed.mockResolvedValue(false);
+      expect((await patch({ reservesAllowed: false })).status).toBe(404);
+    });
+  });
+
   it('ignores a typed name', async () => {
     await patch({ name: 'Typed' });
     expect(mocks.update.mock.calls[0][0].data.name).toBe('Molten Core — Wed Nov 4');
+  });
+
+  describe('Needed', () => {
+    it('is stored as exactly tank, healer and DPS, from either body shape', async () => {
+      expect((await patch()).status).toBe(200);
+      expect((await patch({ requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 } })).status).toBe(200);
+      for (const [{ data }] of mocks.update.mock.calls) expect(data.requirements).toStrictEqual({ tank: 2, healer: 8, dps: 20 });
+    });
+
+    it('must add up to the template size', async () => {
+      for (const requirements of [{ tank: 1, healer: 8, dps: 20 }, { tank: 0, healer: 0, dps: 0 }]) {
+        const res = await patch({ requirements });
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({ error: 'Tank, healer and DPS must add up to 30.' });
+      }
+      expect(mocks.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses an event saved before its template was resized until the total is fixed', async () => {
+      // Stored 2/8/20 = 30, then the template became 40.
+      mocks.findUnique.mockResolvedValue(raid({ template: { name: 'Molten Core', size: 40 } }));
+      const res = await patch();
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'Tank, healer and DPS must add up to 40.' });
+      expect(mocks.update).not.toHaveBeenCalled();
+      expect((await patch({ requirements: { tank: 2, healer: 8, dps: 30 } })).status).toBe(200);
+    });
+
+    it('refuses negative and fractional values', async () => {
+      for (const requirements of [{ tank: -2, healer: 12, dps: 20 }, { tank: 2, healer: 7.5, dps: 20.5 }]) expect((await patch({ requirements })).status).toBe(400);
+      expect(mocks.update).not.toHaveBeenCalled();
+    });
   });
 
   describe('an event with no template', () => {
@@ -83,6 +148,13 @@ describe('PATCH /api/raids/[id] (edit)', () => {
       mocks.findTemplate.mockResolvedValue(null);
       expect((await patch({ templateId: 'gone' })).status).toBe(400);
       expect(mocks.update).not.toHaveBeenCalled();
+    });
+
+    it('only needs someone, not the picked template size', async () => {
+      expect((await patch({ templateId: 't2', requirements: { tank: 1, healer: 0, dps: 0 } })).status).toBe(200);
+      const res = await patch({ templateId: 't2', requirements: { tank: 0, healer: 0, dps: 0 } });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'A raid needs at least one person.' });
     });
 
     it('gets the template and the name', async () => {

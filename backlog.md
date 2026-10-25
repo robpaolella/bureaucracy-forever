@@ -74,3 +74,6 @@
 - Contrast (#362 critique): `fg-3` labels on the `ink-850` card surface measure 4.43:1, under the 4.5:1 floor (tokens.css says fg-3 is for ink-950); used ~160 times site-wide, e.g. the interview page's "Your times · N hours". Decide a site-wide fix.
 - Interview page (#362 critique): on a phone the booked/proposed time wraps left-aligned under a centred "in 2 days" (same in the approved design); consider centring it.
 - Interview page (#362 critique): the loading skeleton is picker-shaped, so visitors whose interview is already submitted, booked or ended see a big card snap to a small one (approved loading state).
+- Consider a short DPS explainer (melee and ranged) for newcomers on the calendar and raid page; the #454 critique raised it, left for Robert.
+- Raid form (#455 critique): show a live "· N of SIZE" total in the Needed legend, like the template form, so the size rule shows before saving; needs the template size passed to the form.
+- Role inputs (#455 critique): when Tank, Healer and DPS don't add up, neither form marks the boxes `aria-invalid` with a Stop border, as DESIGN.md asks for invalid fields (baseline behaviour).

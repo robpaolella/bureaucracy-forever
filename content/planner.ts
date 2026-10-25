@@ -8,7 +8,7 @@ export const PLANNER_HEAD = {
 
 export const TEMPLATES = {
   heading: 'Templates',
-  lede: 'One per raid tier. The size and the four requirements drive the composition bars.',
+  lede: 'One per raid tier. The size and the role requirements drive the composition bars.',
   edit: 'Edit',
   name: 'Name',
   short: 'Short',
@@ -18,7 +18,7 @@ export const TEMPLATES = {
   instanceHint: "Optional. The add-on shows this number when you're inside the raid; Onyxia's Lair is 249.",
   instanceSet: (n: number) => `Instance ${n}`,
   instanceNone: 'No instance number',
-  needs: 'Tank / Healer / Melee / Ranged',
+  needs: 'Tank / Healer / DPS',
   active: 'Active',
   inactive: 'Inactive',
   editTitle: 'Edit template',

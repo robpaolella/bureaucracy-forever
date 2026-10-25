@@ -7,7 +7,7 @@ import { useSignup, type CharacterSwitchResult } from './useSignup';
 
 const card = (over: Partial<RaidCard> = {}): RaidCard => ({
   id: 'raid', name: 'MC', startsAt: '2030-01-01T20:00:00Z', durationMin: 180,
-  notes: null, cancelled: false, requirements: ZERO_COUNTS,
+  notes: null, cancelled: false, requirements: { tank: 0, healer: 0, dps: 0 },
   counts: { ...ZERO_COUNTS, healer: 2 }, mine: 'accept', signupRole: 'healer', onRoster: true, ...over,
 });
 const character = { id: 'alt', name: 'Triplicate', class: 'MAGE', spec: 'Frost', raidRole: 'RANGED' };
@@ -139,5 +139,32 @@ describe('useSignup character switches', () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
     await act(async () => { answer.resolve(response(200, { response: 'tentative', counts: { ...ZERO_COUNTS, healer: 1 } })); });
     expect(hook.pending.size).toBe(0);
+  });
+});
+
+describe('useSignup DPS counts', () => {
+  const dps = () => hook.raids[0].counts.melee + hook.raids[0].counts.ranged;
+  it.each(['melee', 'ranged'] as const)('adds a %s answer to DPS at once and rolls it back when the request fails', async (role) => {
+    const request = deferred(); fetcher.mockReturnValue(request.promise);
+    await render([card({ mine: null, signupRole: role, counts: { ...ZERO_COUNTS, ranged: 3 } })]);
+    await act(async () => { hook.respond('raid', 'accept'); });
+    expect(dps()).toBe(4);
+    await act(async () => { request.reject(new Error('offline')); });
+    expect(dps()).toBe(3);
+  });
+
+  it.each(['melee', 'ranged'] as const)('removes a %s member from DPS on withdrawing', async (role) => {
+    fetcher.mockReturnValue(deferred().promise);
+    await render([card({ mine: 'accept', signupRole: role, counts: { ...ZERO_COUNTS, melee: 2, ranged: 2 } })]);
+    await act(async () => { hook.respond('raid', 'absent'); });
+    expect(dps()).toBe(3);
+  });
+
+  it('moves the count from DPS to healers when switching to a healer', async () => {
+    fetcher.mockResolvedValue(response(200, { character: { ...character, raidRole: 'HEALER' }, removed: [] }));
+    await render([card({ signupRole: 'ranged', counts: { ...ZERO_COUNTS, ranged: 3, healer: 1 } })]);
+    await act(async () => { await hook.switchCharacter('raid', 'alt', 'healer'); });
+    expect(dps()).toBe(2);
+    expect(hook.raids[0].counts.healer).toBe(2);
   });
 });

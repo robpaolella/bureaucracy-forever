@@ -109,6 +109,7 @@ async function applyResult(type: JobType, payload: Record<string, unknown>, resu
     await db.officerNote.updateMany({ where: { id: String(payload.noteId) }, data: { discordMessageId: messageId } });
     return 'note id stored';
   }
+  if (type === 'application.decide') return applyDecideAck(payload, result);
   if (type === 'application.message.send') return applySendAck(payload, result);
   if (type === 'application.message.copy') return applyCopyAck(payload, result);
   return undefined;
@@ -147,4 +148,22 @@ async function applyCopyAck(payload: Record<string, unknown>, result: Record<str
   await db.applicantMessage.update({ where: { id }, data: { copyChannelId, copyMessageId } });
   if (result.pinged === true) await db.application.update({ where: { id: message.applicationId }, data: { relayPingAt: new Date() } });
   return 'message copy stored';
+}
+
+/**
+ * SYNC-SPEC §5: the bot's delivery report for a decision message. One conditional update: it
+ * applies only while the payload's `decisionId` is still the application's current one and the
+ * status is `QUEUED`, so a stale ack (reopened and decided again), a repeated one, one for kind
+ * none and one without a `decisionId` change nothing. An ack without a boolean or null changes nothing.
+ */
+async function applyDecideAck(payload: Record<string, unknown>, result: Record<string, unknown>): Promise<string | undefined> {
+  const decisionId = str(payload.decisionId);
+  const delivered = result.dmDelivered;
+  if (!decisionId || (delivered !== true && delivered !== false && delivered !== null)) return undefined;
+  const status = delivered === true ? 'SENT' : delivered === false ? 'NOT_DELIVERED' : 'UNCONFIRMED';
+  const moved = await db.application.updateMany({
+    where: { id: String(payload.applicationId ?? ''), decisionId, decisionMessageStatus: 'QUEUED' },
+    data: { decisionMessageStatus: status },
+  });
+  return moved.count === 0 ? 'stale decision ack ignored' : `decision message ${status.toLowerCase()}`;
 }

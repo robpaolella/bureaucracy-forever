@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  raid: { findMany: vi.fn(), updateMany: vi.fn() },
+  raid: { findMany: vi.fn(), updateMany: vi.fn(), create: vi.fn() }, character: { findMany: vi.fn() },
   signup: { findMany: vi.fn() }, reserve: { findMany: vi.fn() },
   user: { findMany: vi.fn() }, raidSeries: { findMany: vi.fn() },
   application: { findMany: vi.fn(), updateMany: vi.fn() }, interview: { findMany: vi.fn(), updateMany: vi.fn() }, botRequest: { findUnique: vi.fn() },
@@ -41,7 +41,7 @@ describe('tick reserve reminders', () => {
     expect((await runTick(now)).reservesReminded).toBe(1);
     expect((await runTick(now)).reservesReminded).toBe(0);
     expect(mocks.enqueue).toHaveBeenCalledExactlyOnceWith('raid.reserves.remind', { raidId: 'r', discordIds: ['discord-a'], reservesLockAt: '2026-10-16T18:00:00.000Z' }, mocks);
-    expect(mocks.raid.updateMany).toHaveBeenCalledWith({ where: { id: 'r', remindReservesAt: null, status: { in: ['SCHEDULED', 'LOCKED'] }, startsAt: raid.startsAt }, data: { remindReservesAt: now } });
+    expect(mocks.raid.updateMany).toHaveBeenCalledWith({ where: { id: 'r', remindReservesAt: null, reservesAllowed: true, status: { in: ['SCHEDULED', 'LOCKED'] }, startsAt: raid.startsAt }, data: { remindReservesAt: now } });
   });
   it('conditionally claims stale candidates from overlapping ticks', async () => {
     mocks.raid.findMany.mockImplementation(async (args) => args.where.remindReservesAt === null ? [raid] : []);
@@ -63,10 +63,10 @@ describe('tick reserve reminders', () => {
     expect(mocks.raid.updateMany).not.toHaveBeenCalled();
     expect(mocks.raid.findMany.mock.calls.some(([args]) => args.where.remindReservesAt === null)).toBe(false);
   });
-  it('bounds candidates by reserve time, posting, status, marker and nonempty loot table', async () => {
+  it('bounds candidates by reserve time, posting, status, marker, the reserves switch and nonempty loot table', async () => {
     await runTick(now);
     expect(mocks.raid.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {
-      status: { in: ['SCHEDULED', 'LOCKED'] }, postedAt: { not: null }, remindReservesAt: null,
+      status: { in: ['SCHEDULED', 'LOCKED'] }, postedAt: { not: null }, remindReservesAt: null, reservesAllowed: true,
       startsAt: { gt: new Date('2026-10-16T19:00:00Z'), lte: new Date('2026-10-16T21:00:00Z') },
       template: { lootBosses: { some: { entries: { some: {} } } } },
     } }));
@@ -188,5 +188,19 @@ describe('tick application reminders', () => {
     await tickAt(evening, [legacy]);
     expect(nudges()).toHaveLength(1);
     expect(nudges().every(([, payload]) => typeof (payload as { key?: unknown }).key === 'string')).toBe(true);
+  });
+});
+
+describe('tick generation', () => {
+  it.each([
+    ['an old-shape', { tank: 2, healer: 8, melee: 11, ranged: 14 }],
+    ['a new-shape', { tank: 2, healer: 8, dps: 25 }],
+  ])('stores exactly three requirement keys on each raid generated from %s template', async (_shape, requirements) => {
+    mocks.raidSeries.findMany.mockResolvedValue([{ id: 's', templateId: 't', weekday: 3, startTime: '20:00', horizonWeeks: 1, lockMinutesBefore: 120, durationMin: 180, notes: null, skippedDates: [], raids: [], template: { name: 'Onyxia', requirements } }]);
+    mocks.character.findMany.mockResolvedValue([]);
+    mocks.raid.create.mockResolvedValue({});
+    await runTick(now);
+    expect(mocks.raid.create).toHaveBeenCalled();
+    for (const [{ data }] of mocks.raid.create.mock.calls) expect(data.requirements).toStrictEqual({ tank: 2, healer: 8, dps: 25 });
   });
 });

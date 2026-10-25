@@ -19,9 +19,10 @@ const row = (over: Partial<DetailRow>): DetailRow => ({
 });
 
 describe('groupByRole', () => {
-  it('orders tank, healer, melee, ranged, then members without a main, dropping empty groups', () => {
-    const groups = groupByRole([row({ name: 'Rangy', role: 'ranged' }), row({ name: 'Nomain', role: null, wowClass: null }), row({ name: 'Tanky', role: 'tank' }), row({ name: 'Healy', role: 'healer' })]);
-    expect(groups.map((g) => g.role)).toEqual(['tank', 'healer', 'ranged', 'none']);
+  it('orders tank, healer, DPS (melee and ranged together), then members without a main, dropping empty groups', () => {
+    const groups = groupByRole([row({ name: 'Rangy', role: 'ranged' }), row({ name: 'Stabby', role: 'melee' }), row({ name: 'Nomain', role: null, wowClass: null }), row({ name: 'Tanky', role: 'tank' }), row({ name: 'Healy', role: 'healer' })]);
+    expect(groups.map((g) => g.role)).toEqual(['tank', 'healer', 'dps', 'none']);
+    expect(groups[2].rows.map((r) => r.name).sort()).toEqual(['Rangy', 'Stabby']);
   });
 
   it('sorts accepted, tentative, unanswered, absent, then by name', () => {
