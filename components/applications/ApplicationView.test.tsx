@@ -14,7 +14,8 @@ type Msg = Extract<NoteEntry, { kind: 'message' }>;
 const msg = (o: Partial<Msg>): Msg => ({ kind: 'message', id: 'm', author: 'Thrall', authorClass: 'shaman', body: 'hello', mentions: null, createdAt: '2026-10-12T01:00:00.000Z', direction: 'from', marker: null, attachmentCount: 0, attachmentUrl: null, ...o });
 const base: ApplicationDetail = {
   id: 'app', path: 'raider', status: 'pending', character: 'Thrall', wowClass: 'shaman', spec: 'Enhancement', discordName: 'thrall', createdAt: '2026-10-12T00:00:00.000Z', unread: false,
-  discordId: 'd1', logsUrl: null, answers: {}, decidedAt: null, decidedBy: null, discordThreadId: null, interview: null, notes: [], mentionUsers: {},
+  discordId: 'd1', logsUrl: null, answers: {}, decidedAt: null, decidedBy: null, discordThreadId: null, switched: false, interview: null, notes: [], mentionUsers: {}, decisionMessage: null,
+  standardMessages: { raider: 'R', social: 'S', declined: 'D' },
 };
 let root: Root, host: HTMLDivElement;
 beforeEach(() => { vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true); host = document.createElement('div'); document.body.append(host); root = createRoot(host); });
@@ -90,5 +91,28 @@ describe('ApplicationView notes and messages', () => {
     const text = await render([{ kind: 'note', id: 'n', author: 'Redtape', authorClass: null, body: 'a note', createdAt: '2026-10-12T02:00:00.000Z', source: 'discord', discordMessageId: null, editedAt: '2026-10-12T03:00:00.000Z', mentions: null }]);
     expect(text).toContain('via Discord');
     expect(text).toContain('edited');
+  });
+});
+
+describe('ApplicationView decision message', () => {
+  const decided = (decisionMessage: ApplicationDetail['decisionMessage']) => act(async () => root.render(<ApplicationView app={{ ...base, status: 'declined', decidedBy: 'Ledgerline', decisionMessage }} now="2026-10-13T00:00:00.000Z" />));
+
+  it.each([
+    [{ kind: 'standard', text: 'Thanks for applying.', status: 'queued' }, ['Standard message', 'Being sent', 'Thanks for applying.']],
+    [{ kind: 'custom', text: 'Sorry, not this time.', status: 'sent' }, ['Custom message', 'Sent', 'Sorry, not this time.']],
+    [{ kind: 'none', text: null, status: null }, ['No message sent']],
+    [{ kind: 'standard', text: 'Hi', status: 'not-delivered' }, ['Not delivered']],
+    [{ kind: 'standard', text: 'Hi', status: 'unconfirmed' }, ['Delivery not confirmed']],
+  ] as const)('shows %#', async (decisionMessage, texts) => {
+    await decided({ ...decisionMessage });
+    expect(host.querySelector('[aria-label="Message to the applicant"]')).not.toBeNull();
+    for (const t of texts) expect(host.textContent).toContain(t);
+  });
+
+  it('shows no message line for a decision from before messages were stored', async () => {
+    await decided(null);
+    expect(host.textContent).toContain('Declined by Ledgerline');
+    expect(host.querySelector('[aria-label="Message to the applicant"]')).toBeNull();
+    expect(host.textContent).not.toContain('No message sent');
   });
 });

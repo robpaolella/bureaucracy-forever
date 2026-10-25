@@ -4,9 +4,10 @@ const mocks = vi.hoisted(() => ({ findUnique: vi.fn(), card: vi.fn(), users: vi.
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/db', () => ({ db: { application: { findUnique: mocks.findUnique }, user: { findMany: mocks.users } } }));
 vi.mock('@/lib/interviews', () => ({ interviewCard: mocks.card }));
+import { decisionDm } from '@/content/dm-templates';
 import { loadApplication } from './applications-data';
 
-const row = { id: 'app', path: 'RAIDER', status: 'PENDING', character: 'Thrall', class: 'SHAMAN', spec: 'Enhancement', discordId: 'd1', discordName: 'thrall', logsUrl: null, answers: {}, readAt: null, createdAt: new Date('2026-10-12T00:00:00Z'), decidedAt: null, decidedBy: null, discordThreadId: 'thread', notes: [], messages: [] };
+const row = { id: 'app', path: 'RAIDER', status: 'PENDING', character: 'Thrall', class: 'SHAMAN', spec: 'Enhancement', discordId: 'd1', discordName: 'thrall', logsUrl: null, answers: {}, readAt: null, createdAt: new Date('2026-10-12T00:00:00Z'), decidedAt: null, decidedBy: null, discordThreadId: 'thread', switchedAt: null, notes: [], messages: [] };
 beforeEach(() => { vi.clearAllMocks(); mocks.findUnique.mockResolvedValue(row); mocks.users.mockResolvedValue([]); });
 
 describe('loadApplication interview', () => {
@@ -103,5 +104,32 @@ describe('loadApplication notes and messages', () => {
     const select = mocks.findUnique.mock.calls[0][0].select;
     expect(select.notes.where).toEqual({ deletedAt: null });
     expect(select.messages.where).toBeUndefined();
+  });
+});
+
+describe('loadApplication decision message', () => {
+  beforeEach(() => { mocks.card.mockResolvedValue(null); });
+
+  it('has no message for a decision from before messages were stored', async () => {
+    expect(await loadApplication('app')).toMatchObject({ decisionMessage: null });
+  });
+
+  it.each([
+    [{ decisionMessageKind: 'STANDARD', decisionMessageText: 'Hi', decisionMessageStatus: 'QUEUED' }, { kind: 'standard', text: 'Hi', status: 'queued' }],
+    [{ decisionMessageKind: 'CUSTOM', decisionMessageText: 'Mine', decisionMessageStatus: 'SENT' }, { kind: 'custom', text: 'Mine', status: 'sent' }],
+    [{ decisionMessageKind: 'STANDARD', decisionMessageText: 'Hi', decisionMessageStatus: 'NOT_DELIVERED' }, { kind: 'standard', text: 'Hi', status: 'not-delivered' }],
+    [{ decisionMessageKind: 'STANDARD', decisionMessageText: 'Hi', decisionMessageStatus: 'UNCONFIRMED' }, { kind: 'standard', text: 'Hi', status: 'unconfirmed' }],
+    [{ decisionMessageKind: 'NONE', decisionMessageText: null, decisionMessageStatus: null }, { kind: 'none', text: null, status: null }],
+  ])('carries the stored message %#', async (stored, expected) => {
+    mocks.findUnique.mockResolvedValue({ ...row, ...stored });
+    expect((await loadApplication('app'))!.decisionMessage).toEqual(expected);
+  });
+
+  it('builds the standard messages from the character name with the decision builder', async () => {
+    const { standardMessages } = (await loadApplication('app'))!;
+    expect(standardMessages.declined).toBe(decisionDm('declined', 'Thrall'));
+    expect(standardMessages.raider).toBe(decisionDm('raider', 'Thrall'));
+    expect(standardMessages.social).toBe(decisionDm('social', 'Thrall'));
+    expect(standardMessages.declined).toContain('Thrall');
   });
 });
