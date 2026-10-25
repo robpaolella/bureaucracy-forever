@@ -135,3 +135,33 @@ describe('Accept window', () => {
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
 });
+
+describe('Move to social', () => {
+  beforeEach(async () => { await render('raider'); });
+
+  it('shows an error toast and refreshes on a conflict', async () => {
+    failWith(409, 'This application was already decided.');
+    await click(button('Move to social'));
+    expect(mocks.toast).toHaveBeenCalledWith({ tone: 'stop', title: 'This application was already decided.' });
+    expect(mocks.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows an error toast on a network error, without refreshing', async () => {
+    fetchMock.mockRejectedValue(new Error('offline'));
+    await click(button('Move to social'));
+    expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ tone: 'stop' }));
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe('Decline intro', () => {
+  it.each(['Write my own message', 'Send no message', 'Send the standard message'])('promises nothing for %s', async (choice) => {
+    await render();
+    await click(button('Decline'));
+    const label = [...host.querySelectorAll('label')].find((l) => l.textContent === choice);
+    if (label) await click(label.querySelector('input')!);
+    const intro = host.querySelector('dialog p')!.textContent!;
+    expect(intro).not.toMatch(/told the answer is no|without the reasons/);
+    expect(intro).toContain('Officer notes stay private.');
+  });
+});

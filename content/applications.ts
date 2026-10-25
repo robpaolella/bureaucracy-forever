@@ -66,7 +66,7 @@ export const ACTIONS = {
   acceptRaider: 'Confirm',
   acceptSocial: 'Accept as Social',
   declineTitle: (name: string) => `Decline ${name}?`,
-  declineBody: 'They will be told the answer is no, plainly and without the reasons. Officer notes stay private.',
+  declineBody: 'Choose what the applicant is told. Officer notes stay private.',
   declineEffects: ['Status becomes Declined and the Discord post is tagged Declined.', 'The #applications thread is closed.', 'No role changes. Reopen is available if this was a mistake.'],
   declineConfirm: 'Decline the application',
   declineChoiceLegend: 'What should they be told?',

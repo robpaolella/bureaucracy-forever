@@ -851,7 +851,7 @@ are in §13 Rendering, so the contract reads in one place.
      its text and its delivery state: Sent, "Message not delivered" (DMs closed, or not in the
      server), "Delivery not confirmed", or Queued while the bot hasn't reported. Nothing stored
      (a decision from before this change) shows no message line. After a reopen the line is gone
-     until the next decision. A `Switched` note shows beside the path once `switchedAt` is set.
+     until the next decision.
 3. **Templates & series (officers)** — `/officers/raids`: template table (editable), series
    list, "New series" form (template, weekday, time in guild zone, length, notes). Editing a
    series asks "This raid only" (detaches the instance) or "This and future raids".

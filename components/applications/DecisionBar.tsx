@@ -75,11 +75,16 @@ export function DecisionBar({ id, name, path, pending, messages }: Props) {
     if (busy) return;
     setBusy(true);
     setError(null);
+    // Move to social opens no window, so its failures go to a toast instead.
+    const inWindow = confirming !== null;
     try {
       const res = await fetch(`/api/applications/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' });
       if (!res.ok) {
         const reason = await failureMessage(res);
-        if (res.status === 409) {
+        if (!inWindow) {
+          setToast({ tone: 'stop', title: reason });
+          if (res.status === 409) router.refresh();
+        } else if (res.status === 409) {
           // Another officer got there first: keep the window for the reason, refresh when it closes.
           setConflict(true);
           setError(ACTIONS.conflict(reason));
@@ -92,7 +97,8 @@ export function DecisionBar({ id, name, path, pending, messages }: Props) {
       setConfirming(null);
       router.refresh();
     } catch {
-      setError(SAVE_FAILED);
+      if (inWindow) setError(SAVE_FAILED);
+      else setToast({ tone: 'stop', title: SAVE_FAILED });
     } finally {
       setBusy(false);
     }
