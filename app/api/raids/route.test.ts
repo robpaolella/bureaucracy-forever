@@ -13,13 +13,13 @@ vi.mock('@/lib/db', () => ({ db: { raidTemplate: { findFirst: mocks.findTemplate
 
 import { POST } from './route';
 
-const body = { templateId: 't1', date: '2099-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 }, notes: '' };
+const body = { templateId: 't1', date: '2099-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, dps: 20 }, notes: '' };
 const post = (over: Record<string, unknown> = {}) => POST(new Request('https://example.test/api/raids', { method: 'POST', body: JSON.stringify({ ...body, ...over }) }));
 
 describe('POST /api/raids', () => {
   beforeEach(() => {
     mocks.session = { role: 'officer', discordId: '1' };
-    mocks.findTemplate.mockReset().mockResolvedValue({ id: 't1', name: 'Molten Core' });
+    mocks.findTemplate.mockReset().mockResolvedValue({ id: 't1', name: 'Molten Core', size: 30 });
     mocks.create.mockReset().mockImplementation(async ({ data }) => ({ id: 'r1', name: data.name, startsAt: data.startsAt }));
   });
 
@@ -68,6 +68,26 @@ describe('POST /api/raids', () => {
     expect((await post({ durationMin: 45 })).status).toBe(201);
     expect((await post({ durationMin: 420 })).status).toBe(201);
     for (const durationMin of [20, 500, 100]) expect((await post({ durationMin })).status).toBe(400);
+  });
+
+  it('stores Needed as exactly tank, healer and DPS, from either body shape', async () => {
+    expect((await post()).status).toBe(201);
+    expect((await post({ requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 } })).status).toBe(201);
+    for (const [{ data }] of mocks.create.mock.calls) expect(data.requirements).toStrictEqual({ tank: 2, healer: 8, dps: 20 });
+  });
+
+  it('refuses Needed that does not add up to the template size', async () => {
+    for (const requirements of [{ tank: 2, healer: 9, dps: 20 }, { tank: 0, healer: 0, dps: 0 }]) {
+      const res = await post({ requirements });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'Tank, healer and DPS must add up to 30.' });
+    }
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses negative and fractional requirements', async () => {
+    for (const requirements of [{ tank: -2, healer: 12, dps: 20 }, { tank: 2, healer: 7.5, dps: 20.5 }]) expect((await post({ requirements })).status).toBe(400);
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 
   it('is for officers only', async () => {

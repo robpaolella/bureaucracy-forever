@@ -10,7 +10,7 @@ import { CLASS_NEEDS } from '@/content/recruitment';
 import { RAID_NIGHTS } from '@/content/schedule';
 import { NEED_SPECS } from '@/lib/class-needs';
 import { GUILD_TIMEZONE } from '@/lib/config';
-import type { Role as RaidRoleKey, WowClass as WowClassKey } from '@/lib/design/class-colors';
+import type { CompositionRole, Role as RaidRoleKey, WowClass as WowClassKey } from '@/lib/design/class-colors';
 import { minutesBetween, nextOccurrence, zonedParts, type Weekday } from '@/lib/time';
 
 /** Small seeded PRNG (mulberry32) so every run produces the same roster. */
@@ -187,7 +187,7 @@ export function paintWeek(zone: string, random: () => number, from = new Date())
 }
 
 /** `template` names the SeedTemplate the raid belongs to, so reserves and the loot log have a table. */
-export type SeedRaid = { name: string; template: string; startsAt: Date; durationMin: number; requirements: Record<RaidRoleKey, number>; notes: string | null };
+export type SeedRaid = { name: string; template: string; startsAt: Date; durationMin: number; requirements: Record<CompositionRole, number>; notes: string | null };
 
 /** Three weeks of raids from `from`: the progression nights. */
 export function buildRaids(from = new Date()): SeedRaid[] {
@@ -203,7 +203,7 @@ export function buildRaids(from = new Date()): SeedRaid[] {
         template: templates[night.day] ?? "Onyxia's Lair",
         startsAt,
         durationMin: minutesBetween(night.start, night.end),
-        requirements: night.optional ? { tank: 2, healer: 3, melee: 7, ranged: 8 } : { tank: 3, healer: 12, melee: 11, ranged: 14 },
+        requirements: night.optional ? { tank: 2, healer: 3, dps: 15 } : { tank: 3, healer: 12, dps: 25 },
         notes: night.optional ? 'Optional. Alts welcome once mains are in.' : week === 0 ? 'Read the assignment notes before the first pull.' : null,
       });
     }
@@ -333,13 +333,13 @@ export function buildApplications(): SeedApplication[] {
   return apps;
 }
 
-export type SeedTemplate = { name: string; short: string; size: number; durationMin: number; requirements: { tank: number; healer: number; melee: number; ranged: number } };
+export type SeedTemplate = { name: string; short: string; size: number; durationMin: number; requirements: Record<CompositionRole, number> };
 
-/** SYNC-SPEC §3: mirrors the raid templates configured in production. Order is tank/healer/melee/ranged. */
+/** SYNC-SPEC §3: mirrors the raid templates configured in production. Order is tank/healer/DPS. */
 export function buildRaidTemplates(): SeedTemplate[] {
   return [
-    { name: 'Barrow Deeps', short: 'BD', size: 10, durationMin: 180, requirements: { tank: 2, healer: 2, melee: 3, ranged: 3 } },
-    { name: 'Hyjal Summit', short: 'HS', size: 20, durationMin: 180, requirements: { tank: 2, healer: 3, melee: 7, ranged: 8 } },
-    { name: "Onyxia's Lair", short: 'Ony', size: 40, durationMin: 60, requirements: { tank: 3, healer: 12, melee: 11, ranged: 14 } },
+    { name: 'Barrow Deeps', short: 'BD', size: 10, durationMin: 180, requirements: { tank: 2, healer: 2, dps: 6 } },
+    { name: 'Hyjal Summit', short: 'HS', size: 20, durationMin: 180, requirements: { tank: 2, healer: 3, dps: 15 } },
+    { name: "Onyxia's Lair", short: 'Ony', size: 40, durationMin: 60, requirements: { tank: 3, healer: 12, dps: 25 } },
   ];
 }

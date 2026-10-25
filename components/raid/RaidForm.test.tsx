@@ -7,8 +7,8 @@ import { RaidForm } from './RaidForm';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const mc: RaidTemplateOption = { id: 'mc', name: 'Molten Core', durationMin: 240, requirements: { tank: 3, healer: 9, melee: 10, ranged: 13 } };
-const short: RaidTemplateOption = { id: 'zg', name: 'Zul’Gurub', durationMin: 75, requirements: { tank: 2, healer: 4, melee: 6, ranged: 8 } };
+const mc: RaidTemplateOption = { id: 'mc', name: 'Molten Core', durationMin: 240, requirements: { tank: 3, healer: 9, dps: 23 } };
+const short: RaidTemplateOption = { id: 'zg', name: 'Zul’Gurub', durationMin: 75, requirements: { tank: 2, healer: 4, dps: 14 } };
 const initial = emptyRaidInput({}, new Date('2099-01-01T12:00:00Z'));
 
 let root: Root, host: HTMLDivElement;
@@ -41,7 +41,9 @@ describe('RaidForm template', () => {
     await render([mc, short]);
     await change(field('Raid'), 'mc');
     expect((field('Length') as HTMLSelectElement).value).toBe('240');
-    expect([needed('tank'), needed('healer'), needed('melee'), needed('ranged')]).toEqual([3, 9, 10, 13]);
+    expect(host.querySelectorAll('input[type=number]')).toHaveLength(3);
+    expect([needed('tank'), needed('healer'), needed('dps')]).toEqual([3, 9, 23]);
+    expect([...host.querySelectorAll('fieldset label')].map((l) => l.textContent)).toEqual(['Tank', 'Healer', 'DPS']);
     await change(field('Raid'), 'zg');
     expect((field('Length') as HTMLSelectElement).value).toBe('75');
     expect(needed('tank')).toBe(2);
@@ -60,7 +62,17 @@ describe('RaidForm template', () => {
     await change(field('Length'), '300');
     await change(host.querySelector('input[type=number][id$="-tank"]') as HTMLInputElement, '4');
     await submit();
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ templateId: 'mc', durationMin: 300, requirements: { tank: 4, healer: 9, melee: 10, ranged: 13 } }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ templateId: 'mc', durationMin: 300, requirements: { tank: 4, healer: 9, dps: 23 } }));
+  });
+
+  it('leaves the Needed total to the server and shows its message', async () => {
+    onSubmit.mockResolvedValueOnce('Tank, healer and DPS must add up to 40.' as never);
+    await render([mc]);
+    await change(field('Raid'), 'mc');
+    for (const role of ['tank', 'healer', 'dps']) await change(host.querySelector(`input[type=number][id$="-${role}"]`) as HTMLInputElement, '0');
+    await submit();
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ requirements: { tank: 0, healer: 0, dps: 0 } }));
+    expect(host.querySelector('[role=alert]')?.textContent).toBe('Tank, healer and DPS must add up to 40.');
   });
 
   it('will not submit without a template', async () => {

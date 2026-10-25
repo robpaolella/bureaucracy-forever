@@ -14,7 +14,7 @@ export const TEMPLATES = {
   short: 'Short',
   size: 'Size',
   length: 'Length (minutes)',
-  needs: 'Tank / Healer / Melee / Ranged',
+  needs: 'Tank / Healer / DPS',
   active: 'Active',
   inactive: 'Inactive',
   editTitle: 'Edit template',

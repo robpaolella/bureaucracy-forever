@@ -7,7 +7,7 @@ import { useSignup, type CharacterSwitchResult } from './useSignup';
 
 const card = (over: Partial<RaidCard> = {}): RaidCard => ({
   id: 'raid', name: 'MC', startsAt: '2030-01-01T20:00:00Z', durationMin: 180,
-  notes: null, cancelled: false, requirements: ZERO_COUNTS,
+  notes: null, cancelled: false, requirements: { tank: 0, healer: 0, dps: 0 },
   counts: { ...ZERO_COUNTS, healer: 2 }, mine: 'accept', signupRole: 'healer', onRoster: true, ...over,
 });
 const character = { id: 'alt', name: 'Triplicate', class: 'MAGE', spec: 'Frost', raidRole: 'RANGED' };

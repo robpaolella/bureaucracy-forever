@@ -54,6 +54,12 @@ describe('PATCH /api/raid-series/:id moving future raids', () => {
     expect(mocks.enqueue).toHaveBeenCalledTimes(1);
   });
 
+  it('copies an old-shape template onto its raids as exactly tank, healer and DPS', async () => {
+    mocks.raidFindMany.mockResolvedValue([raid('r1', 'tier-b')]);
+    await patch();
+    expect(mocks.raidUpdate.mock.calls[0][0].data.requirements).toStrictEqual({ tank: 4, healer: 10, dps: 26 });
+  });
+
   it('skips a raid that would land in the past or collide, and does not count it', async () => {
     mocks.raidFindMany.mockResolvedValue([raid('past', 'tier-b', { startsAt: PAST }), raid('clash', 'tier-b', { discordThreadId: 't' }), raid('ok', 'tier-b')]);
     mocks.raidUpdate.mockImplementation(async ({ where }: { where: { id: string } }) => { if (where.id === 'clash') throw p2002(); });

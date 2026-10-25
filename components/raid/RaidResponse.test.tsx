@@ -18,7 +18,7 @@ const characters = [
 ];
 const card = (over: Partial<RaidCard> = {}): RaidCard => ({
   id: 'raid', name: 'Molten Core', startsAt: '2030-01-01T20:00:00Z', durationMin: 180,
-  notes: null, cancelled: false, requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 },
+  notes: null, cancelled: false, requirements: { tank: 2, healer: 8, dps: 20 },
   counts: { tank: 1, healer: 8, melee: 9, ranged: 10 }, mine: 'accept', signupRole: 'tank', onRoster: true, ...over,
 });
 const response = (status = 200, body: unknown = { character: { id: 'alt', name: 'Triplicate', class: 'MAGE', spec: 'Frost', raidRole: 'RANGED' }, removed: [] }) => ({ ok: status < 400, status, json: async () => body });
