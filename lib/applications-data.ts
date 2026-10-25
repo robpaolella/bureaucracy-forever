@@ -3,6 +3,7 @@ import 'server-only';
 import type { ApplicationPath } from '@/components/recruitment/form-state';
 import { type AppStatus, type InboxItem } from '@/lib/applications-inbox';
 import { db } from '@/lib/db';
+import { decisionDm } from '@/content/dm-templates';
 import { discordThreadUrl } from '@/lib/discord-links';
 import { mentionedUserIds } from '@/lib/discord-mentions';
 import { interviewCard, type InterviewCard } from '@/lib/interviews';
@@ -34,6 +35,14 @@ export async function loadInbox(): Promise<InboxItem[]> {
   }));
 }
 
+/** The message stored with a decision (SYNC-SPEC §4, Decision messages); null on a decision from before messages were stored. */
+export type DecisionMessageView = { kind: 'standard' | 'custom' | 'none'; text: string | null; status: 'queued' | 'sent' | 'not-delivered' | 'unconfirmed' | null };
+
+/** The standard messages for this applicant, built by the function a decision uses, from the character name. */
+export type StandardMessages = { raider: string; social: string; declined: string };
+
+const MESSAGE_STATUS = { QUEUED: 'queued', SENT: 'sent', NOT_DELIVERED: 'not-delivered', UNCONFIRMED: 'unconfirmed' } as const;
+
 export type ApplicationDetail = InboxItem & {
   /** '' when the applicant was not logged in: there is no account to DM, only the handle. */
   discordId: string;
@@ -50,6 +59,8 @@ export type ApplicationDetail = InboxItem & {
   notes: NoteEntry[];
   /** Discord name by Discord id, for the people tagged in the notes and messages. */
   mentionUsers: Record<string, string>;
+  decisionMessage: DecisionMessageView | null;
+  standardMessages: StandardMessages;
 };
 
 /** The bot's stored tag names, or null when absent or malformed: the stored JSON is not trusted. */
@@ -102,6 +113,9 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
       decidedBy: { select: { discordName: true } },
       discordThreadId: true,
       switchedAt: true,
+      decisionMessageKind: true,
+      decisionMessageText: true,
+      decisionMessageStatus: true,
       messages: {
         orderBy: { createdAt: 'asc' },
         select: { id: true, direction: true, authorUserId: true, body: true, createdAt: true, status: true, copyChannelId: true, copyMessageId: true, attachments: true, mentions: true, editedAt: true, deletedAt: true },
@@ -176,6 +190,8 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
     interview,
     notes,
     mentionUsers: Object.fromEntries(mentioned.map((u) => [u.discordId, u.discordName])),
+    decisionMessage: r.decisionMessageKind ? { kind: r.decisionMessageKind.toLowerCase() as 'standard' | 'custom' | 'none', text: r.decisionMessageText, status: r.decisionMessageStatus ? MESSAGE_STATUS[r.decisionMessageStatus] : null } : null,
+    standardMessages: { raider: decisionDm('raider', r.character), social: decisionDm('social', r.character), declined: decisionDm('declined', r.character) },
   };
 }
 
