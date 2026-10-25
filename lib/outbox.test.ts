@@ -102,3 +102,28 @@ describe('ackJob for application.message.send', () => {
     expect(mocks.msgUpdateMany).not.toHaveBeenCalled();
   });
 });
+
+describe('ackJob for application.decide', () => {
+  const decide = { id: 'j1', type: 'application.decide', payload: { applicationId: 'a1', decisionId: 'd1' }, attempts: 0, status: 'RUNNING' };
+  beforeEach(() => { mocks.findUnique.mockResolvedValue(decide); mocks.updateMany.mockResolvedValue({ count: 1 }); });
+
+  it.each([[true, 'SENT'], [false, 'NOT_DELIVERED'], [null, 'UNCONFIRMED']])('stores dmDelivered %s as %s, only for the current queued decision', async (dmDelivered, status) => {
+    await ackJob('j1', { ok: true, result: { dmDelivered } });
+    expect(mocks.updateMany).toHaveBeenCalledWith({ where: { id: 'a1', decisionId: 'd1', decisionMessageStatus: 'QUEUED' }, data: { decisionMessageStatus: status } });
+  });
+
+  it('reports a stale or repeated ack as ignored and still completes the job', async () => {
+    mocks.updateMany.mockResolvedValue({ count: 0 });
+    expect(await ackJob('j1', { ok: true, result: { dmDelivered: true } })).toEqual({ status: 'DONE', applied: 'stale decision ack ignored' });
+  });
+
+  it.each([
+    ['no decisionId', { applicationId: 'a1' }, { dmDelivered: true }],
+    ['a result without dmDelivered', { applicationId: 'a1', decisionId: 'd1' }, {}],
+    ['a non-boolean dmDelivered', { applicationId: 'a1', decisionId: 'd1' }, { dmDelivered: 'yes' }],
+  ])('changes nothing for %s', async (_n, payload, result) => {
+    mocks.findUnique.mockResolvedValue({ ...decide, payload });
+    expect(await ackJob('j1', { ok: true, result })).toEqual({ status: 'DONE', applied: undefined });
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+});

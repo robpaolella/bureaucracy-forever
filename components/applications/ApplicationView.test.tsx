@@ -14,7 +14,7 @@ type Msg = Extract<NoteEntry, { kind: 'message' }>;
 const msg = (o: Partial<Msg>): Msg => ({ kind: 'message', id: 'm', author: 'Thrall', authorClass: 'shaman', body: 'hello', mentions: null, createdAt: '2026-10-12T01:00:00.000Z', direction: 'from', marker: null, attachmentCount: 0, attachmentUrl: null, ...o });
 const base: ApplicationDetail = {
   id: 'app', path: 'raider', status: 'pending', character: 'Thrall', wowClass: 'shaman', spec: 'Enhancement', discordName: 'thrall', createdAt: '2026-10-12T00:00:00.000Z', unread: false,
-  discordId: 'd1', logsUrl: null, answers: {}, decidedAt: null, decidedBy: null, discordThreadId: null, interview: null, notes: [], mentionUsers: {},
+  discordId: 'd1', logsUrl: null, answers: {}, decidedAt: null, decidedBy: null, discordThreadId: null, switched: false, interview: null, notes: [], mentionUsers: {},
 };
 let root: Root, host: HTMLDivElement;
 beforeEach(() => { vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true); host = document.createElement('div'); document.body.append(host); root = createRoot(host); });

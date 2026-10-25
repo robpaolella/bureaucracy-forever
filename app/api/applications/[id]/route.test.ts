@@ -61,3 +61,33 @@ describe('PATCH /api/applications/:id choices', () => {
     expect(mocks.application.findUnique).not.toHaveBeenCalled();
   });
 });
+
+describe('PATCH /api/applications/:id { path: "social" }', () => {
+  it('sets the path and switchedAt and queues application.update together', async () => {
+    expect(await patch({ path: 'social' })).toEqual({ status: 200, body: { id: 'app', path: 'social' } });
+    expect(mocks.application.updateMany).toHaveBeenCalledWith({ where: { id: 'app', status: 'PENDING', path: 'RAIDER' }, data: { path: 'SOCIAL', switchedAt: expect.any(Date) } });
+    expect(mocks.enqueue).toHaveBeenCalledWith('application.update', { applicationId: 'app' }, expect.anything());
+  });
+
+  it('keeps an earlier switchedAt', async () => {
+    const earlier = new Date('2026-10-01T00:00:00Z');
+    mocks.application.findUnique.mockResolvedValue({ ...pending, switchedAt: earlier });
+    await patch({ path: 'social' });
+    expect(written()).toEqual({ path: 'SOCIAL', switchedAt: earlier });
+  });
+
+  it('writes and queues nothing when a decision lands first', async () => {
+    mocks.application.updateMany.mockResolvedValue({ count: 0 });
+    expect(await patch({ path: 'social' })).toEqual({ status: 409, body: { error: 'This application was already decided.' } });
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('answers 409 without writing when already on the social path or decided', async () => {
+    mocks.application.findUnique.mockResolvedValue({ ...pending, path: 'SOCIAL' });
+    expect((await patch({ path: 'social' })).status).toBe(409);
+    mocks.application.findUnique.mockResolvedValue({ ...pending, status: 'ACCEPTED' });
+    expect((await patch({ path: 'social' })).status).toBe(409);
+    expect(mocks.application.updateMany).not.toHaveBeenCalled();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+});
