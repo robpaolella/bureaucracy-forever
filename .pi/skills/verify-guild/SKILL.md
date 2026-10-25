@@ -78,6 +78,27 @@ it returns 404 in production. This does not prove Discord login or role syncing.
 Follow [member calendar and sign-up](features/member-calendar.md) for the actual
 feature interactions, not merely a visit to a page.
 
+## Acting as the bot (opt-in)
+
+Some states appear only after the Discord bot reports back (for example a decision
+message's Sent, Not delivered or Delivery not confirmed). By default the launcher
+blanks the bot secret, so every `/api/bot/*` call answers 503. To act as the bot,
+export a **made-up** value before Launch (never a real secret):
+
+```bash
+export VERIFY_BOT_SECRET="local-$(openssl rand -hex 16)"
+```
+
+The launcher trims it, treats empty or whitespace-only as unset, and passes it to the
+local site only as its bot secret; it is read from the process environment, never a
+settings file, and never printed. Then send bearer-authenticated requests per
+`SYNC-SPEC.md`: `curl -H "Authorization: Bearer $VERIFY_BOT_SECRET" "$BASE/api/bot/outbox"`
+to pull jobs, and `POST "$BASE/api/bot/outbox/<id>/ack"` with `{"ok":true}` or
+`{"ok":false,"error":"..."}` to report. Limits: local only, against the throwaway
+database; this is a real client action through the real API, not a database write, so
+it is allowed. Record each request and response in `notes.md`. Doctor passes with or
+without the variable. Without it, expect 503.
+
 ## Evidence
 
 Capture actions **and** results: save snapshots before and after each mutation,
