@@ -28,7 +28,9 @@ vi.mock('@/lib/db', () => ({
     });
   },
 }));
+vi.mock('server-only', () => ({}));
 import { decideApplication, reopenApplication } from './decisions';
+import { ackJob } from './outbox';
 
 // DECISIONS_INTEGRATION=1 npx vitest run lib/applications-decide.integration.test.ts
 // Like interviews.integration.test.ts, owns a disposable loopback-only Postgres, never an existing DB.
@@ -109,5 +111,31 @@ describe.skipIf(process.env.DECISIONS_INTEGRATION !== '1')('decisions on Postgre
     expect(await db.application.findUniqueOrThrow({ where: { id: 'switch' } })).toMatchObject({
       status: 'PENDING', path: 'SOCIAL', switchedAt: decided.switchedAt, decisionMessageKind: null, decisionMessageText: null, decisionMessageStatus: null, decisionId: null,
     });
+  });
+
+  it('applies the bot ack to the current decision only: stale and repeated acks change nothing', async () => {
+    await application('ack');
+    await decideApplication('ack', 'declined', officer, null, {});
+    const [first] = await jobs('ack');
+    await reopenApplication('ack', officer);
+    await decideApplication('ack', 'declined', officer, null, {});
+    const second = (await jobs('ack')).find((j) => j.id !== first.id)!;
+    const state = async () => (await db.application.findUniqueOrThrow({ where: { id: 'ack' } })).decisionMessageStatus;
+
+    await ackJob(first.id, { ok: true, result: { dmDelivered: true } });
+    expect(await state()).toBe('QUEUED');
+    await ackJob(second.id, { ok: true, result: { dmDelivered: false } });
+    expect(await state()).toBe('NOT_DELIVERED');
+    await db.outboxJob.update({ where: { id: second.id }, data: { status: 'RUNNING' } });
+    await ackJob(second.id, { ok: true, result: { dmDelivered: true } });
+    expect(await state()).toBe('NOT_DELIVERED');
+  });
+
+  it('ignores an ack for a decision with no message', async () => {
+    await application('none');
+    await decideApplication('none', 'declined', officer, null, { message: { kind: 'none' } });
+    const [job] = await jobs('none');
+    await ackJob(job.id, { ok: true, result: { dmDelivered: false } });
+    expect(await db.application.findUniqueOrThrow({ where: { id: 'none' } })).toMatchObject({ decisionMessageKind: 'NONE', decisionMessageStatus: null });
   });
 });
