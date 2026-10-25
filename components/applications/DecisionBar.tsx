@@ -146,7 +146,7 @@ export function DecisionBar({ id, name, path, pending, messages }: Props) {
               </Button>
             ) : raiderAccept ? (
               <>
-                <Button variant="secondary" disabled={busy} onClick={() => accept('social')}>
+                <Button variant="secondary" disabled={busy} onClick={() => accept('social')} className="whitespace-nowrap">
                   {ACTIONS.acceptSocial}
                 </Button>
                 <Button loading={busy} onClick={() => accept('raider')}>
