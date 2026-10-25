@@ -60,6 +60,17 @@ export function ApplicationView({ app, now, threadUrl = null, standaloneUrl = nu
             <span className="font-semibold text-fg">{app.character}</span>
             {!app.discordId && <span className="text-fg-3"> · {DETAIL.noAccount}</span>}
           </p>
+          {app.status !== 'pending' && app.decisionMessage && (
+            <div className="flex flex-col gap-1.5 rounded-card border border-line bg-ink-800 p-4" aria-label={DETAIL.sentLabel}>
+              <p className="flex flex-wrap items-center gap-x-2 text-sm">
+                <span className="font-semibold text-fg">{DETAIL.messageKind[app.decisionMessage.kind]}</span>
+                {app.decisionMessage.status && (
+                  <span className={app.decisionMessage.status === 'not-delivered' ? 'text-stop' : 'text-fg-3'}>· {DETAIL.messageStatus[app.decisionMessage.status]}</span>
+                )}
+              </p>
+              {app.decisionMessage.text && <p className="whitespace-pre-line break-words text-sm leading-[1.6] text-fg-2">{app.decisionMessage.text}</p>}
+            </div>
+          )}
         </header>
 
         {app.interview && <InterviewCard card={app.interview} applicant={app.discordName} threadUrl={threadUrl} />}
@@ -147,7 +158,7 @@ export function ApplicationView({ app, now, threadUrl = null, standaloneUrl = nu
           <NoteComposer applicationId={app.id} />
         </section>
 
-        <DecisionBar id={app.id} name={app.discordName} path={app.path} pending={app.status === 'pending'} />
+        <DecisionBar id={app.id} name={app.discordName} path={app.path} pending={app.status === 'pending'} messages={app.standardMessages} />
       </article>
     </ToastHost>
   );

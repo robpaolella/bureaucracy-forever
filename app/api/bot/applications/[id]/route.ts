@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { decisionDm } from '@/content/dm-templates';
 import { loadReminder } from '@/lib/application-reminders';
 import { loadApplication } from '@/lib/applications-data';
 import { orderedAnswers } from '@/lib/applications-inbox';
@@ -19,6 +20,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       ...app,
       interview,
       reminder: reminder ?? { pending: null, live: null },
+      // The standard decline text, from the function the decision uses, so the preview is what a standard decline sends.
+      declineMessage: decisionDm('declined', app.character),
       applicantDiscordId: app.discordId || null,
       answers: orderedAnswers(app.answers),
       url: `${SITE_URL}/officers/applications/${app.id}`,

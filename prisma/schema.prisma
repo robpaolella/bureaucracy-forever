@@ -73,6 +73,19 @@ enum AppStatus {
   DECLINED
 }
 
+enum DecisionMessageKind {
+  STANDARD
+  CUSTOM
+  NONE
+}
+
+enum DecisionMessageStatus {
+  QUEUED
+  SENT
+  NOT_DELIVERED
+  UNCONFIRMED
+}
+
 enum NeedStatus {
   HIGH
   MEDIUM
@@ -401,6 +414,15 @@ model Application {
   reminderMessageId  String?
   /// The last relay ping (SYNC-SPEC §13); null until one is sent.
   relayPingAt        DateTime?
+  /// The decision message (SYNC-SPEC §4, Decision request): its kind, the exact text queued
+  /// (null for NONE) and its delivery (null for NONE). All null for a decision from before this.
+  decisionMessageKind   DecisionMessageKind?
+  decisionMessageText   String?
+  decisionMessageStatus DecisionMessageStatus?
+  /// The current decision's id, sent as the application.decide payload's decisionId.
+  decisionId            String?
+  /// First move to the social path after submitting; never cleared.
+  switchedAt            DateTime?
   interviews       Interview[]
   messages         ApplicantMessage[]
 
