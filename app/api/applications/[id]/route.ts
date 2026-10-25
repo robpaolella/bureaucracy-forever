@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { parseDecision } from '@/lib/applications-decide';
-import { decideApplication } from '@/lib/decisions';
+import { decideApplication, MOVED_TO_SOCIAL } from '@/lib/decisions';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/session';
 import { ensureUser } from '@/lib/users';
@@ -9,7 +9,8 @@ const NO_STORE = { 'Cache-Control': 'private, no-store' };
 
 /**
  * PATCH /api/applications/[id] — an officer's decision (docs/06 § API routes). Body
- * `{ status: "accepted" | "declined" }` records who decided and when; `{ path: "social" }`
+ * `{ status: "accepted" | "declined", message?, acceptAs? }` records who decided, when and
+ * which message went (SYNC-SPEC §4, Decision request); `{ path: "social" }`
  * moves a pending raider application to the social path. A decided application is
  * history and answers 409.
  */
@@ -35,7 +36,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   const officer = await ensureUser(session);
-  const outcome = await decideApplication(app.id, parsed.value.status, { userId: officer.id, name: session.name, source: 'web' });
+  const { status, message, acceptAs } = parsed.value;
+  const outcome = await decideApplication(app.id, status, { userId: officer.id, name: session.name, source: 'web' }, null, { message, acceptAs });
+  if (outcome === 'moved') return NextResponse.json({ error: MOVED_TO_SOCIAL }, { status: 409, headers: NO_STORE });
   if (outcome === 'conflict') return NextResponse.json({ error: 'This application was already decided.' }, { status: 409, headers: NO_STORE });
   if (outcome === 'missing') return NextResponse.json({ error: 'No such application.' }, { status: 404, headers: NO_STORE });
   return NextResponse.json({ id: app.id, status: parsed.value.status }, { headers: NO_STORE });
