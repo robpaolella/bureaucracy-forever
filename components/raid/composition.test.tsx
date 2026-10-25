@@ -8,7 +8,7 @@ import { RosterByRole } from './RosterByRole';
 vi.mock('@/components/time/useViewerTimeZone', () => ({ useViewerTimeZone: () => null }));
 vi.mock('./AnswerFor', () => ({ AnswerFor: () => null }));
 
-const stored = { tank: 2, healer: 8, melee: 11, ranged: 14 };
+const stored = { tank: 2, healer: 8, dps: 25 };
 const counts = { tank: 1, healer: 8, melee: 3, ranged: 4 };
 
 describe('composition displays', () => {
@@ -22,7 +22,7 @@ describe('composition displays', () => {
     expect(html).toContain('<span class="text-fg-3"> / 25</span>');
   });
 
-  it('the calendar row shows three role counts with DPS needs summed', () => {
+  it('the calendar row shows three role counts', () => {
     const html = renderToStaticMarkup(
       <RaidCardRow raid={{ id: 'r', name: 'Onyxia', startsAt: '2030-01-01T20:00:00Z', durationMin: 180, notes: null, cancelled: false, requirements: stored, counts, mine: null }}
         tonight={false} canRespond={false} past={false} now="2029-12-01T00:00:00Z" onRespond={() => {}} />,

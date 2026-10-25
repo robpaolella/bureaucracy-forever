@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { Button, CONTROL, Field, FIELD_LABEL, Input } from '@/components/ui';
 import { cn } from '@/lib/cn';
-import { ROLE_LABELS, ROLES } from '@/lib/design/class-colors';
+import { COMPOSITION_LABELS, COMPOSITION_ROLES } from '@/lib/design/class-colors';
 import { INSTANCE_ERROR, parseTemplateInput, type TemplateInput } from '@/lib/raid-series-rules';
 import { TEMPLATES } from '@/content/planner';
 
@@ -36,7 +36,7 @@ export function TemplateForm({ initial, onSubmit, onCancel }: Props) {
     setSaving(false);
     if (message) setError(message);
   }
-  const sum = ROLES.reduce((n, r) => n + input.requirements[r], 0);
+  const sum = COMPOSITION_ROLES.reduce((n, r) => n + input.requirements[r], 0);
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
       <div className="grid grid-cols-[1fr_96px] gap-3">
@@ -62,10 +62,10 @@ export function TemplateForm({ initial, onSubmit, onCancel }: Props) {
         <legend className={FIELD_LABEL}>
           {TEMPLATES.needs} <span className={cn('tabular font-normal', sum === input.size ? 'text-fg-3' : 'text-warn')}>· {sum} of {input.size}</span>
         </legend>
-        <div className="grid grid-cols-4 gap-2">
-          {ROLES.map((r) => (
+        <div className="grid grid-cols-3 gap-2">
+          {COMPOSITION_ROLES.map((r) => (
             <label key={r} className="flex flex-col gap-1 text-[11px] text-fg-3">
-              {ROLE_LABELS[r]}
+              {COMPOSITION_LABELS[r]}
               <input type="number" inputMode="numeric" min={0} max={40} value={input.requirements[r]} onChange={(e) => set('requirements', { ...input.requirements, [r]: Math.max(0, Number(e.target.value) || 0) })} className={cn(CONTROL, 'tabular h-11 px-3')} />
             </label>
           ))}

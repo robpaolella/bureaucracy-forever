@@ -23,7 +23,7 @@ export type RaidCard = {
   durationMin: number;
   notes: string | null;
   cancelled: boolean;
-  requirements: RoleCounts;
+  requirements: Composition;
   /** Accepted sign-ups per role. */
   counts: RoleCounts;
   /** The viewer's own response, if any. */
@@ -45,24 +45,55 @@ export function isRaidResponse(value: unknown): value is RaidResponse {
   return typeof value === 'string' && (RESPONSES as readonly string[]).includes(value);
 }
 
-/** What displays and the bot show: Tanks, Healers and DPS. Storage and forms stay `RoleCounts` until #455. */
+/** Tanks, Healers and DPS: what templates and raids store, the forms edit, and displays and the bot show. */
 export type Composition = Record<CompositionRole, number>;
 
 /**
- * Display adapter for stored requirements or role counts. A stored `dps` is used as is;
- * otherwise DPS is melee plus ranged. Anything malformed reads as zeros.
+ * Requirements come from a JSON column in either shape: a stored `dps` is used as is,
+ * otherwise DPS is the older melee plus ranged. Anything malformed reads as zero rather than throwing.
  */
-export function toComposition(value: unknown): Composition {
+export function parseRequirements(value: unknown): Composition {
   const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
   const n = (k: string) => (typeof v[k] === 'number' && Number.isFinite(v[k]) && (v[k] as number) >= 0 ? Math.floor(v[k] as number) : 0);
   return { tank: n('tank'), healer: n('healer'), dps: typeof v.dps === 'number' ? n('dps') : n('melee') + n('ranged') };
 }
 
-/** Requirements come from a JSON column; anything malformed reads as zero rather than throwing. */
-export function parseRequirements(value: unknown): RoleCounts {
+/** Display adapter for stored requirements or per-role sign-up counts. */
+export function toComposition(value: unknown): Composition {
+  return parseRequirements(value);
+}
+
+export const REQUIREMENTS_RANGE = 'Requirements are whole numbers from 0 to 40.';
+
+/** The template-size rule's message, shared by templates and events made from them. */
+export function mustAddUpTo(size: number): string {
+  return `Tank, healer and DPS must add up to ${size}.`;
+}
+
+/**
+ * Needed against the raid's template: a raid with one must add up to its current size, so one
+ * made before the template was resized is fixed before it saves; an older raid without one
+ * (`size` null) only needs someone.
+ */
+export function neededError(requirements: Composition, size: number | null): string | null {
+  if (size !== null) return totalCounts(requirements) === size ? null : mustAddUpTo(size);
+  return totalCounts(requirements) === 0 ? 'A raid needs at least one person.' : null;
+}
+
+/**
+ * Strictly validate requirements a form or client sends, before they are stored as exactly
+ * `{ tank, healer, dps }`. A body without `dps` is the older four-number shape (a form opened
+ * before the change), so DPS is melee plus ranged; with `dps`, melee and ranged are ignored.
+ */
+export function parseRequirementsInput(value: unknown): { ok: true; value: Composition } | { ok: false; error: string } {
   const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
-  const n = (k: Role) => (typeof v[k] === 'number' && Number.isFinite(v[k]) && (v[k] as number) >= 0 ? Math.floor(v[k] as number) : 0);
-  return { tank: n('tank'), healer: n('healer'), melee: n('melee'), ranged: n('ranged') };
+  const valid = (x: unknown): x is number => typeof x === 'number' && Number.isInteger(x) && x >= 0 && x <= 40;
+  const parts = v.dps !== undefined ? [v.tank, v.healer, v.dps] : [v.tank, v.healer, v.melee, v.ranged];
+  if (!parts.every(valid)) return { ok: false, error: REQUIREMENTS_RANGE };
+  const [tank, healer, ...dps] = parts as number[];
+  const total = dps.reduce((a, b) => a + b, 0);
+  if (total > 40) return { ok: false, error: REQUIREMENTS_RANGE };
+  return { ok: true, value: { tank, healer, dps: total } };
 }
 
 /** Accepted sign-ups per role. Members without a character brought have no role and are not counted; an unanswered row (null) counts nothing. */
@@ -247,8 +278,8 @@ export function sourceSplit(rows: { source: SignupSource }[]): { web: number; di
   return { web, discord };
 }
 
-export function totalCounts(counts: RoleCounts): number {
-  return counts.tank + counts.healer + counts.melee + counts.ranged;
+export function totalCounts(counts: RoleCounts | Composition): number {
+  return Object.values(counts).reduce((a, b) => a + b, 0);
 }
 
 /** What the schedule form submits: guild-time wall clock, never an instant. */
@@ -260,7 +291,7 @@ export type RaidInput = {
   /** HH:MM, 24-hour, in guild time. */
   time: string;
   durationMin: number;
-  requirements: RoleCounts;
+  requirements: Composition;
   notes: string;
   /** Reserves allowed for this raid. Left out, a new raid stores yes and an edit keeps the stored value. */
   reservesAllowed?: boolean;
@@ -298,8 +329,8 @@ export function durationLabel(min: number): string {
 }
 
 /** An active raid template as the schedule form needs it. */
-export type RaidTemplateOption = { id: string; name: string; durationMin: number; requirements: RoleCounts };
-export const DEFAULT_REQUIREMENTS: RoleCounts = { tank: 2, healer: 8, melee: 9, ranged: 11 };
+export type RaidTemplateOption = { id: string; name: string; durationMin: number; requirements: Composition };
+export const DEFAULT_REQUIREMENTS: Composition = { tank: 2, healer: 8, dps: 20 };
 
 /** SYNC-SPEC §3: sign-ups close this long before the start unless a series says otherwise. */
 export const DEFAULT_LOCK_MINUTES = 120;
@@ -338,13 +369,10 @@ export function parseRaidInput(body: unknown): ParsedRaid {
   const durationMin = typeof b.durationMin === 'number' ? b.durationMin : Number(b.durationMin);
   if (!isRaidLength(durationMin)) return { ok: false, error: 'Pick a raid length.' };
 
-  const req = parseRequirements(b.requirements);
-  const given = (b.requirements && typeof b.requirements === 'object' ? b.requirements : {}) as Record<string, unknown>;
-  for (const role of ['tank', 'healer', 'melee', 'ranged'] as const) {
-    const v = given[role];
-    if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 40) return { ok: false, error: 'Requirements are whole numbers from 0 to 40.' };
-  }
-  if (totalCounts(req) === 0) return { ok: false, error: 'A raid needs at least one person.' };
+  // The total is checked by the route against the template (`neededError`).
+  const parsedReq = parseRequirementsInput(b.requirements);
+  if (!parsedReq.ok) return parsedReq;
+  const req = parsedReq.value;
 
   const notes = typeof b.notes === 'string' ? b.notes.trim() : '';
   if (notes.length > RAID_NOTES_MAX) return { ok: false, error: `Keep the notes under ${RAID_NOTES_MAX} characters.` };
@@ -357,7 +385,7 @@ export function parseRaidInput(body: unknown): ParsedRaid {
 const pad = (n: number) => String(n).padStart(2, '0');
 
 /** The form values for an existing raid, in guild time. */
-export function raidToInput(raid: { templateId?: string | null; startsAt: string; durationMin: number; requirements: RoleCounts; notes: string | null; reservesAllowed?: boolean }): RaidInput {
+export function raidToInput(raid: { templateId?: string | null; startsAt: string; durationMin: number; requirements: Composition; notes: string | null; reservesAllowed?: boolean }): RaidInput {
   const p = zonedParts(new Date(raid.startsAt), GUILD_TIMEZONE);
   return {
     templateId: raid.templateId ?? '',

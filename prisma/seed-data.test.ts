@@ -84,15 +84,15 @@ describe('raids, needs, applications', () => {
     const raids = buildRaids(new Date('2026-09-30T12:00:00Z'));
     expect(raids).toHaveLength(6);
     for (let i = 1; i < raids.length; i++) expect(raids[i].startsAt.getTime()).toBeGreaterThan(raids[i - 1].startsAt.getTime());
-    expect(raids[0].requirements).toEqual({ tank: 3, healer: 12, melee: 11, ranged: 14 });
+    expect(raids[0].requirements).toEqual({ tank: 3, healer: 12, dps: 25 });
     expect(raids.every((raid) => ['Hyjal Summit', "Onyxia's Lair"].includes(raid.template))).toBe(true);
   });
 
   it('uses only the Forever raid templates configured in production', () => {
     expect(buildRaidTemplates()).toEqual([
-      { name: 'Barrow Deeps', short: 'BD', size: 10, durationMin: 180, requirements: { tank: 2, healer: 2, melee: 3, ranged: 3 } },
-      { name: 'Hyjal Summit', short: 'HS', size: 20, durationMin: 180, requirements: { tank: 2, healer: 3, melee: 7, ranged: 8 } },
-      { name: "Onyxia's Lair", short: 'Ony', size: 40, durationMin: 60, requirements: { tank: 3, healer: 12, melee: 11, ranged: 14 } },
+      { name: 'Barrow Deeps', short: 'BD', size: 10, durationMin: 180, requirements: { tank: 2, healer: 2, dps: 6 } },
+      { name: 'Hyjal Summit', short: 'HS', size: 20, durationMin: 180, requirements: { tank: 2, healer: 3, dps: 15 } },
+      { name: "Onyxia's Lair", short: 'Ony', size: 40, durationMin: 60, requirements: { tank: 3, healer: 12, dps: 25 } },
     ]);
   });
 

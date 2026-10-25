@@ -18,7 +18,7 @@ export const TEMPLATES = {
   instanceHint: "Optional. The add-on shows this number when you're inside the raid; Onyxia's Lair is 249.",
   instanceSet: (n: number) => `Instance ${n}`,
   instanceNone: 'No instance number',
-  needs: 'Tank / Healer / Melee / Ranged',
+  needs: 'Tank / Healer / DPS',
   active: 'Active',
   inactive: 'Inactive',
   editTitle: 'Edit template',
