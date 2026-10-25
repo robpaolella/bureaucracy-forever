@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { parseDecision } from '@/lib/applications-decide';
 import { decideApplication, MOVED_TO_SOCIAL } from '@/lib/decisions';
 import { db } from '@/lib/db';
+import { enqueue } from '@/lib/outbox';
 import { getSession } from '@/lib/session';
 import { ensureUser } from '@/lib/users';
 
@@ -23,15 +24,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400, headers: NO_STORE });
 
   const { id } = await params;
-  const app = await db.application.findUnique({ where: { id }, select: { id: true, status: true, path: true, character: true, discordId: true, discordName: true } });
+  const app = await db.application.findUnique({ where: { id }, select: { id: true, status: true, path: true, character: true, discordId: true, discordName: true, switchedAt: true } });
   if (!app) return NextResponse.json({ error: 'No such application.' }, { status: 404, headers: NO_STORE });
   if (app.status !== 'PENDING') return NextResponse.json({ error: 'This application was already decided.' }, { status: 409, headers: NO_STORE });
 
   if (parsed.value.kind === 'path') {
     if (app.path === 'SOCIAL') return NextResponse.json({ error: 'Already on the social path.' }, { status: 409, headers: NO_STORE });
-    // Only a still-pending raider application moves: a decision landing first wins.
-    const moved = await db.application.updateMany({ where: { id: app.id, status: 'PENDING', path: 'RAIDER' }, data: { path: 'SOCIAL' } });
-    if (moved.count === 0) return NextResponse.json({ error: 'This application was already decided.' }, { status: 409, headers: NO_STORE });
+    // Only a still-pending raider application moves: a decision landing first wins. The path, the
+    // switch record and the Discord refresh land together or not at all (SYNC-SPEC §4).
+    const moved = await db.$transaction(async (tx) => {
+      const changed = await tx.application.updateMany({ where: { id: app.id, status: 'PENDING', path: 'RAIDER' }, data: { path: 'SOCIAL', switchedAt: app.switchedAt ?? new Date() } });
+      if (changed.count === 0) return false;
+      await enqueue('application.update', { applicationId: app.id }, tx);
+      return true;
+    });
+    if (!moved) return NextResponse.json({ error: 'This application was already decided.' }, { status: 409, headers: NO_STORE });
     return NextResponse.json({ id: app.id, path: 'social' }, { headers: NO_STORE });
   }
 
