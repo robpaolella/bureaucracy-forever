@@ -137,7 +137,7 @@ export function DecisionBar({ id, name, path, pending, messages }: Props) {
         title={declining ? ACTIONS.declineTitle(name) : ACTIONS.acceptTitle(name)}
         actions={
           <>
-            <Button variant="ghost" disabled={busy} onClick={close} className="whitespace-nowrap">
+            <Button variant="ghost" size="sm" disabled={busy} onClick={close} className="whitespace-nowrap">
               {ACTIONS.keep}
             </Button>
             {declining ? (
@@ -146,10 +146,10 @@ export function DecisionBar({ id, name, path, pending, messages }: Props) {
               </Button>
             ) : raiderAccept ? (
               <>
-                <Button variant="secondary" disabled={busy} onClick={() => accept('social')} className="whitespace-nowrap">
+                <Button variant="secondary" size="sm" disabled={busy} onClick={() => accept('social')} className="whitespace-nowrap">
                   {ACTIONS.acceptSocial}
                 </Button>
-                <Button loading={busy} onClick={() => accept('raider')}>
+                <Button size="sm" loading={busy} onClick={() => accept('raider')}>
                   {ACTIONS.acceptRaider}
                 </Button>
               </>
