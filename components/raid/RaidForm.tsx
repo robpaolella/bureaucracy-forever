@@ -5,7 +5,7 @@ import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { Button, CONTROL, Field, FIELD_LABEL, Input, Select, Textarea, TextLink, Toggle } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { GUILD_TIMEZONE } from '@/lib/config';
-import { ROLE_LABELS, ROLES } from '@/lib/design/class-colors';
+import { COMPOSITION_LABELS, COMPOSITION_ROLES } from '@/lib/design/class-colors';
 import { durationLabel, durationOptions, parseRaidInput, RAID_NOTES_MAX, type RaidInput, type RaidTemplateOption } from '@/lib/raids';
 import { instanceName } from '@/lib/series';
 import { formatRange, WEEKDAY_NAMES, zoneAbbreviation, zonedParts } from '@/lib/time';
@@ -26,7 +26,7 @@ type Props = {
 };
 
 /**
- * Template, guild-time date and start, length, the four requirements and notes. The wall
+ * Template, guild-time date and start, length, the Tank, Healer and DPS requirements and notes. The wall
  * clock is entered in guild time (docs/01 § Time: one configured zone) and previewed in
  * the officer's own zone beneath, so nothing is ever a bare time. Validation is the same
  * `parseRaidInput` the route runs, so the form never shows an error the server would not.
@@ -103,11 +103,11 @@ export function RaidForm({ initial, templates, templateLocked = false, lootOn = 
 
       <fieldset className="flex flex-col gap-2">
         <legend className={FIELD_LABEL}>{SCHEDULE_FORM.requirements}</legend>
-        <div className="grid grid-cols-4 gap-2">
-          {ROLES.map((r) => (
+        <div className="grid grid-cols-3 gap-2">
+          {COMPOSITION_ROLES.map((r) => (
             <div key={r} className="flex flex-col gap-1">
               <label htmlFor={`${reqId}-${r}`} className="text-[11px] text-fg-3">
-                {ROLE_LABELS[r]}
+                {COMPOSITION_LABELS[r]}
               </label>
               <input
                 id={`${reqId}-${r}`}

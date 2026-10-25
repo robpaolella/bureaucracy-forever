@@ -192,12 +192,15 @@ describe('tick application reminders', () => {
 });
 
 describe('tick generation', () => {
-  it('still stores four requirement keys on each generated raid', async () => {
-    mocks.raidSeries.findMany.mockResolvedValue([{ id: 's', templateId: 't', weekday: 3, startTime: '20:00', horizonWeeks: 1, lockMinutesBefore: 120, durationMin: 180, notes: null, skippedDates: [], raids: [], template: { name: 'Onyxia', requirements: { tank: 2, healer: 8, melee: 11, ranged: 14 } } }]);
+  it.each([
+    ['an old-shape', { tank: 2, healer: 8, melee: 11, ranged: 14 }],
+    ['a new-shape', { tank: 2, healer: 8, dps: 25 }],
+  ])('stores exactly three requirement keys on each raid generated from %s template', async (_shape, requirements) => {
+    mocks.raidSeries.findMany.mockResolvedValue([{ id: 's', templateId: 't', weekday: 3, startTime: '20:00', horizonWeeks: 1, lockMinutesBefore: 120, durationMin: 180, notes: null, skippedDates: [], raids: [], template: { name: 'Onyxia', requirements } }]);
     mocks.character.findMany.mockResolvedValue([]);
     mocks.raid.create.mockResolvedValue({});
     await runTick(now);
     expect(mocks.raid.create).toHaveBeenCalled();
-    for (const [{ data }] of mocks.raid.create.mock.calls) expect(data.requirements).toEqual({ tank: 2, healer: 8, melee: 11, ranged: 14 });
+    for (const [{ data }] of mocks.raid.create.mock.calls) expect(data.requirements).toStrictEqual({ tank: 2, healer: 8, dps: 25 });
   });
 });

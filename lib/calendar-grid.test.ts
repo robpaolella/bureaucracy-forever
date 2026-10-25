@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { monthCells, shiftMonth, sortNeedsAnswerFirst } from './calendar-grid';
 import type { RaidCard } from './raids';
 
-const card = (id: string, startsAt: string, over: Partial<RaidCard> = {}): RaidCard => ({ id, name: id, startsAt, durationMin: 180, notes: null, cancelled: false, requirements: { tank: 2, healer: 8, melee: 9, ranged: 11 }, counts: { tank: 0, healer: 0, melee: 0, ranged: 0 }, mine: null, status: 'SCHEDULED', ...over });
+const card = (id: string, startsAt: string, over: Partial<RaidCard> = {}): RaidCard => ({ id, name: id, startsAt, durationMin: 180, notes: null, cancelled: false, requirements: { tank: 2, healer: 8, dps: 20 }, counts: { tank: 0, healer: 0, melee: 0, ranged: 0 }, mine: null, status: 'SCHEDULED', ...over });
 
 describe('month grid', () => {
   it('starts on Monday, marks today, and files a raid under the viewer’s own day', () => {
