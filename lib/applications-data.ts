@@ -42,6 +42,8 @@ export type ApplicationDetail = InboxItem & {
   decidedAt: string | null;
   decidedBy: string | null;
   discordThreadId: string | null;
+  /** True once the application has moved to the social path after submitting (`switchedAt` is set). */
+  switched: boolean;
   /** Null when the application never had an interview. */
   interview: InterviewCard | null;
   /** Officer notes and relay messages together, oldest first. */
@@ -99,6 +101,7 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
       decidedAt: true,
       decidedBy: { select: { discordName: true } },
       discordThreadId: true,
+      switchedAt: true,
       messages: {
         orderBy: { createdAt: 'asc' },
         select: { id: true, direction: true, authorUserId: true, body: true, createdAt: true, status: true, copyChannelId: true, copyMessageId: true, attachments: true, mentions: true, editedAt: true, deletedAt: true },
@@ -169,6 +172,7 @@ export async function loadApplication(id: string): Promise<ApplicationDetail | n
     decidedAt: r.decidedAt?.toISOString() ?? null,
     decidedBy: r.decidedBy?.discordName ?? null,
     discordThreadId: r.discordThreadId,
+    switched: r.switchedAt !== null,
     interview,
     notes,
     mentionUsers: Object.fromEntries(mentioned.map((u) => [u.discordId, u.discordName])),
