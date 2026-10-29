@@ -71,6 +71,12 @@ matter how git is invoked. Maestro's own guard covers the same ground at the too
 if either blocks you, follow the message rather than looking for a way around it. Full rules:
 `/git/maestro/docs/git-workflow.md`.
 
+Single fixes (an issue that isn't part of a plan's package) target the standing `release`
+branch. It goes out to `main` as a batch on Robert's word, merged with a merge commit, and is
+never deleted. A push to `release` only makes a Vercel preview: `build:vercel` runs migrations
+only for production and `staging`, so a migration on `release` reaches the database only when
+`release` merges to `main`.
+
 ## PR links and staging
 Use the per-PR Vercel **Preview** link from Vercel's PR comment in every PR's "How to
 verify" section. It appears a minute or two after the push. Previews and staging open without a
@@ -89,6 +95,57 @@ another open PR has that label, report it and wait. Otherwise run `git fetch`, t
 branch. Add `on-staging` to the PR and say in its body that it is on staging now. State that
 the staging deploy applied any migration in the PR. Only one open PR may have `on-staging`; the
 conductor removes the label when its PR merges or closes.
+
+## Needs Robert's own merge
+"Robert's own merge" means Robert says "merge" for it in chat and an agent then merges it;
+he never presses Merge (`/git/maestro/docs/git-workflow.md`, Merging). Agents merge reviewed PRs
+into a `package/*` branch or a Building branch below without his word, except these, which wait
+for it. Every PR into a Live branch waits for his word too.
+- Any change to `AGENTS.md` or `CLAUDE.md`. A `risk:high` PR is merged by an agent only
+  after the `risky-review` role has passed it; in a package, the walkthrough marks steps
+  Robert follows himself before he says "merge" for the package.
+- Changes that reach beyond their branch: real data, live hosting or DNS settings, logins
+  and secrets, outside accounts. On a Building branch, deploying this repo's own code from
+  it is accepted.
+- Database migrations, the design handover, deploy settings and CI, git hooks, and the
+  contract files shared with the bot and the add-on.
+
+Each branch's stage, read from this file on `main`. Building: its work reaches no one yet,
+so agents merge into it. Live: people rely on it, so every merge into it waits for Robert's
+word. A branch not listed counts as Live. The standing `release` branch counts as Building
+unless the `stages` list names it; then the list wins. `staging` is Building because only
+testers use it and deploying this repo's own code there is accepted; it keeps the
+one-PR-on-staging flow below working. One line per branch, `<branch>: Building` or
+`<branch>: Live`, with an exact name; lines starting with `#` are skipped.
+```stages
+main: Live
+staging: Building
+```
+
+A PR that changes a file matching a line below, read from this file on `main`, waits for
+Robert's word. Paths start at the repo root; `**` crosses folders, `*` and `?` stay within
+one folder; a folder ends with `/**`.
+```paths
+prisma/migrations/**
+design-handover/**
+.github/workflows/**
+vercel.json
+.githooks/**
+SYNC-SPEC.md
+ADDON-SPEC.md
+```
+
+## Protected areas
+Features people depend on. Agents change one only in work planned with Robert, and the
+reviewer blocks a PR that touches an area its issue doesn't name. Robert confirms the list
+through his word on the AGENTS.md PR. Add `app/api/helper/**` when the helper API is built.
+```protected-areas
+Applications | Recruits apply to join; a break loses applicants | app/(site)/apply/**, app/(squeeze)/apply/**, app/api/applications/**, lib/application*.ts, lib/apply-gate.ts, lib/interview*.ts
+Discord login and role gating | Members and officers sign in with Discord, and roles decide who sees officer pages | auth.ts, proxy.ts, lib/auth/**, app/login/**, app/api/auth/**, app/actions/auth.ts
+Bot's signed API | The Discord bot reads and writes guild data through it | app/api/bot/**
+Raid signups | Members sign up for raids; a break loses signups | app/api/raids/*/signup/**, app/api/raids/*/signups/**, components/calendar/useSignup.ts, lib/signup-*.ts
+Loot awards | Officers log awards in raids and members read the history; a break loses award records | app/api/loot/**, app/api/raids/*/loot/**, app/api/_loot.ts, lib/loot-*.ts
+```
 
 ## Watch out for
 - Game facts must hold for WoW Forever, never for Classic or retail by default: character names, items, bosses, instances, levels, the add-on API and client limits. Check them against the Forever client, its beta results, or a Forever source (wago.tools data for a Forever build, Wowhead's Forever pages, foreverchanges.pro), and say so when a fact is unchecked for Forever. For example, a character name is a first and a last name separated by a space (the site's rule: 2–12 letters each), not Classic's single word.
