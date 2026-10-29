@@ -115,7 +115,7 @@ so agents merge into it. Live: people rely on it, so every merge into it waits f
 word. A branch not listed counts as Live. The standing `release` branch counts as Building
 unless the `stages` list names it; then the list wins. `staging` is Building because only
 testers use it and deploying this repo's own code there is accepted; it keeps the
-one-PR-on-staging flow below working. One line per branch, `<branch>: Building` or
+one-PR-on-staging flow above working. One line per branch, `<branch>: Building` or
 `<branch>: Live`, with an exact name; lines starting with `#` are skipped.
 ```stages
 main: Live
