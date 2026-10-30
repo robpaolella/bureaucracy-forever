@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { allItemIds, listAtlasRaids, matchAtlasRaid, parseAtlasLoot, parseIdsFile } from './loot-import';
+import { allItemIds, listAtlasRaids, listForeverDungeons, matchAtlasRaid, parseAtlasLoot, parseForeverDungeon, parseIdsFile } from './loot-import';
+import { toIdsFile } from './loot-load-client';
 
 // Trimmed from AtlasLootClassic_DungeonsAndRaids/data.lua at the pinned commit, with a
 // string entry and a block comment added to exercise the skips.
@@ -165,5 +168,82 @@ describe('matchAtlasRaid', () => {
   it('chooses nothing when no name matches', () => {
     expect(matchAtlasRaid(raids, 'Karazhan')).toBeNull();
     expect(matchAtlasRaid(raids, '')).toBeNull();
+  });
+});
+
+describe('foreverchanges.pro', () => {
+  const page = (name: string) => readFileSync(join(process.cwd(), 'lib/__fixtures__/foreverchanges', `${name}.html`), 'utf8');
+
+  describe('listForeverDungeons', () => {
+    it('lists each slug once, without fragments, with its decoded name', () => {
+      const list = listForeverDungeons(page('dungeons-index'));
+      expect(list.map((d) => d.slug)).toEqual(['hall-of-thanes', 'the-deadmines', 'shadowfang-keep', 'kroldok-stronghold', 'zulfarrak', 'ragefire-chasm', 'ruins-of-lordaeron', 'wailing-caverns']);
+      expect(list.find((d) => d.slug === 'zulfarrak')?.name).toBe('Zul\'Farrak');
+      expect(list.every((d) => !d.slug.includes('#'))).toBe(true);
+    });
+
+    it('is empty for a page with no dungeons', () => {
+      expect(listForeverDungeons('<html></html>')).toEqual([]);
+    });
+  });
+
+  describe('parseForeverDungeon', () => {
+    it('converts a normal dungeon: bosses in page order, one Trash row, green and better only', () => {
+      const table = parseForeverDungeon(page('the-deadmines'));
+      const names = table.bosses.map((b) => b.name);
+      expect(names.slice(0, 3)).toEqual(['Rhahk\'Zor', 'Miner Johnson', 'Sneed']);
+      expect(names.filter((n) => n === 'Trash')).toHaveLength(1);
+      expect(table.bosses.find((b) => b.name === 'Trash')?.isTrash).toBe(true);
+      expect(table.bosses.find((b) => b.name === 'Rhahk\'Zor')?.itemIds).toEqual([872, 5187, 273289, 251363]);
+      // Edwin VanCleef has a common item (q 1) among six; it is dropped.
+      expect(table.bosses.find((b) => b.name === 'Edwin VanCleef')?.itemIds).toHaveLength(5);
+    });
+
+    it('passes the file-shape parser Load table’s preview uses', () => {
+      const table = parseForeverDungeon(page('the-deadmines'));
+      expect(parseIdsFile(JSON.parse(JSON.stringify(toIdsFile(table))))).toEqual(table);
+    });
+
+    it('keeps rare monsters on their own rows', () => {
+      const names = parseForeverDungeon(page('shadowfang-keep')).bosses.map((b) => b.name);
+      expect(names).toContain('Deathsworn Captain');
+      expect(names.indexOf('Deathsworn Captain')).toBe(names.indexOf('Odo the Blindwatcher') + 1);
+    });
+
+    it('puts several trash groups on one Trash row where the first sits, dropping grey items', () => {
+      const table = parseForeverDungeon(page('multi-trash'));
+      const names = table.bosses.map((b) => b.name);
+      expect(names.filter((n) => n === 'Trash')).toHaveLength(1);
+      expect(names.indexOf('Trash')).toBe(1);
+      const trash = table.bosses[1];
+      expect(trash.isTrash).toBe(true);
+      expect(new Set(trash.itemIds).size).toBe(trash.itemIds.length);
+      expect(trash.itemIds).not.toContain(99001);
+    });
+
+    it('lists a duplicate item id once on a row', () => {
+      expect(parseForeverDungeon(page('duplicate-items')).bosses).toEqual([{ name: 'Twin', isTrash: false, itemIds: [100, 101] }]);
+    });
+
+    it.each([
+      ['a missing quality', 'missing-quality', /no quality/],
+      ['a missing item id', 'missing-item-id', /no item id/],
+      ['malformed embedded data', 'malformed', /couldn’t be read/],
+      ['a partly recognised page', 'partial', /Mystery.*doesn’t know/],
+      ['a page with no embedded data', 'no-data', /no boss data/],
+      ['a dungeon with only grey and white items', 'no-items', /no green or better items/],
+    ])('fails whole on %s', (_label, name, message) => {
+      expect(() => parseForeverDungeon(page(name))).toThrow(message);
+    });
+
+    it('fails whole when the page’s copies of the data disagree', () => {
+      const html = page('duplicate-items');
+      const changed = html.replace('</body>', '<script>self.__next_f.push([1,"{\\"bosses\\":[{\\"name\\":\\"Other\\",\\"kind\\":\\"boss\\",\\"items\\":[]}]}"])</script></body>');
+      expect(() => parseForeverDungeon(changed)).toThrow(/differ/);
+    });
+
+    it('fails on a repeated row name rather than overwrite one', () => {
+      expect(() => parseForeverDungeon(page('the-deadmines').replace(/Cookie/g, 'Sneed'))).toThrow(/listed twice/);
+    });
   });
 });

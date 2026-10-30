@@ -72,9 +72,14 @@ export function SiteHeader() {
                   {OFFICER_LINKS.needs.label}
                 </NavLink>
                 {session.loot && (
-                  <NavLink href={OFFICER_LINKS.lootTables.href} variant="menu">
-                    {OFFICER_LINKS.lootTables.label}
-                  </NavLink>
+                  <>
+                    <NavLink href={OFFICER_LINKS.lootTables.href} variant="menu">
+                      {OFFICER_LINKS.lootTables.label}
+                    </NavLink>
+                    <NavLink href={OFFICER_LINKS.addon.href} variant="menu">
+                      {OFFICER_LINKS.addon.label}
+                    </NavLink>
+                  </>
                 )}
               </NavGroup>
             )}
