@@ -7,7 +7,9 @@ import { PrismaClient } from '@/lib/generated/prisma/client';
 
 const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient }));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
-import { addAlt, changeMain, editCharacter, removeCharacter } from './characters';
+vi.mock('@/lib/session', () => ({ getSession: async () => ({ discordId: 'officer', role: 'officer' }) }));
+import { addAlt, addMain, changeMain, editCharacter, removeCharacter } from './characters';
+import { POST as officerAddMain } from '@/app/api/roster/route';
 
 const input = (name: string, healer = false) => ({ name, wowClass: 'paladin', spec: healer ? 'Holy' : 'Protection', role: healer ? 'healer' : 'tank' });
 
@@ -28,7 +30,7 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
   const jobs = async () => (await db.outboxJob.findMany({ where: { type: 'raid.update' } })).map((j) => (j.payload as { raidId: string }).raidId).sort();
 
   // Both real transactions finish the selected read before either can write; retries do not wait.
-  async function race(changes: (() => ReturnType<typeof addAlt>)[], model: 'User' | 'Character' = 'User') {
+  async function race<T>(changes: (() => Promise<T>)[], model: 'User' | 'Character' = 'User') {
     let arrived = 0, release!: () => void;
     const ready = new Promise<void>((resolve) => { release = resolve; });
     const timer = setTimeout(release, 5000);
@@ -192,6 +194,38 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
     expect(results.map((r) => r.status)).toEqual([200, 200]);
     expect(await db.character.count({ where: { userId: user.id, isMain: true } })).toBe(1);
     expect(await db.signup.findUnique({ where: { raidId_userId: { raidId: 'race-null', userId: user.id } } })).toMatchObject({ characterId: user.characters[0].id });
+  });
+  it('adds a main with the member\'s rank; retries, second mains and name clashes', async () => {
+    const user = await member('Mainless', false);
+    await db.user.update({ where: { id: user.id }, data: { rank: 'TRIAL' } });
+    expect(await addMain(user.id, { ...input('First Main'), rank: 'officer', isMain: false })).toMatchObject({ status: 201, character: { isMain: true, rank: 'TRIAL', name: 'First Main' } });
+    expect(await addMain(user.id, input('fIrSt mAiN', true))).toMatchObject({ status: 200, character: { name: 'First Main', spec: 'Protection' } });
+    expect(await addMain(user.id, input('Second Main'))).toEqual({ status: 409, reason: 'has_main', error: 'You already have a main.' });
+    expect(await db.character.count({ where: { userId: user.id } })).toBe(1);
+    await member('Clasher', false);
+    expect(await addMain('Clasher', input('FIRST MAIN'))).toEqual({ status: 409, reason: 'name_taken', error: 'That name is taken by another member.' });
+    expect(await addMain('missing', input('Valid Name'))).toEqual({ status: 404, reason: 'not_found', error: 'No such member.' });
+    // Defensive: an own alt (no main) with that name is a clash, not a retry.
+    await db.character.create({ data: { userId: 'Clasher', name: 'Orphan Alt', class: 'PALADIN', spec: 'Protection', raidRole: 'TANK', isMain: false } });
+    expect(await addMain('Clasher', input('orphan alt'))).toEqual({ status: 409, reason: 'name_taken', error: 'You already have a character with that name.' });
+  });
+  it('two add-main requests at once leave one main', async () => {
+    await member('Doublemain', false);
+    const results = await race([() => addMain('Doublemain', input('Double One')), () => addMain('Doublemain', input('Double Two'))]);
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    expect(results.find((r) => r.status === 409)).toEqual({ status: 409, reason: 'has_main', error: 'You already have a main.' });
+    expect(await db.character.count({ where: { userId: 'Doublemain', isMain: true } })).toBe(1);
+    expect(await db.character.count({ where: { userId: 'Doublemain' } })).toBe(1);
+  });
+  it('add-main racing an officer giving the same member a main leaves one main', async () => {
+    await member('Contested', false);
+    const officer = async () => (await officerAddMain(new Request('http://localhost/api/roster', {
+      method: 'POST', body: JSON.stringify({ userId: 'Contested', ...input('Officer Pick'), rank: 'raider' }),
+    }))).status;
+    const [mine, theirs] = await race<number>([async () => (await addMain('Contested', input('Member Pick'))).status, officer]);
+    expect([mine, theirs].sort()).toEqual([201, 409]);
+    expect(await db.character.count({ where: { userId: 'Contested', isMain: true } })).toBe(1);
+    expect(await db.character.count({ where: { userId: 'Contested' } })).toBe(1);
   });
   it('removes an alt with loot, cascades reserves, falls back signups and queues refresh atomically', async () => {
     const user = await member('Remover');

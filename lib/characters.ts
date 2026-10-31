@@ -5,7 +5,7 @@ import { Prisma, type Character } from '@/lib/generated/prisma/client';
 import { parseCharacterInput } from '@/lib/roster-edit';
 import { refreshPostedRaidsForCharacter } from '@/lib/roles-sync';
 
-export type CharacterFailureReason = 'no_main' | 'name_taken' | 'limit' | 'main' | 'invalid' | 'not_found' | 'busy';
+export type CharacterFailureReason = 'no_main' | 'has_main' | 'name_taken' | 'limit' | 'main' | 'invalid' | 'not_found' | 'busy';
 
 export type CharacterResult =
   | { status: 200 | 201; character: Character }
@@ -61,6 +61,27 @@ export async function addAlt(userId: string, input: unknown): Promise<CharacterR
     }
     if (user.characters.length >= 8) return failure(409, 'limit', 'You can have up to 8 characters.');
     const character = await tx.character.create({ data: { ...parsed.value, userId, isMain: false, rank: user.rank } });
+    return { status: 201, character };
+  });
+}
+
+/** Members without a main create one; the character's rank mirrors the member's. */
+export async function addMain(userId: string, input: unknown): Promise<CharacterResult> {
+  const parsed = fields(input);
+  if (!parsed.ok) return failure(400, 'invalid', parsed.error);
+  return change(async (tx) => {
+    const user = await tx.user.findUnique({ where: { id: userId }, select: { rank: true, characters: true } });
+    if (!user) return failure(404, 'not_found', 'No such member.');
+    const main = user.characters.find((c) => c.isMain);
+    if (main) {
+      // Only a previous add-main with the same name is a retry.
+      if (main.name.toLowerCase() === parsed.value.name.toLowerCase()) return { status: 200, character: main };
+      return failure(409, 'has_main', 'You already have a main.');
+    }
+    const named = await tx.character.findFirst({ where: { name: { equals: parsed.value.name, mode: 'insensitive' } } });
+    if (named) return nameTaken(named.userId === userId);
+    if (user.characters.length >= 8) return failure(409, 'limit', 'You can have up to 8 characters.');
+    const character = await tx.character.create({ data: { ...parsed.value, userId, isMain: true, rank: user.rank } });
     return { status: 201, character };
   });
 }
