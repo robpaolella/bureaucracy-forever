@@ -3,7 +3,7 @@ import { Prisma } from '@/lib/generated/prisma/client';
 
 const mocks = vi.hoisted(() => ({ transaction: vi.fn() }));
 vi.mock('@/lib/db', () => ({ db: { $transaction: mocks.transaction } }));
-import { addAlt, changeMain, editCharacter, removeCharacter } from './characters';
+import { addAlt, addMain, changeMain, editCharacter, removeCharacter } from './characters';
 
 const valid = { name: 'Sample Name', wowClass: 'paladin', spec: 'Protection', role: 'tank' };
 const conflict = (code: string) => new Prisma.PrismaClientKnownRequestError('Race', { code, clientVersion: 'test' });
@@ -12,6 +12,7 @@ beforeEach(() => vi.clearAllMocks());
 it('validates add and edit before starting any transaction', async () => {
   for (const input of [null, {}, { ...valid, name: '1' }, { ...valid, name: 'Sample' }, { ...valid, role: 'healer' }]) {
     expect(await addAlt('member', input)).toMatchObject({ status: 400, reason: 'invalid' });
+    expect(await addMain('member', input)).toMatchObject({ status: 400, reason: 'invalid' });
     expect(await editCharacter('member', 'character', input)).toMatchObject({ status: 400, reason: 'invalid' });
   }
   expect(mocks.transaction).not.toHaveBeenCalled();
@@ -51,6 +52,12 @@ it('checks alt-only editing inside the transaction before writing', async () => 
   expect(tx.character.findFirst).toHaveBeenCalledExactlyOnceWith({ where: { id: 'character', userId: 'member' } });
   expect(tx.character.update).not.toHaveBeenCalled();
   expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: 'Serializable' });
+});
+it('retries an add-main as a whole after a serialization conflict', async () => {
+  mocks.transaction.mockRejectedValueOnce(conflict('P2034')).mockResolvedValueOnce({ status: 200 });
+  expect(await addMain('member', valid)).toEqual({ status: 200 });
+  expect(mocks.transaction).toHaveBeenCalledTimes(2);
+  expect(mocks.transaction).toHaveBeenLastCalledWith(expect.any(Function), { isolationLevel: 'Serializable' });
 });
 it('retries a main swap as a whole after a serialization conflict', async () => {
   mocks.transaction.mockRejectedValueOnce(conflict('P2034')).mockResolvedValueOnce({ status: 200 });
