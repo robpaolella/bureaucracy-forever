@@ -72,7 +72,7 @@ change after navigation. `click @<uid>` is a real user action. Never change app
 state via JavaScript, direct database writes or internal action calls.
 The **only** test-only endpoint used is the existing login substitute:
 `/dev/session?as=STATE&back=/members/calendar`. States are `out` (logged out),
-`member` (seeded Redtape), `member-unsubmitted` (no database row, availability
+`social` (signed in without Guild Member: no Members area), `member` (seeded Redtape), `member-unsubmitted` (no database row, availability
 prompt), and `officer` (seeded Ledgerline). Visit it with `open` to switch users;
 it returns 404 in production. This does not prove Discord login or role syncing.
 Follow [member calendar and sign-up](features/member-calendar.md) for the actual

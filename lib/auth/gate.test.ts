@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { rejectsBearer } from './gate';
-import { gateDecision, isGatedPath } from './gate';
+import { gateDecision, isGatedPath, landingAfterLogin } from './gate';
 
 describe('isGatedPath', () => {
   it('covers both areas including their roots', () => {
@@ -30,26 +30,32 @@ describe('gateDecision', () => {
     expect(gateDecision('/officers', '', 'social')).toEqual({ kind: 'notFound' });
   });
 
-  it('lets socials into roster and calendar but not availability (docs/03 § Roles)', () => {
-    expect(gateDecision('/members/roster', '', 'social')).toEqual({ kind: 'next' });
-    expect(gateDecision('/members/calendar/abc', '', 'social')).toEqual({ kind: 'next' });
-    expect(gateDecision('/members/availability', '', 'social')).toEqual({ kind: 'notFound' });
-    expect(gateDecision('/members/availability/anything', '', 'social')).toEqual({ kind: 'notFound' });
+  it('gives socials 404 on every Members page, roster and calendar included', () => {
+    for (const path of ['/members', '/members/', '/members/roster', '/members/calendar', '/members/calendar/abc', '/members/calendar/abc/loot', '/members/availability', '/members/availability/anything']) {
+      expect(gateDecision(path, '', 'social')).toEqual({ kind: 'notFound' });
+    }
+  });
+
+  it('still sends the logged-out to login from roster and calendar', () => {
+    expect(gateDecision('/members/calendar/abc', '', null)).toEqual({ kind: 'redirect', to: '/login?back=%2Fmembers%2Fcalendar%2Fabc' });
   });
 
   it('lets members into the whole member area', () => {
-    expect(gateDecision('/members/availability', '', 'member')).toEqual({ kind: 'next' });
-    expect(gateDecision('/members/calendar', '', 'member')).toEqual({ kind: 'next' });
+    for (const path of ['/members/availability', '/members/roster', '/members/calendar', '/members/calendar/abc']) {
+      expect(gateDecision(path, '', 'member')).toEqual({ kind: 'next' });
+    }
   });
 
   it('lets officers everywhere', () => {
     expect(gateDecision('/officers/applications', '', 'officer')).toEqual({ kind: 'next' });
     expect(gateDecision('/members/availability', '', 'officer')).toEqual({ kind: 'next' });
+    expect(gateDecision('/members/roster', '', 'officer')).toEqual({ kind: 'next' });
+    expect(gateDecision('/members/calendar/abc', '', 'officer')).toEqual({ kind: 'next' });
   });
 
   it('does not treat look-alike paths as gated sub-areas', () => {
     expect(gateDecision('/members/officers-notes', '', 'member')).toEqual({ kind: 'next' });
-    expect(gateDecision('/members/availability-history', '', 'social')).toEqual({ kind: 'next' });
+    expect(gateDecision('/membership', '', 'social')).toEqual({ kind: 'next' });
   });
 });
 
@@ -75,6 +81,25 @@ describe('gateDecision with the loot flag', () => {
   it('leaves look-alike paths alone', () => {
     expect(gateDecision('/officers/lootish', '', 'officer')).toEqual({ kind: 'next' });
     expect(gateDecision('/loot', '', 'officer')).toEqual({ kind: 'next' });
+  });
+});
+
+describe('landingAfterLogin', () => {
+  const url = (path: string) => new URL(path, 'https://www.bureauguild.com');
+
+  it('sends a social who set out for a Members page home instead of to a 404', () => {
+    expect(landingAfterLogin(url('/members/roster'), 'social')).toBe('/');
+    expect(landingAfterLogin(url('/members/calendar/abc?reserves=1'), 'social')).toBe('/');
+  });
+
+  it('keeps the back path, query included, where the role may go', () => {
+    expect(landingAfterLogin(url('/members/calendar/abc?reserves=1'), 'member')).toBe('/members/calendar/abc?reserves=1');
+    expect(landingAfterLogin(url('/officers/raids'), 'officer')).toBe('/officers/raids');
+    expect(landingAfterLogin(url('/about'), 'social')).toBe('/about');
+  });
+
+  it('never lands back on the login route', () => {
+    expect(landingAfterLogin(url('/login?back=%2Fmembers'), 'member')).toBe('/');
   });
 });
 

@@ -7,7 +7,7 @@ import type { Role } from '@/lib/session';
  *   a loot route while LOOT_ENABLED is off  → 404, logged in or not
  *   logged out                              → redirect to /login?back=<path>
  *   /officers without officer role          → 404 (not 403: do not confirm the route exists)
- *   /members/availability as social         → 404 (socials get roster and calendar only)
+ *   /members as social                      → 404 (the Members area is for Guild Members only)
  *   otherwise                               → pass through
  *
  * Every response for these areas, including the redirect, is noindex.
@@ -26,8 +26,12 @@ export const NOINDEX_HEADER = ['X-Robots-Tag', 'noindex, nofollow'] as const;
  */
 const LOOT_ROUTES = /^\/(members|officers)\/loot(\/|$)/;
 
-/** Member-area routes that need at least `member`; everything else under /members admits socials. */
-const MEMBER_ONLY = [/^\/members\/(availability|loot)(\/|$)/];
+/**
+ * The whole Members area needs at least `member` (Robert, 2026-10-31: guests, applicants and
+ * former members get none of it). Each member page and route still checks the role itself,
+ * as a percent-encoded path can slip past this regex too.
+ */
+const MEMBER_ONLY = /^\/members(\/|$)/;
 
 /**
  * SYNC-SPEC §2: the bot's bearer secret is honoured only under /api/bot. A bearer header
@@ -50,6 +54,15 @@ export function gateDecision(pathname: string, search: string, role: Role | null
     return { kind: 'redirect', to: `/login?${params.toString()}` };
   }
   if (/^\/officers(\/|$)/.test(pathname) && role !== 'officer') return { kind: 'notFound' };
-  if (role === 'social' && MEMBER_ONLY.some((re) => re.test(pathname))) return { kind: 'notFound' };
+  if (role === 'social' && MEMBER_ONLY.test(pathname)) return { kind: 'notFound' };
   return { kind: 'next' };
+}
+
+/**
+ * Where a fresh login lands: the page it set out for, unless the gate would answer it with a
+ * 404 for this role (a social sent to log in from a Members page). Then home instead.
+ */
+export function landingAfterLogin(back: URL, role: Role, flags: { loot: boolean } = { loot: false }): string {
+  if (back.pathname === '/login') return '/';
+  return gateDecision(back.pathname, back.search, role, flags).kind === 'notFound' ? '/' : back.pathname + back.search;
 }
