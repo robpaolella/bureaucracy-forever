@@ -33,6 +33,9 @@ type Params = { params: Promise<{ raidId: string }> };
 type Props = Params & { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  // The raid's name is guild data too: no read for anyone the page itself refuses.
+  const session = await getSession();
+  if (!session || session.role === 'social') notFound();
   const { raidId } = await params;
   const raid = await db.raid.findUnique({ where: { id: raidId }, select: { name: true } });
   return { title: raid?.name ?? 'Raid', robots: { index: false, follow: false } };
@@ -43,10 +46,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  * head, the roster grouped by role with Answer and Via columns, the bench, who has not
  * answered, and the composition card. Officers get the actions row, "Answer for them" on
  * every row, "Nudge in Discord", "Move to roster" and, after the night, attendance.
+ * Guild Members and officers only: a social gets the 404 before anything is read.
  */
 export default async function RaidDetailPage({ params, searchParams }: Props) {
   const session = await getSession();
-  if (!session) notFound();
+  if (!session || session.role === 'social') notFound();
   const [{ raidId }, query] = await Promise.all([params, searchParams]);
   const officer = session.role === 'officer';
 
@@ -144,8 +148,8 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
     .sort((a, b) => a.label.localeCompare(b.label));
   const answered = rows.filter((r) => r.response !== null);
 
-  // Loot reserves: behind LOOT_ENABLED, for members and officers, on raids whose tier has a table.
-  const showLoot = lootEnabled() && session.role !== 'social' && raid.templateId !== null;
+  // Loot reserves: behind LOOT_ENABLED, on raids whose tier has a table.
+  const showLoot = lootEnabled() && raid.templateId !== null;
   const [loadedTable, reserves, reserveTargets, awards, logContext] = showLoot
     ? await Promise.all([
         // Officers get the empty view too, so the loot log can add a tier's first item.

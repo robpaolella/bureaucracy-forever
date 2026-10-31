@@ -5,6 +5,7 @@ import { DEV_SESSION_COOKIE, DEV_SESSION_STATES, isDevSessionState } from '@/lib
 
 const DESCRIPTIONS: Record<(typeof DEV_SESSION_STATES)[number], string> = {
   out: 'Logged out. Both Discord buttons, no groups.',
+  social: 'Signed in without Guild Member (Guest). Avatar pill, no groups.',
   member: 'Member (Redtape, Priest). Members group, avatar pill.',
   'member-unsubmitted': 'Member who has not submitted availability. Warn note in the Members menu.',
   officer: 'Officer (Ledgerline, Warrior). Members and Officers groups, 7 pending applications.',

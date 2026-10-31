@@ -17,11 +17,12 @@ export const metadata: Metadata = {
 /**
  * The guild roster (docs/04 § Roster): everyone holding Guild Member or Officer in Discord,
  * with their main's class, spec and role once officers add one, their rank, attendance and
- * join date. Socials may read it (docs/03 § Roles); the proxy sends the logged-out to Discord.
+ * join date. Guild Members and officers only: a social gets the 404 here as well as from the
+ * proxy, before anything is read. The proxy sends the logged-out to Discord.
  */
 export default async function RosterPage() {
   const session = await getSession();
-  if (!session) notFound();
+  if (!session || session.role === 'social') notFound();
 
   const [users, viewer] = await Promise.all([
     db.user.findMany({

@@ -17,7 +17,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * The raid calendar (docs/04 § Raid calendar). Socials may read it; members answer.
+ * The raid calendar (docs/04 § Raid calendar). Guild Members and officers only: a social gets the
+ * 404 here as well as from the proxy, before anything is read.
  * Sign-ups are loaded with each user's character brought so the role stacks count accepted answers
  * per role; the viewer's own answer rides on the card.
  */
@@ -44,7 +45,7 @@ function scheduleFrom(params: Record<string, string | string[] | undefined>) {
 
 export default async function CalendarPage({ searchParams }: { searchParams: SearchParams }) {
   const session = await getSession();
-  if (!session) notFound();
+  if (!session || session.role === 'social') notFound();
   const params = await searchParams;
 
   const [cards, me, templates] = await Promise.all([

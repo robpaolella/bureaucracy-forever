@@ -71,6 +71,15 @@ beforeEach(() => {
 });
 
 describe('PUT /api/raids/[id]/reserves', () => {
+  it('refuses a social with a message and saves nothing', async () => {
+    mocks.session = { role: 'social', discordId: 'd1' };
+    const res = await call(BODY);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: 'Loot reserves are for guild members.' });
+    expect(mocks.raid).not.toHaveBeenCalled();
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
   it('replaces the member’s reserves with the new pair', async () => {
     const res = await call(BODY);
     expect(res.status).toBe(200);
@@ -339,7 +348,6 @@ describe('GET /api/raids/[id]/reserves', () => {
 
   it.each([
     ['loot is off', () => { mocks.loot = false; }],
-    ['the viewer is a social', () => { mocks.session = { role: 'social', discordId: 'd1' }; }],
     ['there is no such raid', () => mocks.raid.mockResolvedValue(null)],
     ['the raid has no template', () => mocks.raid.mockResolvedValue({ startsAt: new Date(Date.now() + 24 * HOUR), cancelledAt: null, templateId: null, reservesAllowed: true })],
     ['the table is empty', () => mocks.table.mockResolvedValue(null)],
@@ -352,5 +360,14 @@ describe('GET /api/raids/[id]/reserves', () => {
   it('needs a login', async () => {
     mocks.session = null;
     expect((await get()).status).toBe(401);
+  });
+
+  it('refuses a social with a message, before reading the raid', async () => {
+    mocks.session = { role: 'social', discordId: 'd1' };
+    const res = await get();
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: 'Loot reserves are for guild members.' });
+    expect(mocks.raid).not.toHaveBeenCalled();
+    expect(mocks.targets).not.toHaveBeenCalled();
   });
 });
