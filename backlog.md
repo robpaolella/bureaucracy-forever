@@ -54,7 +54,6 @@
 - Loot history (#100 critique): announce appended raids to screen readers and retain useful keyboard focus when the final "Show older raids" button disappears.
 - Loot history (#100 review): run the opt-in Postgres paging tests in CI and add a mixed active/voided-award budget case; the current 9/9 local run is not CI coverage.
 - Shared member loot row (#99/#100 critique): give screen readers the desktop column associations and an explicit bank-row winner description; current headers are aria-hidden and the labelled dash is not reliably announced.
-- Members switch their own main (Robert, 2026-10-06: "We might want a method for someone to switch their main at some point.")
 - verify-guild: a documented local-only recipe for populated loot history (started raids with recorded awards, enough for 'Show older raids'); #99 and #100 had to record awards by hand through the officer UI.
 - Character switch (#173 review → #178/#175): consider switch-specific eligibility wording instead of the reused “Sign up as Accept or Tentative to reserve.”
 - Character switch (#173 review → #189): decide how to align legacy reserves already on a different character; #173 deliberately preserves the specified same-character no-op (no writes).
