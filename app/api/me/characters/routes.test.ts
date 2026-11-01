@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({
   session: vi.fn(), user: vi.fn(), existing: vi.fn(), list: vi.fn(), transaction: vi.fn(),
-  txUser: vi.fn(), txUserOrThrow: vi.fn(), txFind: vi.fn(), pin: vi.fn(), find: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn(), count: vi.fn(), refresh: vi.fn(),
+  txUser: vi.fn(), txUserOrThrow: vi.fn(), txFind: vi.fn(), pin: vi.fn(), find: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn(), count: vi.fn(), refresh: vi.fn(), job: vi.fn(),
 }));
 vi.mock('@/lib/session', () => ({ getSession: m.session }));
 vi.mock('@/lib/db', () => ({ db: {
@@ -13,11 +13,13 @@ import { GET, POST } from './route';
 import { PATCH, DELETE } from './[characterId]/route';
 import { POST as MAKE_MAIN } from './[characterId]/main/route';
 
-const alt = { id: 'alt', userId: 'owner', name: 'Sample Name', isMain: false, raidRole: 'TANK' };
+const alt = { id: 'alt', userId: 'owner', name: 'Sample Name', class: 'PALADIN', isMain: false, raidRole: 'TANK' };
 const body = { name: 'Sample Name', wowClass: 'paladin', spec: 'Protection', role: 'tank', rank: 'officer', isMain: true, userId: 'other' };
-const tx = { user: { findUnique: m.txUser, findUniqueOrThrow: m.txUserOrThrow }, signup: { updateMany: m.pin }, character: {
+const tx = { user: { findUnique: m.txUser, findUniqueOrThrow: m.txUserOrThrow }, signup: { updateMany: m.pin }, outboxJob: { create: m.job }, character: {
   findUnique: m.txFind, findFirst: m.find, create: m.create, update: m.update, delete: m.remove, count: m.count,
 } };
+/** The member.classes.sync payloads queued, in order. */
+const queued = () => m.job.mock.calls.map(([{ data }]) => { expect(data.type).toBe('member.classes.sync'); return data.payload; });
 const main = { ...alt, id: 'main', name: 'Main Name', isMain: true, joinedAt: new Date('2020-01-01'), attendance: 90 };
 const params = { params: Promise.resolve({ characterId: 'alt' }) };
 function call(method: string, data: unknown = body) {
@@ -39,6 +41,8 @@ beforeEach(() => {
   m.create.mockResolvedValue(alt);
   m.update.mockResolvedValue(alt);
   m.remove.mockResolvedValue(alt);
+  m.txUserOrThrow.mockResolvedValue({ rank: 'RAIDER', discordId: 'discord-owner' });
+  m.job.mockResolvedValue({ id: 'job' });
 });
 
 const METHODS = ['GET', 'POST', 'PATCH', 'DELETE', 'MAIN'];
@@ -82,6 +86,12 @@ it.each(['member', 'officer'])('%s with a main can list, add, edit and remove th
   expect(m.update).toHaveBeenCalledWith({ where: { id: 'alt' }, data: { name: 'Sample Name', class: 'PALADIN', spec: 'Protection', raidRole: 'TANK' } });
   expect(m.find).toHaveBeenCalledWith({ where: { id: 'alt', userId: 'owner' } });
   expect(m.refresh).toHaveBeenCalledWith(alt, tx);
+  // Adding and removing queue a class sync; an edit keeping the class queues none.
+  expect(queued()).toEqual([
+    { discordId: 'discord-owner', classes: ['paladin'], main: false },
+    { discordId: 'discord-owner', classes: ['paladin'], main: false },
+  ]);
+  expect(m.txUserOrThrow).toHaveBeenCalledWith({ where: { id: 'owner' }, select: { discordId: true } });
 });
 it.each(['PATCH', 'DELETE', 'MAIN'])('%s refuses another owner\'s character and unknown ids without changing anything', async (method) => {
   for (const [existing, status, message] of [
@@ -107,6 +117,23 @@ it.each(['member', 'officer'])('%s edits their main\'s name, class, spec and rai
   expect(m.update).toHaveBeenCalledWith({ where: { id: 'alt' }, data: { name: 'Fresh Name', class: 'PALADIN', spec: 'Holy', raidRole: 'HEALER' } });
   // A raid-role change refreshes posted raids, as for alts.
   expect(m.refresh).toHaveBeenCalledWith(main, tx);
+  // Name, spec and raid role leave Discord's class roles alone.
+  expect(m.job).not.toHaveBeenCalled();
+});
+it.each(['member', 'officer'])('%s changing their Druid main to a Warrior queues both classes with the main', async (role) => {
+  m.session.mockResolvedValue({ discordId: 'discord-owner', role });
+  const druid = { ...main, class: 'DRUID' };
+  m.existing.mockResolvedValue(druid);
+  m.find.mockResolvedValueOnce(druid).mockResolvedValueOnce(null);
+  m.update.mockResolvedValue({ ...druid, class: 'WARRIOR' });
+  const response = await call('PATCH', { ...body, wowClass: 'warrior', spec: 'Protection', role: 'tank' });
+  expect(response.status).toBe(200);
+  expect(queued()).toEqual([{ discordId: 'discord-owner', classes: ['druid', 'warrior'], main: true }]);
+});
+it('changing an alt\'s class queues both classes without the main', async () => {
+  m.find.mockResolvedValueOnce({ ...alt, class: 'MAGE' }).mockResolvedValueOnce(null);
+  expect((await call('PATCH')).status).toBe(200);
+  expect(queued()).toEqual([{ discordId: 'discord-owner', classes: ['mage', 'paladin'], main: false }]);
 });
 it('gives a taken name on a main edit the right message for own and other characters', async () => {
   m.existing.mockResolvedValue(main);
@@ -124,10 +151,10 @@ it('gives a taken name on a main edit the right message for own and other charac
 });
 it.each(['member', 'officer'])('%s makes their own alt the main', async (role) => {
   m.session.mockResolvedValue({ discordId: 'discord-owner', role });
-  m.txFind.mockResolvedValue(alt);
-  m.txUserOrThrow.mockResolvedValue({ rank: 'RAIDER' });
-  m.find.mockResolvedValue(main);
-  m.update.mockResolvedValueOnce({ ...main, isMain: false }).mockResolvedValueOnce({ ...alt, isMain: true });
+  const warrior = { ...alt, class: 'WARRIOR' }, druid = { ...main, class: 'DRUID' };
+  m.txFind.mockResolvedValue(warrior);
+  m.find.mockResolvedValue(druid);
+  m.update.mockResolvedValueOnce({ ...druid, isMain: false }).mockResolvedValueOnce({ ...warrior, isMain: true });
   const response = await call('MAIN');
   expect(response.status).toBe(200);
   expect(response.headers.get('Cache-Control')).toBe('private, no-store');
@@ -135,6 +162,8 @@ it.each(['member', 'officer'])('%s makes their own alt the main', async (role) =
   expect(m.pin).toHaveBeenCalledWith({ where: { userId: 'owner', characterId: null }, data: { characterId: 'main' } });
   expect(m.update).toHaveBeenNthCalledWith(1, { where: { id: 'main' }, data: { isMain: false } });
   expect(m.update).toHaveBeenNthCalledWith(2, { where: { id: 'alt' }, data: { isMain: true, rank: 'RAIDER', joinedAt: main.joinedAt, attendance: 90 } });
+  // The bot keeps the Druid tag while the Druid stays an alt.
+  expect(queued()).toEqual([{ discordId: 'discord-owner', classes: ['druid', 'warrior'], main: true }]);
 });
 it('making the current main the main again is a 200 no-op', async () => {
   m.existing.mockResolvedValue(main);
@@ -144,6 +173,7 @@ it('making the current main the main again is a 200 no-op', async () => {
   expect(await response.json()).toEqual({ id: 'main', name: 'Main Name' });
   expect(m.pin).not.toHaveBeenCalled();
   expect(m.update).not.toHaveBeenCalled();
+  expect(m.job).not.toHaveBeenCalled();
 });
 it('make main reports a character removed after the ownership check', async () => {
   m.txFind.mockResolvedValue(null);
@@ -162,6 +192,7 @@ it.each([0, 2])('refuses removing your own main with %i other characters, inside
   expect(m.find).toHaveBeenCalledWith({ where: { id: 'alt', userId: 'owner' } });
   expect(m.remove).not.toHaveBeenCalled();
   expect(m.refresh).not.toHaveBeenCalled();
+  expect(m.job).not.toHaveBeenCalled();
 });
 it.each(['member', 'officer'])('%s adds a main when they have none, with their rank', async (role) => {
   m.session.mockResolvedValue({ discordId: 'discord-owner', role });
@@ -171,6 +202,7 @@ it.each(['member', 'officer'])('%s adds a main when they have none, with their r
   expect(response.status).toBe(201);
   expect(await response.json()).toEqual({ id: 'main', name: 'Main Name' });
   expect(m.create).toHaveBeenCalledWith({ data: { name: 'Sample Name', class: 'PALADIN', spec: 'Protection', raidRole: 'TANK', userId: 'owner', isMain: true, rank: 'TRIAL' } });
+  expect(queued()).toEqual([{ discordId: 'discord-owner', classes: ['paladin'], main: true }]);
 });
 it('add main answers a retry with 200, another main with 409 and name clashes with their messages', async () => {
   m.txUser.mockResolvedValue({ rank: 'RAIDER', characters: [{ ...main, name: 'SAMPLE NAME' }] });
@@ -193,6 +225,7 @@ it('add main answers a retry with 200, another main with 409 and name clashes wi
   }
   expect(m.find).toHaveBeenCalledWith({ where: { name: { equals: 'Sample Name', mode: 'insensitive' } } });
   expect(m.create).not.toHaveBeenCalled();
+  expect(m.job).not.toHaveBeenCalled();
 });
 it('refuses the ninth character without creating one', async () => {
   m.txUser.mockResolvedValue({ rank: 'RAIDER', characters: Array(8).fill({ isMain: true }) });
@@ -200,6 +233,7 @@ it('refuses the ninth character without creating one', async () => {
   expect(response.status).toBe(409);
   expect(await response.json()).toEqual({ error: 'You can have up to 8 characters.' });
   expect(m.create).not.toHaveBeenCalled();
+  expect(m.job).not.toHaveBeenCalled();
 });
 it.each(['member', 'officer'])('%s without a main gets the member-facing message', async (role) => {
   m.session.mockResolvedValue({ discordId: 'discord-owner', role });
@@ -235,6 +269,7 @@ it('preserves name conflicts and successful add retries from the shared rules', 
   m.find.mockResolvedValue(alt);
   expect((await call('POST')).status).toBe(200);
   expect(m.create).not.toHaveBeenCalled();
+  expect(m.job).not.toHaveBeenCalled();
 });
 it.each(['PATCH', 'DELETE'])('%s preserves a character disappearing after the ownership check', async (method) => {
   const response = await call(method);

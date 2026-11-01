@@ -2,6 +2,7 @@ import 'server-only';
 
 import { db } from '@/lib/db';
 import { Prisma, type Character } from '@/lib/generated/prisma/client';
+import { enqueue } from '@/lib/outbox';
 import { parseCharacterInput } from '@/lib/roster-edit';
 import { refreshPostedRaidsForCharacter } from '@/lib/roles-sync';
 
@@ -34,6 +35,15 @@ async function change(run: (tx: Prisma.TransactionClient) => Promise<CharacterRe
   }
 }
 
+/**
+ * SYNC-SPEC §5 member.classes.sync, queued in the change's own transaction so the bot's class
+ * roles follow it. The Discord id is read there too, from the character's user.
+ */
+export async function queueClassSync(tx: Prisma.TransactionClient, userId: string, classes: string[], main: boolean) {
+  const { discordId } = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { discordId: true } });
+  await enqueue('member.classes.sync', { discordId, classes: [...new Set(classes.map((c) => c.toLowerCase()))].sort(), main }, tx);
+}
+
 /** Shared validation; rank is deliberately not writable through these rules. */
 function fields(input: unknown) {
   const parsed = parseCharacterInput({ ...(input && typeof input === 'object' ? input : {}), rank: 'social' });
@@ -61,6 +71,7 @@ export async function addAlt(userId: string, input: unknown): Promise<CharacterR
     }
     if (user.characters.length >= 8) return failure(409, 'limit', 'You can have up to 8 characters.');
     const character = await tx.character.create({ data: { ...parsed.value, userId, isMain: false, rank: user.rank } });
+    await queueClassSync(tx, userId, [character.class], false);
     return { status: 201, character };
   });
 }
@@ -82,6 +93,7 @@ export async function addMain(userId: string, input: unknown): Promise<Character
     if (named) return nameTaken(named.userId === userId);
     if (user.characters.length >= 8) return failure(409, 'limit', 'You can have up to 8 characters.');
     const character = await tx.character.create({ data: { ...parsed.value, userId, isMain: true, rank: user.rank } });
+    await queueClassSync(tx, userId, [character.class], true);
     return { status: 201, character };
   });
 }
@@ -97,6 +109,8 @@ export async function editCharacter(userId: string, characterId: string, input: 
     if (named) return nameTaken(named.userId === userId);
     const character = await tx.character.update({ where: { id: characterId }, data: parsed.value });
     if (existing.raidRole !== character.raidRole) await refreshPostedRaidsForCharacter(existing, tx);
+    // Name, spec and raid role leave Discord's class roles as they are.
+    if (existing.class !== character.class) await queueClassSync(tx, userId, [existing.class, character.class], existing.isMain);
     return { status: 200, character };
   });
 }
@@ -119,6 +133,7 @@ export async function changeMain(characterId: string): Promise<CharacterResult> 
       isMain: true, rank: user.rank, joinedAt: oldMain.joinedAt, attendance: oldMain.attendance,
     } });
     // Stored choices and their roles are unchanged, so no posted raid needs refreshing.
+    await queueClassSync(tx, chosen.userId, [oldMain.class, character.class], true);
     return { status: 200, character };
   });
 }
@@ -134,6 +149,7 @@ export async function removeCharacter(userId: string, characterId: string, optio
     // Select and queue before SetNull erases the chosen character. Jobs and deletion are atomic.
     await refreshPostedRaidsForCharacter(existing, tx);
     const character = await tx.character.delete({ where: { id: characterId } });
+    await queueClassSync(tx, userId, [character.class], existing.isMain);
     return { status: 200, character };
   });
 }
