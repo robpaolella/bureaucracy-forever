@@ -64,7 +64,7 @@ export const MEMBER_EDITOR = {
   makeMainBody: 'Your current main becomes an alt. Raids you’ve already signed up for keep the character you chose.',
   makeMainConfirm: 'Make main',
   staleBody: 'Your change is saved, but the list didn’t reload.',
-  staleFailedBody: 'Your characters didn’t reload. Use Reload list to try again.',
+  staleFailedBody: 'Your characters didn’t reload. Your last change may not have been saved. Use Reload list to check.',
   reload: 'Reload list',
   removeTitle: 'Remove this alt?',
   removeBody: 'This alt’s reserves for upcoming raids will be removed. Past loot stays under the alt’s name.',

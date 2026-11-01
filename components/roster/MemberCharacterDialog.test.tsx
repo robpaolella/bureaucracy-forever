@@ -256,6 +256,8 @@ describe('MemberCharacterDialog', () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(gone()).mockResolvedValueOnce(down()));
       await act();
       expect(said(MEMBER_EDITOR.staleFailedBody)).toBe(true);
+      expect(MEMBER_EDITOR.staleFailedBody).toBe('Your characters didn’t reload. Your last change may not have been saved. Use Reload list to check.');
+      expect(said('Your change is saved')).toBe(false);
       expect(said(MEMBER_EDITOR.staleBody)).toBe(false);
       expect(toast()).toEqual({ tone: 'stop', title: SAVE_FAILED });
     });
