@@ -216,4 +216,103 @@ describe('MemberCharacterDialog', () => {
     expect(dialog.props.open).toBe(true);
     expect(dialog.props.children).toContain(MEMBER_EDITOR.removeBody);
   });
+
+  describe('when the list cannot reload', () => {
+    const gone = () => new Response(JSON.stringify({ error: 'Character not found' }), { status: 404 });
+    const ok = () => new Response('{}');
+    const down = () => new Response('{}', { status: 500 });
+    const submit = async (label: string, value: MemberCharacter | null) => {
+      button(MEMBER_EDITOR.manageCharacters)();
+      button(label)();
+      const form = view().find((node) => node.type === CharacterForm)!;
+      await (form.props.onSubmit as (v: unknown) => Promise<unknown>)({ ...(value ?? alt), rank: 'raider' });
+    };
+    const confirmFlow = (prop: 'onRemove' | 'onMakeMain', confirmLabel: string) => {
+      button(MEMBER_EDITOR.manageCharacters)();
+      button('Edit Blue Ink')();
+      (view().find((node) => node.type === CharacterForm)!.props[prop] as () => void)();
+      button(confirmLabel)();
+    };
+    const said = (text: string) => view().some((node) => node.props.children === text);
+    const toast = () => view().find((node) => node.type === Toast)?.props.toast;
+
+    it.each([
+      ['edit', () => submit('Edit Blue Ink', alt)],
+      ['add', async () => { button(MEMBER_EDITOR.manageCharacters)(); button(MEMBER_EDITOR.addAlt)(); await (view().find((n) => n.type === CharacterForm)!.props.onSubmit as (v: unknown) => Promise<unknown>)({ ...alt, rank: 'raider' }); }],
+    ])('%s: a saved change with a failed reload says it was saved', async (_name, act) => {
+      hooks.values = [];
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(ok()).mockResolvedValueOnce(down()));
+      await act();
+      expect(said(MEMBER_EDITOR.staleBody)).toBe(true);
+      expect(said(MEMBER_EDITOR.staleFailedBody)).toBe(false);
+    });
+
+    it.each([
+      ['edit', () => submit('Edit Blue Ink', alt)],
+      ['add', async () => { button(MEMBER_EDITOR.manageCharacters)(); button(MEMBER_EDITOR.addAlt)(); await (view().find((n) => n.type === CharacterForm)!.props.onSubmit as (v: unknown) => Promise<unknown>)({ ...alt, rank: 'raider' }); }],
+    ])('%s: a failed change with a failed reload claims nothing was saved', async (_name, act) => {
+      hooks.values = [];
+      // The add route never answers 404 in practice, but the code path is shared.
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(gone()).mockResolvedValueOnce(down()));
+      await act();
+      expect(said(MEMBER_EDITOR.staleFailedBody)).toBe(true);
+      expect(said(MEMBER_EDITOR.staleBody)).toBe(false);
+      expect(toast()).toEqual({ tone: 'stop', title: SAVE_FAILED });
+    });
+
+    it.each([
+      ['remove', 'onRemove', MEMBER_EDITOR.removeConfirm],
+      ['make main', 'onMakeMain', MEMBER_EDITOR.makeMainConfirm],
+    ] as const)('%s: saved + failed reload says saved; failed + failed reload does not', async (_name, prop, label) => {
+      hooks.values = [];
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(ok()).mockResolvedValueOnce(down()));
+      confirmFlow(prop, label);
+      await vi.waitFor(() => expect(said(MEMBER_EDITOR.staleBody)).toBe(true));
+      expect(said(MEMBER_EDITOR.staleFailedBody)).toBe(false);
+
+      hooks.values = [];
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(gone()).mockResolvedValueOnce(down()));
+      confirmFlow(prop, label);
+      await vi.waitFor(() => expect(said(MEMBER_EDITOR.staleFailedBody)).toBe(true));
+      expect(said(MEMBER_EDITOR.staleBody)).toBe(false);
+    });
+
+    it.each([
+      ['remove', 'onRemove', MEMBER_EDITOR.removeConfirm],
+      ['make main', 'onMakeMain', MEMBER_EDITOR.makeMainConfirm],
+    ] as const)('%s: a failed change with a successful reload shows the fresh list and the failure toast', async (_name, prop, label) => {
+      hooks.values = [];
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(gone()).mockResolvedValueOnce(new Response(JSON.stringify([{ ...main, class: 'WARRIOR', raidRole: 'TANK' }]))));
+      confirmFlow(prop, label);
+      await vi.waitFor(() => expect(toast()).toEqual({ tone: 'stop', title: SAVE_FAILED }));
+      expect(said(MEMBER_EDITOR.staleBody)).toBe(false);
+      expect(said(MEMBER_EDITOR.staleFailedBody)).toBe(false);
+      expect(view().some((node) => node.props['aria-label'] === 'Edit Blue Ink')).toBe(false);
+    });
+
+    it.each([
+      ['remove', 'onRemove', MEMBER_EDITOR.removeConfirm, 'Removed Blue Ink'],
+      ['make main', 'onMakeMain', MEMBER_EDITOR.makeMainConfirm, 'Blue Ink is now your main'],
+    ] as const)('%s: a saved change with a successful reload shows the fresh list and no stale message', async (_name, prop, label, title) => {
+      hooks.values = [];
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(ok()).mockResolvedValueOnce(new Response(JSON.stringify([{ ...main, class: 'WARRIOR', raidRole: 'TANK' }]))));
+      confirmFlow(prop, label);
+      await vi.waitFor(() => expect(toast()).toEqual({ tone: 'ok', title }));
+      expect(said(MEMBER_EDITOR.staleBody)).toBe(false);
+      expect(said(MEMBER_EDITOR.staleFailedBody)).toBe(false);
+    });
+
+    it('keeps the neutral message when Reload list fails again, and clears it on success', async () => {
+      hooks.values = [];
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(gone()).mockResolvedValueOnce(down()).mockResolvedValueOnce(down()));
+      await submit('Edit Blue Ink', alt);
+      button(MEMBER_EDITOR.reload)();
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+      expect(said(MEMBER_EDITOR.staleFailedBody)).toBe(true);
+
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(JSON.stringify([{ ...main, class: 'WARRIOR', raidRole: 'TANK' }]))));
+      button(MEMBER_EDITOR.reload)();
+      await vi.waitFor(() => expect(said(MEMBER_EDITOR.staleFailedBody)).toBe(false));
+    });
+  });
 });
