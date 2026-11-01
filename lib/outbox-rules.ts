@@ -26,6 +26,7 @@ export type JobType =
   | 'raid.close'
   | 'raid.delete'
   | 'member.roles.sync'
+  | 'member.classes.sync'
   | 'trial.checkin'
   | 'interview.request'
   | 'interview.times'
@@ -80,6 +81,6 @@ export function entityKey(type: JobType, payload: Record<string, unknown>): stri
   // Interview jobs run in order with their application's other jobs (SYNC-SPEC §12).
   if (type.startsWith('application.') || type.startsWith('interview.')) return `application:${String(payload.applicationId ?? '')}`;
   if (type.startsWith('raid.')) return `raid:${String(payload.raidId ?? '')}`;
-  if (type === 'member.roles.sync' || type === 'trial.checkin') return `member:${String(payload.discordId ?? '')}`;
+  if (type === 'member.roles.sync' || type === 'member.classes.sync' || type === 'trial.checkin') return `member:${String(payload.discordId ?? '')}`;
   return 'officers';
 }

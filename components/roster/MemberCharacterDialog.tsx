@@ -10,7 +10,7 @@ import { emptyCharacter, type CharacterInput } from '@/lib/roster-edit';
 import { CharacterForm } from './CharacterForm';
 
 export type MemberCharacter = Omit<CharacterInput, 'rank'> & { id: string; isMain: boolean };
-type EditableCharacter = CharacterInput & { id: string };
+type EditableCharacter = CharacterInput & { id: string; isMain?: boolean };
 type ApiCharacter = { id: string; name: string; class: string; spec: string; raidRole: string; isMain: boolean };
 
 function fromApi(character: ApiCharacter): MemberCharacter {
@@ -23,7 +23,7 @@ function fromApi(character: ApiCharacter): MemberCharacter {
     isMain: character.isMain,
   };
 }
-type Editing = { kind: 'add' } | { kind: 'edit'; character: EditableCharacter };
+type Editing = { kind: 'add'; main: boolean } | { kind: 'edit'; character: EditableCharacter };
 
 export type MemberCharacterDialogProps = {
   characters: MemberCharacter[];
@@ -35,7 +35,7 @@ async function send(url: string, method: string, body?: unknown): Promise<Respon
 }
 
 async function failureMessage(res: Response): Promise<string> {
-  if (res.status !== 400 && res.status !== 409) return SAVE_FAILED;
+  if (res.status !== 400 && res.status !== 403 && res.status !== 409) return SAVE_FAILED;
   const body = (await res.json().catch(() => null)) as { error?: string } | null;
   return body?.error ?? SAVE_FAILED;
 }
@@ -46,36 +46,44 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
   const [open, setOpen] = useState(false);
   const [characters, setCharacters] = useState(initialCharacters);
   const [editing, setEditing] = useState<Editing | null>(null);
-  const [removing, setRemoving] = useState<EditableCharacter | null>(null);
+  const [confirmation, setConfirmation] = useState<{ kind: 'remove' | 'make-main'; character: EditableCharacter } | null>(null);
+  /** Set when the list can't be reloaded: 'saved' if the change went through, 'failed' if it didn't. */
+  const [stale, setStale] = useState<'saved' | 'failed' | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
 
   const main = characters.find((character) => character.isMain) ?? null;
-  async function refreshCharacters() {
-    const res = await send('/api/me/characters', 'GET');
-    if (!res.ok) return false;
-    setCharacters(((await res.json()) as ApiCharacter[]).map(fromApi));
+  /** Reloads the list; when that fails the old list is hidden rather than shown as current. */
+  async function refreshCharacters(staleKind: 'saved' | 'failed') {
     router.refresh();
-    return true;
+    try {
+      const res = await send('/api/me/characters', 'GET');
+      if (!res.ok) throw new Error('reload failed');
+      const next = ((await res.json()) as ApiCharacter[]).map(fromApi);
+      setCharacters([...next.filter((c) => c.isMain), ...next.filter((c) => !c.isMain)]);
+      setStale(null);
+    } catch {
+      setStale(staleKind);
+    }
   }
 
   async function save(input: CharacterInput): Promise<string | null> {
     if (!editing) return null;
     try {
       const res = editing.kind === 'add'
-        ? await send('/api/me/characters', 'POST', input)
+        ? await send('/api/me/characters', 'POST', editing.main ? { ...input, main: true } : input)
         : await send(`/api/me/characters/${editing.character.id}`, 'PATCH', input);
       if (!res.ok) {
         if (res.status === 404) {
           setEditing(null);
-          await refreshCharacters();
+          await refreshCharacters('failed');
           setToast({ tone: 'stop', title: SAVE_FAILED });
           return null;
         }
         return failureMessage(res);
       }
-      await refreshCharacters();
+      await refreshCharacters('saved');
       setToast({ tone: 'ok', title: editing.kind === 'add' ? EDITOR_TOASTS.added(input.name) : EDITOR_TOASTS.saved(input.name) });
       setEditing(null);
       return null;
@@ -84,27 +92,30 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
     }
   }
 
-  async function remove() {
-    if (!removing || busy) return;
+  async function confirm() {
+    if (!confirmation || busy) return;
+    const { kind, character } = confirmation;
     setBusy(true);
     setConfirmError(null);
     try {
-      const res = await send(`/api/me/characters/${removing.id}`, 'DELETE');
+      const res = kind === 'remove'
+        ? await send(`/api/me/characters/${character.id}`, 'DELETE')
+        : await send(`/api/me/characters/${character.id}/main`, 'POST');
       if (!res.ok) {
         if (res.status === 404) {
-          setRemoving(null);
+          setConfirmation(null);
           setEditing(null);
-          await refreshCharacters();
+          await refreshCharacters('failed');
           setToast({ tone: 'stop', title: SAVE_FAILED });
           return;
         }
         setConfirmError(await failureMessage(res));
         return;
       }
-      setRemoving(null);
+      setConfirmation(null);
       setEditing(null);
-      await refreshCharacters();
-      setToast({ tone: 'ok', title: EDITOR_TOASTS.removed(removing.name) });
+      await refreshCharacters('saved');
+      setToast({ tone: 'ok', title: kind === 'remove' ? EDITOR_TOASTS.removed(character.name) : EDITOR_TOASTS.madeOwnMain(character.name) });
     } catch {
       setConfirmError(SAVE_FAILED);
     } finally {
@@ -115,7 +126,7 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
   function close() {
     if (busy) return;
     setEditing(null);
-    setRemoving(null);
+    setConfirmation(null);
     setOpen(false);
   }
 
@@ -124,18 +135,25 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
       <Button variant="secondary" size="sm" onClick={() => setOpen(true)} aria-label={MEMBER_EDITOR.manageCharacters}>
         {MEMBER_EDITOR.manageCharacters}
       </Button>
-      <Modal open={open} onClose={close} title={editing ? (editing.kind === 'add' ? MEMBER_EDITOR.addAltTitle : MEMBER_EDITOR.editAltTitle) : MEMBER_EDITOR.title}>
+      <Modal open={open} onClose={close} title={editing ? (editing.kind === 'add' ? (editing.main ? MEMBER_EDITOR.addMainTitle : MEMBER_EDITOR.addAltTitle) : editing.character.isMain ? MEMBER_EDITOR.editMainTitle : MEMBER_EDITOR.editAltTitle) : MEMBER_EDITOR.title}>
         {editing ? (
           <CharacterForm
             initial={editing.kind === 'add' ? { ...emptyCharacter(), rank } : editing.character}
-            submitLabel={editing.kind === 'add' ? MEMBER_EDITOR.addAlt : MEMBER_EDITOR.save}
+            submitLabel={editing.kind === 'add' ? (editing.main ? MEMBER_EDITOR.addMain : MEMBER_EDITOR.addAlt) : MEMBER_EDITOR.save}
             onSubmit={save}
             onCancel={() => setEditing(null)}
             showRank={false}
-            onRemove={editing.kind === 'edit' ? () => { setConfirmError(null); setRemoving(editing.character); } : undefined}
+            onRemove={editing.kind === 'edit' && !editing.character.isMain ? () => { setConfirmError(null); setConfirmation({ kind: 'remove', character: editing.character }); } : undefined}
+            onMakeMain={editing.kind === 'edit' && !editing.character.isMain ? () => { setConfirmError(null); setConfirmation({ kind: 'make-main', character: editing.character }); } : undefined}
+            classHint={editing.kind === 'edit' && editing.character.isMain ? MEMBER_EDITOR.mainClassHint : undefined}
           />
+        ) : stale ? (
+          <div className="flex flex-col gap-4">
+            <p>{stale === 'failed' ? MEMBER_EDITOR.staleFailedBody : MEMBER_EDITOR.staleBody}</p>
+            <Button onClick={() => { void refreshCharacters(stale); }}>{MEMBER_EDITOR.reload}</Button>
+          </div>
         ) : !main ? (
-          <p>{MEMBER_EDITOR.noMain}</p>
+          <Button onClick={() => setEditing({ kind: 'add', main: true })}>{MEMBER_EDITOR.addMain}</Button>
         ) : (
           <div className="flex flex-col gap-4">
             <ul className="divide-y divide-line-faint rounded-card border border-line bg-ink-900">
@@ -146,21 +164,22 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
                     <p className="truncate text-sm font-semibold" style={{ color: CLASS_COLORS[character.wowClass].onInk }}>{character.name}</p>
                     <p className="truncate text-[13px] text-fg-3">{CLASS_COLORS[character.wowClass].label} · {character.spec} · {ROLE_LABELS[character.role]}</p>
                   </div>
-                  {character.isMain ? <span className="text-small text-fg-3">{MEMBER_EDITOR.main}</span> : <Button variant="secondary" size="sm" onClick={() => setEditing({ kind: 'edit', character: { ...character, rank } })} aria-label={`Edit ${character.name}`}>{MEMBER_EDITOR.edit}</Button>}
+                  {character.isMain && <span className="text-small text-fg-3">{MEMBER_EDITOR.main}</span>}
+                  <Button variant="secondary" size="sm" onClick={() => setEditing({ kind: 'edit', character: { ...character, rank } })} aria-label={`Edit ${character.name}`}>{MEMBER_EDITOR.edit}</Button>
                 </li>
               ))}
             </ul>
-            <Button onClick={() => setEditing({ kind: 'add' })}>{MEMBER_EDITOR.addAlt}</Button>
+            <Button onClick={() => setEditing({ kind: 'add', main: false })}>{MEMBER_EDITOR.addAlt}</Button>
           </div>
         )}
       </Modal>
       <Modal
-        open={removing !== null}
-        onClose={() => { if (!busy) setRemoving(null); }}
-        title={MEMBER_EDITOR.removeTitle}
-        actions={<><Button variant="ghost" disabled={busy} onClick={() => setRemoving(null)}>{MEMBER_EDITOR.keep}</Button><Button variant="danger" loading={busy} onClick={remove}>{MEMBER_EDITOR.removeConfirm}</Button></>}
+        open={confirmation !== null}
+        onClose={() => { if (!busy) setConfirmation(null); }}
+        title={confirmation?.kind === 'make-main' ? MEMBER_EDITOR.makeMainTitle(confirmation.character.name) : MEMBER_EDITOR.removeTitle}
+        actions={<><Button variant="ghost" disabled={busy} onClick={() => setConfirmation(null)}>{MEMBER_EDITOR.keep}</Button><Button variant={confirmation?.kind === 'make-main' ? 'primary' : 'danger'} loading={busy} onClick={confirm}>{confirmation?.kind === 'make-main' ? MEMBER_EDITOR.makeMainConfirm : MEMBER_EDITOR.removeConfirm}</Button></>}
       >
-        {MEMBER_EDITOR.removeBody}
+        {confirmation?.kind === 'make-main' ? MEMBER_EDITOR.makeMainBody : MEMBER_EDITOR.removeBody}
         {confirmError && <p role="alert" className="mt-3 text-sm text-stop">{confirmError}</p>}
       </Modal>
       <Toast toast={toast} onDismiss={() => setToast(null)} />

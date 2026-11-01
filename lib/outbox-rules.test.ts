@@ -38,6 +38,7 @@ describe('outbox rules', () => {
     expect(entityKey('application.message.copy', { applicationId: 'a1', messageId: 'm1' })).toBe('application:a1');
     expect(entityKey('application.message.send', { applicationId: 'a1', messageId: 'm1' })).toBe('application:a1');
     expect(entityKey('member.roles.sync', { discordId: '1' })).toBe('member:1');
+    expect(entityKey('member.classes.sync', { discordId: '1', classes: ['druid', 'warrior'], main: true })).toBe('member:1');
     expect(entityKey('trial.checkin', { userId: 'u1', discordId: '1', name: 'Konvett', startedAt: '2026-10-01T00:00:00.000Z', extended: false })).toBe('member:1');
     expect(entityKey('officers.notify', {})).toBe('officers');
   });

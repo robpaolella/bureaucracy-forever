@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { queueClassSync } from '@/lib/characters';
 import { Prisma } from '@/lib/generated/prisma/client';
 import { withIdempotency, reply } from '@/lib/idempotency';
 import { refreshPostedRaidsFor } from '@/lib/roles-sync';
@@ -34,10 +35,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ disc
         async (tx) => {
           const clash = await tx.character.findUnique({ where: { name: data.name }, select: { userId: true } });
           if (clash && clash.userId !== user.id) return { taken: true as const };
-          const current = await tx.character.findFirst({ where: { userId: user.id, isMain: true }, select: { id: true, raidRole: true } });
+          const current = await tx.character.findFirst({ where: { userId: user.id, isMain: true }, select: { id: true, class: true, raidRole: true } });
           const main = current
             ? await tx.character.update({ where: { id: current.id }, data, select: { name: true, class: true, spec: true, raidRole: true } })
             : await tx.character.create({ data: { userId: user.id, isMain: true, ...data }, select: { name: true, class: true, spec: true, raidRole: true } });
+          // Only the new class: the panel chose to leave the old class tag in place (SYNC-SPEC §5).
+          if (current?.class !== main.class) await queueClassSync(tx, user.id, [main.class], true);
           return { taken: false as const, main, roleChanged: current?.raidRole !== main.raidRole };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },

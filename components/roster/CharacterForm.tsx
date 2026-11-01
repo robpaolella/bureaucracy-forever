@@ -18,6 +18,8 @@ type Props = {
   onRemove?: () => void;
   /** Editing an alt offers promotion to the member's main character. */
   onMakeMain?: () => void;
+  /** A line under the Class field. */
+  classHint?: string;
 };
 
 /**
@@ -25,7 +27,7 @@ type Props = {
  * (narrowed by class), raid role (narrowed by spec) and rank. Changing the class or spec keeps the other fields valid rather than letting
  * the form submit a combination the route would refuse.
  */
-export function CharacterForm({ initial, submitLabel, onSubmit, onCancel, showRank = true, onRemove, onMakeMain }: Props) {
+export function CharacterForm({ initial, submitLabel, onSubmit, onCancel, showRank = true, onRemove, onMakeMain, classHint }: Props) {
   const [input, setInput] = useState(initial);
   const [names, setNames] = useState(() => splitName(initial.name));
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +82,7 @@ export function CharacterForm({ initial, submitLabel, onSubmit, onCancel, showRa
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Select label={EDITOR.wowClass} options={CLASSES.map((c) => ({ value: c, label: CLASS_COLORS[c].label }))} value={input.wowClass} onChange={(e) => update({ wowClass: e.target.value as WowClass })} />
+        <Select label={EDITOR.wowClass} options={CLASSES.map((c) => ({ value: c, label: CLASS_COLORS[c].label }))} value={input.wowClass} hint={classHint} onChange={(e) => update({ wowClass: e.target.value as WowClass })} />
         <Select label={EDITOR.spec} options={specsFor(input.wowClass).map((s) => ({ value: s, label: s }))} value={input.spec} onChange={(e) => update({ spec: e.target.value })} />
         <Select label={EDITOR.role} options={roles.map((r) => ({ value: r, label: ROLE_LABELS[r] }))} value={input.role} disabled={roles.length < 2} onChange={(e) => update({ role: e.target.value as CharacterInput['role'] })} />
         {showRank &&
