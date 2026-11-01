@@ -10,6 +10,9 @@ vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
 vi.mock('@/lib/session', () => ({ getSession: async () => ({ discordId: 'officer', role: 'officer' }) }));
 import { addAlt, addMain, changeMain, editCharacter, removeCharacter } from './characters';
 import { POST as officerAddMain } from '@/app/api/roster/route';
+import { PUT as botSetMain } from '@/app/api/bot/members/[discordId]/main/route';
+import { POST as botAddAlt } from '@/app/api/bot/members/[discordId]/characters/route';
+import { DELETE as botRemoveAlt } from '@/app/api/bot/members/[discordId]/characters/[characterId]/route';
 
 const input = (name: string, healer = false) => ({ name, wowClass: 'paladin', spec: healer ? 'Holy' : 'Protection', role: healer ? 'healer' : 'tank' });
 
@@ -28,6 +31,9 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
     signups: { create: { userId, characterId, response: 'ACCEPT', source: 'WEB' } },
   } });
   const jobs = async () => (await db.outboxJob.findMany({ where: { type: 'raid.update' } })).map((j) => (j.payload as { raidId: string }).raidId).sort();
+  /** member.classes.sync payloads for one Discord id, oldest first. */
+  const classJobs = async (discordId: string) => (await db.outboxJob.findMany({ where: { type: 'member.classes.sync' }, orderBy: { createdAt: 'asc' } }))
+    .map((j) => j.payload as { discordId: string; classes: string[]; main: boolean }).filter((p) => p.discordId === discordId);
 
   // Both real transactions finish the selected read before either can write; retries do not wait.
   async function race<T>(changes: (() => Promise<T>)[], model: 'User' | 'Character' = 'User') {
@@ -257,5 +263,92 @@ describe.skipIf(process.env.CHARACTERS_INTEGRATION !== '1')('character rules on 
     expect(await removeCharacter(user.id, alt.id)).toMatchObject({ status: 404, reason: 'not_found' });
     expect(await jobs()).toEqual(['deletion']);
     expect(await removeCharacter(user.id, user.characters[0].id)).toMatchObject({ status: 200 });
+  });
+
+  it('queues member.classes.sync with each change that touches a class or the main, and with nothing else', async () => {
+    const user = await member('Classer');
+    const mage = await addAlt(user.id, { name: 'Mage Alt', wowClass: 'mage', spec: 'Frost', role: 'ranged' });
+    if (!('character' in mage)) throw new Error('Expected alt');
+    expect(await classJobs('Classer')).toEqual([{ discordId: 'Classer', classes: ['mage'], main: false }]);
+    // Repeats, renames and refusals queue nothing.
+    await addAlt(user.id, { name: 'MAGE ALT', wowClass: 'mage', spec: 'Frost', role: 'ranged' });
+    await editCharacter(user.id, mage.character.id, { name: 'Renamed Mage', wowClass: 'mage', spec: 'Fire', role: 'ranged' });
+    await changeMain(user.characters[0].id);
+    await removeCharacter(user.id, user.characters[0].id);
+    expect(await classJobs('Classer')).toHaveLength(1);
+    await editCharacter(user.id, user.characters[0].id, { name: 'Classer Main', wowClass: 'warrior', spec: 'Protection', role: 'tank' });
+    await changeMain(mage.character.id);
+    await removeCharacter(user.id, user.characters[0].id);
+    expect((await classJobs('Classer')).slice(1)).toEqual([
+      { discordId: 'Classer', classes: ['paladin', 'warrior'], main: true },
+      { discordId: 'Classer', classes: ['mage', 'warrior'], main: true },
+      { discordId: 'Classer', classes: ['warrior'], main: false },
+    ]);
+  });
+  it('a change whose job fails rolls back, and a rolled-back change queues no job', async () => {
+    const user = await member('Atomic');
+    await pool.query(`CREATE FUNCTION reject_job() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'outbox unavailable'; END $$;
+      CREATE TRIGGER reject_job BEFORE INSERT ON "OutboxJob" FOR EACH ROW EXECUTE FUNCTION reject_job();`);
+    try {
+      await expect(addAlt(user.id, input('Lost Alt'))).rejects.toThrow('outbox unavailable');
+      await expect(editCharacter(user.id, user.characters[0].id, { ...input('Atomic Main'), wowClass: 'warrior' })).rejects.toThrow('outbox unavailable');
+    } finally {
+      await pool.query('DROP TRIGGER reject_job ON "OutboxJob"; DROP FUNCTION reject_job();');
+    }
+    expect(await db.character.findMany({ where: { userId: user.id }, select: { name: true, class: true } })).toEqual([{ name: 'Atomic Main', class: 'PALADIN' }]);
+    const added = await addAlt(user.id, input('Kept Alt'));
+    if (!('character' in added)) throw new Error('Expected alt');
+    await pool.query(`CREATE FUNCTION reject_promotion() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+      IF NEW."isMain" AND NOT OLD."isMain" THEN RAISE EXCEPTION 'promotion unavailable'; END IF; RETURN NEW; END $$;
+      CREATE TRIGGER reject_promotion BEFORE UPDATE ON "Character" FOR EACH ROW EXECUTE FUNCTION reject_promotion();`);
+    try {
+      await expect(changeMain(added.character.id)).rejects.toThrow('promotion unavailable');
+    } finally {
+      await pool.query('DROP TRIGGER reject_promotion ON "Character"; DROP FUNCTION reject_promotion();');
+    }
+    expect(await classJobs('Atomic')).toEqual([{ discordId: 'Atomic', classes: ['paladin'], main: false }]);
+  });
+  it('racing changes retried after a serialization failure leave exactly one job', async () => {
+    await member('Jobracer');
+    const same = await race([() => addAlt('Jobracer', input('Raced Alt')), () => addAlt('Jobracer', input('RACED ALT'))]);
+    expect(same.map((r) => r.status).sort()).toEqual([200, 201]);
+    expect(await classJobs('Jobracer')).toEqual([{ discordId: 'Jobracer', classes: ['paladin'], main: false }]);
+    await member('Mainracer', false);
+    const mains = await race([() => addMain('Mainracer', input('Main One')), () => addMain('Mainracer', input('Main Two'))]);
+    expect(mains.map((r) => r.status).sort()).toEqual([201, 409]);
+    expect(await classJobs('Mainracer')).toEqual([{ discordId: 'Mainracer', classes: ['paladin'], main: true }]);
+  });
+  it('the bot\'s character routes queue a job per change, and an Idempotency-Key replay queues none', async () => {
+    vi.stubEnv('BOT_SHARED_SECRET', 'test-secret');
+    const discordId = '100000000000000501';
+    await db.user.create({ data: { id: 'Botmember', discordId, discordName: 'Botmember', rank: 'RAIDER' } });
+    const bot = (path: string, method: string, key: string, body?: object) => new Request(`http://localhost/api/bot/members/${discordId}${path}`, {
+      method, headers: { authorization: 'Bearer test-secret', 'idempotency-key': key }, ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    const druid = { firstName: 'Bot', secondName: 'Druid', wowClass: 'druid', spec: 'Feral', raidRole: 'tank' };
+    const params = Promise.resolve({ discordId });
+    try {
+      for (let i = 0; i < 2; i++) expect((await botSetMain(bot('/main', 'PUT', 'set-druid', druid), { params })).status).toBe(200);
+      // Same class, new spec: nothing for Discord to change.
+      expect((await botSetMain(bot('/main', 'PUT', 'respec', { ...druid, spec: 'Balance', raidRole: 'ranged' }), { params })).status).toBe(200);
+      // "Set my main" from Druid to Warrior lists only the new class, so the Druid tag stays.
+      expect((await botSetMain(bot('/main', 'PUT', 'set-warrior', { ...druid, wowClass: 'warrior', spec: 'Protection', raidRole: 'tank' }), { params })).status).toBe(200);
+      const alt = { name: 'Bot Mage', wowClass: 'mage', spec: 'Frost', raidRole: 'ranged' };
+      const first = await botAddAlt(bot('/characters', 'POST', 'add-mage', alt), { params });
+      expect(first.status).toBe(201);
+      expect((await botAddAlt(bot('/characters', 'POST', 'add-mage', alt), { params })).headers.get('Idempotent-Replay')).toBe('true');
+      const { character } = await first.json() as { character: { id: string } };
+      const removeParams = { params: Promise.resolve({ discordId, characterId: character.id }) };
+      for (let i = 0; i < 2; i++) expect((await botRemoveAlt(bot(`/characters/${character.id}`, 'DELETE', 'remove-mage'), removeParams)).status).toBe(204);
+      expect((await botRemoveAlt(bot(`/characters/${character.id}`, 'DELETE', 'remove-again'), removeParams)).status).toBe(204);
+      expect(await classJobs(discordId)).toEqual([
+        { discordId, classes: ['druid'], main: true },
+        { discordId, classes: ['warrior'], main: true },
+        { discordId, classes: ['mage'], main: false },
+        { discordId, classes: ['mage'], main: false },
+      ]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
