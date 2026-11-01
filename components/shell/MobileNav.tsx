@@ -77,7 +77,7 @@ export function MobileNav() {
             </NavLink>
           ))}
 
-          {session && (
+          {session && session.role !== 'social' && (
             <>
               <Divider />
               <div className={`${HEADING} text-fg-3`}>Members</div>
@@ -91,7 +91,7 @@ export function MobileNav() {
               <NavLink href={MEMBER_LINKS.calendar.href} variant="drawer" onNavigate={close}>
                 {MEMBER_LINKS.calendar.label}
               </NavLink>
-              {session.loot && session.role !== 'social' && (
+              {session.loot && (
                 <NavLink href={MEMBER_LINKS.loot.href} variant="drawer" onNavigate={close}>{MEMBER_LINKS.loot.label}</NavLink>
               )}
             </>

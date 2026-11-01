@@ -7,7 +7,6 @@ import { cn } from '@/lib/cn';
 import { SITE_NAME } from '@/lib/config';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
 import { initials } from '@/lib/format';
-import { MEMBER_LINKS } from '@/lib/nav';
 
 const TITLE = 'About Bureaucracy | WoW Forever Raiding Guild';
 const DESCRIPTION = ABOUT_DESCRIPTION;
@@ -104,7 +103,7 @@ function Officers() {
   const cols = OFFICER_GRID[Math.min(Math.max(OFFICERS.length, 1), 4)];
   return (
     <section className="flex flex-col gap-8 px-4 py-16 md:px-gutter md:py-20">
-      <SectionHead eyebrow="Leadership" title="Meet the leadership" size="lg" link={{ href: MEMBER_LINKS.roster.href, label: 'Full roster →' }} />
+      <SectionHead eyebrow="Leadership" title="Meet the leadership" size="lg" />
       <div className={cn('grid grid-cols-2 gap-4', cols)}>
         {OFFICERS.map((o, i) => {
           const color = CLASS_COLORS[o.wowClass].onInk;
