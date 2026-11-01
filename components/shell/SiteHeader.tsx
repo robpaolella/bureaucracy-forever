@@ -11,8 +11,9 @@ import { useSiteSession } from './SiteSessionProvider';
 import { Wordmark } from './Wordmark';
 
 /**
- * One header, three sessions. Public links never move; signing in adds a Members
- * group, officer rank adds an Officers group with the pending-application count.
+ * One header, three sessions. Public links never move; a Guild Member's sign-in adds a
+ * Members group (a social signed in gets none), officer rank adds an Officers group with
+ * the pending-application count.
  * Session state comes from the client provider so public pages can prerender.
  */
 export function SiteHeader() {
@@ -31,7 +32,7 @@ export function SiteHeader() {
                 {l.label}
               </NavLink>
             ))}
-            {session && (
+            {session && session.role !== 'social' && (
               <NavGroup label="Members" width={260}>
                 <NavLink href={MEMBER_LINKS.availability.href} variant="menu">
                   {MEMBER_LINKS.availability.label}
@@ -43,7 +44,7 @@ export function SiteHeader() {
                 <NavLink href={MEMBER_LINKS.calendar.href} variant="menu">
                   {MEMBER_LINKS.calendar.label}
                 </NavLink>
-                {session.loot && session.role !== 'social' && (
+                {session.loot && (
                   <NavLink href={MEMBER_LINKS.loot.href} variant="menu">{MEMBER_LINKS.loot.label}</NavLink>
                 )}
               </NavGroup>

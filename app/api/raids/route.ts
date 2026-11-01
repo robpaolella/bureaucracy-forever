@@ -8,10 +8,11 @@ import { rosterSignups, rosterUserIds } from '@/lib/tick';
 
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
 
-/** GET /api/raids — upcoming and in-progress raids as calendar cards (docs/06 § API routes). */
+/** GET /api/raids — upcoming and in-progress raids as calendar cards (docs/06 § API routes). Guild Members and officers only. */
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Log in first.' }, { status: 401, headers: NO_STORE });
+  if (session.role === 'social') return NextResponse.json({ error: 'The raid calendar is for guild members.' }, { status: 403, headers: NO_STORE });
   const now = new Date();
   const raids = await loadRaidCards(new Date(now.getTime() - 6 * 3600_000), session.discordId);
   return NextResponse.json({ raids: raids.filter((r) => isUpcoming(r, now)) }, { headers: NO_STORE });

@@ -4,17 +4,44 @@ const mocks = vi.hoisted(() => ({
   session: null as { role: string; discordId: string } | null,
   findTemplate: vi.fn(),
   create: vi.fn(),
+  cards: vi.fn(),
 }));
 
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.session }));
-vi.mock('@/lib/raid-cards', () => ({ loadRaidCards: vi.fn() }));
+vi.mock('@/lib/raid-cards', () => ({ loadRaidCards: mocks.cards }));
 vi.mock('@/lib/tick', () => ({ rosterUserIds: async () => [], rosterSignups: async () => [] }));
 vi.mock('@/lib/db', () => ({ db: { raidTemplate: { findFirst: mocks.findTemplate }, raid: { create: mocks.create } } }));
 
-import { POST } from './route';
+import { GET, POST } from './route';
 
 const body = { templateId: 't1', date: '2099-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, dps: 20 }, notes: '' };
 const post = (over: Record<string, unknown> = {}) => POST(new Request('https://example.test/api/raids', { method: 'POST', body: JSON.stringify({ ...body, ...over }) }));
+
+describe('GET /api/raids', () => {
+  beforeEach(() => { mocks.cards.mockReset().mockResolvedValue([]); });
+
+  it('needs a login', async () => {
+    mocks.session = null;
+    expect((await GET()).status).toBe(401);
+    expect(mocks.cards).not.toHaveBeenCalled();
+  });
+
+  it('refuses a social with a message, before reading any raid', async () => {
+    mocks.session = { role: 'social', discordId: '1' };
+    const res = await GET();
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: 'The raid calendar is for guild members.' });
+    expect(mocks.cards).not.toHaveBeenCalled();
+  });
+
+  it.each(['member', 'officer'])('gives a %s the upcoming raids', async (role) => {
+    mocks.session = { role, discordId: '1' };
+    const res = await GET();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ raids: [] });
+    expect(mocks.cards).toHaveBeenCalledWith(expect.any(Date), '1');
+  });
+});
 
 describe('POST /api/raids', () => {
   beforeEach(() => {
