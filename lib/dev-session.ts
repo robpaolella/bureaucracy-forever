@@ -7,10 +7,21 @@
 import type { Session } from '@/lib/session';
 
 export const DEV_SESSION_COOKIE = 'dev-session';
-export const DEV_SESSION_STATES = ['out', 'member', 'member-unsubmitted', 'officer'] as const;
+export const DEV_SESSION_STATES = ['out', 'social', 'member', 'member-unsubmitted', 'officer'] as const;
 export type DevSessionState = (typeof DEV_SESSION_STATES)[number];
 
 const STUBS: Record<Exclude<DevSessionState, 'out'>, Session> = {
+  // Signed in without Guild Member (a guest, applicant or former member): no Members area.
+  social: {
+    discordId: 'dev-social',
+    role: 'social',
+    templateAdmin: false,
+    name: 'Guest',
+    rank: 'social',
+    availabilitySubmitted: false,
+    pendingApplications: 0,
+    loot: false,
+  },
   // Seeded ids from prisma/seed-data.ts: Redtape (i=1) and Ledgerline (i=0), so member
   // pages show real seeded rows in development. The unsubmitted stub has no row on purpose.
   member: {

@@ -15,20 +15,23 @@ class ReserveRefusal extends Error {
   constructor(readonly status: number, reason: string) { super(reason); }
 }
 
+const GUILD_MEMBERS_ONLY = 'Loot reserves are for guild members.';
+
 const itemOrNull = (v: unknown): number | null | undefined => (v === null || v === '' || v === undefined ? null : typeof v === 'number' && Number.isSafeInteger(v) ? v : undefined);
 
 /**
  * GET /api/raids/[id]/reserves — what the reserves window needs when it opens away from the raid
  * page (the calendar list): the loot table, everyone's reserves, whose reserves the viewer may set
- * and the lock. A 404 when loot is off, for socials, or when the raid has no table, as the raid page
- * shows no reserves then either. With the raid's reserves switched off, `reservesAllowed` is false
- * and there are no reserves or current picks (lib/loot-data.ts).
+ * and the lock. A 403 for socials, who get no Members pages. A 404 when loot is off or when the raid
+ * has no table, as the raid page shows no reserves then either. With the raid's reserves switched
+ * off, `reservesAllowed` is false and there are no reserves or current picks (lib/loot-data.ts).
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Log in first.' }, { status: 401, headers: NO_STORE });
+  if (session.role === 'social') return NextResponse.json({ error: GUILD_MEMBERS_ONLY }, { status: 403, headers: NO_STORE });
   const { id: raidId } = await params;
-  const raid = lootEnabled() && session.role !== 'social' ? await db.raid.findUnique({ where: { id: raidId }, select: { startsAt: true, cancelledAt: true, templateId: true, reservesAllowed: true } }) : null;
+  const raid = lootEnabled() ? await db.raid.findUnique({ where: { id: raidId }, select: { startsAt: true, cancelledAt: true, templateId: true, reservesAllowed: true } }) : null;
   const table = raid?.templateId ? await loadLootTable(raid.templateId) : null;
   if (!raid || !table) return NextResponse.json({ error: 'Not found.' }, { status: 404, headers: NO_STORE });
   const [reserves, { targets }] = await Promise.all([loadActiveReserves(raidId), loadReserveTargets(raidId, session.discordId, session.role === 'officer')]);
@@ -50,6 +53,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (!lootEnabled()) return NextResponse.json({ error: 'Not found.' }, { status: 404, headers: NO_STORE });
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Log in first.' }, { status: 401, headers: NO_STORE });
+  if (session.role === 'social') return NextResponse.json({ error: GUILD_MEMBERS_ONLY }, { status: 403, headers: NO_STORE });
   const officer = session.role === 'officer';
 
   const body = ((await jsonBody(request)) ?? {}) as Record<string, unknown>;
