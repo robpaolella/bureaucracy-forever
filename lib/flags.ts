@@ -14,6 +14,11 @@ export function lootEnabled(env: Record<string, string | undefined> = process.en
   return isOn(env.LOOT_ENABLED);
 }
 
+/** The loot helper's API (ADDON-SPEC section 7). Off unless ADDON_HELPER_ENABLED is set; staging first. */
+export function helperEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return isOn(env.ADDON_HELPER_ENABLED);
+}
+
 /**
  * Keeps sign-ups and reserves open until each event starts, for the add-on's dungeon tests.
  * Off unless OPEN_UNTIL_START is set; staging turns it on. Always off on a production

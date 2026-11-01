@@ -118,9 +118,14 @@ export function MobileNav() {
                 {OFFICER_LINKS.needs.label}
               </NavLink>
               {session.loot && (
-                <NavLink href={OFFICER_LINKS.lootTables.href} variant="drawer" onNavigate={close}>
-                  {OFFICER_LINKS.lootTables.label}
-                </NavLink>
+                <>
+                  <NavLink href={OFFICER_LINKS.lootTables.href} variant="drawer" onNavigate={close}>
+                    {OFFICER_LINKS.lootTables.label}
+                  </NavLink>
+                  <NavLink href={OFFICER_LINKS.addon.href} variant="drawer" onNavigate={close}>
+                    {OFFICER_LINKS.addon.label}
+                  </NavLink>
+                </>
               )}
             </>
           )}

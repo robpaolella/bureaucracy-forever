@@ -20,6 +20,18 @@ export function rateLimited(key: string, limit: number, windowMs: number, now = 
   return entry.count > limit;
 }
 
+/** Whether `key` has already used its `limit` this window, without counting this look. */
+export function limitReached(key: string, limit: number, now = Date.now()): boolean {
+  const entry = hits.get(key);
+  return !!entry && entry.resetAt > now && entry.count >= limit;
+}
+
+/** Whole seconds until `key`'s window resets, at least 1: the value for a Retry-After header. */
+export function retryAfterSeconds(key: string, now = Date.now()): number {
+  const entry = hits.get(key);
+  return entry && entry.resetAt > now ? Math.max(1, Math.ceil((entry.resetAt - now) / 1000)) : 1;
+}
+
 /**
  * The connecting address behind a proxy. Vercel sets x-real-ip; failing that the last
  * x-forwarded-for hop is the one the proxy appended, while the first is whatever the
