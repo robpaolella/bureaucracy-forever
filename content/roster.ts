@@ -3,7 +3,7 @@
 export const ROSTER_HEAD = {
   eyebrow: 'Members',
   title: 'Roster',
-  lede: 'Everyone in the guild on Discord, with searchable alts under each main. Class and role filters follow the main. Ranks follow the Discord Raider and Trial roles. Choose Manage characters on your own row to add or change your alts.',
+  lede: 'Everyone in the guild on Discord, with searchable alts under each main. Class and role filters follow the main. Ranks follow the Discord Raider and Trial roles. Choose Manage characters on your own row to change your main or add and change your alts.',
 };
 
 export const ROSTER_EMPTY = {
