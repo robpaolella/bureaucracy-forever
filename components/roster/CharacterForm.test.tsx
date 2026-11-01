@@ -21,6 +21,11 @@ describe('CharacterForm', () => {
     expect(html).toContain(EDITOR.remove);
   });
 
+  it('shows a hint under the class field when given one', () => {
+    expect(render({ classHint: 'Try an alt.' })).toContain('Try an alt.');
+    expect(render()).not.toContain('Try an alt.');
+  });
+
   it('keeps main-character rank editing available', () => {
     expect(render()).toContain(`>${EDITOR.rank}<`);
   });

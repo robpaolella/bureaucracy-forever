@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { addAlt } from '@/lib/characters';
+import { addAlt, addMain } from '@/lib/characters';
 import { error, NO_STORE, resultResponse, viewer } from './shared';
 
 export async function GET() {
@@ -19,5 +19,6 @@ export async function POST(request: Request) {
   if (v.denied) return v.denied;
   if (!v.user) return error('Set your main first.', 409);
   const body: unknown = await request.json().catch(() => null);
-  return resultResponse(await addAlt(v.user.id, body));
+  const main = body !== null && typeof body === 'object' && 'main' in body && body.main === true;
+  return resultResponse(await (main ? addMain : addAlt)(v.user.id, body));
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { addAlt } from '@/lib/characters';
+import { addAlt, queueClassSync } from '@/lib/characters';
 import { Prisma } from '@/lib/generated/prisma/client';
 import { setRankFromWeb } from '@/lib/roles-sync';
 import { OFFICER_RANK_ERROR } from '@/content/roster-editor';
@@ -40,7 +40,9 @@ export async function POST(request: Request) {
         const user = await tx.user.findUnique({ where: { id: userId }, select: { id: true, characters: { where: { isMain: true }, select: { id: true } } } });
         if (!user) return { status: 404, error: 'No such member.' } as const;
         if (user.characters.length > 0) return { status: 409, error: 'That member already has a main. Edit it instead.' } as const;
-        const created = await tx.character.create({ data: { userId: user.id, isMain: true, ...toPrismaCharacter(parsed.value) }, select: { id: true, name: true } });
+        const data = toPrismaCharacter(parsed.value);
+        const created = await tx.character.create({ data: { userId: user.id, isMain: true, ...data }, select: { id: true, name: true } });
+        await queueClassSync(tx, user.id, [data.class], true);
         return { status: 201, created } as const;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
