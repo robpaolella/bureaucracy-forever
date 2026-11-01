@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   raid: { findMany: vi.fn(), updateMany: vi.fn(), create: vi.fn() }, character: { findMany: vi.fn() },
   signup: { findMany: vi.fn() }, reserve: { findMany: vi.fn() },
   user: { findMany: vi.fn() }, raidSeries: { findMany: vi.fn() },
-  application: { findMany: vi.fn(), updateMany: vi.fn() }, interview: { findMany: vi.fn(), updateMany: vi.fn() }, botRequest: { findUnique: vi.fn() },
+  application: { findMany: vi.fn(), updateMany: vi.fn() }, interview: { findMany: vi.fn(), updateMany: vi.fn() }, botRequest: { findUnique: vi.fn(), create: vi.fn() },
   enqueue: vi.fn(), enabled: vi.fn(),
 }));
 vi.mock('server-only', () => ({}));
@@ -202,5 +202,106 @@ describe('tick generation', () => {
     await runTick(now);
     expect(mocks.raid.create).toHaveBeenCalled();
     for (const [{ data }] of mocks.raid.create.mock.calls) expect(data.requirements).toStrictEqual({ tank: 2, healer: 8, dps: 25 });
+  });
+});
+
+describe('tick interview digest', () => {
+  const at = (iso: string) => new Date(iso);
+  const booked = (id: string, start: string, bookedAt: string, over: object = {}) => ({
+    id, applicationId: `app-${id}`, status: 'BOOKED', bookedStart: at(start), bookedAt: at(bookedAt), bookedById: 'u1',
+    application: { character: `Char ${id}`, discordThreadId: id === 'a' ? 'thread-a' : null }, ...over,
+  });
+  const handled = new Set<string>();
+  let rows: ReturnType<typeof booked>[];
+  const run = async (iso: string) => {
+    const counts = await runTick(at(iso));
+    return counts.interviewDigests;
+  };
+  const digestJobs = () => mocks.enqueue.mock.calls.filter((c) => c[0] === 'interview.digest');
+  beforeEach(() => {
+    handled.clear();
+    rows = [];
+    mocks.raid.findMany.mockResolvedValue([]);
+    mocks.botRequest.findUnique.mockImplementation(async ({ where }) => (where.key === 'tick:reconcile' ? { body: { at: '2099-01-01T00:00:00Z' } } : handled.has(where.key) ? { key: where.key } : null));
+    mocks.botRequest.create.mockImplementation(async ({ data }) => {
+      if (handled.has(data.key)) throw Object.assign(new Error('unique'), { code: 'P2002' });
+      handled.add(data.key);
+    });
+    mocks.user.findMany.mockImplementation(async (args) => (args.where.id ? [{ id: 'u1', discordId: 'd1', discordName: 'Officer One' }] : []));
+    mocks.interview.findMany.mockImplementation(async (args) => {
+      if (args.where.activeKey) return [];
+      const w = args.where;
+      return rows.filter((r) => r.status === w.status && r.bookedStart > w.bookedStart.gt && r.bookedStart < w.bookedStart.lt && r.bookedAt < w.bookedAt.lt)
+        .sort((x, y) => x.bookedStart.getTime() - y.bookedStart.getTime());
+    });
+  });
+
+  it('enqueues nothing before 08:00 Pacific', async () => {
+    rows = [booked('a', '2026-10-16T20:00:00Z', '2026-10-10T00:00:00Z')];
+    expect(await run('2026-10-16T14:59:00Z')).toBe(0);
+    expect(mocks.botRequest.create).not.toHaveBeenCalled();
+  });
+  it('enqueues one digest in start order on the first tick at 08:00, and none on later ticks', async () => {
+    rows = [booked('b', '2026-10-17T05:00:00Z', '2026-10-10T00:00:00Z'), booked('a', '2026-10-16T20:00:00Z', '2026-10-10T00:00:00Z')];
+    expect(await run('2026-10-16T15:00:00Z')).toBe(1);
+    expect(await run('2026-10-16T15:01:00Z')).toBe(0);
+    expect(digestJobs()).toEqual([['interview.digest', {
+      date: '2026-10-16',
+      interviews: [
+        { interviewId: 'a', applicationId: 'app-a', startsAt: '2026-10-16T20:00:00.000Z', characterName: 'Char a', bookedBy: { discordId: 'd1', name: 'Officer One' }, threadId: 'thread-a' },
+        { interviewId: 'b', applicationId: 'app-b', startsAt: '2026-10-17T05:00:00.000Z', characterName: 'Char b', bookedBy: { discordId: 'd1', name: 'Officer One' }, threadId: null },
+      ],
+    }, mocks]]);
+    expect(mocks.botRequest.create).toHaveBeenCalledWith({ data: expect.objectContaining({ key: 'tick:interview-digest:2026-10-16' }) });
+  });
+  it('leaves out interviews booked after 08:00, on another Pacific date, or already started', async () => {
+    rows = [
+      booked('late', '2026-10-16T20:00:00Z', '2026-10-16T15:00:01Z'),
+      booked('tomorrow', '2026-10-17T07:00:00Z', '2026-10-10T00:00:00Z'),
+      booked('started', '2026-10-16T16:00:00Z', '2026-10-10T00:00:00Z'),
+      booked('a', '2026-10-16T20:00:00Z', '2026-10-10T00:00:00Z'),
+    ];
+    expect(await run('2026-10-16T17:00:00Z')).toBe(1);
+    expect(digestJobs()[0][1].interviews.map((i: { interviewId: string }) => i.interviewId)).toEqual(['a']);
+  });
+  it('lists a missing or absent booker as null', async () => {
+    rows = [booked('a', '2026-10-16T20:00:00Z', '2026-10-10T00:00:00Z', { bookedById: null })];
+    await run('2026-10-16T15:00:00Z');
+    expect(digestJobs()[0][1].interviews[0].bookedBy).toBeNull();
+  });
+  it('records the date and enqueues nothing when no interview qualifies', async () => {
+    expect(await run('2026-10-16T15:00:00Z')).toBe(0);
+    expect(handled.has('tick:interview-digest:2026-10-16')).toBe(true);
+    rows = [booked('a', '2026-10-16T20:00:00Z', '2026-10-10T00:00:00Z')];
+    expect(await run('2026-10-16T16:00:00Z')).toBe(0);
+    expect(digestJobs()).toHaveLength(0);
+  });
+  it('lists only the interviews still ahead when the bot returns at 11:00', async () => {
+    rows = [booked('early', '2026-10-16T17:00:00Z', '2026-10-10T00:00:00Z'), booked('a', '2026-10-16T20:00:00Z', '2026-10-10T00:00:00Z')];
+    expect(await run('2026-10-16T18:00:00Z')).toBe(1);
+    expect(digestJobs()[0][1].interviews.map((i: { interviewId: string }) => i.interviewId)).toEqual(['a']);
+  });
+  it('enqueues nothing when a concurrent tick already recorded the date', async () => {
+    mocks.botRequest.findUnique.mockImplementation(async ({ where }) => (where.key === 'tick:reconcile' ? { body: { at: '2099-01-01T00:00:00Z' } } : null));
+    handled.add('tick:interview-digest:2026-10-16');
+    rows = [booked('a', '2026-10-16T20:00:00Z', '2026-10-10T00:00:00Z')];
+    expect(await run('2026-10-16T15:00:00Z')).toBe(0);
+    expect(digestJobs()).toHaveLength(0);
+  });
+  it('rethrows other errors from the transaction', async () => {
+    mocks.botRequest.create.mockRejectedValue(new Error('boom'));
+    await expect(run('2026-10-16T15:00:00Z')).rejects.toThrow('boom');
+  });
+  it('handles the spring-forward day (23 hours long)', async () => {
+    rows = [booked('in', '2026-03-09T06:59:00Z', '2026-03-01T00:00:00Z'), booked('out', '2026-03-09T07:00:00Z', '2026-03-01T00:00:00Z')];
+    expect(await run('2026-03-08T14:59:00Z')).toBe(0);
+    expect(await run('2026-03-08T15:00:00Z')).toBe(1);
+    expect(digestJobs()[0][1].interviews.map((i: { interviewId: string }) => i.interviewId)).toEqual(['in']);
+  });
+  it('handles the fall-back day (25 hours long)', async () => {
+    rows = [booked('in', '2026-11-02T07:59:00Z', '2026-10-25T00:00:00Z'), booked('out', '2026-11-02T08:00:00Z', '2026-10-25T00:00:00Z')];
+    expect(await run('2026-11-01T15:59:00Z')).toBe(0);
+    expect(await run('2026-11-01T16:00:00Z')).toBe(1);
+    expect(digestJobs()[0][1].interviews.map((i: { interviewId: string }) => i.interviewId)).toEqual(['in']);
   });
 });

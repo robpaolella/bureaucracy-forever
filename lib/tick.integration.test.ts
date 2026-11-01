@@ -103,6 +103,21 @@ describe.skipIf(process.env.TICK_INTEGRATION !== '1')('interview tick steps on P
     expect(await db.application.findUniqueOrThrow({ where: { id: 'app-rem' } })).toMatchObject({ reminderTriedOn: '2099-06-01', reminderKey: key, nudgedAt: null });
     expect((await runTick(new Date(evening.getTime() + 60_000))).remindersQueued).toBe(0);
   });
+  it('two overlapping ticks enqueue one interview digest for the Pacific date', async () => {
+    // 2099-07-01 15:00 UTC is 08:00 PDT; the interview starts at 13:00 PDT, booked the day before.
+    const morning = new Date('2099-07-01T15:00:00.000Z');
+    await interview('digest', { status: 'BOOKED', bookedStart: new Date('2099-07-01T20:00:00.000Z'), bookedAt: new Date('2099-06-30T20:00:00.000Z'), bookedById: 'u-digest', remindedAt: morning });
+    // The test clock is far ahead of the real row times, so keep the hourly trim from deleting the date's row.
+    await db.botRequest.upsert({ where: { key: 'tick:reconcile' }, create: { key: 'tick:reconcile', statusCode: 200, body: { at: morning.toISOString() } }, update: { body: { at: morning.toISOString() } } });
+    const counts = await Promise.all([runTick(morning), runTick(morning)]);
+    expect(counts.reduce((n, c) => n + c.interviewDigests, 0)).toBe(1);
+    expect((await jobs('interview.digest')).map((j) => j.payload)).toEqual([{
+      date: '2099-07-01',
+      interviews: [{ interviewId: 'digest', applicationId: 'app-digest', startsAt: '2099-07-01T20:00:00.000Z', characterName: 'digest', bookedBy: { discordId: 'd-digest', name: 'digest' }, threadId: null }],
+    }]);
+    expect((await runTick(new Date(morning.getTime() + 60_000))).interviewDigests).toBe(0);
+    expect(await jobs('interview.digest')).toHaveLength(1);
+  });
   it('two overlapping voice joins announce once', async () => {
     await interview('join', { status: 'BOOKED', bookedStart: start });
     const results = await Promise.all([notifyVoiceJoin('d-app-join', at(-5)), notifyVoiceJoin('d-app-join', at(-5))]);

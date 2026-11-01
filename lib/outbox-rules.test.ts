@@ -49,4 +49,8 @@ describe('outbox rules', () => {
       expect(entityKey(type, { applicationId: 'a1', interviewId: 'i1', startsAt: '2026-10-20T16:00:00.000Z' })).toBe('application:a1');
     },
   );
+
+  it('keys interview.digest to officers, not an application', () => {
+    expect(entityKey('interview.digest', { date: '2026-10-16', interviews: [{ applicationId: 'a1', interviewId: 'i1' }] })).toBe('officers');
+  });
 });
