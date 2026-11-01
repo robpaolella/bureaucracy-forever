@@ -83,7 +83,7 @@ export const FORM = {
   firstName: 'First name',
   secondName: 'Second name',
   nameHint: 'Both parts, exactly as in game.',
-  logsHint: 'A link to any recent raid.',
+  logsHint: 'Your Warcraft Logs character page, from any version of WoW.',
   /** The two progression nights, as set on 2026-10-22; update with RAID_WEEK in content/schedule.ts. */
   availabilityQuestion: 'Can you make both progression nights, Tuesday and Thursday?',
   availabilityHint: "Pick the closest fit.",

@@ -6,6 +6,10 @@ Flag each violation with file:line and the concrete failure.
 ## Access control
 - Anything under a members or officers route needs a gate in `proxy.ts` / `lib/auth/gate.ts`,
   not only in the component. A page that hides content client-side is still exposed.
+- The Members area is for Guild Members and officers only: role `social` (signed in without
+  Guild Member) gets a 404 on every `/members/**` page and a 403 from the routes behind them.
+  Each page and route checks the role itself before reading data, since a percent-encoded
+  path can slip past the proxy's path test.
 - `/api/bot/*` accepts only the bot's shared secret (SYNC-SPEC §2). No other route should
   accept a Bearer token.
 

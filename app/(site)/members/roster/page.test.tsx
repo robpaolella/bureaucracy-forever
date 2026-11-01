@@ -2,15 +2,31 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { RosterRow } from '@/lib/roster';
 
-const mocks = vi.hoisted(() => ({ findMany: vi.fn(), findUnique: vi.fn(), rows: [] as RosterRow[] }));
+const mocks = vi.hoisted(() => ({ findMany: vi.fn(), findUnique: vi.fn(), rows: [] as RosterRow[], session: null as null | { discordId: string; rank: string; role: string } }));
+class NotFound extends Error {}
+vi.mock('next/navigation', () => ({ notFound: () => { throw new NotFound(); } }));
 vi.mock('@/lib/db', () => ({ db: { user: { findMany: mocks.findMany, findUnique: mocks.findUnique } } }));
-vi.mock('@/lib/session', () => ({ getSession: async () => ({ discordId: 'viewer', rank: 'raider' }) }));
+vi.mock('@/lib/session', () => ({ getSession: async () => mocks.session }));
 vi.mock('@/components/roster/RosterTable', () => ({ RosterTable: ({ rows }: { rows: RosterRow[] }) => { mocks.rows = rows; return null; } }));
 import RosterPage from './page';
 
 const character = (id: string, isMain: boolean) => ({ id, name: id, isMain, class: 'MAGE', spec: 'Frost', raidRole: 'RANGED', attendance: 0.9, joinedAt: new Date('2026-01-01') });
 const user = (id: string, characters: ReturnType<typeof character>[]) => ({ id, discordName: id, rank: 'RAIDER', createdAt: new Date('2025-01-01'), characters });
-beforeEach(() => { vi.clearAllMocks(); mocks.findUnique.mockResolvedValue(null); });
+beforeEach(() => { vi.clearAllMocks(); mocks.findUnique.mockResolvedValue(null); mocks.session = { discordId: 'viewer', rank: 'raider', role: 'member' }; });
+
+it.each([null, 'social'])('gives %s the not-found page before reading the roster', async (role) => {
+  mocks.session = role ? { discordId: 'viewer', rank: 'social', role } : null;
+  await expect(RosterPage()).rejects.toBeInstanceOf(NotFound);
+  expect(mocks.findMany).not.toHaveBeenCalled();
+  expect(mocks.findUnique).not.toHaveBeenCalled();
+});
+
+it('shows officers the roster too', async () => {
+  mocks.session = { discordId: 'viewer', rank: 'officer', role: 'officer' };
+  mocks.findMany.mockResolvedValue([]);
+  renderToStaticMarkup(await RosterPage());
+  expect(mocks.findMany).toHaveBeenCalledTimes(1);
+});
 
 it('loads ordered characters in one roster query and keeps the separate viewer query', async () => {
   mocks.findMany.mockResolvedValue([user('member', [character('Main', true), character('Alt', false)])]);
