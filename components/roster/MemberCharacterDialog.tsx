@@ -47,23 +47,24 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
   const [characters, setCharacters] = useState(initialCharacters);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [confirmation, setConfirmation] = useState<{ kind: 'remove' | 'make-main'; character: EditableCharacter } | null>(null);
-  const [stale, setStale] = useState(false);
+  /** Set when the list can't be reloaded: 'saved' if the change went through, 'failed' if it didn't. */
+  const [stale, setStale] = useState<'saved' | 'failed' | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
 
   const main = characters.find((character) => character.isMain) ?? null;
   /** Reloads the list; when that fails the old list is hidden rather than shown as current. */
-  async function refreshCharacters() {
+  async function refreshCharacters(staleKind: 'saved' | 'failed') {
     router.refresh();
     try {
       const res = await send('/api/me/characters', 'GET');
       if (!res.ok) throw new Error('reload failed');
       const next = ((await res.json()) as ApiCharacter[]).map(fromApi);
       setCharacters([...next.filter((c) => c.isMain), ...next.filter((c) => !c.isMain)]);
-      setStale(false);
+      setStale(null);
     } catch {
-      setStale(true);
+      setStale(staleKind);
     }
   }
 
@@ -76,13 +77,13 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
       if (!res.ok) {
         if (res.status === 404) {
           setEditing(null);
-          await refreshCharacters();
+          await refreshCharacters('failed');
           setToast({ tone: 'stop', title: SAVE_FAILED });
           return null;
         }
         return failureMessage(res);
       }
-      await refreshCharacters();
+      await refreshCharacters('saved');
       setToast({ tone: 'ok', title: editing.kind === 'add' ? EDITOR_TOASTS.added(input.name) : EDITOR_TOASTS.saved(input.name) });
       setEditing(null);
       return null;
@@ -104,7 +105,7 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
         if (res.status === 404) {
           setConfirmation(null);
           setEditing(null);
-          await refreshCharacters();
+          await refreshCharacters('failed');
           setToast({ tone: 'stop', title: SAVE_FAILED });
           return;
         }
@@ -113,7 +114,7 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
       }
       setConfirmation(null);
       setEditing(null);
-      await refreshCharacters();
+      await refreshCharacters('saved');
       setToast({ tone: 'ok', title: kind === 'remove' ? EDITOR_TOASTS.removed(character.name) : EDITOR_TOASTS.madeOwnMain(character.name) });
     } catch {
       setConfirmError(SAVE_FAILED);
@@ -148,8 +149,8 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
           />
         ) : stale ? (
           <div className="flex flex-col gap-4">
-            <p>{MEMBER_EDITOR.staleBody}</p>
-            <Button onClick={() => { void refreshCharacters(); }}>{MEMBER_EDITOR.reload}</Button>
+            <p>{stale === 'failed' ? MEMBER_EDITOR.staleFailedBody : MEMBER_EDITOR.staleBody}</p>
+            <Button onClick={() => { void refreshCharacters(stale); }}>{MEMBER_EDITOR.reload}</Button>
           </div>
         ) : !main ? (
           <Button onClick={() => setEditing({ kind: 'add', main: true })}>{MEMBER_EDITOR.addMain}</Button>
