@@ -277,6 +277,31 @@ describe('MemberCharacterDialog', () => {
       expect(said(MEMBER_EDITOR.staleBody)).toBe(false);
     });
 
+    it.each([
+      ['remove', 'onRemove', MEMBER_EDITOR.removeConfirm],
+      ['make main', 'onMakeMain', MEMBER_EDITOR.makeMainConfirm],
+    ] as const)('%s: a failed change with a successful reload shows the fresh list and the failure toast', async (_name, prop, label) => {
+      hooks.values = [];
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(gone()).mockResolvedValueOnce(new Response(JSON.stringify([{ ...main, class: 'WARRIOR', raidRole: 'TANK' }]))));
+      confirmFlow(prop, label);
+      await vi.waitFor(() => expect(toast()).toEqual({ tone: 'stop', title: SAVE_FAILED }));
+      expect(said(MEMBER_EDITOR.staleBody)).toBe(false);
+      expect(said(MEMBER_EDITOR.staleFailedBody)).toBe(false);
+      expect(view().some((node) => node.props['aria-label'] === 'Edit Blue Ink')).toBe(false);
+    });
+
+    it.each([
+      ['remove', 'onRemove', MEMBER_EDITOR.removeConfirm, 'Removed Blue Ink'],
+      ['make main', 'onMakeMain', MEMBER_EDITOR.makeMainConfirm, 'Blue Ink is now your main'],
+    ] as const)('%s: a saved change with a successful reload shows the fresh list and no stale message', async (_name, prop, label, title) => {
+      hooks.values = [];
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(ok()).mockResolvedValueOnce(new Response(JSON.stringify([{ ...main, class: 'WARRIOR', raidRole: 'TANK' }]))));
+      confirmFlow(prop, label);
+      await vi.waitFor(() => expect(toast()).toEqual({ tone: 'ok', title }));
+      expect(said(MEMBER_EDITOR.staleBody)).toBe(false);
+      expect(said(MEMBER_EDITOR.staleFailedBody)).toBe(false);
+    });
+
     it('keeps the neutral message when Reload list fails again, and clears it on success', async () => {
       hooks.values = [];
       vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(gone()).mockResolvedValueOnce(down()).mockResolvedValueOnce(down()));
