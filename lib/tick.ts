@@ -9,6 +9,7 @@ import { trialCheckInDue } from '@/lib/rank-rules';
 import { applicationReminderDue, dueForClose, dueForLock, dueForPost, HOUR_MS, interviewDone, interviewExpired, interviewHeadsUpDue, interviewReminderDue, joinNoticeDue, pacificDay, proposalLapsed, reminderActivityTime, reminderDue, INTERVIEW_JOIN_EARLY_MS, INTERVIEW_JOIN_LATE_MS } from '@/lib/tick-rules';
 import { lootEnabled } from '@/lib/flags';
 import { reserveLockMinutes, reservesLockAt } from '@/lib/loot-rules';
+import { digestKey, digestPayload, digestWindow } from '@/lib/interview-digest';
 import { reserveReminderDue, reserveReminderRecipients } from '@/lib/reserve-reminder';
 
 const RECONCILE_MARKER = 'tick:reconcile';
@@ -30,6 +31,7 @@ export type TickCounts = {
   interviewsHeadsUp: number;
   interviewsLapsed: number;
   interviewsDone: number;
+  interviewDigests: number;
   remindersQueued: number;
   reconciled: number;
 };
@@ -91,7 +93,7 @@ function isUniqueViolation(error: unknown): boolean {
  * missed or doubled tick changes nothing but timing.
  */
 export async function runTick(now = new Date()): Promise<TickCounts> {
-  const counts: TickCounts = { generated: 0, rosterAdded: 0, rosterRemoved: 0, posted: 0, reminded: 0, reservesReminded: 0, locked: 0, closed: 0, trialsRaised: 0, interviewsReminded: 0, interviewsExpired: 0, interviewsHeadsUp: 0, interviewsLapsed: 0, interviewsDone: 0, remindersQueued: 0, reconciled: 0 };
+  const counts: TickCounts = { generated: 0, rosterAdded: 0, rosterRemoved: 0, posted: 0, reminded: 0, reservesReminded: 0, locked: 0, closed: 0, trialsRaised: 0, interviewsReminded: 0, interviewsExpired: 0, interviewsHeadsUp: 0, interviewsLapsed: 0, interviewsDone: 0, interviewDigests: 0, remindersQueued: 0, reconciled: 0 };
   const roster = await rosterUserIds();
 
   // 1. Generate instances for every active series.
@@ -253,6 +255,32 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
     if (interviewDone(i, now)) {
       const marked = await db.interview.updateMany({ where: { id: i.id, status: 'BOOKED', bookedStart: i.bookedStart }, data: { status: 'DONE', ...ended } });
       if (marked.count > 0) counts.interviewsDone += 1;
+    }
+  }
+
+  // 15. Morning interview digest: once per guild date, on the first tick at or after 08:00. The
+  // BotRequest row for the date is created first in the transaction, so an overlapping tick
+  // hits the primary key (P2002), rolls back and enqueues nothing. With nothing to list the
+  // date is still recorded, so later ticks skip the query.
+  const digest = digestWindow(now);
+  if (digest && !(await db.botRequest.findUnique({ where: { key: digestKey(digest.date) }, select: { key: true } }))) {
+    try {
+      const sent = await db.$transaction(async (tx) => {
+        await tx.botRequest.create({ data: { key: digestKey(digest.date), statusCode: 200, body: { at: now.toISOString() } } });
+        const rows = await tx.interview.findMany({
+          where: { status: 'BOOKED', bookedStart: { gt: now, lt: digest.dayEnd }, bookedAt: { lt: digest.cutoff } },
+          orderBy: { bookedStart: 'asc' },
+          select: { id: true, applicationId: true, bookedStart: true, bookedById: true, application: { select: { character: true, discordThreadId: true } } },
+        });
+        if (rows.length === 0) return false;
+        const ids = rows.flatMap((r) => (r.bookedById ? [r.bookedById] : []));
+        const users = ids.length > 0 ? await tx.user.findMany({ where: { id: { in: ids } }, select: { id: true, discordId: true, discordName: true } }) : [];
+        await enqueue('interview.digest', digestPayload(digest.date, rows, users), tx);
+        return true;
+      });
+      if (sent) counts.interviewDigests += 1;
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
     }
   }
 

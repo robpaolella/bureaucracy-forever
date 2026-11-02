@@ -36,6 +36,7 @@ export type JobType =
   | 'interview.headsup'
   | 'interview.remind'
   | 'interview.joined'
+  | 'interview.digest'
   | 'officers.notify';
 
 /** `{ ok: false }` acks: PENDING again after 2^attempts minutes, FAILED after the fifth try. */
@@ -79,6 +80,8 @@ export function oneJobPerEntity<T extends { entity: string }>(candidates: T[], b
 /** The entity a job belongs to, so the bot can order work per entity. */
 export function entityKey(type: JobType, payload: Record<string, unknown>): string {
   // Interview jobs run in order with their application's other jobs (SYNC-SPEC §12).
+  // The digest is not an application job: no applicationId, one officers message (§12).
+  if (type === 'interview.digest') return 'officers';
   if (type.startsWith('application.') || type.startsWith('interview.')) return `application:${String(payload.applicationId ?? '')}`;
   if (type.startsWith('raid.')) return `raid:${String(payload.raidId ?? '')}`;
   if (type === 'member.roles.sync' || type === 'member.classes.sync' || type === 'trial.checkin') return `member:${String(payload.discordId ?? '')}`;
