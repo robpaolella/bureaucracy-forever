@@ -19,7 +19,10 @@ vi.mock('@/lib/db', () => ({
 }));
 
 import { GET } from './route';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
+import { getSortedRoutes } from 'next/dist/shared/lib/router/utils/sorted-routes';
+import { getRouteMatcher } from 'next/dist/shared/lib/router/utils/route-matcher';
+import { getRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex';
 import { join } from 'node:path';
 
 const hours = (n: number) => new Date(Date.now() + n * 3_600_000);
@@ -71,9 +74,15 @@ describe('GET /api/bot/interviews/upcoming', () => {
     expect(interviews[0].bookedBy).toBeNull();
     expect(interviews[0].threadId).toBeNull();
   });
-  it('is a static route beside [id], which Next matches first', () => {
+  it('is matched before the [id] route, using Next\'s own route ordering', () => {
     const dir = join(__dirname, '..');
-    expect(existsSync(join(dir, 'upcoming', 'route.ts'))).toBe(true);
-    expect(existsSync(join(dir, '[id]', 'route.ts'))).toBe(true);
+    const routes = readdirSync(dir, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && existsSync(join(dir, e.name, 'route.ts')))
+      .map((e) => `/api/bot/interviews/${e.name}`);
+    expect(routes).toContain('/api/bot/interviews/[id]');
+    const sorted = getSortedRoutes(routes);
+    const target = '/api/bot/interviews/upcoming';
+    const match = sorted.find((r) => getRouteMatcher(getRouteRegex(r))(target));
+    expect(match).toBe(target);
   });
 });
