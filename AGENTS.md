@@ -107,8 +107,15 @@ for it. Every PR into a Live branch waits for his word too.
 - Changes that reach beyond their branch: real data, live hosting or DNS settings, logins
   and secrets, outside accounts. On a Building branch, deploying this repo's own code from
   it is accepted.
-- Database migrations, the design handover, deploy settings and CI, git hooks, and the
-  contract files shared with the bot and the add-on.
+- Database migrations, the design handover, deploy settings and CI, and git hooks.
+- The contract files shared with the other guild repos, `SYNC-SPEC.md` (the bot) and
+  `ADDON-SPEC.md` (the add-on and helper). These wait for his word into `main` or any Live
+  branch, and so does the package that carries them into `main`; the package walkthrough
+  names each contract change it carries. An agent may merge one into a `package/*` branch
+  once the `risky-review` role has passed it on the PR's head commit, its
+  `## Contract follow-ups` cover every consumer repo, nothing else on this list applies, and
+  the review doesn't say Robert's own merge is needed (maestro#735). Missing follow-ups, a
+  missing consumer repo, or a review older than the head commit mean it waits.
 
 Each branch's stage, read from this file on `main`. Building: its work reaches no one yet,
 so agents merge into it. Live: people rely on it, so every merge into it waits for Robert's
@@ -123,7 +130,9 @@ staging: Building
 ```
 
 A PR that changes a file matching a line below, read from this file on `main`, waits for
-Robert's word. Paths start at the repo root; `**` crosses folders, `*` and `?` stay within
+Robert's word, except into a `package/*` branch after that passed review, and only when its
+matching lines are just `SYNC-SPEC.md` and/or `ADDON-SPEC.md` (the contract bullet above); a
+PR that also matches any other line still waits. Paths start at the repo root; `**` crosses folders, `*` and `?` stay within
 one folder; a folder ends with `/**`.
 ```paths
 prisma/migrations/**
