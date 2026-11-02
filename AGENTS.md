@@ -72,7 +72,7 @@ if either blocks you, follow the message rather than looking for a way around it
 `/git/maestro/docs/git-workflow.md`.
 
 Single fixes (an issue that isn't part of a plan's package) target the standing `release`
-branch. It goes out to `main` as a batch on Robert's word, merged with a merge commit, and is
+branch. It goes out to `main` as a batch when the conductor sends it live, merged with a merge commit, and is
 never deleted. A push to `release` only makes a Vercel preview: `build:vercel` runs migrations
 only for production and `staging`, so a migration on `release` reaches the database only when
 `release` merges to `main`.
@@ -96,30 +96,27 @@ branch. Add `on-staging` to the PR and say in its body that it is on staging now
 the staging deploy applied any migration in the PR. Only one open PR may have `on-staging`; the
 conductor removes the label when its PR merges or closes.
 
-## Needs Robert's own merge
-"Robert's own merge" means Robert says "merge" for it in chat and an agent then merges it;
-he never presses Merge (`/git/maestro/docs/git-workflow.md`, Merging). Agents merge reviewed PRs
-into a `package/*` branch or a Building branch below without his word, except these, which wait
-for it. Every PR into a Live branch waits for his word too.
-- Any change to `AGENTS.md` or `CLAUDE.md`. A `risk:high` PR is merged by an agent only
-  after the `risky-review` role has passed it; in a package, the walkthrough marks steps
-  Robert follows himself before he says "merge" for the package.
-- Changes that reach beyond their branch: real data, live hosting or DNS settings, logins
-  and secrets, outside accounts. On a Building branch, deploying this repo's own code from
-  it is accepted.
-- Database migrations, the design handover, deploy settings and CI, and git hooks.
-- The contract files shared with the other guild repos, `SYNC-SPEC.md` (the bot) and
-  `ADDON-SPEC.md` (the add-on and helper). These wait for his word into `main` or any Live
-  branch, and so does the package that carries them into `main`; the package walkthrough
-  names each contract change it carries. An agent may merge one into a `package/*` branch
-  once the `risky-review` role has passed it on the PR's head commit, its
-  `## Contract follow-ups` cover every consumer repo, nothing else on this list applies, and
-  the review doesn't say Robert's own merge is needed (maestro#735). Missing follow-ups, a
-  missing consumer repo, or a review older than the head commit mean it waits.
+## Merging
+This is one of Robert's own repos: agents merge every reviewed PR without his word, Live
+branches and `release` → `main` included (`/git/maestro/docs/git-workflow.md`, Robert's own
+repos). A change to `AGENTS.md`, `CLAUDE.md` or a file in the `paths` list below merges once
+`risky-review` has passed the PR's current code. Only these go to Robert, as a question and
+never a "say merge" ask:
+1. a change that could lose real member data for good (a destructive migration, deleting
+   records);
+2. secrets and logins;
+3. hosting, DNS and outside-account settings (Vercel project settings, Discord server
+   settings);
+4. anything Maestro's guardrails refuse.
+
+`risky-review` also checks migrations (additive), the design handover, deploy settings and
+CI, and git hooks. For the contract files shared with the other guild repos, `SYNC-SPEC.md`
+(the bot; same change in both repos in the same PR) and `ADDON-SPEC.md` (the add-on and
+helper), its `## Contract follow-ups` must cover every consumer repo. Missing follow-ups, a
+missing consumer repo, or a review older than the head commit means no merge.
 
 Each branch's stage, read from this file on `main`. Building: its work reaches no one yet,
-so agents merge into it. Live: people rely on it, so every merge into it waits for Robert's
-word. A branch not listed counts as Live. The standing `release` branch counts as Building
+so agents merge into it. Live: people rely on it, so changes to it are reviewed with care. A branch not listed counts as Live. The standing `release` branch counts as Building
 unless the `stages` list names it; then the list wins. `staging` is Building because only
 testers use it and deploying this repo's own code there is accepted; it keeps the
 one-PR-on-staging flow above working. One line per branch, `<branch>: Building` or
@@ -129,10 +126,8 @@ main: Live
 staging: Building
 ```
 
-A PR that changes a file matching a line below, read from this file on `main`, waits for
-Robert's word, except into a `package/*` branch after that passed review, and only when its
-matching lines are just `SYNC-SPEC.md` and/or `ADDON-SPEC.md` (the contract bullet above); a
-PR that also matches any other line still waits. Paths start at the repo root; `**` crosses folders, `*` and `?` stay within
+A PR that changes a file matching a line below, read from this file on `main`, needs a
+`risky-review` pass on its current code before an agent merges it. Paths start at the repo root; `**` crosses folders, `*` and `?` stay within
 one folder; a folder ends with `/**`.
 ```paths
 prisma/migrations/**
@@ -146,8 +141,8 @@ ADDON-SPEC.md
 
 ## Protected areas
 Features people depend on. Agents change one only in work planned with Robert, and the
-reviewer blocks a PR that touches an area its issue doesn't name. Robert confirms the list
-through his word on the AGENTS.md PR. Add `app/api/helper/**` when the helper API is built.
+reviewer blocks a PR that touches an area its issue doesn't name. The list changes
+through a reviewed AGENTS.md PR. Add `app/api/helper/**` when the helper API is built.
 ```protected-areas
 Applications | Recruits apply to join; a break loses applicants | app/(site)/apply/**, app/(squeeze)/apply/**, app/api/applications/**, lib/application*.ts, lib/apply-gate.ts, lib/interview*.ts
 Discord login and role gating | Members and officers sign in with Discord, and roles decide who sees officer pages | auth.ts, proxy.ts, lib/auth/**, app/login/**, app/api/auth/**, app/actions/auth.ts
