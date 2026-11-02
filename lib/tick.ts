@@ -9,7 +9,7 @@ import { trialCheckInDue } from '@/lib/rank-rules';
 import { applicationReminderDue, dueForClose, dueForLock, dueForPost, HOUR_MS, interviewDone, interviewExpired, interviewHeadsUpDue, interviewReminderDue, joinNoticeDue, pacificDay, proposalLapsed, reminderActivityTime, reminderDue, INTERVIEW_JOIN_EARLY_MS, INTERVIEW_JOIN_LATE_MS } from '@/lib/tick-rules';
 import { lootEnabled } from '@/lib/flags';
 import { reserveLockMinutes, reservesLockAt } from '@/lib/loot-rules';
-import { digestKey, digestPayload, digestWindow } from '@/lib/interview-digest';
+import { DIGEST_ORDER, DIGEST_SELECT, digestKey, digestPayload, digestUsers, digestWindow } from '@/lib/interview-digest';
 import { reserveReminderDue, reserveReminderRecipients } from '@/lib/reserve-reminder';
 
 const RECONCILE_MARKER = 'tick:reconcile';
@@ -269,12 +269,11 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
         await tx.botRequest.create({ data: { key: digestKey(digest.date), statusCode: 200, body: { at: now.toISOString() } } });
         const rows = await tx.interview.findMany({
           where: { status: 'BOOKED', bookedStart: { gt: now, lt: digest.dayEnd }, bookedAt: { lt: digest.cutoff } },
-          orderBy: { bookedStart: 'asc' },
-          select: { id: true, applicationId: true, bookedStart: true, bookedById: true, application: { select: { character: true, discordThreadId: true } } },
+          orderBy: [...DIGEST_ORDER],
+          select: DIGEST_SELECT,
         });
         if (rows.length === 0) return false;
-        const ids = rows.flatMap((r) => (r.bookedById ? [r.bookedById] : []));
-        const users = ids.length > 0 ? await tx.user.findMany({ where: { id: { in: ids } }, select: { id: true, discordId: true, discordName: true } }) : [];
+        const users = await digestUsers(tx, rows);
         await enqueue('interview.digest', digestPayload(digest.date, rows, users), tx);
         return true;
       });
