@@ -327,6 +327,7 @@ Any route that takes `Idempotency-Key` may also answer `409 { reason: "in_progre
 | GET | `/applicant-messages/open` | For the bot's catch-up (§13): one entry per `PENDING` application. |
 | GET | `/messages/:id` | One relay message for rendering (§13), with `ping`. |
 | POST | `/applications/:id/interview` | Start an interview (§12). `{ byDiscordId, confirmSecond? }`. 201 `{ interview }` (the read shape below). Enqueues `interview.request`. |
+| GET | `/interviews/upcoming` | Every `BOOKED` interview whose `bookedStart` is after now, for the bot's `/interviews` command (§8): `{ interviews: [{ interviewId, applicationId, startsAt (ISO), characterName, bookedBy: { discordId, name } \| null, threadId \| null }] }`, in start order; the same item shape as the `interview.digest` payload (§5). Interviews still arranging a time are not listed. Matched before `/interviews/:id`. |
 | GET | `/interviews/:id` | Read an interview for rendering (§12): `{ id, applicationId, attempt, status, endReason, applicant: { discordId, characterName }, threadId, timeZone, timesRevision, slots: [ISO], requestedAt, timesUpdatedAt, requestedBy, proposedStart, proposedBy, bookedStart, bookedBy, endedAt, pageUrl, requestDmId, timesMessageId, proposalMessageId, proposalDmId, bookedMessageId }`. `requestedBy`, `proposedBy` and `bookedBy` are `{ discordId, name }` or `null`; `pageUrl` is `<site>/apply/interview`. 404 `{ error }` if unknown. |
 | POST | `/interviews/:id/book` | `{ startsAt, timesRevision, byDiscordId }`. 200 read shape. |
 | POST | `/interviews/:id/propose` | `{ startsAt, byDiscordId }`. 200 read shape. |
@@ -492,6 +493,7 @@ mentions: {
 | `interview.headsup` | One thread message: no times yet after 3 days. | — | — |
 | `interview.remind` | `+ startsAt`. DM the applicant and ping the booking officer in the thread, 5 minutes before. | — | — |
 | `interview.joined` | Thread notice with **Move to Raider Interviews**, pinging the booking officer. | — | — |
+| `interview.digest` | `{ date, interviews: [{ interviewId, applicationId, startsAt, characterName, bookedBy: { discordId, name } \| null, threadId \| null }] }`: `date` is the Pacific date `YYYY-MM-DD`, `interviews` are in start order. **Not an application job** (§12, Outbox jobs): the bot renders from the payload alone. One message in `OFFICERS_CHANNEL_ID`, content pinging the Officer role (allowed mentions limited to that role; with `ROLE_OFFICER_ID` unset, no ping and a logged warning), and one embed titled "Today's interviews": a bullet per interview, in start order, with the start as a Discord timestamp (`<t:…:t>`), the character name (Markdown escaped), "booked by <name>" (a name, never a mention; left out without `bookedBy`) and a link to the application's thread (without `threadId`: `<SITE_PUBLIC_URL>/officers/applications/<applicationId>`). Interviews whose start has already passed when the bot handles the job are left out; when none remain it posts nothing and acks `{ skipped: "no interviews left today" }`. A list that would overflow the embed description ends with "…and N more". An unreachable `OFFICERS_CHANNEL_ID` fails the job so it retries. Entity `officers`. | `{ channelId, messageId }`, or `{ skipped: "no interviews left today" }` | — |
 
 The `raid.post` / `raid.update` / `raid.lock` / `raid.cancel` / `raid.close` rows describe
 the forum-era mechanism; since #raid-signups became a text channel (§8) the bot posts one
@@ -572,6 +574,14 @@ Steps 9–13 are each a conditional update on status (and on the field that make
 overlapping ticks do one thing once; ending an interview also sets `endedAt` and clears
 `activeKey`. The reply counts them as `interviewsReminded`, `interviewsExpired`,
 `interviewsHeadsUp`, `interviewsLapsed`, `interviewsDone`.
+
+15. **Interview digest.** Once per Pacific date (`America/Los_Angeles`), at or after 08:00
+    America/Los_Angeles, if any `BOOKED` interviews have `bookedStart` later that same Pacific day and
+    `bookedAt` before that day's 08:00 Pacific, enqueue one `interview.digest` with them; record the
+    handled date (e.g. a dated key) so it never enqueues twice for a day, even across restarts or
+    concurrent ticks; with none, record the date and enqueue nothing. Because the bot drives ticks, a bot
+    that was down runs this step on its return with a fresh list, leaving out interviews that have
+    started. The reply counts it as `interviewDigests` (jobs enqueued, not empty days).
 
 14. **Application reminders.** Switched on, replacing step 7; reply count
     `remindersQueued` (the old `nudged` count is gone). Rules below.
@@ -821,6 +831,12 @@ rows only; answered rows are kept.
 - Buttons and menus in DMs and threads carry the interview id (custom ids `interview:<id>:…`)
   and survive restarts. A click on a stale control gets the 409 `error` ephemerally and the
   bot removes the controls from that message.
+- **`/interviews`** (officers only, any channel; others get "Only officers can see interviews."): a
+  private reply, no mentions, from `GET /interviews/upcoming`. One embed titled "Upcoming interviews":
+  the interviews grouped by Pacific day, each day a bold heading line ("Mon Nov 2") above its lines,
+  each line exactly the `interview.digest` line (§5). Past the embed description limit the last line
+  says "…and N more", counting interviews, not headings. None booked: "No interviews are booked." The
+  site unreachable or answering an error: "Couldn't load interviews right now. Try again in a minute."
 
 ### Relay (§13)
 Rendering rules for the officer–applicant relay (webhook, copies, files, `/message`, catch-up)
@@ -1035,10 +1051,10 @@ its `error` names the current state ("Already booked for <time> by <officer>.").
   `{ notified: true, interviewId }`, otherwise `{ notified: false }`. Rejoining notifies nothing.
 
 ### Outbox jobs
-Payload always has `applicationId` and `interviewId`. `entityKey` maps `interview.*` to
+Payload always has `applicationId` and `interviewId` (except `interview.digest`, below). `entityKey` maps `interview.*` to
 `application:<applicationId>`, so they run in order with that application's other jobs (today
 an unknown type falls to `officers`). `claimJobs` may hand out a newer job before an older
-one in backoff, so **every handler re-reads `GET /interviews/:id` and renders from it, never
+one in backoff, so **every handler (except `interview.digest`) re-reads `GET /interviews/:id` and renders from it, never
 from the payload alone, and checks its precondition**. When it fails, ack `{ ok: true, result:
 { skipped: "<reason>" } }` and show nothing. Each job sends at most one DM and one thread
 message; a duplicate after a lost ack is accepted as rare (unlike `application.decide`, which
@@ -1056,6 +1072,13 @@ carries `dmDelivered: false`. Any other error fails the job so it retries.
 | `interview.headsup` | `AWAITING_TIMES` and `headsUpAt` set | thread message: no times from <name> after 3 days, 4 days left |
 | `interview.remind` | `BOOKED`, `bookedStart` = `payload.startsAt`, now before the start | DM the reminder; thread message pinging `bookedBy` |
 | `interview.joined` | `BOOKED` and `joinedNotifiedAt` set | thread notice pinging `bookedBy`, "<name> has joined Public Lounge.", with **Move to Raider Interviews** |
+| `interview.digest` | none beyond: `startsAt` still in the future when handled (see the exemption below) | one `#officers` message with the day's interviews (§5) |
+
+**`interview.digest` is exempt from the rules above and below.** It is not an application job: its
+payload has no `applicationId` or `interviewId` of its own (each entry in `interviews` carries them),
+it does not re-read `GET /interviews/:id` (the bot renders from the payload, which the site built moments
+before; dropping entries that have already started is the only precondition), and its entity key is
+`officers`, like the other officer-channel jobs, not `application:<applicationId>`.
 
 Controls are removed or updated on the earlier messages so no live button outlasts its state.
 The ack results stored on the row are in §5.
