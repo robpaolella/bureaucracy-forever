@@ -1,4 +1,5 @@
 import { GUILD_TIMEZONE } from '@/lib/config';
+import type { PrismaClient } from '@/lib/generated/prisma/client';
 import { zonedParts, zonedTimeToUtc } from '@/lib/time';
 
 /** The digest goes out on the first tick at or after this guild-time hour (SYNC-SPEC §6 step 15). */
@@ -25,6 +26,17 @@ export function digestWindow(now: Date): DigestWindow | null {
   const dayEnd = zonedTimeToUtc(p.year, p.month, p.day + 1, 0, 0, GUILD_TIMEZONE);
   const date = `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
   return { date, cutoff, dayEnd };
+}
+
+/** What a digest item needs from an interview row; shared by the digest query and `GET /interviews/upcoming`. */
+export const DIGEST_SELECT = { id: true, applicationId: true, bookedStart: true, bookedById: true, application: { select: { character: true, discordThreadId: true } } } as const;
+/** Start order, ties broken by id so the order is stable. */
+export const DIGEST_ORDER = [{ bookedStart: 'asc' }, { id: 'asc' }] as const;
+
+/** The users who booked `rows`, for `digestPayload`. */
+export async function digestUsers(client: Pick<PrismaClient, 'user'>, rows: DigestRow[]) {
+  const ids = rows.flatMap((r) => (r.bookedById ? [r.bookedById] : []));
+  return ids.length > 0 ? client.user.findMany({ where: { id: { in: ids } }, select: { id: true, discordId: true, discordName: true } }) : [];
 }
 
 type DigestRow = {

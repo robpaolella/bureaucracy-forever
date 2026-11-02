@@ -327,6 +327,7 @@ Any route that takes `Idempotency-Key` may also answer `409 { reason: "in_progre
 | GET | `/applicant-messages/open` | For the bot's catch-up (§13): one entry per `PENDING` application. |
 | GET | `/messages/:id` | One relay message for rendering (§13), with `ping`. |
 | POST | `/applications/:id/interview` | Start an interview (§12). `{ byDiscordId, confirmSecond? }`. 201 `{ interview }` (the read shape below). Enqueues `interview.request`. |
+| GET | `/interviews/upcoming` | Every `BOOKED` interview whose `bookedStart` is after now, for the bot's `/interviews` command (§8): `{ interviews: [{ interviewId, applicationId, startsAt (ISO), characterName, bookedBy: { discordId, name } \| null, threadId \| null }] }`, in start order; the same item shape as the `interview.digest` payload (§5). Interviews still arranging a time are not listed. Matched before `/interviews/:id`. |
 | GET | `/interviews/:id` | Read an interview for rendering (§12): `{ id, applicationId, attempt, status, endReason, applicant: { discordId, characterName }, threadId, timeZone, timesRevision, slots: [ISO], requestedAt, timesUpdatedAt, requestedBy, proposedStart, proposedBy, bookedStart, bookedBy, endedAt, pageUrl, requestDmId, timesMessageId, proposalMessageId, proposalDmId, bookedMessageId }`. `requestedBy`, `proposedBy` and `bookedBy` are `{ discordId, name }` or `null`; `pageUrl` is `<site>/apply/interview`. 404 `{ error }` if unknown. |
 | POST | `/interviews/:id/book` | `{ startsAt, timesRevision, byDiscordId }`. 200 read shape. |
 | POST | `/interviews/:id/propose` | `{ startsAt, byDiscordId }`. 200 read shape. |
@@ -830,6 +831,12 @@ rows only; answered rows are kept.
 - Buttons and menus in DMs and threads carry the interview id (custom ids `interview:<id>:…`)
   and survive restarts. A click on a stale control gets the 409 `error` ephemerally and the
   bot removes the controls from that message.
+- **`/interviews`** (officers only, any channel; others get "Only officers can see interviews."): a
+  private reply, no mentions, from `GET /interviews/upcoming`. One embed titled "Upcoming interviews":
+  the interviews grouped by Pacific day, each day a bold heading line ("Mon Nov 2") above its lines,
+  each line exactly the `interview.digest` line (§5). Past the embed description limit the last line
+  says "…and N more", counting interviews, not headings. None booked: "No interviews are booked." The
+  site unreachable or answering an error: "Couldn't load interviews right now. Try again in a minute."
 
 ### Relay (§13)
 Rendering rules for the officer–applicant relay (webhook, copies, files, `/message`, catch-up)
