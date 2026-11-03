@@ -238,10 +238,13 @@ describe.skipIf(process.env.INTERVIEWS_INTEGRATION !== '1')('one active intervie
           let armed = true;
           const wrap = <T extends object>(client: T): T => new Proxy(client, {
             get(target, key) {
-              const value = Reflect.get(target, key);
-              if (key === '$transaction') return (fn: (tx: unknown) => unknown, options?: unknown) => value.call(target, (tx: object) => fn(wrap(tx)), options);
+              const value: unknown = Reflect.get(target, key);
+              if (key === '$transaction') {
+                const transaction = value as (fn: (tx: object) => unknown, options?: unknown) => unknown;
+                return (fn: (tx: object) => unknown, options?: unknown) => transaction.call(target, (tx) => fn(wrap(tx)), options);
+              }
               if (key !== 'interview') return typeof value === 'function' ? value.bind(target) : value;
-              return new Proxy(value, {
+              return new Proxy(value as object, {
                 get(model, method) {
                   const fn = Reflect.get(model, method);
                   if (method !== 'updateMany') return typeof fn === 'function' ? fn.bind(model) : fn;
