@@ -494,6 +494,7 @@ mentions: {
 | `interview.remind` | `+ startsAt`. DM the applicant and ping the booking officer in the thread, 5 minutes before. | — | — |
 | `interview.joined` | Thread notice with **Move to Raider Interviews**, pinging the booking officer. | — | — |
 | `interview.digest` | `{ date, interviews: [{ interviewId, applicationId, startsAt, characterName, bookedBy: { discordId, name } \| null, threadId \| null }] }`: `date` is the Pacific date `YYYY-MM-DD`, `interviews` are in start order. **Not an application job** (§12, Outbox jobs): the bot renders from the payload alone. One message in `OFFICERS_CHANNEL_ID`, content pinging the Officer role (allowed mentions limited to that role; with `ROLE_OFFICER_ID` unset, no ping and a logged warning), and one embed titled "Today's interviews": a bullet per interview, in start order, with the start as a Discord timestamp (`<t:…:t>`), the character name (Markdown escaped), "booked by <name>" (a name, never a mention; left out without `bookedBy`) and a link to the application's thread (without `threadId`: `<SITE_PUBLIC_URL>/officers/applications/<applicationId>`). Interviews whose start has already passed when the bot handles the job are left out; when none remain it posts nothing and acks `{ skipped: "no interviews left today" }`. A list that would overflow the embed description ends with "…and N more". An unreachable `OFFICERS_CHANNEL_ID` fails the job so it retries. Entity `officers`. | `{ channelId, messageId }`, or `{ skipped: "no interviews left today" }` | — |
+| `interview.clash` | `{ applicationId, interviewId, startsAt }`: `startsAt` is ISO, the new booking's start. Enqueued whenever an interview becomes `BOOKED` (an officer books, or the applicant accepts a proposal, in Discord or on the page) while at least one *other* `BOOKED` interview has the same `bookedStart`; one job per such booking. Only `BOOKED` interviews count (not proposals, `DONE` or ended ones), and a different start (9:00 and 9:15) is not a clash. It never blocks or changes the booking. **Not an application job** (§12, Outbox jobs): the bot re-reads `GET /interviews/upcoming`, not `GET /interviews/:id`. Posts the officers' notice (§8). Entity `officers`. | the whole ack body is `{ ok: true }` or `{ ok: true, result: { skipped: "<reason>" } }`; nothing is stored | — |
 
 The `raid.post` / `raid.update` / `raid.lock` / `raid.cancel` / `raid.close` rows describe
 the forum-era mechanism; since #raid-signups became a text channel (§8) the bot posts one
@@ -827,6 +828,23 @@ rows only; answered rows are kept.
   split by Pacific clock into up to three time menus (before 3:00 PM, 3:00 PM to 8:45 PM, from
   9:00 PM; at most 24 each), then a confirm. Menu labels are in
   Pacific: "Thu Oct 16 · 7:30 PM PT".
+- **Same-time warning.** On the private confirm of **Book a time**, **Propose another time** and
+  `/reschedule`, when another `BOOKED` interview in `GET /interviews/upcoming` (not this one) has
+  the chosen start, the confirm adds one line per such interview: "Heads up: **<name>**'s interview
+  is already booked for this time, by <officer name>." (", by <officer name>" left out when
+  `bookedBy` is null). At most 5 such lines, then "…and N more". Names are Markdown-escaped. The
+  confirm works as before, so the officer can go ahead or pick another time. When
+  `GET /interviews/upcoming` can't be read, the confirm adds "I couldn't check whether another
+  interview is booked at this time." and still works.
+- **Officers' notice** (`interview.clash`): one message in `OFFICERS_CHANNEL_ID`: "Heads up: <N>
+  interviews are booked for <t:F>:" then one line per interview at that start, in start-list
+  order, "• **<name>**, booked by <@officer> · [Open application](<link>)" with the link as in
+  the digest line (", booked by <@officer>" left out when `bookedBy` is null). Names are
+  Markdown-escaped; at most 10 lines, then "…and N more", so the message stays under Discord's
+  2,000 characters. It pings only those booking officers, each once; no role ping. Fewer than
+  two left, or the payload's interview not among them: ack `skipped`, post nothing. Because
+  `GET /interviews/upcoming` lists only starts still ahead, a notice handled after that start
+  has passed posts nothing; that is accepted.
 - The reminder and joined notice ping `bookedBy`, the officer who booked or proposed, not the
   Officer role. **Move to Raider Interviews** (on the joined notice) is answered by the bot
   alone: the clicker must be an officer (`GET /members/:discordId`), the applicant must still be in
@@ -976,7 +994,7 @@ transition and enqueues the same job as the bot route that matches it (the bot's
 |---|---|---|
 | `AWAITING_TIMES` | `TIMES_RECEIVED` | applicant submits at least one time |
 | `TIMES_RECEIVED` | `TIMES_RECEIVED` | applicant changes times; each real change bumps `timesRevision` (an identical set changes nothing) |
-| `TIMES_RECEIVED` | `BOOKED` | officer books one of the current slots (`bookedBy` = that officer) |
+| `TIMES_RECEIVED` | `BOOKED` | officer books one of the current bookable starts (`bookedBy` = that officer) |
 | `TIMES_RECEIVED` | `PROPOSED` | officer proposes a time |
 | `PROPOSED` | `BOOKED` | applicant accepts (`bookedBy` = the proposer) |
 | `PROPOSED` | `NO_TIME`/`DECLINED` | applicant declines |
@@ -1045,7 +1063,11 @@ its `error` names the current state ("Already booked for <time> by <officer>.").
   `not_a_slot` when `startsAt` is not one of the current slots' bookable starts, 409 `too_soon`. Two officers
   booking at once: one 200, the other 409 `wrong_status`. An applicant edit and a booking race
   the same way: the booking wins only if `timesRevision` still matches, and an edit arriving
-  after the booking gets 409 on the page.
+  after the booking gets 409 on the page. Booking, and accepting a proposal, take a
+  transaction-scoped Postgres advisory lock on the start (its epoch minutes) before the update, then
+  enqueue `interview.clash` (§5) in the same transaction when another `BOOKED` interview has that
+  start, so two bookings of one start at the same moment give at least one notice. The clash never
+  refuses a booking and changes none of its replies or jobs.
 - **Propose** `{ startsAt, byDiscordId }`, only from `TIMES_RECEIVED`: 400 `out_of_range` when
   not a quarter-hour start (9:00 AM to 10:45 PM) in `[now + 2 h, now + 7 d]`; the `error` is
   "Propose a start time on the quarter hour, from 2 hours to 7 days ahead.". Sets `proposedStart`, `proposedBy`, `proposedAt`.
@@ -1060,10 +1082,10 @@ its `error` names the current state ("Already booked for <time> by <officer>.").
   `{ notified: true, interviewId }`, otherwise `{ notified: false }`. Rejoining notifies nothing.
 
 ### Outbox jobs
-Payload always has `applicationId` and `interviewId` (except `interview.digest`, below). `entityKey` maps `interview.*` to
+Payload always has `applicationId` and `interviewId` (except `interview.digest`, below; `interview.clash` has them but is exempt too). `entityKey` maps `interview.*` to
 `application:<applicationId>`, so they run in order with that application's other jobs (today
 an unknown type falls to `officers`). `claimJobs` may hand out a newer job before an older
-one in backoff, so **every handler (except `interview.digest`) re-reads `GET /interviews/:id` and renders from it, never
+one in backoff, so **every handler (except `interview.digest` and `interview.clash`) re-reads `GET /interviews/:id` and renders from it, never
 from the payload alone, and checks its precondition**. When it fails, ack `{ ok: true, result:
 { skipped: "<reason>" } }` and show nothing. Each job sends at most one DM and one thread
 message; a duplicate after a lost ack is accepted as rare (unlike `application.decide`, which
@@ -1082,8 +1104,11 @@ carries `dmDelivered: false`. Any other error fails the job so it retries.
 | `interview.remind` | `BOOKED`, `bookedStart` = `payload.startsAt`, now before the start | DM the reminder; thread message pinging `bookedBy` |
 | `interview.joined` | `BOOKED` and `joinedNotifiedAt` set | thread notice pinging `bookedBy`, "<name> has joined Public Lounge.", with **Move to Raider Interviews** |
 | `interview.digest` | none beyond: `startsAt` still in the future when handled (see the exemption below) | one `#officers` message with the day's interviews (§5) |
+| `interview.clash` | none beyond: at least two `BOOKED` interviews, the payload's one among them, still share `payload.startsAt` in `GET /interviews/upcoming` (see the exemption below) | one `#officers` message naming the interviews at that start and their booking officers (§8) |
 
-**`interview.digest` is exempt from the rules above and below.** It is not an application job: its
+**`interview.digest` and `interview.clash` are exempt from the rules above and below.** The clash
+notice is not ordered with the application's jobs (entity `officers`) and re-reads
+`GET /interviews/upcoming` instead of `GET /interviews/:id`. The digest is not an application job: its
 payload has no `applicationId` or `interviewId` of its own (each entry in `interviews` carries them),
 it does not re-read `GET /interviews/:id` (the bot renders from the payload, which the site built moments
 before; dropping entries that have already started is the only precondition), and its entity key is
