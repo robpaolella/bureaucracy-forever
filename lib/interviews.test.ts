@@ -51,7 +51,8 @@ const fake = vi.hoisted(() => ({
 vi.mock('@/lib/db', () => ({ db: { ...fake, $transaction: async (fn: (tx: typeof fake) => unknown) => fn(fake) } }));
 vi.mock('@/lib/outbox', () => ({ enqueue: async (type: string, payload: Record<string, unknown>) => { store.jobs.push([type, payload]); return 'job'; } }));
 vi.mock('@/lib/generated/prisma/client', () => ({ Prisma: { PrismaClientKnownRequestError: KnownError } }));
-import { answerProposal, applicantInterview, bookInterview, cancelInterview, closeActiveInterview, getInterview, interviewCard, latestInterview, proposeTime, startInterview, submitTimes } from './interviews';
+import { answerProposal, applicantInterview, bookInterview, cancelInterview, closeActiveInterview, getInterview, interviewCard, latestInterview, proposeTime, rescheduleInterview, startInterview, submitTimes } from './interviews';
+import { interviewDone, interviewReminderDue, joinNoticeDue, type TickInterview } from './tick-rules';
 
 const now = new Date('2026-10-16T17:00:00Z'); // 10:00 AM guild time
 const pick = (iso: string) => new Date(iso).toISOString();
@@ -629,5 +630,142 @@ describe('answering a proposal', () => {
     };
     expect(await answerProposal('i1', 'applicant', 'accept', now)).toMatchObject({ ok: false, status: 409, reason: 'wrong_status', error: 'This interview was cancelled.' });
     expect(store.jobs).toEqual([]);
+  });
+});
+
+describe('rescheduling a booking', () => {
+  const BOOKED_AT = new Date('2026-10-16T16:00:00Z');
+  const QUARTER = pick('2026-10-17T02:15:00Z'); // 7:15 PM, inside SLOT's half hour
+  const mover = { userId: 'officer2' };
+  const booked = (data: Partial<Row> = {}) => interview({ status: 'BOOKED', slots: [new Date(SLOT), new Date(SLOT2)], timesRevision: 1, bookedStart: new Date(SLOT), bookedById: 'officer', bookedAt: BOOKED_AT, remindedAt: null, joinedNotifiedAt: null, bookedMessageId: 'line1', ...data });
+  const move = (startsAt: unknown, token: unknown = BOOKED_AT.toISOString(), at = now) => rescheduleInterview('i1', mover, startsAt, token, at);
+  beforeEach(() => { store.users.push({ id: 'officer2', discordId: 'officer2-discord', discordName: 'Sylvanas' }); });
+
+  it('moves to a bookable start: the mover takes it over, the token advances and interview.moved is queued', async () => {
+    booked({ remindedAt: new Date('2026-10-16T16:30:00Z'), joinedNotifiedAt: new Date('2026-10-16T16:40:00Z') });
+    const result = await move(SLOT2);
+    expect(result).toMatchObject({ ok: true, interview: { status: 'BOOKED', bookedStart: SLOT2, bookedAt: now.toISOString(), bookedBy: { discordId: 'officer2-discord', name: 'Sylvanas' }, bookedMessageId: 'line1' } });
+    expect(store.rows[0]).toMatchObject({ bookedById: 'officer2', bookedAt: now, remindedAt: null, joinedNotifiedAt: null, timesRevision: 1, activeKey: 'app' });
+    expect(store.jobs).toEqual([['interview.moved', { applicationId: 'app', interviewId: 'i1', startsAt: SLOT2, bookedAt: now.toISOString(), previousStart: SLOT, previousBookedBy: { discordId: 'officer-discord', name: 'Robert' } }]]);
+  });
+
+  it('moves to a quarter hour after a picked slot, and sends a null previous officer when none is known', async () => {
+    booked({ bookedById: null });
+    expect(await move(QUARTER)).toMatchObject({ ok: true, interview: { bookedStart: QUARTER } });
+    expect(store.jobs[0][1]).toMatchObject({ previousBookedBy: null });
+  });
+
+  it('enqueues interview.clash when the new start is another booking\'s, and still moves', async () => {
+    booked();
+    interview({ applicationId: 'app2', status: 'BOOKED', bookedStart: new Date(SLOT2) });
+    expect(await move(SLOT2)).toMatchObject({ ok: true });
+    expect(jobTypes()).toEqual(['interview.moved', 'interview.clash']);
+    expect(store.jobs[1]).toEqual(['interview.clash', { applicationId: 'app', interviewId: 'i1', startsAt: SLOT2 }]);
+  });
+
+  it('moves a no-show after its start, while it is still BOOKED', async () => {
+    booked({ slots: [new Date(SLOT), new Date(REST[0])] });
+    const late = new Date(new Date(SLOT).getTime() + 10 * 60_000);
+    expect(await move(REST[0], BOOKED_AT.toISOString(), late)).toMatchObject({ ok: true, interview: { status: 'BOOKED', bookedStart: REST[0] } });
+  });
+
+  it('always advances the token, so A → B → A refuses the first token as moved', async () => {
+    booked();
+    const first = await move(SLOT2);
+    if (!first.ok) throw new Error(first.error);
+    // Same clock: the token still moves on by a millisecond.
+    const back = await move(SLOT, first.interview.bookedAt, now);
+    expect(back).toMatchObject({ ok: true, interview: { bookedStart: SLOT, bookedAt: new Date(now.getTime() + 1).toISOString() } });
+    store.jobs = [];
+    expect(await move(SLOT2)).toEqual({ ok: false, status: 409, reason: 'moved', error: "Thrall's interview was moved by Sylvanas. Run /reschedule again." });
+    expect(store.rows[0]).toMatchObject({ bookedStart: new Date(SLOT) });
+    expect(store.jobs).toEqual([]);
+  });
+
+  it('takes a token later than now one millisecond on', async () => {
+    const ahead = new Date(now.getTime() + 60_000);
+    booked({ bookedAt: ahead });
+    expect(await move(SLOT2, ahead.toISOString())).toMatchObject({ ok: true, interview: { bookedAt: new Date(ahead.getTime() + 1).toISOString() } });
+  });
+
+  it.each(['AWAITING_TIMES', 'TIMES_RECEIVED', 'PROPOSED', 'DONE', 'CANCELLED', 'NO_TIME', 'CLOSED'])('refuses a %s interview as wrong_status, naming the state', async (status) => {
+    booked({ status });
+    const result = await move(SLOT2);
+    expect(result).toMatchObject({ ok: false, status: 409, reason: 'wrong_status' });
+    expect(result.ok ? '' : result.error).toBe({ AWAITING_TIMES: 'This interview is waiting for times.', TIMES_RECEIVED: 'Times are in for this interview.', PROPOSED: 'An officer has proposed a time for this interview.', DONE: 'This interview has already taken place.', CANCELLED: 'This interview was cancelled.', NO_TIME: 'No time was found for this interview.', CLOSED: 'This interview ended when the application was decided.' }[status]);
+    expect(store.jobs).toEqual([]);
+  });
+
+  it.each([
+    ['a stale token', SLOT2, '2026-10-16T15:00:00.000Z', 'moved', "Thrall's interview was moved by Robert. Run /reschedule again."],
+    ['the current start', SLOT, undefined, 'same_time', "That's already the interview time."],
+    ['a start that is not bookable', pick('2026-10-17T03:00:00Z'), undefined, 'not_a_slot', "That isn't one of Thrall's times."],
+  ])('refuses %s', async (_case, startsAt, token, reason, error) => {
+    booked();
+    expect(await move(startsAt, token ?? BOOKED_AT.toISOString())).toEqual({ ok: false, status: 409, reason, error });
+    expect(store.rows[0]).toMatchObject({ bookedStart: new Date(SLOT), bookedAt: BOOKED_AT, bookedById: 'officer' });
+    expect(store.jobs).toEqual([]);
+  });
+
+  it('checks the token before the time, and the time before the slots', async () => {
+    booked();
+    const stale = '2026-10-16T15:00:00.000Z';
+    expect(await move(SLOT, stale)).toMatchObject({ reason: 'moved' });
+    expect(await move(pick('2026-10-17T03:00:00Z'), stale)).toMatchObject({ reason: 'moved' });
+  });
+
+  it('refuses a start under 15 minutes away as too_soon, and moves to one exactly 15 minutes away', async () => {
+    booked();
+    const start = new Date(SLOT2).getTime();
+    expect(await move(SLOT2, BOOKED_AT.toISOString(), new Date(start - 14 * 60_000))).toMatchObject({ ok: false, status: 409, reason: 'too_soon', error: 'That time starts in less than 15 minutes. Pick a later one.' });
+    expect(store.jobs).toEqual([]);
+    expect(await move(SLOT2, BOOKED_AT.toISOString(), new Date(start - 15 * 60_000))).toMatchObject({ ok: true });
+  });
+
+  it('refuses a body that does not parse, and an unknown interview', async () => {
+    booked();
+    expect(await move('tomorrow')).toMatchObject({ ok: false, status: 400, reason: 'invalid' });
+    expect(await move(SLOT2, null)).toMatchObject({ ok: false, status: 400, reason: 'invalid' });
+    expect(await move(SLOT2, 'soon')).toMatchObject({ ok: false, status: 400, reason: 'invalid' });
+    expect(await rescheduleInterview('nope', mover, SLOT2, BOOKED_AT.toISOString(), now)).toMatchObject({ ok: false, status: 404 });
+    expect(store.jobs).toEqual([]);
+  });
+
+  it.each([
+    ['another move', { bookedAt: new Date('2026-10-16T16:59:00Z'), bookedById: 'officer2' }, 'moved', "Thrall's interview was moved by Sylvanas. Run /reschedule again."],
+    ['a cancel', { status: 'CANCELLED', activeKey: null }, 'wrong_status', 'This interview was cancelled.'],
+    ["the tick's DONE step", { status: 'DONE', activeKey: null }, 'wrong_status', 'This interview has already taken place.'],
+  ])('loses to %s that lands first', async (_case, change, reason, error) => {
+    booked();
+    const original = fake.interview.updateMany;
+    fake.interview.updateMany = async (args) => {
+      Object.assign(store.rows[0], change);
+      fake.interview.updateMany = original;
+      return original(args);
+    };
+    expect(await move(SLOT2)).toEqual({ ok: false, status: 409, reason, error });
+    expect(store.jobs).toEqual([]);
+  });
+
+  it('moves the timers with it: the reminder, the joined notice and DONE follow the new start', async () => {
+    const old = new Date(SLOT).getTime();
+    booked({ remindedAt: new Date(old - 4 * 60_000), joinedNotifiedAt: new Date(old - 2 * 60_000) });
+    const minute = (base: string, n: number) => new Date(new Date(base).getTime() + n * 60_000);
+    // Already reminded and announced for the old booking, the old start is due nothing more.
+    expect(await move(SLOT2, BOOKED_AT.toISOString(), minute(SLOT, -20))).toMatchObject({ ok: true });
+    const row = store.rows[0] as unknown as TickInterview;
+    expect(interviewReminderDue(row, minute(SLOT, -4))).toBe(false);
+    expect(interviewReminderDue(row, minute(SLOT2, -4))).toBe(true);
+    expect(joinNoticeDue(row, minute(SLOT2, -10))).toBe(true);
+    expect(interviewDone(row, minute(SLOT, 60))).toBe(false);
+    expect(interviewDone(row, minute(SLOT2, 59))).toBe(false);
+    expect(interviewDone(row, minute(SLOT2, 60))).toBe(true);
+  });
+
+  it("shows the new time and officer on the applicant's page and the officer card", async () => {
+    booked();
+    await move(QUARTER);
+    expect(await applicantInterview('applicant')).toMatchObject({ status: 'BOOKED', bookedStart: QUARTER, bookedBy: { name: 'Sylvanas' } });
+    expect(await interviewCard('app')).toMatchObject({ status: 'BOOKED', bookedStart: QUARTER, bookedBy: 'Sylvanas' });
   });
 });

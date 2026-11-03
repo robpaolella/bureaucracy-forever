@@ -271,6 +271,11 @@ export async function lockStart(tx: Prisma.TransactionClient, startsAt: Date) {
 export async function enqueueBooked(row: { id: string; applicationId: string }, startsAt: Date, bookedAt: Date, tx: Prisma.TransactionClient) {
   await enqueue('interview.booked', { applicationId: row.applicationId, interviewId: row.id, startsAt: startsAt.toISOString(), bookedAt: bookedAt.toISOString() }, tx);
   await enqueue('application.update', { applicationId: row.applicationId }, tx);
+  await enqueueClash(row, startsAt, tx);
+}
+
+/** `interview.clash` when another BOOKED interview has this start (SYNC-SPEC §5). */
+async function enqueueClash(row: { id: string; applicationId: string }, startsAt: Date, tx: Prisma.TransactionClient) {
   const others = await tx.interview.count({ where: { status: 'BOOKED', bookedStart: startsAt, id: { not: row.id } } });
   if (others > 0) await enqueue('interview.clash', { applicationId: row.applicationId, interviewId: row.id, startsAt: startsAt.toISOString() }, tx);
 }
@@ -303,6 +308,46 @@ export async function bookInterview(interviewId: string, by: { userId: string },
   if (won) return { ok: true, interview: latest };
   // Lost to another change: the applicant's edit, or another officer's click.
   return latest.status === 'TIMES_RECEIVED' ? timesChanged() : refuse(409, 'wrong_status', stateMessage(latest.status));
+}
+
+/**
+ * An officer moves a booked interview to another of the applicant's bookable starts
+ * (`POST /interviews/:id/reschedule`) and takes it over. `bookedAt` is the booking token the
+ * officer read; the move wins only while it is still current, and sets a new token that always
+ * advances (the later of now and the old token + 1 ms), so A → B → A still changes it. The
+ * reminder and joined notice are cleared so they follow the new start (SYNC-SPEC §12).
+ */
+export async function rescheduleInterview(interviewId: string, by: { userId: string }, startsAt: unknown, bookedAt: unknown, now = new Date()): Promise<InterviewResult> {
+  const row = await db.interview.findUnique({ where: { id: interviewId }, include });
+  if (!row) return notFound();
+  if (row.status !== 'BOOKED' || !row.bookedStart) return refuse(409, 'wrong_status', stateMessage(row.status));
+  const start = instant(startsAt);
+  const token = instant(bookedAt);
+  if (!start || !token) return refuse(400, 'invalid', 'Send a start time and the booking token.');
+  const view = await toView(row, db);
+  const moved = (current: InterviewView) => refuse(409, 'moved', `${row.application.character}'s interview was moved by ${current.bookedBy?.name ?? 'an officer'}. Run /reschedule again.`);
+  if (token.getTime() !== row.bookedAt?.getTime()) return moved(view);
+  if (start.getTime() === row.bookedStart.getTime()) return refuse(409, 'same_time', "That's already the interview time.");
+  if (!bookableStarts(row.slots).some((s) => s.getTime() === start.getTime())) return refuse(409, 'not_a_slot', `That isn't one of ${row.application.character}'s times.`);
+  if (!isValidStart(start, { kind: 'book', now })) return refuse(409, 'too_soon', `${TOO_SOON} Pick a later one.`);
+  const previousStart = row.bookedStart.toISOString();
+  const won = await db.$transaction(async (tx) => {
+    await lockStart(tx, start);
+    const next = new Date(Math.max(now.getTime(), token.getTime() + 1));
+    const updated = await tx.interview.updateMany({
+      where: { id: row.id, status: 'BOOKED', bookedAt: token },
+      data: { bookedStart: start, bookedById: by.userId, bookedAt: next, remindedAt: null, joinedNotifiedAt: null },
+    });
+    if (updated.count === 0) return false;
+    // The token matched, so the booking moved from is the one read above.
+    await enqueue('interview.moved', { applicationId: row.applicationId, interviewId: row.id, startsAt: start.toISOString(), bookedAt: next.toISOString(), previousStart, previousBookedBy: view.bookedBy }, tx);
+    await enqueueClash(row, start, tx);
+    return true;
+  });
+  const latest = (await viewById(row.id))!;
+  if (won) return { ok: true, interview: latest };
+  // Lost to another move, a cancel or the tick's DONE step.
+  return latest.status === 'BOOKED' ? moved(latest) : refuse(409, 'wrong_status', stateMessage(latest.status));
 }
 
 /** An officer proposes another time (`POST /interviews/:id/propose`); one proposal per attempt. */
