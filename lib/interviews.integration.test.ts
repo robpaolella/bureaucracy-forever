@@ -190,6 +190,44 @@ describe.skipIf(process.env.INTERVIEWS_INTEGRATION !== '1')('one active intervie
         }
       });
 
+      describe('clashes at the same start', () => {
+        const startAt = (i: number) => `2026-06-1${2 + i}T02:00:00.000Z`;
+        const withTimesAt = async (id: string, startsAt: string) => {
+          await application(id);
+          const started = await startInterview(id, officer, { now: requested });
+          if (!started.ok) throw new Error(started.error);
+          const times = await submitTimes(started.interview.id, id, [startsAt, ...REST], 'UTC', at);
+          if (!times.ok) throw new Error(times.error);
+          return times.interview.id;
+        };
+        const clashesAt = (startsAt: string) => db.outboxJob.findMany({ where: { type: 'interview.clash', payload: { path: ['startsAt'], equals: startsAt } } });
+
+        it('notices at least once when two interviews are booked for the same start at the same moment', async () => {
+          for (let i = 0; i < 5; i++) {
+            const when = startAt(i);
+            const [a, b] = [await withTimesAt(`ClashA${i}`, when), await withTimesAt(`ClashB${i}`, when)];
+            const results = await Promise.all([bookInterview(a, officer, when, 1, at), bookInterview(b, officer, when, 1, at)]);
+            expect(results.map(outcome)).toEqual(['ok', 'ok']);
+            const clashes = await clashesAt(when);
+            expect(clashes.length).toBeGreaterThanOrEqual(1);
+                        // The second booking to commit saw the first, and never twice for one booking.
+            expect(new Set(clashes.map((j) => (j.payload as { interviewId: string }).interviewId)).size).toBe(clashes.length);
+          }
+        });
+
+        it('notices at least once when a booking races an accepted proposal at the same start', async () => {
+          for (let i = 0; i < 5; i++) {
+            const day = `2026-06-1${2 + i}T03:00:00.000Z`; // 8 PM PDT, a start the other test never uses
+            const a = await withTimesAt(`RaceA${i}`, day);
+            const b = await withTimesAt(`RaceB${i}`, '2026-06-16T02:00:00.000Z');
+            expect(await proposeTime(b, officer, day, at)).toMatchObject({ ok: true });
+            const [book, accept] = await Promise.all([bookInterview(a, officer, day, 1, at), answerProposal(b, `RaceB${i}`, 'accept', at)]);
+            expect([outcome(book), outcome(accept)]).toEqual(['ok', 'ok']);
+            expect((await clashesAt(day)).length).toBeGreaterThanOrEqual(1);
+          }
+        });
+      });
+
       it('lets a cancel and an accept race with one ending', async () => {
         for (let i = 0; i < 5; i++) {
           const app = `Accept${i}`;

@@ -253,10 +253,25 @@ const instant = (value: unknown): Date | null => {
 };
 const TOO_SOON = 'That time starts in less than 15 minutes.';
 
-/** A booking enqueues the booking and puts the Interview tag on (SYNC-SPEC §8). */
-async function enqueueBooked(row: { id: string; applicationId: string }, startsAt: Date, tx: Prisma.TransactionClient) {
+/**
+ * Serialises bookings of one start time: a transaction-scoped Postgres advisory lock keyed on
+ * the start's epoch minutes. Take it first, before the row update, so each transaction holds
+ * only this one lock and two bookings for the same start see each other (SYNC-SPEC §12).
+ */
+export async function lockStart(tx: Prisma.TransactionClient, startsAt: Date) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('interview-start'), ${Math.floor(startsAt.getTime() / 60_000)}::int)`;
+}
+
+/**
+ * A booking enqueues the booking and puts the Interview tag on (SYNC-SPEC §8). When another
+ * BOOKED interview already has the same start, it also enqueues `interview.clash`; that never
+ * refuses anything. Call it in the booking's transaction after `lockStart` and the update.
+ */
+export async function enqueueBooked(row: { id: string; applicationId: string }, startsAt: Date, tx: Prisma.TransactionClient) {
   await enqueue('interview.booked', { applicationId: row.applicationId, interviewId: row.id, startsAt: startsAt.toISOString() }, tx);
   await enqueue('application.update', { applicationId: row.applicationId }, tx);
+  const others = await tx.interview.count({ where: { status: 'BOOKED', bookedStart: startsAt, id: { not: row.id } } });
+  if (others > 0) await enqueue('interview.clash', { applicationId: row.applicationId, interviewId: row.id, startsAt: startsAt.toISOString() }, tx);
 }
 
 /**
@@ -274,6 +289,7 @@ export async function bookInterview(interviewId: string, by: { userId: string },
   if (!bookableStarts(row.slots).some((s) => s.getTime() === start.getTime())) return refuse(409, 'not_a_slot', `That isn't one of ${row.application.character}'s times.`);
   if (!isValidStart(start, { kind: 'book', now })) return refuse(409, 'too_soon', `${TOO_SOON} Pick a later one.`);
   const won = await db.$transaction(async (tx) => {
+    await lockStart(tx, start);
     const updated = await tx.interview.updateMany({
       where: { id: row.id, status: 'TIMES_RECEIVED', timesRevision: row.timesRevision },
       data: { status: 'BOOKED', bookedStart: start, bookedById: by.userId, bookedAt: now },
@@ -324,6 +340,7 @@ export async function answerProposal(interviewId: string, applicantDiscordId: st
   if (answer === 'accept' && !isValidStart(start, { kind: 'book', now })) return refuse(409, 'too_soon', `${TOO_SOON} An officer will reach out to arrange another.`);
   const applicant = answer === 'decline' ? await db.user.findUnique({ where: { discordId: applicantDiscordId }, select: { id: true } }) : null;
   const won = await db.$transaction(async (tx) => {
+    if (answer === 'accept') await lockStart(tx, start);
     const updated = await tx.interview.updateMany({
       where: { id: row.id, status: 'PROPOSED' },
       data: answer === 'accept'
