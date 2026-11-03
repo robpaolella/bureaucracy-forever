@@ -353,6 +353,11 @@ describe('reading', () => {
     expect(await getInterview('nope')).toBeNull();
   });
 
+  it('returns the message ids the bot reported, so it can edit or strip those messages', async () => {
+    interview({ status: 'BOOKED', bookedStart: new Date(SLOT), requestDmId: 'd1', timesMessageId: 'm1', bookedMessageId: 'm2' });
+    expect(await getInterview('i1')).toMatchObject({ requestDmId: 'd1', timesMessageId: 'm1', bookedMessageId: 'm2', proposalMessageId: null, proposalDmId: null });
+  });
+
   it('gives the applicant their active attempt, across their applications', async () => {
     interview({ status: 'CANCELLED', requestedAt: new Date('2026-10-15T00:00:00Z') });
     interview({ applicationId: 'app2', status: 'AWAITING_TIMES', requestedAt: new Date('2026-10-01T00:00:00Z') });

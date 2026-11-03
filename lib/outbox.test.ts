@@ -138,12 +138,12 @@ describe('ackJob for interview jobs', () => {
 
   it('stores the request DM id', async () => {
     expect(await run('interview.request', {}, { dmDelivered: true, dmMessageId: 'd1' })).toEqual({ status: 'DONE', applied: 'interview ids stored' });
-    expect(mocks.ivUpdateMany).toHaveBeenCalledExactlyOnceWith({ where: { id: 'i1' }, data: { requestDmId: 'd1' } });
+    expect(mocks.ivUpdateMany).toHaveBeenCalledExactlyOnceWith({ where: { id: 'i1', status: 'AWAITING_TIMES' }, data: { requestDmId: 'd1' } });
   });
 
   it('stores the times message id only while unset', async () => {
     await run('interview.times', {}, { messageId: 'm1' });
-    expect(mocks.ivUpdateMany).toHaveBeenCalledExactlyOnceWith({ where: { id: 'i1', timesMessageId: null }, data: { timesMessageId: 'm1' } });
+    expect(mocks.ivUpdateMany).toHaveBeenCalledExactlyOnceWith({ where: { id: 'i1', status: 'TIMES_RECEIVED', timesMessageId: null }, data: { timesMessageId: 'm1' } });
   });
 
   it('stores the booked message id only while still booked at that start', async () => {
@@ -170,6 +170,9 @@ describe('ackJob for interview jobs', () => {
     ['booked skipped', 'interview.booked', { startsAt: START }, { skipped: 'ended' }],
     ['booked without a start', 'interview.booked', {}, { messageId: 'm' }],
     ['proposed without an id', 'interview.proposed', { startsAt: START }, { dmMessageId: 'd', dmDelivered: true }],
+    ['times skipped with an id', 'interview.times', {}, { skipped: 'ended', messageId: 'm1' }],
+    ['booked skipped with an id', 'interview.booked', { startsAt: START }, { skipped: 'ended', messageId: 'm1' }],
+    ['proposed skipped with ids', 'interview.proposed', { startsAt: START }, { skipped: 'ended', messageId: 'm1', dmMessageId: 'd1' }],
     ['ended', 'interview.ended', {}, { messageId: 'm' }],
   ])('stores nothing for %s', async (_n, type, payload, result) => {
     expect(await run(type, payload, result)).toEqual({ status: 'DONE', applied: undefined });
