@@ -4,7 +4,7 @@ import { Prisma, type InterviewStatus } from '@/lib/generated/prisma/client';
 import { db } from '@/lib/db';
 import { enqueue } from '@/lib/outbox';
 import { SITE_URL } from '@/lib/config';
-import { isValidStart, pickWindow } from '@/lib/interview-slots';
+import { bookableStarts, isValidStart, pickWindow } from '@/lib/interview-slots';
 import { minimumShortfall } from '@/lib/interview-minimum';
 
 /**
@@ -271,7 +271,7 @@ export async function bookInterview(interviewId: string, by: { userId: string },
   if (row.status !== 'TIMES_RECEIVED') return refuse(409, 'wrong_status', stateMessage(row.status));
   const timesChanged = () => refuse(409, 'times_changed', `${row.application.character} changed their times. Pick again.`);
   if (timesRevision !== row.timesRevision) return timesChanged();
-  if (!row.slots.some((s) => s.getTime() === start.getTime())) return refuse(409, 'not_a_slot', `That isn't one of ${row.application.character}'s times.`);
+  if (!bookableStarts(row.slots).some((s) => s.getTime() === start.getTime())) return refuse(409, 'not_a_slot', `That isn't one of ${row.application.character}'s times.`);
   if (!isValidStart(start, { kind: 'book', now })) return refuse(409, 'too_soon', `${TOO_SOON} Pick a later one.`);
   const won = await db.$transaction(async (tx) => {
     const updated = await tx.interview.updateMany({
@@ -295,7 +295,7 @@ export async function proposeTime(interviewId: string, by: { userId: string }, s
   const start = instant(startsAt);
   if (!start) return refuse(400, 'invalid', 'Send a start time.');
   if (row.status !== 'TIMES_RECEIVED') return refuse(409, 'wrong_status', stateMessage(row.status));
-  if (!isValidStart(start, { kind: 'propose', now })) return refuse(400, 'out_of_range', 'Propose a half-hour start time from 2 hours to 7 days ahead.');
+  if (!isValidStart(start, { kind: 'propose', now })) return refuse(400, 'out_of_range', 'Propose a start time on the quarter hour, from 2 hours to 7 days ahead.');
   const won = await db.$transaction(async (tx) => {
     const updated = await tx.interview.updateMany({
       where: { id: row.id, status: 'TIMES_RECEIVED' },

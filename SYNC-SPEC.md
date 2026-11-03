@@ -817,12 +817,15 @@ rows only; answered rows are kept.
   time blocks as `<t:unix:t>` ranges so each officer sees their own zone, kept inside Discord's
   field and embed limits with an overflow line ("and N more times, see the web"). Controls:
   **Book a time**, **Propose another time**.
-- **Book a time:** a day menu, then a time menu of that day's applicant times (split into
-  several menus of at most 25 when there are more), then a private confirm showing the time in
-  the clicking officer's zone. The confirm sends `POST /interviews/:id/book` with the
+- **Book a time:** a day menu, then a time menu of that day's bookable starts (split by Pacific
+  clock into up to three menus when there are more than 25: before 3:00 PM, 3:00 PM to 8:45 PM,
+  from 9:00 PM; at most 24 each), then a private confirm showing the time in
+  the clicking officer's zone. A day's choices are its **bookable starts**: each applicant slot and
+  each slot + 15 minutes. The confirm sends `POST /interviews/:id/book` with the
   `timesRevision` read when the menu opened.
-- **Propose another time:** a day menu over the next 7 days, then two time menus (9:00 AM to
-  3:30 PM, 4:00 PM to 10:30 PM; a menu holds 25 choices), then a confirm. Menu labels are in
+- **Propose another time:** a day menu over the next 7 days, then the day's quarter-hours
+  split by Pacific clock into up to three time menus (before 3:00 PM, 3:00 PM to 8:45 PM, from
+  9:00 PM; at most 24 each), then a confirm. Menu labels are in
   Pacific: "Thu Oct 16 · 7:30 PM PT".
 - The reminder and joined notice ping `bookedBy`, the officer who booked or proposed, not the
   Officer role. **Move to Raider Interviews** (on the joined notice) is answered by the bot
@@ -956,7 +959,9 @@ transition and enqueues the same job as the bot route that matches it (the bot's
    in the URL), the applicant paints half-hour start times and submits them with their browser
    time zone. `AWAITING_TIMES` → `TIMES_RECEIVED`, `timesRevision` +1, `interview.times`.
 3. The thread gets the times message pinging the Officer role. An officer **books a time** or
-   **proposes another time** (one proposal only). The applicant accepts or declines in the DM
+   **proposes another time** (one proposal only). Officers can book 15 minutes into any picked
+   half-hour (picked 9:00 and 9:30, shown as 9:00-10:00, so 9:00, 9:15, 9:30 or 9:45 can be
+   booked) and can propose any quarter-hour; applicants still pick half-hours only. The applicant accepts or declines in the DM
    or on the page.
 4. A booking DMs the applicant to join the Public Lounge voice channel at that time, posts the
    confirmation in the thread, sends both a reminder 5 minutes before, and posts a thread
@@ -1003,8 +1008,11 @@ unique, so the database refuses a second active attempt. `attempt` counts from 1
   day: 28 a day. A painted half-hour means "I can start an interview then". One shared slot
   rule on the site generates, validates and renders them; it is tested across both DST changes
   (the hours never touch the 2 AM change, so every day has 28 slots).
+- **Bookable starts.** Applicants only pick slots, but an officer can book any slot or any slot
+  + 15 minutes: picked 9:00 and 9:30 (shown as 9:00-10:00), 9:00, 9:15, 9:30 and 9:45 are bookable;
+  9:30 alone gives 9:30 and 9:45; a 10:30 PM slot allows 10:45 PM. One shared function gives them.
 - **Applicant picks** lie within `[windowStart, windowEnd]` = `[requestedAt + 2 h, requestedAt
-  + 7 d]` rounded inward to the half hour. **Proposals** are slots within `[now + 2 h, now + 7
+  + 7 d]` rounded inward to the half hour. **Proposals** are quarter-hour starts, 9:00 AM to 10:45 PM, within `[now + 2 h, now + 7
   d]`. **Booking a time or accepting a proposal** needs the start to be at least 15 minutes
   away.
 - A submitted set with a pick outside the window or off the half hour is refused 400
@@ -1034,12 +1042,13 @@ where it applies), so competing clicks get one winner and 409 `wrong_status` for
 its `error` names the current state ("Already booked for <time> by <officer>.").
 - **Book** `{ startsAt, timesRevision, byDiscordId }`, only from `TIMES_RECEIVED`: 409
   `times_changed` ("<name> changed their times. Pick again.") when `timesRevision` differs, 409
-  `not_a_slot` when `startsAt` is not one of the current slots, 409 `too_soon`. Two officers
+  `not_a_slot` when `startsAt` is not one of the current slots' bookable starts, 409 `too_soon`. Two officers
   booking at once: one 200, the other 409 `wrong_status`. An applicant edit and a booking race
   the same way: the booking wins only if `timesRevision` still matches, and an edit arriving
   after the booking gets 409 on the page.
 - **Propose** `{ startsAt, byDiscordId }`, only from `TIMES_RECEIVED`: 400 `out_of_range` when
-  not a slot in `[now + 2 h, now + 7 d]`. Sets `proposedStart`, `proposedBy`, `proposedAt`.
+  not a quarter-hour start (9:00 AM to 10:45 PM) in `[now + 2 h, now + 7 d]`; the `error` is
+  "Propose a start time on the quarter hour, from 2 hours to 7 days ahead.". Sets `proposedStart`, `proposedBy`, `proposedAt`.
 - **Answer** `{ discordId, answer }`, only from `PROPOSED`; `discordId` must be the
   applicant's, else 403 `forbidden`. `accept` → `BOOKED` (or 409 `too_soon`), `decline` →
   `NO_TIME`/`DECLINED`.
