@@ -13,6 +13,7 @@ const match = (row: Row, where: Record<string, unknown> = {}): boolean => Object
   const have = row[key];
   if (want && typeof want === 'object' && 'in' in want) return (want.in as unknown[]).includes(have);
   if (want && typeof want === 'object' && 'not' in want) return have !== want.not;
+  if (want instanceof Date && have instanceof Date) return want.getTime() === have.getTime();
   return have === want;
 });
 const withApp = (row: Row | undefined) => row && { ...row, application: store.apps.find((a) => a.id === row.applicationId) };
@@ -33,6 +34,7 @@ const fake = vi.hoisted(() => ({
       store.rows.push(row);
       return withApp(row);
     },
+    count: async ({ where }: { where: Record<string, unknown> }) => store.rows.filter((r) => match(r, where)).length,
     updateMany: async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
       const hits = store.rows.filter((r) => match(r, where));
       hits.forEach((r) => Object.assign(r, data));
@@ -43,6 +45,7 @@ const fake = vi.hoisted(() => ({
     findMany: async ({ where }: { where: { id: { in: string[] } } }) => store.users.filter((u) => where.id.in.includes(u.id as string)),
     findUnique: async ({ where }: { where: { discordId: string } }) => store.users.find((u) => u.discordId === where.discordId) ?? null,
   },
+  $executeRaw: async () => 1,
   $queryRaw: async (_sql: TemplateStringsArray, id: string) => store.apps.filter((a) => a.id === id),
 }));
 vi.mock('@/lib/db', () => ({ db: { ...fake, $transaction: async (fn: (tx: typeof fake) => unknown) => fn(fake) } }));
@@ -353,6 +356,18 @@ describe('reading', () => {
     expect(await getInterview('nope')).toBeNull();
   });
 
+  it('returns the message ids the bot reported, so it can edit or strip those messages', async () => {
+    interview({ status: 'BOOKED', bookedStart: new Date(SLOT), requestDmId: 'd1', timesMessageId: 'm1', bookedMessageId: 'm2' });
+    expect(await getInterview('i1')).toMatchObject({ requestDmId: 'd1', timesMessageId: 'm1', bookedMessageId: 'm2', proposalMessageId: null, proposalDmId: null });
+  });
+
+  it('returns the booking token: bookedAt as ISO while booked, null before a booking', async () => {
+    interview({ status: 'BOOKED', bookedStart: new Date(SLOT), bookedAt: now });
+    interview({ applicationId: 'app2', status: 'TIMES_RECEIVED', bookedAt: null });
+    expect(await getInterview('i1')).toMatchObject({ bookedStart: SLOT, bookedAt: now.toISOString() });
+    expect(await getInterview('i2')).toMatchObject({ bookedStart: null, bookedAt: null });
+  });
+
   it('gives the applicant their active attempt, across their applications', async () => {
     interview({ status: 'CANCELLED', requestedAt: new Date('2026-10-15T00:00:00Z') });
     interview({ applicationId: 'app2', status: 'AWAITING_TIMES', requestedAt: new Date('2026-10-01T00:00:00Z') });
@@ -377,7 +392,7 @@ describe('booking a time', () => {
     const result = await bookInterview('i1', { userId: 'officer' }, SLOT2, 2, now);
     expect(result).toMatchObject({ ok: true, interview: { status: 'BOOKED', bookedStart: SLOT2, bookedBy: { discordId: 'officer-discord' } } });
     expect(store.rows[0]).toMatchObject({ activeKey: 'app', bookedById: 'officer', bookedAt: now });
-    expect(store.jobs).toEqual([['interview.booked', { applicationId: 'app', interviewId: 'i1', startsAt: SLOT2 }], ['application.update', { applicationId: 'app' }]]);
+    expect(store.jobs).toEqual([['interview.booked', { applicationId: 'app', interviewId: 'i1', startsAt: SLOT2, bookedAt: now.toISOString() }], ['application.update', { applicationId: 'app' }]]);
   });
 
   it.each([
@@ -388,6 +403,54 @@ describe('booking a time', () => {
     expect(await bookInterview('i1', { userId: 'officer' }, startsAt, revision, now)).toMatchObject({ ok: false, status: 409, reason, error });
     expect(store.rows[0]).toMatchObject({ status: 'TIMES_RECEIVED', bookedStart: null });
     expect(store.jobs).toEqual([]);
+  });
+
+  it('books a quarter hour after a picked slot, and refuses one that is not bookable', async () => {
+    received();
+    const quarter = pick('2026-10-17T02:15:00Z'); // 7:15 PM, SLOT is 7:00 PM
+    expect(await bookInterview('i1', { userId: 'officer' }, pick('2026-10-17T02:10:00Z'), 2, now)).toMatchObject({ ok: false, status: 409, reason: 'not_a_slot' });
+    expect(await bookInterview('i1', { userId: 'officer' }, pick('2026-10-17T01:45:00Z'), 2, now)).toMatchObject({ ok: false, status: 409, reason: 'not_a_slot' });
+    expect(await bookInterview('i1', { userId: 'officer' }, quarter, 2, now)).toMatchObject({ ok: true, interview: { status: 'BOOKED', bookedStart: quarter } });
+  });
+
+  it('refuses a quarter hour when only the half hour after it is picked', async () => {
+    received({ slots: [new Date(SLOT2)] });
+    expect(await bookInterview('i1', { userId: 'officer' }, pick('2026-10-17T02:15:00Z'), 2, now)).toMatchObject({ ok: false, status: 409, reason: 'not_a_slot' });
+    expect(await bookInterview('i1', { userId: 'officer' }, pick('2026-10-17T02:45:00Z'), 2, now)).toMatchObject({ ok: true });
+  });
+
+  it('refuses a bookable quarter hour under 15 minutes away as too_soon', async () => {
+    received();
+    const quarter = new Date('2026-10-17T02:15:00Z').getTime();
+    expect(await bookInterview('i1', { userId: 'officer' }, pick('2026-10-17T02:15:00Z'), 2, new Date(quarter - 14 * 60_000))).toMatchObject({ ok: false, status: 409, reason: 'too_soon' });
+  });
+
+  describe('clashes', () => {
+    const clashes = () => store.jobs.filter(([t]) => t === 'interview.clash');
+    const book = (id = 'i2') => bookInterview(id, { userId: 'officer' }, SLOT, 2, now);
+    const other = (data: Partial<Row>) => interview({ applicationId: 'app2', bookedStart: new Date(SLOT), ...data });
+
+    it('enqueues one clash for a booking at an already booked start, and still books', async () => {
+      other({ status: 'BOOKED' });
+      received({ applicationId: 'app' });
+      expect(await book()).toMatchObject({ ok: true, interview: { status: 'BOOKED', bookedStart: SLOT } });
+      expect(clashes()).toEqual([['interview.clash', { applicationId: 'app', interviewId: 'i2', startsAt: SLOT }]]);
+      expect(store.jobs.map(([t]) => t)).toEqual(['interview.booked', 'application.update', 'interview.clash']);
+    });
+
+    it('enqueues none at a free start, or at a different start', async () => {
+      other({ status: 'BOOKED', bookedStart: new Date(SLOT2) });
+      received({ applicationId: 'app' });
+      expect(await book()).toMatchObject({ ok: true });
+      expect(clashes()).toEqual([]);
+    });
+
+    it.each(['PROPOSED', 'DONE', 'CANCELLED'])('enqueues none when the other interview at that start is %s', async (status) => {
+      other({ status });
+      received({ applicationId: 'app' });
+      expect(await book()).toMatchObject({ ok: true });
+      expect(clashes()).toEqual([]);
+    });
   });
 
   it('refuses a slot under 15 minutes away, and books one exactly 15 minutes away', async () => {
@@ -443,13 +506,20 @@ describe('proposing a time', () => {
   it.each([
     ['under 2 hours ahead', '2026-10-16T18:30:00Z'],
     ['over 7 days ahead', '2026-10-23T17:30:00Z'],
-    ['off the half hour', '2026-10-17T02:15:00Z'],
+    ['off the quarter hour', '2026-10-17T02:10:00Z'],
+    ['before interview hours (8:45 AM)', '2026-10-17T15:45:00Z'],
+    ['after interview hours (11:00 PM)', '2026-10-17T06:00:00Z'],
     ['outside interview hours', '2026-10-17T10:00:00Z'],
   ])('refuses a time %s as out_of_range', async (_case, bad) => {
     interview({ status: 'TIMES_RECEIVED' });
-    expect(await proposeTime('i1', { userId: 'officer' }, bad, now)).toMatchObject({ ok: false, status: 400, reason: 'out_of_range' });
+    expect(await proposeTime('i1', { userId: 'officer' }, bad, now)).toMatchObject({ ok: false, status: 400, reason: 'out_of_range', error: 'Propose a start time on the quarter hour, from 2 hours to 7 days ahead.' });
     expect(store.rows[0]).toMatchObject({ status: 'TIMES_RECEIVED', proposedStart: null });
     expect(store.jobs).toEqual([]);
+  });
+
+  it.each([['7:15 PM', '2026-10-17T02:15:00.000Z'], ['10:45 PM', '2026-10-17T05:45:00.000Z']])('accepts %s', async (_case, ok) => {
+    interview({ status: 'TIMES_RECEIVED' });
+    expect(await proposeTime('i1', { userId: 'officer' }, ok, now)).toMatchObject({ ok: true, interview: { status: 'PROPOSED', proposedStart: ok } });
   });
 
   it('accepts both range edges', async () => {
@@ -495,7 +565,21 @@ describe('answering a proposal', () => {
     proposed();
     expect(await answerProposal('i1', 'applicant', 'accept', now)).toMatchObject({ ok: true, interview: { status: 'BOOKED', bookedStart: SLOT, bookedBy: { discordId: 'officer-discord' } } });
     expect(store.rows[0]).toMatchObject({ bookedById: 'officer', bookedAt: now, activeKey: 'app' });
-    expect(store.jobs).toEqual([['interview.booked', { applicationId: 'app', interviewId: 'i1', startsAt: SLOT }], ['application.update', { applicationId: 'app' }]]);
+    expect(store.jobs).toEqual([['interview.booked', { applicationId: 'app', interviewId: 'i1', startsAt: SLOT, bookedAt: now.toISOString() }], ['application.update', { applicationId: 'app' }]]);
+  });
+
+  it('books a quarter-hour proposal on accept', async () => {
+    const quarter = pick('2026-10-17T02:15:00Z');
+    proposed({ proposedStart: new Date(quarter) });
+    expect(await answerProposal('i1', 'applicant', 'accept', now)).toMatchObject({ ok: true, interview: { status: 'BOOKED', bookedStart: quarter } });
+  });
+
+  it('enqueues a clash when the accepted proposal lands on a booked start, and still books', async () => {
+    interview({ applicationId: 'app2', status: 'BOOKED', bookedStart: new Date(SLOT) });
+    proposed({ applicationId: 'app' });
+    expect(await answerProposal('i2', 'applicant', 'accept', now)).toMatchObject({ ok: true, interview: { status: 'BOOKED' } });
+    expect(store.jobs.map(([t]) => t)).toEqual(['interview.booked', 'application.update', 'interview.clash']);
+    expect(store.jobs[2]).toEqual(['interview.clash', { applicationId: 'app', interviewId: 'i2', startsAt: SLOT }]);
   });
 
   it('ends the interview on decline, recording the applicant', async () => {

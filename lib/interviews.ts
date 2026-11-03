@@ -4,7 +4,7 @@ import { Prisma, type InterviewStatus } from '@/lib/generated/prisma/client';
 import { db } from '@/lib/db';
 import { enqueue } from '@/lib/outbox';
 import { SITE_URL } from '@/lib/config';
-import { isValidStart, pickWindow } from '@/lib/interview-slots';
+import { bookableStarts, isValidStart, pickWindow } from '@/lib/interview-slots';
 import { minimumShortfall } from '@/lib/interview-minimum';
 
 /**
@@ -28,7 +28,7 @@ export type InterviewView = {
   id: string; applicationId: string; attempt: number; status: InterviewStatus; endReason: string | null;
   applicant: { discordId: string; characterName: string }; threadId: string | null; timeZone: string | null;
   timesRevision: number; slots: string[]; requestedAt: string; requestedBy: Person; proposedStart: string | null;
-  timesUpdatedAt: string | null; proposedBy: Person; bookedStart: string | null; bookedBy: Person; endedAt: string | null; pageUrl: string;
+  timesUpdatedAt: string | null; proposedBy: Person; bookedStart: string | null; bookedAt: string | null; bookedBy: Person; endedAt: string | null; pageUrl: string;
   requestDmId: string | null; timesMessageId: string | null; proposalMessageId: string | null;
   proposalDmId: string | null; bookedMessageId: string | null;
 };
@@ -72,7 +72,7 @@ async function toView(row: Row, client: Client): Promise<InterviewView> {
     threadId: row.application.discordThreadId, timeZone: row.timeZone, timesRevision: row.timesRevision,
     slots: row.slots.map((s) => s.toISOString()), requestedAt: row.requestedAt.toISOString(), requestedBy: person(row.requestedById),
     timesUpdatedAt: iso(row.timesUpdatedAt), proposedStart: iso(row.proposedStart), proposedBy: person(row.proposedById), bookedStart: iso(row.bookedStart),
-    bookedBy: person(row.bookedById), endedAt: iso(row.endedAt), pageUrl: INTERVIEW_PAGE_URL, requestDmId: row.requestDmId,
+    bookedAt: iso(row.bookedAt), bookedBy: person(row.bookedById), endedAt: iso(row.endedAt), pageUrl: INTERVIEW_PAGE_URL, requestDmId: row.requestDmId,
     timesMessageId: row.timesMessageId, proposalMessageId: row.proposalMessageId, proposalDmId: row.proposalDmId,
     bookedMessageId: row.bookedMessageId,
   };
@@ -253,10 +253,26 @@ const instant = (value: unknown): Date | null => {
 };
 const TOO_SOON = 'That time starts in less than 15 minutes.';
 
-/** A booking enqueues the booking and puts the Interview tag on (SYNC-SPEC §8). */
-async function enqueueBooked(row: { id: string; applicationId: string }, startsAt: Date, tx: Prisma.TransactionClient) {
-  await enqueue('interview.booked', { applicationId: row.applicationId, interviewId: row.id, startsAt: startsAt.toISOString() }, tx);
+/**
+ * Serialises bookings of one start time: a transaction-scoped Postgres advisory lock keyed on
+ * the start's epoch minutes. Take it first, before the row update, so each transaction holds
+ * only this one lock and two bookings for the same start see each other (SYNC-SPEC §12).
+ */
+export async function lockStart(tx: Prisma.TransactionClient, startsAt: Date) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('interview-start'), ${Math.floor(startsAt.getTime() / 60_000)}::int)`;
+}
+
+/**
+ * A booking enqueues the booking and puts the Interview tag on (SYNC-SPEC §8). The job carries
+ * the booking token, `bookedAt` (SYNC-SPEC §12). When another BOOKED interview already has the
+ * same start, it also enqueues `interview.clash`; that never refuses anything. Call it in the
+ * booking's transaction after `lockStart` and the update.
+ */
+export async function enqueueBooked(row: { id: string; applicationId: string }, startsAt: Date, bookedAt: Date, tx: Prisma.TransactionClient) {
+  await enqueue('interview.booked', { applicationId: row.applicationId, interviewId: row.id, startsAt: startsAt.toISOString(), bookedAt: bookedAt.toISOString() }, tx);
   await enqueue('application.update', { applicationId: row.applicationId }, tx);
+  const others = await tx.interview.count({ where: { status: 'BOOKED', bookedStart: startsAt, id: { not: row.id } } });
+  if (others > 0) await enqueue('interview.clash', { applicationId: row.applicationId, interviewId: row.id, startsAt: startsAt.toISOString() }, tx);
 }
 
 /**
@@ -271,15 +287,16 @@ export async function bookInterview(interviewId: string, by: { userId: string },
   if (row.status !== 'TIMES_RECEIVED') return refuse(409, 'wrong_status', stateMessage(row.status));
   const timesChanged = () => refuse(409, 'times_changed', `${row.application.character} changed their times. Pick again.`);
   if (timesRevision !== row.timesRevision) return timesChanged();
-  if (!row.slots.some((s) => s.getTime() === start.getTime())) return refuse(409, 'not_a_slot', `That isn't one of ${row.application.character}'s times.`);
+  if (!bookableStarts(row.slots).some((s) => s.getTime() === start.getTime())) return refuse(409, 'not_a_slot', `That isn't one of ${row.application.character}'s times.`);
   if (!isValidStart(start, { kind: 'book', now })) return refuse(409, 'too_soon', `${TOO_SOON} Pick a later one.`);
   const won = await db.$transaction(async (tx) => {
+    await lockStart(tx, start);
     const updated = await tx.interview.updateMany({
       where: { id: row.id, status: 'TIMES_RECEIVED', timesRevision: row.timesRevision },
       data: { status: 'BOOKED', bookedStart: start, bookedById: by.userId, bookedAt: now },
     });
     if (updated.count === 0) return false;
-    await enqueueBooked(row, start, tx);
+    await enqueueBooked(row, start, now, tx);
     return true;
   });
   const latest = (await viewById(row.id))!;
@@ -295,7 +312,7 @@ export async function proposeTime(interviewId: string, by: { userId: string }, s
   const start = instant(startsAt);
   if (!start) return refuse(400, 'invalid', 'Send a start time.');
   if (row.status !== 'TIMES_RECEIVED') return refuse(409, 'wrong_status', stateMessage(row.status));
-  if (!isValidStart(start, { kind: 'propose', now })) return refuse(400, 'out_of_range', 'Propose a half-hour start time from 2 hours to 7 days ahead.');
+  if (!isValidStart(start, { kind: 'propose', now })) return refuse(400, 'out_of_range', 'Propose a start time on the quarter hour, from 2 hours to 7 days ahead.');
   const won = await db.$transaction(async (tx) => {
     const updated = await tx.interview.updateMany({
       where: { id: row.id, status: 'TIMES_RECEIVED' },
@@ -324,6 +341,7 @@ export async function answerProposal(interviewId: string, applicantDiscordId: st
   if (answer === 'accept' && !isValidStart(start, { kind: 'book', now })) return refuse(409, 'too_soon', `${TOO_SOON} An officer will reach out to arrange another.`);
   const applicant = answer === 'decline' ? await db.user.findUnique({ where: { discordId: applicantDiscordId }, select: { id: true } }) : null;
   const won = await db.$transaction(async (tx) => {
+    if (answer === 'accept') await lockStart(tx, start);
     const updated = await tx.interview.updateMany({
       where: { id: row.id, status: 'PROPOSED' },
       data: answer === 'accept'
@@ -331,7 +349,7 @@ export async function answerProposal(interviewId: string, applicantDiscordId: st
         : { status: 'NO_TIME', endReason: 'DECLINED', activeKey: null, endedAt: now, endedById: applicant?.id ?? null },
     });
     if (updated.count === 0) return false;
-    if (answer === 'accept') await enqueueBooked(row, start, tx);
+    if (answer === 'accept') await enqueueBooked(row, start, now, tx);
     else await enqueue('interview.ended', { applicationId: row.applicationId, interviewId: row.id, outcome: 'declined' }, tx);
     return true;
   });

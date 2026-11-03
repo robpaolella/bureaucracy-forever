@@ -7,9 +7,12 @@ import { PrismaClient } from '@/lib/generated/prisma/client';
 import { pickWindow } from './interview-slots';
 
 const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient }));
+vi.mock('server-only', () => ({}));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
+vi.mock('@/lib/flags', () => ({ lootEnabled: () => false, openUntilStart: () => false }));
 import { answerProposal, bookInterview, cancelInterview, proposeTime, startInterview, submitTimes } from './interviews';
 import { decideApplication } from './decisions';
+import { notifyVoiceJoin, runTick } from './tick';
 
 // INTERVIEWS_INTEGRATION=1 npx vitest run lib/interviews.integration.test.ts
 // Like characters.integration.test.ts, owns a disposable loopback-only Postgres, never an existing DB.
@@ -188,6 +191,105 @@ describe.skipIf(process.env.INTERVIEWS_INTEGRATION !== '1')('one active intervie
           expect(types.filter((t) => t === 'interview.booked')).toHaveLength(book.ok ? 1 : 0);
           expect(types.filter((t) => t === 'interview.times')).toHaveLength(book.ok ? 1 : 2);
         }
+      });
+
+      describe('clashes at the same start', () => {
+        const startAt = (i: number) => `2026-06-1${2 + i}T02:00:00.000Z`;
+        const withTimesAt = async (id: string, startsAt: string) => {
+          await application(id);
+          const started = await startInterview(id, officer, { now: requested });
+          if (!started.ok) throw new Error(started.error);
+          const times = await submitTimes(started.interview.id, id, [startsAt, ...REST], 'UTC', at);
+          if (!times.ok) throw new Error(times.error);
+          return times.interview.id;
+        };
+        const clashesAt = (startsAt: string) => db.outboxJob.findMany({ where: { type: 'interview.clash', payload: { path: ['startsAt'], equals: startsAt } } });
+
+        it('notices at least once when two interviews are booked for the same start at the same moment', async () => {
+          for (let i = 0; i < 5; i++) {
+            const when = startAt(i);
+            const [a, b] = [await withTimesAt(`ClashA${i}`, when), await withTimesAt(`ClashB${i}`, when)];
+            const results = await Promise.all([bookInterview(a, officer, when, 1, at), bookInterview(b, officer, when, 1, at)]);
+            expect(results.map(outcome)).toEqual(['ok', 'ok']);
+            const clashes = await clashesAt(when);
+            expect(clashes.length).toBeGreaterThanOrEqual(1);
+                        // The second booking to commit saw the first, and never twice for one booking.
+            expect(new Set(clashes.map((j) => (j.payload as { interviewId: string }).interviewId)).size).toBe(clashes.length);
+          }
+        });
+
+        it('notices at least once when a booking races an accepted proposal at the same start', async () => {
+          for (let i = 0; i < 5; i++) {
+            const day = `2026-06-1${2 + i}T03:00:00.000Z`; // 8 PM PDT, a start the other test never uses
+            const a = await withTimesAt(`RaceA${i}`, day);
+            const b = await withTimesAt(`RaceB${i}`, '2026-06-16T02:00:00.000Z');
+            expect(await proposeTime(b, officer, day, at)).toMatchObject({ ok: true });
+            const [book, accept] = await Promise.all([bookInterview(a, officer, day, 1, at), answerProposal(b, `RaceB${i}`, 'accept', at)]);
+            expect([outcome(book), outcome(accept)]).toEqual(['ok', 'ok']);
+            expect((await clashesAt(day)).length).toBeGreaterThanOrEqual(1);
+          }
+        });
+      });
+
+      describe('the booking token', () => {
+        // The first interview update matching `when` runs `change` on its own connection just
+        // before it, standing in for a move (#532) landing between the read and the update.
+        const between = (when: (where: Record<string, unknown>) => boolean, change: () => Promise<unknown>) => {
+          let armed = true;
+          const wrap = <T extends object>(client: T): T => new Proxy(client, {
+            get(target, key) {
+              const value: unknown = Reflect.get(target, key);
+              if (key === '$transaction') {
+                const transaction = value as (fn: (tx: object) => unknown, options?: unknown) => unknown;
+                return (fn: (tx: object) => unknown, options?: unknown) => transaction.call(target, (tx) => fn(wrap(tx)), options);
+              }
+              if (key !== 'interview') return typeof value === 'function' ? value.bind(target) : value;
+              return new Proxy(value as object, {
+                get(model, method) {
+                  const fn = Reflect.get(model, method);
+                  if (method !== 'updateMany') return typeof fn === 'function' ? fn.bind(model) : fn;
+                  return async (args: { where: Record<string, unknown> }) => {
+                    if (armed && when(args.where)) { armed = false; await change(); }
+                    return fn.call(model, args);
+                  };
+                },
+              });
+            },
+          });
+          state.db = wrap(db);
+        };
+        const restore = () => { state.db = db; };
+        const start = new Date('2099-06-01T20:00:00.000Z');
+        const minutes = (n: number) => new Date(start.getTime() + n * 60_000);
+        const booked = async (id: string, bookedAt: Date) => {
+          await application(id);
+          return db.interview.create({ data: { applicationId: id, attempt: 1, activeKey: id, requestedById: 'officer', status: 'BOOKED', bookedStart: start, bookedById: 'officer', bookedAt, ...pickWindow(minutes(-60 * 24)) } });
+        };
+        const payloads = (type: string, applicationId: string) => db.outboxJob.findMany({ where: { type, payload: { path: ['applicationId'], equals: applicationId } } }).then((rows) => rows.map((j) => j.payload));
+
+        it('does not announce a voice join read before the booking changed, and announces the new booking', async () => {
+          const row = await booked('Join', minutes(-120));
+          try {
+            between((where) => 'joinedNotifiedAt' in where, () => db.interview.update({ where: { id: row.id }, data: { bookedStart: minutes(5), bookedAt: minutes(-10) } }));
+            expect(await notifyVoiceJoin('Join', minutes(-5))).toEqual({ notified: false });
+          } finally { restore(); }
+          expect(await db.interview.findUniqueOrThrow({ where: { id: row.id } })).toMatchObject({ joinedNotifiedAt: null });
+          expect(await payloads('interview.joined', 'Join')).toEqual([]);
+          expect(await notifyVoiceJoin('Join', minutes(-5))).toEqual({ notified: true, interviewId: row.id });
+          expect(await payloads('interview.joined', 'Join')).toEqual([{ applicationId: 'Join', interviewId: row.id, bookedStart: minutes(5).toISOString(), bookedAt: minutes(-10).toISOString() }]);
+        });
+
+        it('does not mark a booking changed back to the same start (A → B → A) reminded from an old read', async () => {
+          const row = await booked('Remind', minutes(-120));
+          try {
+            between((where) => 'remindedAt' in where, () => db.interview.update({ where: { id: row.id }, data: { bookedAt: minutes(-10) } }));
+            expect((await runTick(minutes(-2))).interviewsReminded).toBe(0);
+          } finally { restore(); }
+          expect(await db.interview.findUniqueOrThrow({ where: { id: row.id } })).toMatchObject({ remindedAt: null, bookedStart: start });
+          expect(await payloads('interview.remind', 'Remind')).toEqual([]);
+          expect((await runTick(minutes(-2))).interviewsReminded).toBe(1);
+          expect(await payloads('interview.remind', 'Remind')).toEqual([{ applicationId: 'Remind', interviewId: row.id, startsAt: start.toISOString(), bookedAt: minutes(-10).toISOString() }]);
+        });
       });
 
       it('lets a cancel and an accept race with one ending', async () => {

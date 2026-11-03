@@ -83,7 +83,7 @@ describe('tick reserve reminders', () => {
 
 describe('tick interview steps', () => {
   const start = new Date('2026-10-16T20:00:00Z');
-  const row = (over: object = {}) => ({ id: 'i', applicationId: 'a', status: 'BOOKED', requestedAt: new Date('2026-10-01T00:00:00Z'), proposedStart: null, bookedStart: start, remindedAt: null, headsUpAt: null, joinedNotifiedAt: null, ...over });
+  const row = (over: object = {}) => ({ id: 'i', applicationId: 'a', status: 'BOOKED', requestedAt: new Date('2026-10-01T00:00:00Z'), proposedStart: null, bookedStart: start, bookedAt: new Date('2026-10-15T12:00:00Z'), remindedAt: null, headsUpAt: null, joinedNotifiedAt: null, ...over });
   const tickAt = (iso: string, rows: object[]) => {
     mocks.interview.findMany.mockResolvedValue(rows);
     mocks.interview.updateMany.mockResolvedValue({ count: 1 });
@@ -96,8 +96,8 @@ describe('tick interview steps', () => {
   it('reminds at start − 2 min (late after a restart), conditionally, and not at start + 1 min', async () => {
     const counts = await tickAt('2026-10-16T19:58:00Z', [row()]);
     expect(counts).toMatchObject({ ...zero, interviewsReminded: 1 });
-    expect(mocks.interview.updateMany).toHaveBeenCalledWith({ where: { id: 'i', status: 'BOOKED', remindedAt: null, bookedStart: start }, data: { remindedAt: new Date('2026-10-16T19:58:00Z') } });
-    expect(mocks.enqueue).toHaveBeenCalledExactlyOnceWith('interview.remind', { applicationId: 'a', interviewId: 'i', startsAt: start.toISOString() }, mocks);
+    expect(mocks.interview.updateMany).toHaveBeenCalledWith({ where: { id: 'i', status: 'BOOKED', remindedAt: null, bookedStart: start, bookedAt: new Date('2026-10-15T12:00:00Z') }, data: { remindedAt: new Date('2026-10-16T19:58:00Z') } });
+    expect(mocks.enqueue).toHaveBeenCalledExactlyOnceWith('interview.remind', { applicationId: 'a', interviewId: 'i', startsAt: start.toISOString(), bookedAt: '2026-10-15T12:00:00.000Z' }, mocks);
     vi.clearAllMocks();
     expect(await tickAt('2026-10-16T20:01:00Z', [row()])).toMatchObject(zero);
     expect(mocks.enqueue).not.toHaveBeenCalled();
