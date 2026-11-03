@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-type Row = { id: string; applicationId: string; discordId: string; status: string; bookedStart: Date | null; joinedNotifiedAt: Date | null; [k: string]: unknown };
+type Row = { id: string; applicationId: string; discordId: string; status: string; bookedStart: Date | null; bookedAt: Date | null; joinedNotifiedAt: Date | null; [k: string]: unknown };
 const store = vi.hoisted(() => ({ rows: [] as Row[], enqueue: vi.fn() }));
 
 vi.mock('server-only', () => ({}));
@@ -10,8 +10,9 @@ vi.mock('@/lib/db', () => {
     interview: {
       findMany: async ({ where }: { where: { status: string; joinedNotifiedAt: null; application: { discordId: string }; bookedStart: { gte: Date; lte: Date } } }) =>
         store.rows.filter((r) => r.status === where.status && r.joinedNotifiedAt === null && r.discordId === where.application.discordId && r.bookedStart && r.bookedStart >= where.bookedStart.gte && r.bookedStart <= where.bookedStart.lte),
-      updateMany: async ({ where, data }: { where: { id: string; status: string; joinedNotifiedAt: null }; data: { joinedNotifiedAt: Date } }) => {
-        const row = store.rows.find((r) => r.id === where.id && r.status === where.status && r.joinedNotifiedAt === null);
+      updateMany: async ({ where, data }: { where: { id: string; status: string; joinedNotifiedAt: null; bookedStart: Date | null; bookedAt: Date | null }; data: { joinedNotifiedAt: Date } }) => {
+        const same = (a: Date | null, b: Date | null) => a?.getTime() === b?.getTime();
+        const row = store.rows.find((r) => r.id === where.id && r.status === where.status && r.joinedNotifiedAt === null && same(r.bookedStart, where.bookedStart) && same(r.bookedAt, where.bookedAt));
         if (!row) return { count: 0 };
         row.joinedNotifiedAt = data.joinedNotifiedAt;
         return { count: 1 };
@@ -27,7 +28,7 @@ const MEMBER = '100000000000000002';
 const OTHER = '100000000000000003';
 const now = new Date();
 const minutes = (n: number) => new Date(now.getTime() + n * 60_000);
-const seed = (over: Partial<Row> = {}) => store.rows.push({ id: 'i1', applicationId: 'a1', discordId: MEMBER, status: 'BOOKED', bookedStart: minutes(5), joinedNotifiedAt: null, ...over });
+const seed = (over: Partial<Row> = {}) => store.rows.push({ id: 'i1', applicationId: 'a1', discordId: MEMBER, status: 'BOOKED', bookedStart: minutes(5), bookedAt: minutes(-60), joinedNotifiedAt: null, ...over });
 const call = (body: unknown, secret: string | null = 'test-secret') =>
   POST(new Request('https://example.test/api/bot/interviews/voice-join', { method: 'POST', headers: { ...(secret ? { authorization: `Bearer ${secret}` } : {}), 'content-type': 'application/json' }, body: JSON.stringify(body) }));
 
@@ -51,7 +52,7 @@ describe('POST /api/bot/interviews/voice-join', () => {
     seed();
     const first = await call({ discordId: MEMBER, channelId: 'c' });
     expect(await first.json()).toEqual({ notified: true, interviewId: 'i1' });
-    expect(store.enqueue).toHaveBeenCalledExactlyOnceWith('interview.joined', { applicationId: 'a1', interviewId: 'i1' }, expect.anything());
+    expect(store.enqueue).toHaveBeenCalledExactlyOnceWith('interview.joined', { applicationId: 'a1', interviewId: 'i1', bookedStart: minutes(5).toISOString(), bookedAt: minutes(-60).toISOString() }, expect.anything());
     expect(store.rows[0].joinedNotifiedAt).toBeInstanceOf(Date);
     expect(await (await call({ discordId: MEMBER, channelId: 'c' })).json()).toEqual({ notified: false });
     expect(store.enqueue).toHaveBeenCalledTimes(1);

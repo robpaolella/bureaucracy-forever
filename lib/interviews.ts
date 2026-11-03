@@ -28,7 +28,7 @@ export type InterviewView = {
   id: string; applicationId: string; attempt: number; status: InterviewStatus; endReason: string | null;
   applicant: { discordId: string; characterName: string }; threadId: string | null; timeZone: string | null;
   timesRevision: number; slots: string[]; requestedAt: string; requestedBy: Person; proposedStart: string | null;
-  timesUpdatedAt: string | null; proposedBy: Person; bookedStart: string | null; bookedBy: Person; endedAt: string | null; pageUrl: string;
+  timesUpdatedAt: string | null; proposedBy: Person; bookedStart: string | null; bookedAt: string | null; bookedBy: Person; endedAt: string | null; pageUrl: string;
   requestDmId: string | null; timesMessageId: string | null; proposalMessageId: string | null;
   proposalDmId: string | null; bookedMessageId: string | null;
 };
@@ -72,7 +72,7 @@ async function toView(row: Row, client: Client): Promise<InterviewView> {
     threadId: row.application.discordThreadId, timeZone: row.timeZone, timesRevision: row.timesRevision,
     slots: row.slots.map((s) => s.toISOString()), requestedAt: row.requestedAt.toISOString(), requestedBy: person(row.requestedById),
     timesUpdatedAt: iso(row.timesUpdatedAt), proposedStart: iso(row.proposedStart), proposedBy: person(row.proposedById), bookedStart: iso(row.bookedStart),
-    bookedBy: person(row.bookedById), endedAt: iso(row.endedAt), pageUrl: INTERVIEW_PAGE_URL, requestDmId: row.requestDmId,
+    bookedAt: iso(row.bookedAt), bookedBy: person(row.bookedById), endedAt: iso(row.endedAt), pageUrl: INTERVIEW_PAGE_URL, requestDmId: row.requestDmId,
     timesMessageId: row.timesMessageId, proposalMessageId: row.proposalMessageId, proposalDmId: row.proposalDmId,
     bookedMessageId: row.bookedMessageId,
   };
@@ -263,12 +263,13 @@ export async function lockStart(tx: Prisma.TransactionClient, startsAt: Date) {
 }
 
 /**
- * A booking enqueues the booking and puts the Interview tag on (SYNC-SPEC §8). When another
- * BOOKED interview already has the same start, it also enqueues `interview.clash`; that never
- * refuses anything. Call it in the booking's transaction after `lockStart` and the update.
+ * A booking enqueues the booking and puts the Interview tag on (SYNC-SPEC §8). The job carries
+ * the booking token, `bookedAt` (SYNC-SPEC §12). When another BOOKED interview already has the
+ * same start, it also enqueues `interview.clash`; that never refuses anything. Call it in the
+ * booking's transaction after `lockStart` and the update.
  */
-export async function enqueueBooked(row: { id: string; applicationId: string }, startsAt: Date, tx: Prisma.TransactionClient) {
-  await enqueue('interview.booked', { applicationId: row.applicationId, interviewId: row.id, startsAt: startsAt.toISOString() }, tx);
+export async function enqueueBooked(row: { id: string; applicationId: string }, startsAt: Date, bookedAt: Date, tx: Prisma.TransactionClient) {
+  await enqueue('interview.booked', { applicationId: row.applicationId, interviewId: row.id, startsAt: startsAt.toISOString(), bookedAt: bookedAt.toISOString() }, tx);
   await enqueue('application.update', { applicationId: row.applicationId }, tx);
   const others = await tx.interview.count({ where: { status: 'BOOKED', bookedStart: startsAt, id: { not: row.id } } });
   if (others > 0) await enqueue('interview.clash', { applicationId: row.applicationId, interviewId: row.id, startsAt: startsAt.toISOString() }, tx);
@@ -295,7 +296,7 @@ export async function bookInterview(interviewId: string, by: { userId: string },
       data: { status: 'BOOKED', bookedStart: start, bookedById: by.userId, bookedAt: now },
     });
     if (updated.count === 0) return false;
-    await enqueueBooked(row, start, tx);
+    await enqueueBooked(row, start, now, tx);
     return true;
   });
   const latest = (await viewById(row.id))!;
@@ -348,7 +349,7 @@ export async function answerProposal(interviewId: string, applicantDiscordId: st
         : { status: 'NO_TIME', endReason: 'DECLINED', activeKey: null, endedAt: now, endedById: applicant?.id ?? null },
     });
     if (updated.count === 0) return false;
-    if (answer === 'accept') await enqueueBooked(row, start, tx);
+    if (answer === 'accept') await enqueueBooked(row, start, now, tx);
     else await enqueue('interview.ended', { applicationId: row.applicationId, interviewId: row.id, outcome: 'declined' }, tx);
     return true;
   });

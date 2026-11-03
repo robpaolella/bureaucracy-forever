@@ -328,7 +328,7 @@ Any route that takes `Idempotency-Key` may also answer `409 { reason: "in_progre
 | GET | `/messages/:id` | One relay message for rendering (§13), with `ping`. |
 | POST | `/applications/:id/interview` | Start an interview (§12). `{ byDiscordId, confirmSecond? }`. 201 `{ interview }` (the read shape below). Enqueues `interview.request`. |
 | GET | `/interviews/upcoming` | Every `BOOKED` interview whose `bookedStart` is after now, for the bot's `/interviews` command (§8): `{ interviews: [{ interviewId, applicationId, startsAt (ISO), characterName, bookedBy: { discordId, name } \| null, threadId \| null }] }`, in start order; the same item shape as the `interview.digest` payload (§5). Interviews still arranging a time are not listed. Matched before `/interviews/:id`. |
-| GET | `/interviews/:id` | Read an interview for rendering (§12): `{ id, applicationId, attempt, status, endReason, applicant: { discordId, characterName }, threadId, timeZone, timesRevision, slots: [ISO], requestedAt, timesUpdatedAt, requestedBy, proposedStart, proposedBy, bookedStart, bookedBy, endedAt, pageUrl, requestDmId, timesMessageId, proposalMessageId, proposalDmId, bookedMessageId }`. `requestedBy`, `proposedBy` and `bookedBy` are `{ discordId, name }` or `null`; `pageUrl` is `<site>/apply/interview`. 404 `{ error }` if unknown. |
+| GET | `/interviews/:id` | Read an interview for rendering (§12): `{ id, applicationId, attempt, status, endReason, applicant: { discordId, characterName }, threadId, timeZone, timesRevision, slots: [ISO], requestedAt, timesUpdatedAt, requestedBy, proposedStart, proposedBy, bookedStart, bookedAt, bookedBy, endedAt, pageUrl, requestDmId, timesMessageId, proposalMessageId, proposalDmId, bookedMessageId }`. `bookedAt` is the booking token (§12, Lifecycle), ISO or `null`. `requestedBy`, `proposedBy` and `bookedBy` are `{ discordId, name }` or `null`; `pageUrl` is `<site>/apply/interview`. 404 `{ error }` if unknown. |
 | POST | `/interviews/:id/book` | `{ startsAt, timesRevision, byDiscordId }`. 200 read shape. |
 | POST | `/interviews/:id/propose` | `{ startsAt, byDiscordId }`. 200 read shape. |
 | POST | `/interviews/:id/answer` | `{ discordId, answer: accept\|decline }`. 200 read shape. |
@@ -487,12 +487,12 @@ mentions: {
 | `trial.checkin` | `{ discordId, name, startedAt, extended }` (§3). Message in `#officers` mentioning the Officer role: whose trial is up and since when, with **Promote to Raider** (button) and **Extend trial** (menu, 1–7 days). Both call `POST /members/:discordId/trial` and survive restarts; the answer edits the message to the outcome and removes them. Entity `member:<discordId>`. | — | — |
 | `interview.request` | `{ applicationId, interviewId }` (all interview jobs carry these two; §12 has the rules, copy and preconditions). DM the request with the **Share my availability** link button, then one thread message. | `{ dmDelivered, dmMessageId? }` | store `requestDmId` |
 | `interview.times` | Post the times message pinging the Officer role and DM the thanks; on later revisions edit that message in place. | `{ messageId }` first time | store `timesMessageId` |
-| `interview.booked` | `+ startsAt`. DM the booking, post the confirmation in the thread. | `{ messageId, dmDelivered }` | store `bookedMessageId` |
+| `interview.booked` | `+ startsAt, bookedAt`. DM the booking, post the confirmation in the thread. | `{ messageId, dmDelivered }` | store `bookedMessageId`, only while the interview is still `BOOKED` with `bookedStart` = `payload.startsAt` and `bookedAt` = `payload.bookedAt`. A job queued before the booking token has no `bookedAt` and checks `BOOKED` and the start alone. A stale ack, or one whose `bookedAt` is not an ISO time, stores nothing |
 | `interview.proposed` | `+ startsAt`. DM the proposal with **Accept** / **Decline**, post the proposal line. | `{ messageId, dmMessageId?, dmDelivered }` | store `proposalMessageId`, `proposalDmId` |
 | `interview.ended` | `+ outcome: declined\|expired\|lapsed\|cancelled\|closed`. DM the outcome (none for `closed`), post the thread notice, remove live controls. | `{ dmDelivered? }` | — |
 | `interview.headsup` | One thread message: no times yet after 3 days. | — | — |
-| `interview.remind` | `+ startsAt`. DM the applicant and ping the booking officer in the thread, 5 minutes before. | — | — |
-| `interview.joined` | Thread notice with **Move to Raider Interviews**, pinging the booking officer. | — | — |
+| `interview.remind` | `+ startsAt, bookedAt`. DM the applicant and ping the booking officer in the thread, 5 minutes before. | — | — |
+| `interview.joined` | `+ bookedStart, bookedAt`. Thread notice with **Move to Raider Interviews**, pinging the booking officer. | — | — |
 | `interview.digest` | `{ date, interviews: [{ interviewId, applicationId, startsAt, characterName, bookedBy: { discordId, name } \| null, threadId \| null }] }`: `date` is the Pacific date `YYYY-MM-DD`, `interviews` are in start order. **Not an application job** (§12, Outbox jobs): the bot renders from the payload alone. One message in `OFFICERS_CHANNEL_ID`, content pinging the Officer role (allowed mentions limited to that role; with `ROLE_OFFICER_ID` unset, no ping and a logged warning), and one embed titled "Today's interviews": a bullet per interview, in start order, with the start as a Discord timestamp (`<t:…:t>`), the character name (Markdown escaped), "booked by <name>" (a name, never a mention; left out without `bookedBy`) and a link to the application's thread (without `threadId`: `<SITE_PUBLIC_URL>/officers/applications/<applicationId>`). Interviews whose start has already passed when the bot handles the job are left out; when none remain it posts nothing and acks `{ skipped: "no interviews left today" }`. A list that would overflow the embed description ends with "…and N more". An unreachable `OFFICERS_CHANNEL_ID` fails the job so it retries. Entity `officers`. | `{ channelId, messageId }`, or `{ skipped: "no interviews left today" }` | — |
 | `interview.clash` | `{ applicationId, interviewId, startsAt }`: `startsAt` is ISO, the new booking's start. Enqueued whenever an interview becomes `BOOKED` (an officer books, or the applicant accepts a proposal, in Discord or on the page) while at least one *other* `BOOKED` interview has the same `bookedStart`; one job per such booking. Only `BOOKED` interviews count (not proposals, `DONE` or ended ones), and a different start (9:00 and 9:15) is not a clash. It never blocks or changes the booking. **Not an application job** (§12, Outbox jobs): the bot re-reads `GET /interviews/upcoming`, not `GET /interviews/:id`. Posts the officers' notice (§8). Entity `officers`. | the whole ack body is `{ ok: true }` or `{ ok: true, result: { skipped: "<reason>" } }`; nothing is stored | — |
 
@@ -561,7 +561,8 @@ Runs every 60 s, called by the bot. Each step is idempotent and bounded.
    status that implies archived/locked, enqueue `*.update` (the bot's update handler also
    fixes archive/lock/tag state). Cheap insurance against drift.
 9. **Interview reminder.** `BOOKED`, `bookedStart − 5 min ≤ now < bookedStart`, `remindedAt null` →
-   conditionally set `remindedAt` and enqueue `interview.remind`. A bot back from a restart
+   conditionally set `remindedAt` (matching the `bookedStart` and `bookedAt` it read) and enqueue
+   `interview.remind`. A bot back from a restart
    before the start still sends it; after the start, never.
 10. **Interview expiry.** `AWAITING_TIMES` or `TIMES_RECEIVED` with `requestedAt + 7 d ≤ now` →
     `NO_TIME`/`EXPIRED`, enqueue `interview.ended` (`expired`).
@@ -1004,6 +1005,11 @@ transition and enqueues the same job as the bot route that matches it (the bot's
 | any active | `CANCELLED` | an officer cancels |
 | any active | `CLOSED` | the application is decided, web or Discord, in the same transaction as the decision; reopening revives nothing |
 
+**Booking token.** `bookedAt` identifies one booking: booking a time and accepting a proposal
+set it, and nothing else changes it. It still means "booked at" for the digest (§6) and the
+reminders' activity time. Jobs and updates that act on a booking carry or match it, so one that
+read an earlier booking cannot act on a later one, even at the same start.
+
 Interview timestamps feed the reminders' activity time and quiet state (§6 step 14). Ending sets `endedAt`, `endedById` (null for the system) and clears `activeKey`, and enqueues
 `interview.ended` except for `DONE`. Applicant times can only change in `AWAITING_TIMES` or
 `TIMES_RECEIVED`; in every other state the page is read-only and says where things stand.
@@ -1080,6 +1086,8 @@ its `error` names the current state ("Already booked for <time> by <officer>.").
   member has a `BOOKED` interview with `bookedStart` from 15 minutes ahead to 30 minutes ago
   and `joinedNotifiedAt` null, the site sets it and enqueues `interview.joined`; the reply is
   `{ notified: true, interviewId }`, otherwise `{ notified: false }`. Rejoining notifies nothing.
+  The update also matches the `bookedStart` and `bookedAt` the site read, so a join read before
+  the booking changed marks and announces nothing.
 
 ### Outbox jobs
 Payload always has `applicationId` and `interviewId` (except `interview.digest`, below; `interview.clash` has them but is exempt too). `entityKey` maps `interview.*` to
@@ -1093,16 +1101,21 @@ never repeats, §5). A DM
 Discord refuses (error 50007) counts as not delivered: the thread message says so and the ack
 carries `dmDelivered: false`. Any other error fails the job so it retries.
 
+`interview.booked` and `interview.remind` carry `bookedAt`, and `interview.joined` carries
+`bookedStart` and `bookedAt` (ISO), the booking token the site read. Every handler whose payload
+has them compares them with the re-read interview as part of its precondition and skips on a
+mismatch. A job queued before this change has neither and keeps the check without them.
+
 | Job | Precondition | Does |
 |---|---|---|
 | `interview.request` | `AWAITING_TIMES` | DM the request (copy below) with the link button; then one thread message: the "I'll reach out" line, or if the DM was refused "I couldn't DM <name>, their DMs are closed. Send them this link another way: <page URL>" |
 | `interview.times` | `TIMES_RECEIVED` | `timesMessageId` unset: post the times message pinging the Officer role and DM the thanks. Set: edit that message in place, marked "updated", mentions suppressed, no DM |
-| `interview.booked` | `BOOKED` and `bookedStart` = `payload.startsAt` | DM the booking; thread confirmation with **Cancel interview**; strips controls from the times and proposal messages and the request DM |
+| `interview.booked` | `BOOKED`, `bookedStart` = `payload.startsAt`, and `bookedAt` = `payload.bookedAt` when the payload has it | DM the booking; thread confirmation with **Cancel interview**; strips controls from the times and proposal messages and the request DM |
 | `interview.proposed` | `PROPOSED` and `proposedStart` = `payload.startsAt` | DM the proposal with **Accept** / **Decline**; thread line naming the time and the proposer; strips the times message controls and the request DM's button. A refused DM: the thread line also gives the page URL |
 | `interview.ended` | status ended with the reason for `payload.outcome` (`declined`: `NO_TIME`/`DECLINED`; `expired`: `NO_TIME`/`EXPIRED`; `lapsed`: `NO_TIME`/`PROPOSAL_LAPSED`; `cancelled`: `CANCELLED`; `closed`: `CLOSED`) | DM the outcome copy and post a thread notice; every earlier interview message loses its controls. `closed` sends no DM (the decision's own message, §4, goes as chosen, or none), posts nothing, and only strips controls |
 | `interview.headsup` | `AWAITING_TIMES` and `headsUpAt` set | thread message: no times from <name> after 3 days, 4 days left |
-| `interview.remind` | `BOOKED`, `bookedStart` = `payload.startsAt`, now before the start | DM the reminder; thread message pinging `bookedBy` |
-| `interview.joined` | `BOOKED` and `joinedNotifiedAt` set | thread notice pinging `bookedBy`, "<name> has joined Public Lounge.", with **Move to Raider Interviews** |
+| `interview.remind` | `BOOKED`, `bookedStart` = `payload.startsAt`, `bookedAt` = `payload.bookedAt` when the payload has it, now before the start | DM the reminder; thread message pinging `bookedBy` |
+| `interview.joined` | `BOOKED`, `joinedNotifiedAt` set, and `bookedStart` = `payload.bookedStart` and `bookedAt` = `payload.bookedAt` when the payload has them | thread notice pinging `bookedBy`, "<name> has joined Public Lounge.", with **Move to Raider Interviews** |
 | `interview.digest` | none beyond: `startsAt` still in the future when handled (see the exemption below) | one `#officers` message with the day's interviews (§5) |
 | `interview.clash` | none beyond: at least two `BOOKED` interviews, the payload's one among them, still share `payload.startsAt` in `GET /interviews/upcoming` (see the exemption below) | one `#officers` message naming the interviews at that start and their booking officers (§8) |
 

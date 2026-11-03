@@ -120,7 +120,8 @@ async function applyResult(type: JobType, payload: Record<string, unknown>, resu
  * SYNC-SPEC §5: store the Discord message ids an interview job reports. Each store is one
  * conditional update, so a stale or repeated ack changes nothing: the request and times ids only while
  * the interview is still at the step (and the times id unset), and the interview still waiting on the job's own step, the booked and proposal ids only while the interview is still at that start. A
- * `{ skipped }` result or one without the id stores nothing.
+ * booked job with `bookedAt` (the booking token, SYNC-SPEC §12) also needs that booking; one queued
+ * before the token keeps the start check alone. A `{ skipped }` result or one without the id stores nothing.
  */
 async function applyInterviewAck(type: JobType, payload: Record<string, unknown>, result: Record<string, unknown>): Promise<string | undefined> {
   const id = str(payload.interviewId);
@@ -137,8 +138,10 @@ async function applyInterviewAck(type: JobType, payload: Record<string, unknown>
     if (!messageId) return undefined;
     moved = await db.interview.updateMany({ where: { id, status: 'TIMES_RECEIVED', timesMessageId: null }, data: { timesMessageId: messageId } });
   } else if (type === 'interview.booked') {
-    if (!messageId || !validStart) return undefined;
-    moved = await db.interview.updateMany({ where: { id, status: 'BOOKED', bookedStart: validStart }, data: { bookedMessageId: messageId } });
+    const bookedAt = typeof payload.bookedAt === 'string' ? new Date(payload.bookedAt) : null;
+    const token = bookedAt && !Number.isNaN(bookedAt.getTime()) ? { bookedAt } : {};
+    if (!messageId || !validStart || ('bookedAt' in payload && !('bookedAt' in token))) return undefined;
+    moved = await db.interview.updateMany({ where: { id, status: 'BOOKED', bookedStart: validStart, ...token }, data: { bookedMessageId: messageId } });
   } else if (type === 'interview.proposed') {
     const proposalDmId = str(result.dmMessageId);
     if (!messageId || !validStart) return undefined;
