@@ -361,6 +361,13 @@ describe('reading', () => {
     expect(await getInterview('i1')).toMatchObject({ requestDmId: 'd1', timesMessageId: 'm1', bookedMessageId: 'm2', proposalMessageId: null, proposalDmId: null });
   });
 
+  it('returns the booking token: bookedAt as ISO while booked, null before a booking', async () => {
+    interview({ status: 'BOOKED', bookedStart: new Date(SLOT), bookedAt: now });
+    interview({ applicationId: 'app2', status: 'TIMES_RECEIVED', bookedAt: null });
+    expect(await getInterview('i1')).toMatchObject({ bookedStart: SLOT, bookedAt: now.toISOString() });
+    expect(await getInterview('i2')).toMatchObject({ bookedStart: null, bookedAt: null });
+  });
+
   it('gives the applicant their active attempt, across their applications', async () => {
     interview({ status: 'CANCELLED', requestedAt: new Date('2026-10-15T00:00:00Z') });
     interview({ applicationId: 'app2', status: 'AWAITING_TIMES', requestedAt: new Date('2026-10-01T00:00:00Z') });
@@ -385,7 +392,7 @@ describe('booking a time', () => {
     const result = await bookInterview('i1', { userId: 'officer' }, SLOT2, 2, now);
     expect(result).toMatchObject({ ok: true, interview: { status: 'BOOKED', bookedStart: SLOT2, bookedBy: { discordId: 'officer-discord' } } });
     expect(store.rows[0]).toMatchObject({ activeKey: 'app', bookedById: 'officer', bookedAt: now });
-    expect(store.jobs).toEqual([['interview.booked', { applicationId: 'app', interviewId: 'i1', startsAt: SLOT2 }], ['application.update', { applicationId: 'app' }]]);
+    expect(store.jobs).toEqual([['interview.booked', { applicationId: 'app', interviewId: 'i1', startsAt: SLOT2, bookedAt: now.toISOString() }], ['application.update', { applicationId: 'app' }]]);
   });
 
   it.each([
@@ -558,7 +565,7 @@ describe('answering a proposal', () => {
     proposed();
     expect(await answerProposal('i1', 'applicant', 'accept', now)).toMatchObject({ ok: true, interview: { status: 'BOOKED', bookedStart: SLOT, bookedBy: { discordId: 'officer-discord' } } });
     expect(store.rows[0]).toMatchObject({ bookedById: 'officer', bookedAt: now, activeKey: 'app' });
-    expect(store.jobs).toEqual([['interview.booked', { applicationId: 'app', interviewId: 'i1', startsAt: SLOT }], ['application.update', { applicationId: 'app' }]]);
+    expect(store.jobs).toEqual([['interview.booked', { applicationId: 'app', interviewId: 'i1', startsAt: SLOT, bookedAt: now.toISOString() }], ['application.update', { applicationId: 'app' }]]);
   });
 
   it('books a quarter-hour proposal on accept', async () => {
