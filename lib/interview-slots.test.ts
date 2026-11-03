@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSlotStart, isValidStart, pickerStarts, pickWindow, proposalRange, slotStartsBetween } from './interview-slots';
+import { bookableStarts, isQuarterStart, isSlotStart, isValidStart, pickerStarts, pickWindow, proposalRange, slotStartsBetween } from './interview-slots';
 import { formatClock } from './time';
 
 const at = (iso: string) => new Date(iso);
@@ -152,5 +152,49 @@ describe('pickerStarts', () => {
     const mon = starts.filter((s) => pacific(s) === '9:00 AM');
     expect(mon.map((s) => s.toISOString())).toContain('2026-11-02T17:00:00.000Z'); // PST: UTC-8
     expect(mon.map((s) => s.toISOString())).toContain('2026-10-31T16:00:00.000Z'); // PDT: UTC-7
+  });
+});
+
+describe('bookableStarts', () => {
+  const iso = (ds: Date[]) => ds.map((d) => d.toISOString());
+
+  it('gives each slot and each slot + 15 minutes', () => {
+    expect(iso(bookableStarts([at('2026-06-10T16:00:00Z'), at('2026-06-10T16:30:00Z')]))).toEqual([
+      '2026-06-10T16:00:00.000Z', '2026-06-10T16:15:00.000Z', '2026-06-10T16:30:00.000Z', '2026-06-10T16:45:00.000Z',
+    ]);
+  });
+
+  it('gives only 9:30 and 9:45 for 9:30 alone', () => {
+    expect(iso(bookableStarts([at('2026-06-10T16:30:00Z')]))).toEqual(['2026-06-10T16:30:00.000Z', '2026-06-10T16:45:00.000Z']);
+  });
+
+  it('allows 10:45 PM after a 10:30 PM slot', () => {
+    const starts = bookableStarts([at('2026-06-11T05:30:00Z')]);
+    expect(starts.map(pacific)).toEqual(['10:30 PM', '10:45 PM']);
+    expect(starts.every(isQuarterStart)).toBe(true);
+  });
+
+  it('holds on both daylight-saving change days', () => {
+    // 8 Mar 2026 (spring forward) and 1 Nov 2026 (fall back): 9:00 AM Pacific is 16:00Z, then 17:00Z.
+    for (const iso9 of ['2026-03-08T16:00:00Z', '2026-11-01T17:00:00Z']) {
+      const starts = bookableStarts([at(iso9)]);
+      expect(starts.map(pacific)).toEqual(['9:00 AM', '9:15 AM']);
+      expect(starts.every(isQuarterStart)).toBe(true);
+    }
+  });
+});
+
+describe('quarter-hour starts', () => {
+  const now = at('2026-06-10T16:00:00Z');
+
+  it('accepts quarter hours from 9:00 AM to 10:45 PM for book and propose, but not for picks', () => {
+    const win = { kind: 'pick' as const, windowStart: at('2026-06-10T00:00:00Z'), windowEnd: at('2026-06-20T00:00:00Z') };
+    expect(isValidStart(at('2026-06-12T02:15:00Z'), { kind: 'propose', now })).toBe(true); // 7:15 PM
+    expect(isValidStart(at('2026-06-12T05:45:00Z'), { kind: 'propose', now })).toBe(true); // 10:45 PM
+    expect(isValidStart(at('2026-06-12T02:10:00Z'), { kind: 'propose', now })).toBe(false);
+    expect(isValidStart(at('2026-06-12T15:45:00Z'), { kind: 'propose', now })).toBe(false); // 8:45 AM
+    expect(isValidStart(at('2026-06-12T06:00:00Z'), { kind: 'propose', now })).toBe(false); // 11:00 PM
+    expect(isValidStart(at('2026-06-12T02:15:00Z'), { kind: 'book', now })).toBe(true);
+    expect(isValidStart(at('2026-06-12T02:15:00Z'), win)).toBe(false);
   });
 });

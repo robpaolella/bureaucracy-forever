@@ -43,12 +43,16 @@ describe('outbox rules', () => {
     expect(entityKey('officers.notify', {})).toBe('officers');
   });
 
-  it.each(['interview.request', 'interview.times', 'interview.booked', 'interview.proposed', 'interview.ended', 'interview.headsup', 'interview.remind', 'interview.joined'] as const)(
+  it.each(['interview.request', 'interview.times', 'interview.booked', 'interview.moved', 'interview.proposed', 'interview.ended', 'interview.headsup', 'interview.remind', 'interview.joined'] as const)(
     'keys %s to its application, so it runs in order with that application\'s jobs',
     (type) => {
       expect(entityKey(type, { applicationId: 'a1', interviewId: 'i1', startsAt: '2026-10-20T16:00:00.000Z' })).toBe('application:a1');
     },
   );
+
+  it('keys interview.clash to officers, not an application', () => {
+    expect(entityKey('interview.clash', { applicationId: 'a1', interviewId: 'i1', startsAt: '2026-10-20T16:00:00.000Z' })).toBe('officers');
+  });
 
   it('keys interview.digest to officers, not an application', () => {
     expect(entityKey('interview.digest', { date: '2026-10-16', interviews: [{ applicationId: 'a1', interviewId: 'i1' }] })).toBe('officers');
