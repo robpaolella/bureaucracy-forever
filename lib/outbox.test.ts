@@ -159,6 +159,14 @@ describe('ackJob for interview jobs', () => {
     expect(await run('interview.booked', { startsAt: START, bookedAt: BOOKED_AT }, { messageId: 'm2' })).toEqual({ status: 'DONE', applied: 'stale interview ack ignored' });
   });
 
+  it('stores a moved line as the booked message id only while still that booking', async () => {
+    const BOOKED_AT = '2026-11-03T18:00:00.000Z';
+    await run('interview.moved', { startsAt: START, bookedAt: BOOKED_AT, previousStart: '2026-11-04T02:00:00.000Z', previousBookedBy: null }, { messageId: 'm4', dmDelivered: false });
+    expect(mocks.ivUpdateMany).toHaveBeenCalledExactlyOnceWith({ where: { id: 'i1', status: 'BOOKED', bookedStart: new Date(START), bookedAt: new Date(BOOKED_AT) }, data: { bookedMessageId: 'm4' } });
+    mocks.ivUpdateMany.mockResolvedValue({ count: 0 });
+    expect(await run('interview.moved', { startsAt: START, bookedAt: BOOKED_AT }, { messageId: 'm4' })).toEqual({ status: 'DONE', applied: 'stale interview ack ignored' });
+  });
+
   it('stores both proposal ids only while still proposed at that start, and the line alone when the DM was refused', async () => {
     await run('interview.proposed', { startsAt: START }, { messageId: 'm3', dmMessageId: 'd3', dmDelivered: true });
     expect(mocks.ivUpdateMany).toHaveBeenLastCalledWith({ where: { id: 'i1', status: 'PROPOSED', proposedStart: new Date(START) }, data: { proposalMessageId: 'm3', proposalDmId: 'd3' } });
@@ -179,6 +187,9 @@ describe('ackJob for interview jobs', () => {
     ['booked without a start', 'interview.booked', {}, { messageId: 'm' }],
     ['booked with a malformed token', 'interview.booked', { startsAt: START, bookedAt: 'soon' }, { messageId: 'm' }],
     ['booked with a null token', 'interview.booked', { startsAt: START, bookedAt: null }, { messageId: 'm' }],
+    ['moved without a token', 'interview.moved', { startsAt: START }, { messageId: 'm' }],
+    ['moved with a malformed token', 'interview.moved', { startsAt: START, bookedAt: 'soon' }, { messageId: 'm' }],
+    ['moved skipped', 'interview.moved', { startsAt: START, bookedAt: '2026-11-03T18:00:00.000Z' }, { skipped: 'moved again', messageId: 'm' }],
     ['proposed without an id', 'interview.proposed', { startsAt: START }, { dmMessageId: 'd', dmDelivered: true }],
     ['times skipped with an id', 'interview.times', {}, { skipped: 'ended', messageId: 'm1' }],
     ['booked skipped with an id', 'interview.booked', { startsAt: START }, { skipped: 'ended', messageId: 'm1' }],
