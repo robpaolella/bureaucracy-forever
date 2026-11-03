@@ -112,7 +112,42 @@ async function applyResult(type: JobType, payload: Record<string, unknown>, resu
   if (type === 'application.decide') return applyDecideAck(payload, result);
   if (type === 'application.message.send') return applySendAck(payload, result);
   if (type === 'application.message.copy') return applyCopyAck(payload, result);
+  if (type.startsWith('interview.')) return applyInterviewAck(type, payload, result);
   return undefined;
+}
+
+/**
+ * SYNC-SPEC §5: store the Discord message ids an interview job reports. Each store is one
+ * conditional update, so a stale or repeated ack changes nothing: the times id only while
+ * unset, the booked and proposal ids only while the interview is still at that start. A
+ * `{ skipped }` result or one without the id stores nothing.
+ */
+async function applyInterviewAck(type: JobType, payload: Record<string, unknown>, result: Record<string, unknown>): Promise<string | undefined> {
+  const id = str(payload.interviewId);
+  if (!id) return undefined;
+  const messageId = str(result.messageId);
+  const startsAt = typeof payload.startsAt === 'string' ? new Date(payload.startsAt) : null;
+  const validStart = startsAt && !Number.isNaN(startsAt.getTime()) ? startsAt : null;
+  let moved;
+  if (type === 'interview.request') {
+    const requestDmId = str(result.dmMessageId);
+    if (!requestDmId) return undefined;
+    moved = await db.interview.updateMany({ where: { id }, data: { requestDmId } });
+  } else if (type === 'interview.times') {
+    if (!messageId) return undefined;
+    moved = await db.interview.updateMany({ where: { id, timesMessageId: null }, data: { timesMessageId: messageId } });
+  } else if (type === 'interview.booked') {
+    if (!messageId || !validStart) return undefined;
+    moved = await db.interview.updateMany({ where: { id, status: 'BOOKED', bookedStart: validStart }, data: { bookedMessageId: messageId } });
+  } else if (type === 'interview.proposed') {
+    const proposalDmId = str(result.dmMessageId);
+    if (!messageId || !validStart) return undefined;
+    moved = await db.interview.updateMany({
+      where: { id, status: 'PROPOSED', proposedStart: validStart },
+      data: { proposalMessageId: messageId, ...(proposalDmId ? { proposalDmId } : {}) },
+    });
+  } else return undefined;
+  return moved.count === 0 ? 'stale interview ack ignored' : 'interview ids stored';
 }
 
 /**

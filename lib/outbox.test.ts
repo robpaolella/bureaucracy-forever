@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(), applyNudgeAck: vi.fn(), msgFind: vi.fn(), msgUpdate: vi.fn(), msgUpdateMany: vi.fn(), jobCreate: vi.fn(), appUpdate: vi.fn() }));
+const mocks = vi.hoisted(() => ({ findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(), applyNudgeAck: vi.fn(), msgFind: vi.fn(), msgUpdate: vi.fn(), msgUpdateMany: vi.fn(), jobCreate: vi.fn(), ivUpdateMany: vi.fn(), appUpdate: vi.fn() }));
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/db', () => {
-  const db = { outboxJob: { findUnique: mocks.findUnique, update: mocks.update, create: mocks.jobCreate }, application: { updateMany: mocks.updateMany, update: mocks.appUpdate }, applicantMessage: { findUnique: mocks.msgFind, update: mocks.msgUpdate, updateMany: mocks.msgUpdateMany } };
+  const db = { outboxJob: { findUnique: mocks.findUnique, update: mocks.update, create: mocks.jobCreate }, application: { updateMany: mocks.updateMany, update: mocks.appUpdate }, interview: { updateMany: mocks.ivUpdateMany }, applicantMessage: { findUnique: mocks.msgFind, update: mocks.msgUpdate, updateMany: mocks.msgUpdateMany } };
   return { db: { ...db, $transaction: async (fn: (tx: typeof db) => unknown) => fn(db) } };
 });
 vi.mock('@/lib/application-reminders', () => ({ applyNudgeAck: mocks.applyNudgeAck }));
@@ -125,5 +125,54 @@ describe('ackJob for application.decide', () => {
     mocks.findUnique.mockResolvedValue({ ...decide, payload });
     expect(await ackJob('j1', { ok: true, result })).toEqual({ status: 'DONE', applied: undefined });
     expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('ackJob for interview jobs', () => {
+  const START = '2026-11-10T19:00:00.000Z';
+  const run = (type: string, payload: Record<string, unknown>, result: Record<string, unknown>) => {
+    mocks.findUnique.mockResolvedValue({ id: 'j1', type, payload: { applicationId: 'a1', interviewId: 'i1', ...payload }, attempts: 0, status: 'RUNNING' });
+    return ackJob('j1', { ok: true, result });
+  };
+  beforeEach(() => mocks.ivUpdateMany.mockResolvedValue({ count: 1 }));
+
+  it('stores the request DM id', async () => {
+    expect(await run('interview.request', {}, { dmDelivered: true, dmMessageId: 'd1' })).toEqual({ status: 'DONE', applied: 'interview ids stored' });
+    expect(mocks.ivUpdateMany).toHaveBeenCalledExactlyOnceWith({ where: { id: 'i1' }, data: { requestDmId: 'd1' } });
+  });
+
+  it('stores the times message id only while unset', async () => {
+    await run('interview.times', {}, { messageId: 'm1' });
+    expect(mocks.ivUpdateMany).toHaveBeenCalledExactlyOnceWith({ where: { id: 'i1', timesMessageId: null }, data: { timesMessageId: 'm1' } });
+  });
+
+  it('stores the booked message id only while still booked at that start', async () => {
+    await run('interview.booked', { startsAt: START }, { messageId: 'm2', dmDelivered: true });
+    expect(mocks.ivUpdateMany).toHaveBeenCalledExactlyOnceWith({ where: { id: 'i1', status: 'BOOKED', bookedStart: new Date(START) }, data: { bookedMessageId: 'm2' } });
+  });
+
+  it('stores both proposal ids only while still proposed at that start, and the line alone when the DM was refused', async () => {
+    await run('interview.proposed', { startsAt: START }, { messageId: 'm3', dmMessageId: 'd3', dmDelivered: true });
+    expect(mocks.ivUpdateMany).toHaveBeenLastCalledWith({ where: { id: 'i1', status: 'PROPOSED', proposedStart: new Date(START) }, data: { proposalMessageId: 'm3', proposalDmId: 'd3' } });
+    await run('interview.proposed', { startsAt: START }, { messageId: 'm3', dmDelivered: false });
+    expect(mocks.ivUpdateMany).toHaveBeenLastCalledWith({ where: { id: 'i1', status: 'PROPOSED', proposedStart: new Date(START) }, data: { proposalMessageId: 'm3' } });
+  });
+
+  it('reports a stale ack (moved, ended or already set) as ignored and still completes the job', async () => {
+    mocks.ivUpdateMany.mockResolvedValue({ count: 0 });
+    expect(await run('interview.booked', { startsAt: START }, { messageId: 'm2' })).toEqual({ status: 'DONE', applied: 'stale interview ack ignored' });
+  });
+
+  it.each([
+    ['request', 'interview.request', {}, { skipped: 'ended' }],
+    ['request without id', 'interview.request', {}, { dmDelivered: false }],
+    ['times', 'interview.times', {}, { skipped: 'ended' }],
+    ['booked skipped', 'interview.booked', { startsAt: START }, { skipped: 'ended' }],
+    ['booked without a start', 'interview.booked', {}, { messageId: 'm' }],
+    ['proposed without an id', 'interview.proposed', { startsAt: START }, { dmMessageId: 'd', dmDelivered: true }],
+    ['ended', 'interview.ended', {}, { messageId: 'm' }],
+  ])('stores nothing for %s', async (_n, type, payload, result) => {
+    expect(await run(type, payload, result)).toEqual({ status: 'DONE', applied: undefined });
+    expect(mocks.ivUpdateMany).not.toHaveBeenCalled();
   });
 });
