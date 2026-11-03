@@ -10,7 +10,7 @@ const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient }));
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
 vi.mock('@/lib/flags', () => ({ lootEnabled: () => false, openUntilStart: () => false }));
-import { answerProposal, bookInterview, cancelInterview, proposeTime, startInterview, submitTimes } from './interviews';
+import { answerProposal, bookInterview, cancelInterview, proposeTime, rescheduleInterview, startInterview, submitTimes } from './interviews';
 import { decideApplication } from './decisions';
 import { notifyVoiceJoin, runTick } from './tick';
 
@@ -289,6 +289,120 @@ describe.skipIf(process.env.INTERVIEWS_INTEGRATION !== '1')('one active intervie
           expect(await payloads('interview.remind', 'Remind')).toEqual([]);
           expect((await runTick(minutes(-2))).interviewsReminded).toBe(1);
           expect(await payloads('interview.remind', 'Remind')).toEqual([{ applicationId: 'Remind', interviewId: row.id, startsAt: start.toISOString(), bookedAt: minutes(-10).toISOString() }]);
+        });
+
+        describe('rescheduling', () => {
+          // Each test books its own day, so starts never meet another test's bookings.
+          const day = (n: number, minute = 0) => new Date(start.getTime() + n * 24 * 60 * 60_000 + minute * 60_000);
+          const bookedOn = async (id: string, n: number, extra: Record<string, unknown> = {}) => {
+            await application(id);
+            return db.interview.create({ data: {
+              applicationId: id, attempt: 1, activeKey: id, requestedById: 'officer', status: 'BOOKED', bookedStart: day(n), bookedById: 'officer', bookedAt: minutes(-120),
+              slots: [day(n), day(n, 30), day(n, 60)], timesRevision: 1, ...pickWindow(minutes(-60 * 24)), ...extra,
+            } });
+          };
+          const iso = (d: Date) => d.toISOString();
+          const outcome = (r: { ok: boolean; reason?: string }) => (r.ok ? 'ok' : r.reason);
+          const moves = (applicationId: string) => payloads('interview.moved', applicationId);
+
+          it('gives two reschedules with the same token one 200 and one 409 moved', async () => {
+            for (let i = 0; i < 5; i++) {
+              const row = await bookedOn(`Twice${i}`, 10 + i);
+              const results = await Promise.all([
+                rescheduleInterview(row.id, officer, iso(day(10 + i, 30)), iso(minutes(-120)), minutes(-60)),
+                rescheduleInterview(row.id, officer, iso(day(10 + i, 60)), iso(minutes(-120)), minutes(-60)),
+              ]);
+              expect(results.map(outcome).sort()).toEqual(['moved', 'ok']);
+              expect(await moves(`Twice${i}`)).toHaveLength(1);
+            }
+          });
+
+          it('ends CANCELLED when a reschedule races a cancel, booked for the time in force when the cancel ran', async () => {
+            for (let i = 0; i < 5; i++) {
+              const row = await bookedOn(`MoveCancel${i}`, 20 + i);
+              const [moved, cancel] = await Promise.all([
+                rescheduleInterview(row.id, officer, iso(day(20 + i, 30)), iso(minutes(-120)), minutes(-60)),
+                cancelInterview(row.id, officer, minutes(-60)),
+              ]);
+              expect(cancel.ok).toBe(true);
+              if (!moved.ok) expect(moved.reason).toBe('wrong_status');
+              const after = await db.interview.findUniqueOrThrow({ where: { id: row.id } });
+              // The cancel's DM names the bookedStart it left on the row: the moved one only if the move came first.
+              expect([after.status, after.bookedStart]).toEqual(['CANCELLED', moved.ok ? day(20 + i, 30) : day(20 + i)]);
+              expect(await payloads('interview.ended', `MoveCancel${i}`)).toHaveLength(1);
+            }
+          });
+
+          it("ends consistently when a reschedule races the tick's DONE step", async () => {
+            for (let i = 0; i < 5; i++) {
+              const n = 30 + i;
+              const row = await bookedOn(`MoveDone${i}`, n, { slots: [day(n), day(n, 120)] });
+              const late = day(n, 61);
+              const [moved] = await Promise.all([rescheduleInterview(row.id, officer, iso(day(n, 120)), iso(minutes(-120)), late), runTick(late)]);
+              const after = await db.interview.findUniqueOrThrow({ where: { id: row.id } });
+              if (moved.ok) expect([after.status, after.bookedStart]).toEqual(['BOOKED', day(n, 120)]);
+              else expect([moved.reason, after.status, after.bookedStart]).toEqual(['wrong_status', 'DONE', day(n)]);
+            }
+          });
+
+          it('does not mark the final booking reminded from a read made before an A → B → A move, and still reminds it', async () => {
+            const row = await bookedOn('MoveRemind', 0);
+            let final = '';
+            try {
+              between((where) => 'remindedAt' in where && where.id === row.id, async () => {
+                const there = await rescheduleInterview(row.id, officer, iso(day(0, 30)), iso(minutes(-120)), minutes(-30));
+                if (!there.ok) throw new Error(there.error);
+                const back = await rescheduleInterview(row.id, officer, iso(day(0)), there.interview.bookedAt, minutes(-30));
+                if (!back.ok) throw new Error(back.error);
+                final = back.interview.bookedAt!;
+              });
+              await runTick(minutes(-2));
+            } finally { restore(); }
+            expect(final).toBe(iso(new Date(minutes(-30).getTime() + 1)));
+            expect(await db.interview.findUniqueOrThrow({ where: { id: row.id } })).toMatchObject({ remindedAt: null, bookedStart: start, bookedAt: new Date(final) });
+            expect(await payloads('interview.remind', 'MoveRemind')).toEqual([]);
+            await runTick(minutes(-2));
+            expect(await payloads('interview.remind', 'MoveRemind')).toEqual([{ applicationId: 'MoveRemind', interviewId: row.id, startsAt: iso(start), bookedAt: final }]);
+          });
+
+          it('always gives distinct, increasing tokens, also when now equals the current token', async () => {
+            const n = 40;
+            const row = await bookedOn('Tokens', n);
+            const tokens = [minutes(-120).getTime()];
+            for (let round = 0; round < 6; round++) {
+              const current = await db.interview.findUniqueOrThrow({ where: { id: row.id } });
+              const others = [day(n), day(n, 30), day(n, 60)].filter((d) => d.getTime() !== current.bookedStart!.getTime());
+              // Even rounds read the clock at the current token; odd ones at a clock behind it.
+              const at = round % 2 === 0 ? current.bookedAt! : minutes(-60 * 24);
+              const results = await Promise.all(others.map((d) => rescheduleInterview(row.id, officer, iso(d), iso(current.bookedAt!), at)));
+              expect(results.map(outcome).sort()).toEqual(['moved', 'ok']);
+              const after = await db.interview.findUniqueOrThrow({ where: { id: row.id } });
+              expect(after.bookedAt!.getTime()).toBe(current.bookedAt!.getTime() + 1);
+              tokens.push(after.bookedAt!.getTime());
+            }
+            expect(tokens).toEqual([...tokens].sort((a, b) => a - b));
+            expect(new Set(tokens).size).toBe(tokens.length);
+            expect((await moves('Tokens')).map((p) => (p as { bookedAt: string }).bookedAt).sort()).toEqual(tokens.slice(1).map((t) => iso(new Date(t))));
+          });
+
+          it('notices at least once when a reschedule lands on a start another booking is taking at the same moment', async () => {
+            for (let i = 0; i < 5; i++) {
+              const n = 50 + i;
+              const row = await bookedOn(`MoveClashA${i}`, n);
+              await application(`MoveClashB${i}`);
+              const other = await db.interview.create({ data: {
+                applicationId: `MoveClashB${i}`, attempt: 1, activeKey: `MoveClashB${i}`, requestedById: 'officer', status: 'TIMES_RECEIVED',
+                slots: [day(n, 30)], timesRevision: 1, ...pickWindow(minutes(-60 * 24)),
+              } });
+              const results = await Promise.all([
+                rescheduleInterview(row.id, officer, iso(day(n, 30)), iso(minutes(-120)), minutes(-60)),
+                bookInterview(other.id, officer, iso(day(n, 30)), 1, minutes(-60)),
+              ]);
+              expect(results.map(outcome)).toEqual(['ok', 'ok']);
+              const clashes = await db.outboxJob.findMany({ where: { type: 'interview.clash', payload: { path: ['startsAt'], equals: iso(day(n, 30)) } } });
+              expect(clashes.length).toBeGreaterThanOrEqual(1);
+            }
+          });
         });
       });
 

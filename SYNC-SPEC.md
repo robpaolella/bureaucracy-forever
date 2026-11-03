@@ -330,6 +330,7 @@ Any route that takes `Idempotency-Key` may also answer `409 { reason: "in_progre
 | GET | `/interviews/upcoming` | Every `BOOKED` interview whose `bookedStart` is after now, for the bot's `/interviews` command (§8): `{ interviews: [{ interviewId, applicationId, startsAt (ISO), characterName, bookedBy: { discordId, name } \| null, threadId \| null }] }`, in start order; the same item shape as the `interview.digest` payload (§5). Interviews still arranging a time are not listed. Matched before `/interviews/:id`. |
 | GET | `/interviews/:id` | Read an interview for rendering (§12): `{ id, applicationId, attempt, status, endReason, applicant: { discordId, characterName }, threadId, timeZone, timesRevision, slots: [ISO], requestedAt, timesUpdatedAt, requestedBy, proposedStart, proposedBy, bookedStart, bookedAt, bookedBy, endedAt, pageUrl, requestDmId, timesMessageId, proposalMessageId, proposalDmId, bookedMessageId }`. `bookedAt` is the booking token (§12, Lifecycle), ISO or `null`. `requestedBy`, `proposedBy` and `bookedBy` are `{ discordId, name }` or `null`; `pageUrl` is `<site>/apply/interview`. 404 `{ error }` if unknown. |
 | POST | `/interviews/:id/book` | `{ startsAt, timesRevision, byDiscordId }`. 200 read shape. |
+| POST | `/interviews/:id/reschedule` | `{ startsAt, bookedAt, byDiscordId }`: move a `BOOKED` interview to another of the applicant's bookable starts (§12, Reschedule). `bookedAt` is the booking token read when the officer's `/reschedule` ran. 200 read shape. Enqueues `interview.moved`. |
 | POST | `/interviews/:id/propose` | `{ startsAt, byDiscordId }`. 200 read shape. |
 | POST | `/interviews/:id/answer` | `{ discordId, answer: accept\|decline }`. 200 read shape. |
 | POST | `/interviews/:id/cancel` | `{ byDiscordId }`. 200 read shape. |
@@ -488,6 +489,7 @@ mentions: {
 | `interview.request` | `{ applicationId, interviewId }` (all interview jobs carry these two; §12 has the rules, copy and preconditions). DM the request with the **Share my availability** link button, then one thread message. | `{ dmDelivered, dmMessageId? }` | store `requestDmId` |
 | `interview.times` | Post the times message pinging the Officer role and DM the thanks; on later revisions edit that message in place. | `{ messageId }` first time | store `timesMessageId` |
 | `interview.booked` | `+ startsAt, bookedAt`. DM the booking, post the confirmation in the thread. | `{ messageId, dmDelivered }` | store `bookedMessageId`, only while the interview is still `BOOKED` with `bookedStart` = `payload.startsAt` and `bookedAt` = `payload.bookedAt`. A job queued before the booking token has no `bookedAt` and checks `BOOKED` and the start alone. A stale ack, or one whose `bookedAt` is not an ISO time, stores nothing |
+| `interview.moved` | `+ startsAt, bookedAt, previousStart, previousBookedBy`: the new start and booking token, the start moved from (ISO) and the officer who held the booking before (`{ discordId, name }` or `null`). Mark the previous booked thread message moved, DM the new time, post the moved line with **Cancel interview** (§8, §12). | `{ messageId, dmDelivered }` | store `messageId` as `bookedMessageId`, only while the interview is still `BOOKED` with `bookedStart` = `payload.startsAt` and `bookedAt` = `payload.bookedAt`. A stale ack, or one without an ISO `bookedAt`, stores nothing |
 | `interview.proposed` | `+ startsAt`. DM the proposal with **Accept** / **Decline**, post the proposal line. | `{ messageId, dmMessageId?, dmDelivered }` | store `proposalMessageId`, `proposalDmId` |
 | `interview.ended` | `+ outcome: declined\|expired\|lapsed\|cancelled\|closed`. DM the outcome (none for `closed`), post the thread notice, remove live controls. | `{ dmDelivered? }` | — |
 | `interview.headsup` | One thread message: no times yet after 3 days. | — | — |
@@ -853,6 +855,32 @@ rows only; answered rows are kept.
 - Buttons and menus in DMs and threads carry the interview id (custom ids `interview:<id>:…`)
   and survive restarts. A click on a stale control gets the 409 `error` ephemerally and the
   bot removes the controls from that message.
+- **`/reschedule`** (officers only, in an applicant's #applications thread, private replies):
+  - Elsewhere: "Run this in an applicant's thread." Not an officer: "Only officers can reschedule
+    interviews." Application not found: the same reply as `/interview`.
+  - The application's latest interview is not `BOOKED`: "Only a booked interview can be moved."
+    followed by the status line `/interview` shows. No interview at all: "<name> has no
+    interview. Run /interview to set one up."
+  - No bookable start is left (at least 15 minutes away, not the current start): "None of
+    <name>'s times are still ahead. Cancel the interview and run /interview to ask for new
+    times."
+  - Otherwise: a day menu, time menus as for **Book a time**, then a confirm, "Move <name>'s
+    interview to <t:F>? It's booked for <t:F> now.", with the same-time warning above.
+    Confirming sends `POST /interviews/:id/reschedule` with the `bookedAt` read when
+    `/reschedule` ran. Refusals show the site's `error` as Book's confirm does. Success: "Moved
+    to <t:F>."
+  - Thread line (`interview.moved`): "Moved by <@officer>: <name>'s interview is now <t:F> (was
+    <t:F>). They've been asked to join Public Lounge then."
+    - When `previousBookedBy` is a different officer, the brackets read "(was <t:F>, booked by
+      <@previous>)" and that officer is pinged. No one else is.
+    - A refused DM adds " I couldn't DM them, their DMs are closed."
+    - The line carries **Cancel interview**.
+  - Accepted limit: if a second move commits in the seconds between the bot posting a thread
+    line and its ack, that ack is stale and is not stored. The line keeps a working **Cancel
+    interview** button showing an older time; it still cancels this same interview, and the
+    newest line sits below it. No reconciliation is built for this.
+  - The bot's in-process reminder record is keyed by interview, start and `bookedAt`, so a
+    booking moved back to a start already reminded still gets its reminder.
 - **`/interviews`** (officers only, any channel; others get "Only officers can see interviews."): a
   private reply, no mentions, from `GET /interviews/upcoming`. One embed titled "Upcoming interviews":
   the interviews grouped by Pacific day, each day a bold heading line ("Mon Nov 2") above its lines,
@@ -998,6 +1026,7 @@ transition and enqueues the same job as the bot route that matches it (the bot's
 | `TIMES_RECEIVED` | `BOOKED` | officer books one of the current bookable starts (`bookedBy` = that officer) |
 | `TIMES_RECEIVED` | `PROPOSED` | officer proposes a time |
 | `PROPOSED` | `BOOKED` | applicant accepts (`bookedBy` = the proposer) |
+| `BOOKED` | `BOOKED` | an officer reschedules (`bookedBy` = that officer): sets `bookedStart` and a new `bookedAt`, clears `remindedAt` and `joinedNotifiedAt`; slots, `timesRevision` and every message id stay |
 | `PROPOSED` | `NO_TIME`/`DECLINED` | applicant declines |
 | `PROPOSED` | `NO_TIME`/`PROPOSAL_LAPSED` | tick step 12, the proposed start arrives unanswered |
 | `AWAITING_TIMES`, `TIMES_RECEIVED` | `NO_TIME`/`EXPIRED` | tick step 10, `requestedAt + 7 d` |
@@ -1005,10 +1034,26 @@ transition and enqueues the same job as the bot route that matches it (the bot's
 | any active | `CANCELLED` | an officer cancels |
 | any active | `CLOSED` | the application is decided, web or Discord, in the same transaction as the decision; reopening revives nothing |
 
-**Booking token.** `bookedAt` identifies one booking: booking a time and accepting a proposal
-set it, and nothing else changes it. It still means "booked at" for the digest (§6) and the
+**Booking token.** `bookedAt` identifies one booking: booking a time, accepting a proposal and
+rescheduling set it, and nothing else changes it. It still means "booked at" for the digest (§6) and the
 reminders' activity time. Jobs and updates that act on a booking carry or match it, so one that
 read an earlier booking cannot act on a later one, even at the same start.
+`bookedAt` strictly advances on every change of booking: a reschedule sets it, inside its
+transaction, to the later of now and the matched token + 1 ms. Two changes never share a value,
+even within one millisecond or when `now` was read before the transaction waited, so A → B → A
+always gives a new token.
+
+**After a reschedule** everything follows the new booking: the 5-minute reminder fires for the
+new start (a queued reminder for the old one skips on its `bookedStart` and `bookedAt` check),
+the joined notice can fire again in the new window, step 13 marks it `DONE` at the new start +
+60 minutes, `GET /interviews/upcoming` and the reminders' activity time use the new values, and
+the morning digest treats it as a booking made at `bookedAt`, so one moved after that day's
+digest went out is not sent again. A reschedule enqueues no `application.update`: the interview
+stays `BOOKED`, so its tag doesn't change.
+
+**Cancel** cancels whatever the current booking is, even one just moved. A reschedule and a
+cancel racing can both answer success; the cancel is final, and its DM names the time in force
+when it ran.
 
 Interview timestamps feed the reminders' activity time and quiet state (§6 step 14). Ending sets `endedAt`, `endedById` (null for the system) and clears `activeKey`, and enqueues
 `interview.ended` except for `DONE`. Applicant times can only change in `AWAITING_TIMES` or
@@ -1074,6 +1119,23 @@ its `error` names the current state ("Already booked for <time> by <officer>.").
   enqueue `interview.clash` (§5) in the same transaction when another `BOOKED` interview has that
   start, so two bookings of one start at the same moment give at least one notice. The clash never
   refuses a booking and changes none of its replies or jobs.
+- **Reschedule** `{ startsAt, bookedAt, byDiscordId }`, only from `BOOKED`, at any time until
+  step 13 marks it `DONE` (so a no-show can still be moved after its start); otherwise 409
+  `wrong_status` with the state's `error`. Then, in this order:
+  1. 409 `moved` when `bookedAt` is not the current token: "<name>'s interview was moved by
+     <officer>. Run /reschedule again." The same applies when another move wins the race for the
+     conditional update, A → B → A included. A `bookedAt` that is not an ISO time can't be
+     compared and is 400 `invalid` here.
+  2. 400 `invalid` when `startsAt` is not an ISO time.
+  3. 409 `same_time` when `startsAt` equals `bookedStart`: "That's already the interview time."
+  4. 409 `not_a_slot` when `startsAt` is not one of the current slots' bookable starts, with
+     Book's `error`.
+  5. 409 `too_soon` when `startsAt` is under 15 minutes away, as for Book.
+
+  In one transaction it takes the advisory lock on `startsAt` (as Book), then the conditional
+  update on `{ id, status: BOOKED, bookedAt: <token> }`, then enqueues `interview.moved` and,
+  by Book's rule, `interview.clash`. The reply is 200 with the read shape. A move that loses to
+  a cancel or step 13 gets 409 `wrong_status`.
 - **Propose** `{ startsAt, byDiscordId }`, only from `TIMES_RECEIVED`: 400 `out_of_range` when
   not a quarter-hour start (9:00 AM to 10:45 PM) in `[now + 2 h, now + 7 d]`; the `error` is
   "Propose a start time on the quarter hour, from 2 hours to 7 days ahead.". Sets `proposedStart`, `proposedBy`, `proposedAt`.
@@ -1101,7 +1163,7 @@ never repeats, §5). A DM
 Discord refuses (error 50007) counts as not delivered: the thread message says so and the ack
 carries `dmDelivered: false`. Any other error fails the job so it retries.
 
-`interview.booked` and `interview.remind` carry `bookedAt`, and `interview.joined` carries
+`interview.booked`, `interview.moved` and `interview.remind` carry `bookedAt`, and `interview.joined` carries
 `bookedStart` and `bookedAt` (ISO), the booking token the site read. Every handler whose payload
 has them compares them with the re-read interview as part of its precondition and skips on a
 mismatch. A job queued before this change has neither and keeps the check without them.
@@ -1111,6 +1173,7 @@ mismatch. A job queued before this change has neither and keeps the check withou
 | `interview.request` | `AWAITING_TIMES` | DM the request (copy below) with the link button; then one thread message: the "I'll reach out" line, or if the DM was refused "I couldn't DM <name>, their DMs are closed. Send them this link another way: <page URL>" |
 | `interview.times` | `TIMES_RECEIVED` | `timesMessageId` unset: post the times message pinging the Officer role and DM the thanks. Set: edit that message in place, marked "updated", mentions suppressed, no DM |
 | `interview.booked` | `BOOKED`, `bookedStart` = `payload.startsAt`, and `bookedAt` = `payload.bookedAt` when the payload has it | DM the booking; thread confirmation with **Cancel interview**; strips controls from the times and proposal messages and the request DM |
+| `interview.moved` | `BOOKED`, `bookedStart` = `payload.startsAt` and `bookedAt` = `payload.bookedAt` | strip the controls from the previous booked thread message (`bookedMessageId`) and mark it "*Interview moved.*"; DM the moved copy; post the thread line (§8, `/reschedule`) with **Cancel interview** |
 | `interview.proposed` | `PROPOSED` and `proposedStart` = `payload.startsAt` | DM the proposal with **Accept** / **Decline**; thread line naming the time and the proposer; strips the times message controls and the request DM's button. A refused DM: the thread line also gives the page URL |
 | `interview.ended` | status ended with the reason for `payload.outcome` (`declined`: `NO_TIME`/`DECLINED`; `expired`: `NO_TIME`/`EXPIRED`; `lapsed`: `NO_TIME`/`PROPOSAL_LAPSED`; `cancelled`: `CANCELLED`; `closed`: `CLOSED`) | DM the outcome copy and post a thread notice; every earlier interview message loses its controls. `closed` sends no DM (the decision's own message, §4, goes as chosen, or none), posts nothing, and only strips controls |
 | `interview.headsup` | `AWAITING_TIMES` and `headsUpAt` set | thread message: no times from <name> after 3 days, 4 days left |
@@ -1137,6 +1200,7 @@ lines are plain, neutral in pronouns and have no exclamation marks.
 - Request: "Hi <name>. I'm following up on your application with Bureaucracy. The officers are reviewing it and would like to set up a quick 15–20 minute interview with you. Please share your availability over the next week and I'll schedule your interview." Button: **Share my availability**.
 - Thanks: "Thanks, <name>. I've passed your times to the officers. Keep an eye on your messages here; I'll let you know when your interview is booked."
 - Booked: "You're all set. Your interview is <time> (<relative>). At that time, please join the Public Lounge voice channel and an officer will bring you in."
+- Moved (approved by Robert on 2026-11-03): "Your interview has moved to <time> (<relative>). At that time, please join the Public Lounge voice channel and an officer will bring you in."
 - Reminder: "Your Bureaucracy interview starts in 5 minutes. Please join Public Lounge now."
 - Proposal: "The officers couldn't make any of your times. Could you do <time> instead?" Buttons: **Accept**, **Decline**.
 - Declined: "Thanks for letting us know. Since we couldn't find a time, an officer will reach out to you directly to arrange one." Expired and lapsed: "Since we couldn't find a time, an officer will reach out to you directly to arrange one."

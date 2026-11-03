@@ -31,6 +31,7 @@ export type JobType =
   | 'interview.request'
   | 'interview.times'
   | 'interview.booked'
+  | 'interview.moved'
   | 'interview.proposed'
   | 'interview.ended'
   | 'interview.headsup'
