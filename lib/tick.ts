@@ -211,16 +211,17 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
   // makes it due, with its job in the same transaction, so overlapping ticks do it once.
   const interviews = await db.interview.findMany({
     where: { activeKey: { not: null } },
-    select: { id: true, applicationId: true, status: true, requestedAt: true, proposedStart: true, bookedStart: true, remindedAt: true, headsUpAt: true, joinedNotifiedAt: true },
+    select: { id: true, applicationId: true, status: true, requestedAt: true, proposedStart: true, bookedStart: true, bookedAt: true, remindedAt: true, headsUpAt: true, joinedNotifiedAt: true },
   });
   const ended = { activeKey: null, endedAt: now };
   for (const i of interviews) {
     const job = { applicationId: i.applicationId, interviewId: i.id };
     if (interviewReminderDue(i, now)) {
       const sent = await db.$transaction(async (tx) => {
-        const marked = await tx.interview.updateMany({ where: { id: i.id, status: 'BOOKED', remindedAt: null, bookedStart: i.bookedStart }, data: { remindedAt: now } });
+        // The booking token too, so a booking changed since the read (even back to the same start) is not marked.
+        const marked = await tx.interview.updateMany({ where: { id: i.id, status: 'BOOKED', remindedAt: null, bookedStart: i.bookedStart, bookedAt: i.bookedAt }, data: { remindedAt: now } });
         if (marked.count === 0) return false;
-        await enqueue('interview.remind', { ...job, startsAt: i.bookedStart?.toISOString() }, tx);
+        await enqueue('interview.remind', { ...job, startsAt: i.bookedStart?.toISOString(), bookedAt: i.bookedAt?.toISOString() }, tx);
         return true;
       });
       if (sent) counts.interviewsReminded += 1;
@@ -334,7 +335,8 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
 /**
  * SYNC-SPEC §4 voice join: the member joined Public Lounge. Announces their booked interview
  * once, if it starts within 15 minutes ahead to 30 minutes ago. The conditional update on
- * `joinedNotifiedAt` makes a repeat, or two joins at once, notify nothing more.
+ * `joinedNotifiedAt` makes a repeat, or two joins at once, notify nothing more; matching the
+ * `bookedStart` and `bookedAt` it read means a booking changed since then is not announced.
  */
 export async function notifyVoiceJoin(discordId: string, now = new Date()): Promise<{ notified: true; interviewId: string } | { notified: false }> {
   const candidates = await db.interview.findMany({
@@ -343,14 +345,14 @@ export async function notifyVoiceJoin(discordId: string, now = new Date()): Prom
       bookedStart: { gte: new Date(now.getTime() - INTERVIEW_JOIN_LATE_MS), lte: new Date(now.getTime() + INTERVIEW_JOIN_EARLY_MS) },
     },
     orderBy: { bookedStart: 'asc' },
-    select: { id: true, applicationId: true, status: true, requestedAt: true, proposedStart: true, bookedStart: true, remindedAt: true, headsUpAt: true, joinedNotifiedAt: true },
+    select: { id: true, applicationId: true, status: true, requestedAt: true, proposedStart: true, bookedStart: true, bookedAt: true, remindedAt: true, headsUpAt: true, joinedNotifiedAt: true },
   });
   for (const i of candidates) {
     if (!joinNoticeDue(i, now)) continue;
     const sent = await db.$transaction(async (tx) => {
-      const marked = await tx.interview.updateMany({ where: { id: i.id, status: 'BOOKED', joinedNotifiedAt: null }, data: { joinedNotifiedAt: now } });
+      const marked = await tx.interview.updateMany({ where: { id: i.id, status: 'BOOKED', joinedNotifiedAt: null, bookedStart: i.bookedStart, bookedAt: i.bookedAt }, data: { joinedNotifiedAt: now } });
       if (marked.count === 0) return false;
-      await enqueue('interview.joined', { applicationId: i.applicationId, interviewId: i.id }, tx);
+      await enqueue('interview.joined', { applicationId: i.applicationId, interviewId: i.id, bookedStart: i.bookedStart?.toISOString(), bookedAt: i.bookedAt?.toISOString() }, tx);
       return true;
     });
     if (sent) return { notified: true, interviewId: i.id };

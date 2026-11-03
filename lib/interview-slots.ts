@@ -1,12 +1,14 @@
 /**
  * The one interview slot rule (SYNC-SPEC §12, Time rules). Slots are half-hour starts from
- * 9:00 AM to 10:30 PM guild time, every day, and are handled as absolute instants. Every
- * interview action checks its time here, so the page, the officer card and the bot agree.
+ * 9:00 AM to 10:30 PM guild time, every day, and are handled as absolute instants. Officers
+ * may also book or propose quarter-hour starts, up to 10:45 PM. Every interview action checks
+ * its time here, so the page, the officer card and the bot agree.
  */
 import { GUILD_TIMEZONE, INTERVIEW_FIRST_START_MIN, INTERVIEW_LAST_START_MIN } from '@/lib/config';
 import { zonedParts, zonedTimeToUtc } from '@/lib/time';
 
 export const SLOT_MS = 30 * 60_000;
+export const QUARTER_MS = 15 * 60_000;
 /** Picks and proposals start at least this far ahead of the request or proposal. */
 export const LEAD_MS = 2 * 60 * 60_000;
 /** ...and at most this far. */
@@ -47,9 +49,28 @@ export function isSlotStart(instant: Date): boolean {
   return p.second === 0 && p.minute % 30 === 0 && minute >= INTERVIEW_FIRST_START_MIN && minute <= INTERVIEW_LAST_START_MIN;
 }
 
+/** Is `instant` a quarter-hour start from 9:00 AM to 10:45 PM guild time? */
+export function isQuarterStart(instant: Date): boolean {
+  const t = instant.getTime();
+  if (!Number.isFinite(t) || t % 1000 !== 0) return false;
+  const p = zonedParts(instant, GUILD_TIMEZONE);
+  const minute = p.hour * 60 + p.minute;
+  return p.second === 0 && p.minute % 15 === 0 && minute >= INTERVIEW_FIRST_START_MIN && minute <= INTERVIEW_LAST_START_MIN + 15;
+}
+
+/** What an officer can book from an applicant's slots: each slot and each slot + 15 minutes, in order. */
+export function bookableStarts(slots: Date[]): Date[] {
+  const times = new Set<number>();
+  for (const s of slots) {
+    times.add(s.getTime());
+    times.add(s.getTime() + QUARTER_MS);
+  }
+  return [...times].sort((a, b) => a - b).map((t) => new Date(t));
+}
+
 /** Is `instant` a valid start for this purpose? Window edges are included. */
 export function isValidStart(instant: Date, purpose: SlotPurpose): boolean {
-  if (!isSlotStart(instant)) return false;
+  if (!(purpose.kind === 'pick' ? isSlotStart(instant) : isQuarterStart(instant))) return false;
   const t = instant.getTime();
   switch (purpose.kind) {
     case 'pick':
