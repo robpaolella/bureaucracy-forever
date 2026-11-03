@@ -1121,15 +1121,16 @@ its `error` names the current state ("Already booked for <time> by <officer>.").
   refuses a booking and changes none of its replies or jobs.
 - **Reschedule** `{ startsAt, bookedAt, byDiscordId }`, only from `BOOKED`, at any time until
   step 13 marks it `DONE` (so a no-show can still be moved after its start); otherwise 409
-  `wrong_status` with the state's `error`. 400 `invalid` when `startsAt` or `bookedAt` is not an
-  ISO time. Then, in this order:
+  `wrong_status` with the state's `error`. Then, in this order:
   1. 409 `moved` when `bookedAt` is not the current token: "<name>'s interview was moved by
      <officer>. Run /reschedule again." The same applies when another move wins the race for the
-     conditional update, A → B → A included.
-  2. 409 `same_time` when `startsAt` equals `bookedStart`: "That's already the interview time."
-  3. 409 `not_a_slot` when `startsAt` is not one of the current slots' bookable starts, with
+     conditional update, A → B → A included. A `bookedAt` that is not an ISO time can't be
+     compared and is 400 `invalid` here.
+  2. 400 `invalid` when `startsAt` is not an ISO time.
+  3. 409 `same_time` when `startsAt` equals `bookedStart`: "That's already the interview time."
+  4. 409 `not_a_slot` when `startsAt` is not one of the current slots' bookable starts, with
      Book's `error`.
-  4. 409 `too_soon` when `startsAt` is under 15 minutes away, as for Book.
+  5. 409 `too_soon` when `startsAt` is under 15 minutes away, as for Book.
 
   In one transaction it takes the advisory lock on `startsAt` (as Book), then the conditional
   update on `{ id, status: BOOKED, bookedAt: <token> }`, then enqueues `interview.moved` and,

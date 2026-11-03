@@ -321,12 +321,15 @@ export async function rescheduleInterview(interviewId: string, by: { userId: str
   const row = await db.interview.findUnique({ where: { id: interviewId }, include });
   if (!row) return notFound();
   if (row.status !== 'BOOKED' || !row.bookedStart) return refuse(409, 'wrong_status', stateMessage(row.status));
-  const start = instant(startsAt);
+  const invalid = () => refuse(400, 'invalid', 'Send a start time and the booking token.');
+  // A stale token wins over a bad start; one that can't be compared is invalid.
   const token = instant(bookedAt);
-  if (!start || !token) return refuse(400, 'invalid', 'Send a start time and the booking token.');
+  if (!token) return invalid();
   const view = await toView(row, db);
   const moved = (current: InterviewView) => refuse(409, 'moved', `${row.application.character}'s interview was moved by ${current.bookedBy?.name ?? 'an officer'}. Run /reschedule again.`);
   if (token.getTime() !== row.bookedAt?.getTime()) return moved(view);
+  const start = instant(startsAt);
+  if (!start) return invalid();
   if (start.getTime() === row.bookedStart.getTime()) return refuse(409, 'same_time', "That's already the interview time.");
   if (!bookableStarts(row.slots).some((s) => s.getTime() === start.getTime())) return refuse(409, 'not_a_slot', `That isn't one of ${row.application.character}'s times.`);
   if (!isValidStart(start, { kind: 'book', now })) return refuse(409, 'too_soon', `${TOO_SOON} Pick a later one.`);

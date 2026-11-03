@@ -707,11 +707,12 @@ describe('rescheduling a booking', () => {
     expect(store.jobs).toEqual([]);
   });
 
-  it('checks the token before the time, and the time before the slots', async () => {
+  it('checks a stale token before the start, even one that does not parse', async () => {
     booked();
     const stale = '2026-10-16T15:00:00.000Z';
     expect(await move(SLOT, stale)).toMatchObject({ reason: 'moved' });
     expect(await move(pick('2026-10-17T03:00:00Z'), stale)).toMatchObject({ reason: 'moved' });
+    expect(await move('tomorrow', stale)).toMatchObject({ status: 409, reason: 'moved' });
   });
 
   it('refuses a start under 15 minutes away as too_soon, and moves to one exactly 15 minutes away', async () => {
