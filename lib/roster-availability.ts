@@ -16,8 +16,12 @@ export const HEATMAP_TAG = 'heatmap';
  * and expired on every availability write (docs/06 § API routes); the projection onto
  * the officer's zone happens per request, this read is the part worth caching.
  */
-/** Who is asked for availability: everyone but socials (docs/03 § Roles). */
-export const RAIDING_ROSTER = { role: { not: 'SOCIAL' } } as const;
+/**
+ * Who is asked for availability: everyone currently in the Discord server but socials
+ * (docs/03 § Roles). Someone who left keeps their saved week but drops out until the bot's
+ * member sync marks them back in (SYNC-SPEC § Roster derivation).
+ */
+export const RAIDING_ROSTER = { inGuild: true, role: { not: 'SOCIAL' } } as const;
 
 /** Members who have not painted a week, for the Discord nudge. Same denominator as the heatmap. */
 export async function loadNotSubmitted(): Promise<{ discordId: string; discordName: string }[]> {
