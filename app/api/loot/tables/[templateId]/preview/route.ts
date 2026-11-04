@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { allItemIds, parseIdsFile } from '@/lib/loot-import';
 import { refreshItems } from '@/lib/loot-items';
 import { itemSourceError, SOURCE_CONFLICT } from '@/lib/item-sources';
+import { checkBossNames } from '@/lib/encounter-ids';
 import { LOAD_TABLE_SELECT, mergePreview, protectedItems } from '@/lib/loot-load';
 import { REFRESH_BATCH } from '@/lib/loot-table-rules';
 import { requireLootOfficer } from '../../../../_loot';
@@ -16,12 +17,13 @@ export const maxDuration = 60;
  * resume successful fetches; skip carries failures (all remain visible in notFound).
  * No table writes. The token fingerprints the table, not the file; apply must validate both.
  * The final batch also returns `items`: name, quality and icon of each item to add, remove or keep, read from the cache.
+ * With `checkNames: true` (the WoW Forever source) it also returns `bossCheck`: the file's boss names against the game's encounters for the template's instance.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ templateId: string }> }) {
   const auth = await requireLootOfficer();
   if ('deny' in auth) return NextResponse.json({ error: 'Not found.' }, { status: 404, headers: NO_STORE });
   const started = Date.now();
-  const body = (await jsonBody(request) ?? {}) as { file?: unknown; source?: unknown; skip?: unknown; replace?: unknown };
+  const body = (await jsonBody(request) ?? {}) as { file?: unknown; source?: unknown; skip?: unknown; replace?: unknown; checkNames?: unknown };
   const source = body.source ?? 'FOREVER';
   if (source !== 'FOREVER' && source !== 'CLASSIC') return NextResponse.json({ error: 'Pick Classic or Forever.' }, { status: 400, headers: NO_STORE });
   const policyError = itemSourceError(source);
@@ -32,7 +34,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tem
     return NextResponse.json({ error: `This file isn't a loot list: ${(error as Error).message}` }, { status: 400, headers: NO_STORE });
   }
   const { templateId } = await params;
-  const state = await db.raidTemplate.findUnique({ where: { id: templateId }, select: LOAD_TABLE_SELECT });
+  const state = await db.raidTemplate.findUnique({ where: { id: templateId }, select: { ...LOAD_TABLE_SELECT, instance: true } });
   if (!state) return NextResponse.json({ error: 'No such raid tier.' }, { status: 404, headers: NO_STORE });
   const ids = allItemIds(file);
   const cached = await db.lootItem.findMany({ where: { id: { in: ids } }, select: { id: true, source: true } });
@@ -51,5 +53,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ tem
   const items = await db.lootItem.findMany({
     where: { id: { in: preview.bosses.flatMap((boss) => [...boss.add, ...boss.remove, ...boss.kept.map((item) => item.id)]) } }, select: { id: true, name: true, quality: true, icon: true },
   });
-  return NextResponse.json({ remaining, skip: [...skip], failed: result.failed, preview, items }, { headers: NO_STORE });
+  return NextResponse.json({ remaining, skip: [...skip], failed: result.failed, preview, items, ...(body.checkNames === true && { bossCheck: checkBossNames(state.instance, file.bosses) }) }, { headers: NO_STORE });
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseSeriesInput, parseTemplateInput } from './raid-series-rules';
+import { INSTANCE_ERROR, parseSeriesInput, parseTemplateInput } from './raid-series-rules';
 
 describe('template and series input', () => {
   it('stores exactly three requirement keys, converting the older four-number shape', () => {
@@ -25,6 +25,18 @@ describe('template and series input', () => {
     expect(parseTemplateInput({ ...good, requirements: { tank: 4, healer: 12, dps: 23 } })).toEqual({ ok: false, error: 'Tank, healer and DPS must add up to 40.' });
     expect(parseTemplateInput({ ...good, short: 'TOOLONGNAME' })).toMatchObject({ ok: false, error: /short/ });
     expect(parseTemplateInput({ ...good, durationMin: 100 })).toMatchObject({ ok: false, error: /quarter/ });
+  });
+
+  it('reads the instance number: blank is not set, whole numbers above 0 save', () => {
+    const good = { name: 'Onyxia', short: 'Ony', size: 40, durationMin: 60, requirements: { tank: 3, healer: 12, melee: 11, ranged: 14 } };
+    const instance = (v: unknown) => parseTemplateInput({ ...good, instance: v });
+    expect(instance(undefined)).toMatchObject({ ok: true, value: { instance: null } });
+    for (const blank of [null, '', '  ']) expect(instance(blank)).toMatchObject({ ok: true, value: { instance: null } });
+    expect(instance(249)).toMatchObject({ ok: true, value: { instance: 249 } });
+    expect(instance(' 249 ')).toMatchObject({ ok: true, value: { instance: 249 } });
+    for (const bad of ['24.9', 24.9, 0, '0', -5, '-5', 'abc', '0x10', '1e3', 2_147_483_648, true, {}]) {
+      expect(instance(bad)).toEqual({ ok: false, error: INSTANCE_ERROR });
+    }
   });
 
   it('validates a series and fills the spec defaults', () => {
