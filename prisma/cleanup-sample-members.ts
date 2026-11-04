@@ -71,12 +71,12 @@ export function confirmationCode(ids: Iterable<string>): string {
 export type Dependents = {
   characters: { id: string; userId: string; name: string }[];
   availability: { userId: string }[];
-  /** Sign-ups of sample members, and sign-ups a sample officer set for anyone. */
-  signups: { id: string; userId: string; setByUserId: string | null }[];
+  /** Sign-ups of sample members or on sample characters, and sign-ups a sample officer set for anyone. */
+  signups: { id: string; userId: string; characterId: string | null; setByUserId: string | null }[];
   /** Reserves of sample members or on sample characters. */
   reserves: { id: string; userId: string; characterId: string; setById: string | null }[];
   /** Awards to sample members or sample characters. */
-  awards: { id: string; userId: string | null; characterId: string | null; characterName: string | null; itemId: number; recordedById: string }[];
+  awards: { id: string; userId: string | null; characterId: string | null; characterName: string | null; itemId: number; recordedById: string; voidedById: string | null }[];
   /** Notes written by sample members, and every note on a sample application. */
   notes: { id: string; applicationId: string; authorId: string }[];
   messages: { id: string; applicationId: string; authorUserId: string | null }[];
@@ -130,6 +130,8 @@ export function buildPlan(members: MemberRow[], applications: ApplicationRow[], 
       perMember.get(s.userId)!.signups++;
       rowIds.add(`signup:${s.id}`);
       if (s.setByUserId && !isSample(s.setByUserId)) info.push(`${who(s.userId)}'s raid signup was set by ${who(s.setByUserId)}; it is deleted with ${who(s.userId)}.`);
+    } else if (s.characterId && characterOwner.has(s.characterId)) {
+      blocking.push(`A raid signup by real member ${who(s.userId)} with sample character ${characterName.get(s.characterId)}.`);
     } else if (isSample(s.setByUserId)) {
       info.push(`${who(s.userId)}'s raid signup was set by sample officer ${who(s.setByUserId!)}; only that "set by" link is cleared.`);
     }
@@ -144,6 +146,7 @@ export function buildPlan(members: MemberRow[], applications: ApplicationRow[], 
     const owner = a.userId && isSample(a.userId) ? a.userId : characterOwner.get(a.characterId ?? '');
     const char = a.characterName ?? characterName.get(a.characterId ?? '') ?? 'a sample member';
     if (!isSample(a.recordedById)) blocking.push(`A loot award (item ${a.itemId}) to ${char}, recorded by ${who(a.recordedById)}.`);
+    else if (a.voidedById && !isSample(a.voidedById)) blocking.push(`A loot award (item ${a.itemId}) to ${char}, voided by ${who(a.voidedById)}.`);
     else { perMember.get(owner!)!.awards++; awardIds.push(a.id); rowIds.add(`lootAward:${a.id}`); }
   }
   for (const n of d.notes) {
@@ -201,12 +204,13 @@ function describeUnsure(plan: Plan): string[] {
 }
 
 /** The plan as plain lines, for Robert to read. */
-export function describePlan(plan: Plan): string[] {
+export function describePlan(plan: Plan, deleted = false): string[] {
+  const verb = deleted ? 'deleted' : 'to delete';
   const lines: string[] = [];
   const counts = (parts: Array<[number, string, string?]>) => parts.filter(([n]) => n > 0).map(([n, one, many]) => plural(n, one, many)).join(', ') || 'nothing attached';
-  lines.push(`Sample members to delete: ${plan.members.length}`);
+  lines.push(`Sample members ${verb}: ${plan.members.length}`);
   for (const m of plan.members) lines.push(`  ${m.name}: ${counts([[m.characters, 'character'], [m.availability, 'availability week'], [m.signups, 'raid signup'], [m.reserves, 'reserve'], [m.awards, 'loot award'], [m.notes, 'officer note written']])}`);
-  lines.push('', `Sample applications to delete: ${plan.applications.length}`);
+  lines.push('', `Sample applications ${verb}: ${plan.applications.length}`);
   for (const a of plan.applications) lines.push(`  ${a.name}: ${counts([[a.notes, 'officer note'], [a.messages, 'message'], [a.interviews, 'interview']])}`);
   if (plan.unsure.length) lines.push('', ...describeUnsure(plan));
   if (plan.blocking.length) {
@@ -243,9 +247,9 @@ export async function loadPlan(db: Db): Promise<Plan> {
   const d: Dependents = {
     characters,
     availability: await db.availability.findMany({ where: { userId: { in: userIds } }, select: { userId: true } }),
-    signups: await db.signup.findMany({ where: { OR: [{ userId: { in: userIds } }, { setByUserId: { in: userIds } }] }, select: { id: true, userId: true, setByUserId: true } }),
+    signups: await db.signup.findMany({ where: { OR: [{ userId: { in: userIds } }, { characterId: { in: characterIds } }, { setByUserId: { in: userIds } }] }, select: { id: true, userId: true, characterId: true, setByUserId: true } }),
     reserves: await db.reserve.findMany({ where: { OR: [{ userId: { in: userIds } }, { characterId: { in: characterIds } }] }, select: { id: true, userId: true, characterId: true, setById: true } }),
-    awards: await db.lootAward.findMany({ where: { OR: [{ userId: { in: userIds } }, { characterId: { in: characterIds } }] }, select: { id: true, userId: true, characterId: true, characterName: true, itemId: true, recordedById: true } }),
+    awards: await db.lootAward.findMany({ where: { OR: [{ userId: { in: userIds } }, { characterId: { in: characterIds } }] }, select: { id: true, userId: true, characterId: true, characterName: true, itemId: true, recordedById: true, voidedById: true } }),
     notes: await db.officerNote.findMany({ where: { OR: [{ authorId: { in: userIds } }, { applicationId: { in: appIds } }] }, select: { id: true, applicationId: true, authorId: true } }),
     messages: await db.applicantMessage.findMany({ where: { applicationId: { in: appIds } }, select: { id: true, applicationId: true, authorUserId: true } }),
     interviews: await db.interview.findMany({ where: { applicationId: { in: appIds } }, select: { id: true, applicationId: true, requestedById: true, proposedById: true, bookedById: true, endedById: true } }),
@@ -256,7 +260,7 @@ export async function loadPlan(db: Db): Promise<Plan> {
   const referenced = new Set<string>();
   for (const s of d.signups) for (const id of [s.userId, s.setByUserId]) if (id) referenced.add(id);
   for (const r of d.reserves) for (const id of [r.userId, r.setById]) if (id) referenced.add(id);
-  for (const a of d.awards) referenced.add(a.recordedById);
+  for (const a of d.awards) for (const id of [a.recordedById, a.voidedById]) if (id) referenced.add(id);
   for (const n of d.notes) referenced.add(n.authorId);
   for (const m of d.messages) if (m.authorUserId) referenced.add(m.authorUserId);
   for (const a of applications.sample) if (a.decidedByUserId) referenced.add(a.decidedByUserId);
@@ -329,8 +333,7 @@ export async function main(argv: string[], url: string | undefined): Promise<num
       return { plan, deleted: await applyPlan(tx, plan) };
     }, { isolationLevel: 'Serializable', maxWait: 10_000, timeout: 120_000 });
     if (!result.deleted) { console.log('No sample members or applications found. Nothing was deleted.'); return 0; }
-    console.log('Deleted:\n');
-    console.log(describePlan(result.plan).join('\n'));
+    console.log(describePlan(result.plan, true).join('\n'));
     return 0;
   } catch (error) {
     if (error instanceof Refused) { console.error(error.message); return 1; }

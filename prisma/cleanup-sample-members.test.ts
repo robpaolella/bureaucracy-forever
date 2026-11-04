@@ -74,9 +74,9 @@ describe('buildPlan', () => {
     const d = none();
     d.characters = [{ id: 'c1', userId: 's1', name: 'Redtape' }, { id: 'c2', userId: 's1', name: 'Blotter' }];
     d.availability = [{ userId: 's1' }];
-    d.signups = [{ id: 'g1', userId: 's1', setByUserId: null }];
+    d.signups = [{ id: 'g1', userId: 's1', characterId: 'c1', setByUserId: null }];
     d.reserves = [{ id: 'r1', userId: 's1', characterId: 'c1', setById: null }];
-    d.awards = [{ id: 'w1', userId: 's1', characterId: 'c1', characterName: 'Redtape', itemId: 1, recordedById: 's1' }];
+    d.awards = [{ id: 'w1', userId: 's1', characterId: 'c1', characterName: 'Redtape', itemId: 1, recordedById: 's1', voidedById: 's1' }];
     d.notes = [{ id: 'n1', applicationId: 'real-app', authorId: 's1' }, { id: 'n2', applicationId: 'a1', authorId: 's1' }];
     d.messages = [{ id: 'm1', applicationId: 'a1', authorUserId: null }, { id: 'm2', applicationId: 'a1', authorUserId: 's1' }];
     d.interviews = [{ id: 'i1', applicationId: 'a1', requestedById: 's1', proposedById: null, bookedById: 's1', endedById: null }];
@@ -88,12 +88,18 @@ describe('buildPlan', () => {
     expect(plan.deletes).toEqual({ userIds: ['s1'], applicationIds: ['a1'], awardIds: ['w1'], noteIds: ['n1'] });
     expect(plan.rowIds).toHaveLength(13);
     expect(plan.totals).toMatchObject({ members: 1, characters: 2, notes: 2, messages: 2, interviews: 1 });
+    expect(describePlan(plan)[0]).toBe('Sample members to delete: 1');
+    expect(describePlan(plan, true)[0]).toBe('Sample members deleted: 1');
   });
 
   it('blocks on real-owned records pointing at sample rows', () => {
     const d = none();
     d.characters = [{ id: 'c1', userId: 's1', name: 'Redtape' }];
-    d.awards = [{ id: 'w1', userId: null, characterId: 'c1', characterName: 'Redtape', itemId: 19019, recordedById: 'real' }];
+    d.awards = [
+      { id: 'w1', userId: null, characterId: 'c1', characterName: 'Redtape', itemId: 19019, recordedById: 'real', voidedById: null },
+      { id: 'w2', userId: 's1', characterId: 'c1', characterName: 'Redtape', itemId: 19019, recordedById: 's1', voidedById: 'real' },
+    ];
+    d.signups = [{ id: 'g1', userId: 'real', characterId: 'c1', setByUserId: null }];
     d.reserves = [
       { id: 'r1', userId: 's1', characterId: 'c1', setById: 'real' },
       { id: 'r2', userId: 'real', characterId: 'c1', setById: null },
@@ -103,16 +109,18 @@ describe('buildPlan', () => {
     d.interviews = [{ id: 'i1', applicationId: 'a1', requestedById: 's1', proposedById: null, bookedById: null, endedById: 'real' }];
     d.realNames.set('real', 'officerbob');
     const plan = buildPlan([sampleMember], [sampleApp], [], d);
-    expect(plan.blocking).toHaveLength(6);
+    expect(plan.blocking).toHaveLength(8);
     expect(plan.blocking.join('\n')).toContain('recorded by officerbob');
+    expect(plan.blocking.join('\n')).toContain('voided by officerbob');
+    expect(plan.blocking.join('\n')).toContain('raid signup by real member officerbob with sample character Redtape');
     expect(plan.deletes.awardIds).toEqual([]);
-    for (const id of ['lootAward:w1', 'reserve:r1', 'reserve:r2', 'officerNote:n1', 'applicantMessage:m1', 'interview:i1']) expect(plan.rowIds).not.toContain(id);
+    for (const id of ['lootAward:w1', 'lootAward:w2', 'signup:g1', 'reserve:r1', 'reserve:r2', 'officerNote:n1', 'applicantMessage:m1', 'interview:i1']) expect(plan.rowIds).not.toContain(id);
     expect(describePlan(plan).join('\n')).toContain('Delete is refused');
   });
 
   it('lists pointers the database clears as information only', () => {
     const d = none();
-    d.signups = [{ id: 'g1', userId: 's1', setByUserId: 'real' }, { id: 'g2', userId: 'real', setByUserId: 's1' }];
+    d.signups = [{ id: 'g1', userId: 's1', characterId: null, setByUserId: 'real' }, { id: 'g2', userId: 'real', characterId: null, setByUserId: 's1' }];
     d.decidedBySample = [{ id: 'ra', character: 'Realperson', decidedByUserId: 's1' }];
     d.realNames.set('real', 'officerbob');
     const plan = buildPlan([sampleMember], [{ ...sampleApp, decidedByUserId: 'real' }], [], d);
