@@ -3,8 +3,9 @@ import { ABOUT_DESCRIPTION, OFFICERS } from './about';
 
 describe('OFFICERS', () => {
   it('lists Stafu last as a warrior officer, not the guild master', () => {
-    expect(OFFICERS.at(-1)).toEqual({ name: 'Stafu', wowClass: 'warrior', title: 'Officer' });
-    expect(OFFICERS.at(-1)).not.toHaveProperty('guildMaster');
+    const stafu = OFFICERS.at(-1);
+    expect(stafu).toEqual({ name: 'Stafu', wowClass: 'warrior', title: 'Officer' });
+    expect(stafu).not.toHaveProperty('guildMaster');
   });
 });
 
