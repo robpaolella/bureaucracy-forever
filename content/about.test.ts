@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { ABOUT_DESCRIPTION } from './about';
+import { ABOUT_DESCRIPTION, OFFICERS } from './about';
+
+describe('OFFICERS', () => {
+  it('lists Stafu last as a warrior officer, not the guild master', () => {
+    const stafu = OFFICERS.at(-1);
+    expect(stafu).toEqual({ name: 'Stafu', wowClass: 'warrior', title: 'Officer' });
+    expect(stafu).not.toHaveProperty('guildMaster');
+  });
+});
 
 describe('ABOUT_DESCRIPTION', () => {
   it('has no time-bound recruiting line', () => {
