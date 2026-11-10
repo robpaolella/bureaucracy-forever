@@ -1,6 +1,6 @@
 /**
  * About page copy. The accolades and history are the guild's real record. Officer names
- * are real founding members; only Konvett and Feraldog have cards for now.
+ * are real founding members.
  */
 import type { WowClass } from '@/lib/design/class-colors';
 
@@ -98,4 +98,5 @@ export type Officer = { name: string; wowClass: WowClass; title: string; guildMa
 export const OFFICERS: Officer[] = [
   { name: 'Konvett', wowClass: 'warlock', title: 'Guild Master', guildMaster: true },
   { name: 'Feraldog', wowClass: 'druid', title: 'Officer' },
+  { name: 'Stafu', wowClass: 'warrior', title: 'Officer' },
 ];
