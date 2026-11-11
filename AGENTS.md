@@ -167,7 +167,26 @@ Use `.pi/skills/verify-guild/SKILL.md` to launch, safely drive and capture evide
 Every UI change follows Maestro's shared `/git/maestro/skills/design-check/SKILL.md`,
 using `.pi/skills/verify-guild/design-check.md` for this site's routes, states and safe
 verification: main/build captures at 390 and 1440, approved-design comparisons when
-linked, impeccable critique and an independent verdict.
+linked, impeccable critique and an independent verdict. A text-only edit skips it: see "Text-only edits" below.
+
+## Text-only edits
+Robert approved this exemption (standing order 6, https://github.com/robpaolella/bureaucracy-forever/issues/223,
+2026-11-10): a text-only edit skips the design check and its phone/desktop screenshots.
+
+A change is **text-only** when it only edits words shown on a page (copy in `content/`, a
+string in a page or component, a name, a sentence, a link label) and changes no markup
+structure, class names, styles, tokens, components, layout, images, routes or behaviour.
+
+Not text-only, so the full design check runs: anything else, including a new list item that
+renders a new card or row, a text change long enough to change wrapping in a fixed-width
+element you can't rule out, any change mixed with non-text edits, and any issue that links
+an approved design folder. When unsure, treat it as not text-only.
+
+A text-only edit still runs every Check (lint, typecheck, test, build), the issue's
+validation criteria, review, and a `curl` of the Preview link confirming the new words
+appear on the page. The PR body says "Text-only edit: design check skipped (standing order
+6, #223)" in place of screenshots. `PRODUCT.md` voice and fact rules and the Forever
+game-fact rule still apply to the words.
 
 ## Designs
 

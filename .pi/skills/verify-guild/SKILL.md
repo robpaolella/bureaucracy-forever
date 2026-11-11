@@ -121,7 +121,7 @@ Attach both screenshots and cleanup output to the PR; name the evidence director
 
 ## Design check
 
-For any change people see, follow [Maestro's shared design check](/git/maestro/skills/design-check/SKILL.md)
+For any change people see, except a text-only edit (defined in `AGENTS.md`, "Text-only edits"), follow [Maestro's shared design check](/git/maestro/skills/design-check/SKILL.md)
 with [this site's routes, roles and state recipes](design-check.md) and
 [guild reviewer checklist](design-reviewer.md). The shared skill owns main/build and
 approved-design comparisons, critique, independent verdict and PR evidence. This
