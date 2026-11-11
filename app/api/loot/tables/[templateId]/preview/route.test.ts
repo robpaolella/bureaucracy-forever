@@ -107,4 +107,13 @@ describe('loot table preview route', () => {
     expect(body.preview).toMatchObject({ removed: 1, kept: 1, bosses: [{ remove: [5], kept: [{ id: 6, has: 'reserves' }], absent: null }] });
     expect(mocks.cached).toHaveBeenLastCalledWith(expect.objectContaining({ where: { id: { in: [1, 5, 6] } } }));
   });
+  it('checks boss names against the template’s instance only when asked', async () => {
+    mocks.template.mockResolvedValue({ id: 'mc', instance: 3065, lootBosses: [], reserveSettings: [] });
+    const two = { bosses: [{ name: 'Magmatus', items: [1] }, { name: 'Plunder', items: [2] }] };
+    expect(await (await call({ file: two })).json()).not.toHaveProperty('bossCheck');
+    const body = await (await call({ file: two, checkNames: true })).json();
+    expect(body.bossCheck).toEqual({ kind: 'checked', flagged: ['Magmatus'], unmatched: ['Faldrim Anvilmar', 'Infurnus', 'Durgen Dirgehammer'] });
+    mocks.template.mockResolvedValue({ id: 'mc', instance: null, lootBosses: [], reserveSettings: [] });
+    expect((await (await call({ file: two, checkNames: true })).json()).bossCheck).toEqual({ kind: 'unchecked', reason: 'no-instance' });
+  });
 });

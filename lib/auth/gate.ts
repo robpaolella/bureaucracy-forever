@@ -34,13 +34,14 @@ const LOOT_ROUTES = /^\/(members|officers)\/loot(\/|$)/;
 const MEMBER_ONLY = /^\/members(\/|$)/;
 
 /**
- * SYNC-SPEC §2: the bot's bearer secret is honoured only under /api/bot. A bearer header
- * anywhere else is refused outright so the secret can never be replayed against a route
- * that was not written for it.
+ * SYNC-SPEC §2: the bot's bearer secret is honoured only under /api/bot. Officers' helper keys
+ * go to /api/helper, whose guard (lib/helper-api.ts) accepts nothing but a live `bfh_` key and
+ * answers anything else with its own 401. A bearer header anywhere else is refused outright
+ * so a secret can never be replayed against a route that was not written for it.
  */
 export function rejectsBearer(pathname: string, authorization: string | null): boolean {
   if (!authorization || !/^Bearer\s/i.test(authorization)) return false;
-  return !/^\/api\/bot(\/|$)/.test(pathname);
+  return !/^\/api\/(bot|helper)(\/|$)/.test(pathname);
 }
 
 export function isGatedPath(pathname: string): boolean {
