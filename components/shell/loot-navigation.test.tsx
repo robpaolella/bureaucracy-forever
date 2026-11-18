@@ -16,3 +16,14 @@ it.each([null, 'social', 'member', 'officer'])('gates both menu links for %s wit
     }
   }
 });
+it.each([null, 'social', 'member', 'officer'])('shows the In-game addon link after Loot tables only to officers while loot is on, for %s', (role) => {
+  for (const loot of [false, true]) {
+    m.session = role ? { role, loot, name: 'Sample', pendingApplications: 0, availabilitySubmitted: true } : null;
+    for (const Component of [SiteHeader, MobileNav]) {
+      const html = renderToStaticMarkup(<Component />);
+      const shown = html.includes('href="/officers/addon"');
+      expect(shown).toBe(loot && role === 'officer');
+      if (shown) expect(html.indexOf('Loot tables')).toBeLessThan(html.indexOf('In-game addon'));
+    }
+  }
+});

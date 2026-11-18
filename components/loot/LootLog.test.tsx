@@ -32,8 +32,8 @@ beforeEach(() => {
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
-const render = async (t = table(), awards: Parameters<typeof LootLog>[0]['awards'] = []) =>
-  act(async () => root.render(<ToastHost><LootLog raidId="raid" templateId="tpl" templateName="Onyxia’s Lair" table={t} reserves={[]} candidates={candidates} raidAwards={[]} hrAwards={[]} awards={awards} /></ToastHost>));
+const render = async (t = table(), awards: Parameters<typeof LootLog>[0]['awards'] = [], reserves: Parameters<typeof LootLog>[0]['reserves'] = [], raidAwards: Parameters<typeof LootLog>[0]['raidAwards'] = []) =>
+  act(async () => root.render(<ToastHost><LootLog raidId="raid" templateId="tpl" templateName="Onyxia’s Lair" table={t} reserves={reserves} candidates={candidates} raidAwards={raidAwards} hrAwards={[]} awards={awards} /></ToastHost>));
 const select = (label: string) => [...host.querySelectorAll('select')].find((s) => host.querySelector(`label[for="${s.id}"]`)?.textContent === label)!;
 const choose = async (el: HTMLSelectElement, value: string) => act(async () => { el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); });
 const type = async (value: string) => act(async () => {
@@ -187,5 +187,80 @@ describe('LootLog unlisted drop', () => {
     expect(host.querySelector('a')!.textContent).toBe(copy.tableLink('Onyxia’s Lair'));
     expect(host.textContent).toContain(LOOT_LOG.listEmpty);
     expect(host.querySelector('select')).toBeNull();
+  });
+});
+
+describe('LootLog add-on bar', () => {
+  const holder = (n: number) => ({ userId: `u${n}`, name: `m${n}`, characterId: `c${n}`, characterName: `C${n}`, wowClass: 'shaman' as const, itemId: 1, kind: 'SR' as const, onTrial: n === 2 });
+
+  it('counts every holder entry and only live awards', async () => {
+    await render(table(), [], [holder(1), holder(2), holder(3)], [{ id: 'a1', itemId: 1, userId: 'u1' }, { id: 'a2', itemId: 2, userId: null }]);
+    expect(host.textContent).toContain('Includes 3 reserves and 2 awards so far.');
+  });
+
+  it('sits above the record form', async () => {
+    await render();
+    const bar = [...host.querySelectorAll('h3')].find((h) => h.textContent === LOOT_LOG.addon.heading)!;
+    expect(bar.compareDocumentPosition(host.querySelector('form')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('opens the Import awards window beside Copy reserves', async () => {
+    HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+    await render();
+    await act(async () => { button(LOOT_LOG.addon.import).click(); });
+    expect(host.querySelector<HTMLDialogElement>('dialog[open]')!.textContent).toContain(LOOT_LOG.import.title);
+  });
+
+  it('has no add-on controls when the tier has no bosses', async () => {
+    await render({ bosses: [], items: {}, blocked: [] });
+    expect(host.textContent).not.toContain(LOOT_LOG.addon.heading);
+    expect(host.textContent).toContain(LOOT_LOG.unlisted.noBosses);
+  });
+});
+
+describe('LootLog add-on marks', () => {
+  const base = { itemId: 1, bossName: 'Onyxia', winner: { name: 'notary', characterName: 'Notary', wowClass: 'shaman' as const }, method: 'OPEN_ROLL' as const, roll: 64, note: null, createdAt: '2026-10-14T21:41:00Z', recordedBy: 'ledgerline', voidedAt: null, voidReason: null, addon: null };
+  const addon = { handedOutBy: 'Ledgerline', via: 'helper' as const, confirmed: true, practice: false };
+  const row = async (over: Record<string, unknown>) => {
+    const { addon: marks, ...rest } = over;
+    await render(table(), [{ ...base, id: 'a1', ...rest, ...(marks ? { addon: { ...addon, ...(marks as object) } } : {}) } as never]);
+    return host.querySelector('ul li')!.textContent ?? '';
+  };
+
+  it('marks a helper upload with who handed it out and whose helper sent it', async () => {
+    const text = await row({ addon: {} });
+    expect(text).toContain(LOOT_LOG.marks.tag);
+    expect(text).toContain('Handed out by Ledgerline · sent by ledgerline’s helper');
+    expect(text).not.toContain(LOOT_LOG.marks.notConfirmed);
+    expect(text).not.toContain(LOOT_LOG.marks.practice);
+  });
+
+  it('marks a pasted import', async () => {
+    expect(await row({ addon: { via: 'import' } })).toContain('Handed out by Ledgerline · imported by ledgerline');
+  });
+
+  it('reads "delivered by" for an add-on award stored before the delivery was kept', async () => {
+    expect(await row({ addon: { via: null } })).toContain('Handed out by Ledgerline · delivered by ledgerline');
+  });
+
+  it('flags an award the game did not confirm, with what to do', async () => {
+    const text = await row({ addon: { confirmed: false } });
+    expect(text).toContain(LOOT_LOG.marks.notConfirmed);
+    expect(text).toContain(LOOT_LOG.marks.notConfirmedHelp);
+  });
+
+  it('tags a practice award', async () => {
+    expect(await row({ addon: { practice: true } })).toContain(LOOT_LOG.marks.practice);
+  });
+
+  it('keeps the marks on a voided add-on award', async () => {
+    const text = await row({ addon: { confirmed: false }, voidedAt: '2026-10-14T21:50:00Z', voidReason: 'Undone in the add-on' });
+    for (const kept of [LOOT_LOG.voidedLabel, LOOT_LOG.marks.tag, 'sent by ledgerline’s helper', LOOT_LOG.marks.notConfirmed, 'Undone in the add-on']) expect(text).toContain(kept);
+  });
+
+  it('leaves a by-hand award as it was', async () => {
+    const text = await row({});
+    expect(text).toContain('by ledgerline');
+    for (const mark of [LOOT_LOG.marks.tag, LOOT_LOG.marks.practice, LOOT_LOG.marks.notConfirmed, 'Handed out']) expect(text).not.toContain(mark);
   });
 });

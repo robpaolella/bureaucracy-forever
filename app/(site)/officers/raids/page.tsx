@@ -16,7 +16,7 @@ export default async function RaidsPlannerPage() {
     db.raidTemplate.findMany({ orderBy: [{ active: 'desc' }, { name: 'asc' }] }),
     db.raidSeries.findMany({ include: { template: { select: { name: true } }, _count: { select: { raids: { where: { status: 'SCHEDULED' } } } } }, orderBy: [{ active: 'desc' }, { weekday: 'asc' }, { startTime: 'asc' }] }),
   ]);
-  const templateRows: TemplateRow[] = templates.map((t) => ({ id: t.id, name: t.name, short: t.short, size: t.size, durationMin: t.durationMin, requirements: parseRequirements(t.requirements), active: t.active }));
+  const templateRows: TemplateRow[] = templates.map((t) => ({ id: t.id, name: t.name, short: t.short, size: t.size, durationMin: t.durationMin, requirements: parseRequirements(t.requirements), active: t.active, instance: t.instance }));
   const seriesRows: SeriesRow[] = series.map((s) => ({ id: s.id, templateId: s.templateId, templateName: s.template.name, weekday: s.weekday, startTime: s.startTime, durationMin: s.durationMin, notes: s.notes ?? '', postAheadDays: s.postAheadDays, lockMinutesBefore: s.lockMinutesBefore, horizonWeeks: s.horizonWeeks, active: s.active, raids: s._count.raids }));
   return (
     <div className="flex flex-col gap-6 px-4 pb-12 pt-8 md:px-12 md:pt-11">

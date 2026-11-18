@@ -1,3 +1,4 @@
+import type { BossNameCheck } from './encounter-ids';
 import { allItemIds, parseIdsFile, type AtlasRaid, type ParsedTable } from './loot-import';
 import type { ItemSource } from './loot-rules';
 
@@ -24,7 +25,7 @@ type Upload = Pick<File, 'name' | 'text'>;
 export type LoadFile = { name: string; file: ParsedTable; total: number };
 export type ReadFileResult = { ok: true; value: LoadFile } | { ok: false; error: string };
 export type PreviewResult =
-  | { kind: 'preview'; preview: Preview; items: PreviewItem[]; failed: FailedItem[]; nothingToChange: boolean }
+  | { kind: 'preview'; preview: Preview; items: PreviewItem[]; failed: FailedItem[]; nothingToChange: boolean; bossCheck: BossNameCheck | null }
   | { kind: 'stopped' }
   | { kind: 'error'; error: string };
 export type ApplyResult =
@@ -94,10 +95,37 @@ export async function loadAtlasRaids(fetcher: Fetcher = fetch): Promise<AtlasRai
 }
 
 /** One raid's table. Sends the raid key only; the result is the same LoadFile a chosen file makes. */
-export async function fetchAtlasTable(raidKey: string, fetcher: Fetcher = fetch): Promise<AtlasTableResult> {
+export function fetchAtlasTable(raidKey: string, fetcher: Fetcher = fetch): Promise<AtlasTableResult> {
+  return fetchTable(fetcher, '/api/loot/atlasloot', { raidKey });
+}
+
+/** foreverchanges.pro's dungeons, as the same key/name list the raid choice uses (the key is the slug). */
+export async function loadForeverDungeons(fetcher: Fetcher = fetch): Promise<AtlasRaidsResult> {
   let response: Response;
   try {
-    response = await request(fetcher, '/api/loot/atlasloot', { raidKey });
+    response = await fetcher('/api/loot/foreverchanges', { credentials: 'same-origin' });
+  } catch {
+    return { kind: 'error', error: UNREACHABLE };
+  }
+  const json = await responseJson(response);
+  if (!response.ok) return { kind: 'error', error: routeError(json) };
+  if (!json || !Array.isArray(json.dungeons)) return { kind: 'error', error: UNREACHABLE };
+  const dungeons = json.dungeons.flatMap((d: unknown) => {
+    const { slug, name } = (d && typeof d === 'object' ? d : {}) as { slug?: unknown; name?: unknown };
+    return typeof slug === 'string' && typeof name === 'string' ? [{ key: slug, name }] : [];
+  });
+  return { kind: 'ready', raids: dungeons, source: 'FOREVER' };
+}
+
+/** One dungeon's table, by slug only. */
+export function fetchForeverTable(slug: string, fetcher: Fetcher = fetch): Promise<AtlasTableResult> {
+  return fetchTable(fetcher, '/api/loot/foreverchanges', { slug });
+}
+
+async function fetchTable(fetcher: Fetcher, url: string, body: unknown): Promise<AtlasTableResult> {
+  let response: Response;
+  try {
+    response = await request(fetcher, url, body);
   } catch {
     return { kind: 'error', error: UNREACHABLE };
   }
@@ -139,16 +167,16 @@ function request(fetcher: Fetcher, url: string, body: unknown) {
 /** Runs every preview batch. Calling it again retries prior failures because it begins with an empty skip list. */
 export async function previewLoadTable(options: {
   templateId: string; loadFile: LoadFile; source?: ItemSource; onProgress?: (progress: { completed: number; total: number }) => void;
-  stopped?: () => boolean; fetcher?: Fetcher; replace?: boolean;
+  stopped?: () => boolean; fetcher?: Fetcher; replace?: boolean; checkNames?: boolean;
 }): Promise<PreviewResult> {
-  const { templateId, loadFile, source = 'FOREVER', onProgress, stopped = () => false, fetcher = fetch, replace = false } = options;
+  const { templateId, loadFile, source = 'FOREVER', onProgress, stopped = () => false, fetcher = fetch, replace = false, checkNames = false } = options;
   const failed = new Map<number, FailedItem>();
   let skip: number[] = [];
   while (true) {
     if (stopped()) return { kind: 'stopped' };
     let response: Response;
     try {
-      response = await request(fetcher, `/api/loot/tables/${templateId}/preview`, { file: toIdsFile(loadFile.file), source, skip, replace });
+      response = await request(fetcher, `/api/loot/tables/${templateId}/preview`, { file: toIdsFile(loadFile.file), source, skip, replace, ...(checkNames && { checkNames }) });
     } catch {
       return { kind: 'error', error: UNREACHABLE };
     }
@@ -168,8 +196,16 @@ export async function previewLoadTable(options: {
     if (!isPreview(json.preview)) return { kind: 'error', error: UNREACHABLE };
     const items = Array.isArray(json.items) ? json.items.filter(isPreviewItem) : [];
     const { added, newBosses, removed, removedBosses } = json.preview;
-    return { kind: 'preview', preview: json.preview, items, failed: [...failed.values()], nothingToChange: added + newBosses + removed + removedBosses === 0 };
+    return { kind: 'preview', preview: json.preview, items, failed: [...failed.values()], nothingToChange: added + newBosses + removed + removedBosses === 0, bossCheck: checkNames && isBossCheck(json.bossCheck) ? json.bossCheck : null };
   }
+}
+
+function isBossCheck(value: unknown): value is BossNameCheck {
+  const check = value as BossNameCheck;
+  if (!check || typeof check !== 'object') return false;
+  if (check.kind === 'unchecked') return check.reason === 'no-instance' || check.reason === 'not-listed';
+  const names = (list: unknown) => Array.isArray(list) && list.every((name) => typeof name === 'string');
+  return check.kind === 'checked' && names(check.flagged) && names(check.unmatched);
 }
 
 function isPreviewItem(value: unknown): value is PreviewItem {

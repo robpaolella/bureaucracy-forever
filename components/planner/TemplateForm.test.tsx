@@ -8,7 +8,7 @@ import { TemplateForm } from './TemplateForm';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // As the officers' raids page loads it: a template saved in the older four-number shape.
-const old = { name: 'Onyxia’s Lair', short: 'Ony', size: 40, durationMin: 60, requirements: parseRequirements({ tank: 3, healer: 12, melee: 11, ranged: 14 }), active: true };
+const old = { name: 'Onyxia’s Lair', short: 'Ony', size: 40, durationMin: 60, requirements: parseRequirements({ tank: 3, healer: 12, melee: 11, ranged: 14 }), active: true, instance: null };
 
 let root: Root, host: HTMLDivElement;
 const onSubmit = vi.fn(async () => null);
