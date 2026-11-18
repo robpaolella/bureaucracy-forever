@@ -99,4 +99,5 @@ export const OFFICERS: Officer[] = [
   { name: 'Konvett', wowClass: 'warlock', title: 'Guild Master', guildMaster: true },
   { name: 'Feraldog', wowClass: 'druid', title: 'Officer' },
   { name: 'Stafu', wowClass: 'warrior', title: 'Officer' },
+  { name: 'Celsian', wowClass: 'mage', title: 'Officer' },
 ];
