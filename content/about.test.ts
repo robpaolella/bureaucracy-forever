@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { ABOUT_DESCRIPTION, OFFICERS } from './about';
 
 describe('OFFICERS', () => {
-  it('lists Stafu last as a warrior officer, not the guild master', () => {
-    const stafu = OFFICERS.at(-1);
-    expect(stafu).toEqual({ name: 'Stafu', wowClass: 'warrior', title: 'Officer' });
-    expect(stafu).not.toHaveProperty('guildMaster');
+  it('lists Celsian last after Stafu as a mage officer, not the guild master', () => {
+    expect(OFFICERS[2]).toEqual({ name: 'Stafu', wowClass: 'warrior', title: 'Officer' });
+    const celsian = OFFICERS.at(-1);
+    expect(celsian).toEqual({ name: 'Celsian', wowClass: 'mage', title: 'Officer' });
+    expect(celsian).not.toHaveProperty('guildMaster');
   });
 });
 
