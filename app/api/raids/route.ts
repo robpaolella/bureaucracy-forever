@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { loadRaidCards } from '@/lib/raid-cards';
 import { isUpcoming, locksAtFor, neededError, parseRaidInput, PICK_TEMPLATE } from '@/lib/raids';
-import { instanceName } from '@/lib/series';
+import { instanceName, raidNameError } from '@/lib/series';
 import { getSession } from '@/lib/session';
 import { rosterSignups, rosterUserIds } from '@/lib/tick';
 
@@ -20,8 +20,8 @@ export async function GET() {
 
 /**
  * POST /api/raids — schedule a raid (officers). Body is the form's guild-time wall clock:
- * `{ templateId, date, time, durationMin, requirements, notes, reservesAllowed? }`; the instant is derived here
- * and the name comes from the template, like a weekly raid's. A typed `name` is ignored.
+ * `{ templateId, date, time, durationMin, requirements, notes, reservesAllowed?, titleAddition? }`; the instant is
+ * derived here and the name comes from the template and the title addition, like a weekly raid's. A typed `name` is ignored.
  */
 export async function POST(request: Request) {
   const session = await getSession();
@@ -38,11 +38,15 @@ export async function POST(request: Request) {
   if (!template) return NextResponse.json({ error: PICK_TEMPLATE }, { status: 400, headers: NO_STORE });
   const needed = neededError(value.requirements, template.size);
   if (needed) return NextResponse.json({ error: needed }, { status: 400, headers: NO_STORE });
+  const addition = value.titleAddition ?? null;
+  const tooLong = raidNameError(template.name, addition, parsed.startsAt);
+  if (tooLong) return NextResponse.json({ error: tooLong }, { status: 400, headers: NO_STORE });
   // Rank-based roster (SYNC-SPEC §3): every roster member gets an unanswered row up front.
   const roster = await rosterUserIds();
   const raid = await db.raid.create({
     data: {
-      name: instanceName(template.name, parsed.startsAt),
+      name: instanceName(template.name, parsed.startsAt, addition),
+      titleAddition: addition,
       templateId: template.id,
       startsAt: parsed.startsAt,
       locksAt: locksAtFor(parsed.startsAt),

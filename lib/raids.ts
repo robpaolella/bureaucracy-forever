@@ -7,6 +7,7 @@ import type { CompositionRole, Role, WowClass } from '@/lib/design/class-colors'
 import { GUILD_TIMEZONE, SITE_URL } from '@/lib/config';
 import { openUntilStart } from '@/lib/flags';
 import { reservesLocked } from '@/lib/loot-rules';
+import { parseTitleAddition } from '@/lib/series';
 import { nextOccurrence, viewerTime, zonedParts, zonedTimeToUtc, type Weekday } from '@/lib/time';
 
 export type RaidResponse = 'accept' | 'tentative' | 'absent';
@@ -39,6 +40,8 @@ export type RaidCard = {
   onRoster?: boolean;
   /** Officers have not switched reserves off for this raid; the edit form shows it. */
   reservesAllowed?: boolean;
+  /** The words after the template name in the title ("Key Run"); the edit form starts with them. */
+  titleAddition?: string | null;
 };
 
 export function isRaidResponse(value: unknown): value is RaidResponse {
@@ -295,6 +298,8 @@ export type RaidInput = {
   notes: string;
   /** Reserves allowed for this raid. Left out, a new raid stores yes and an edit keeps the stored value. */
   reservesAllowed?: boolean;
+  /** Words added to the title ("Key Run"); empty or null means none. Left out, an edit keeps the stored value. */
+  titleAddition?: string | null;
 };
 
 export const RAID_NOTES_MAX = 500;
@@ -379,13 +384,21 @@ export function parseRaidInput(body: unknown): ParsedRaid {
 
   if (b.reservesAllowed !== undefined && typeof b.reservesAllowed !== 'boolean') return { ok: false, error: 'Reserves allowed must be on or off.' };
 
-  return { ok: true, value: { templateId, date, time, durationMin, requirements: req, notes, ...(b.reservesAllowed === undefined ? {} : { reservesAllowed: b.reservesAllowed }) }, startsAt };
+  // The whole name's length is checked by the route against the template (`raidNameError`).
+  const addition = parseTitleAddition(b.titleAddition);
+  if (!addition.ok) return addition;
+
+  return {
+    ok: true,
+    value: { templateId, date, time, durationMin, requirements: req, notes, ...(b.reservesAllowed === undefined ? {} : { reservesAllowed: b.reservesAllowed }), ...(b.titleAddition === undefined ? {} : { titleAddition: addition.value }) },
+    startsAt,
+  };
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
 /** The form values for an existing raid, in guild time. */
-export function raidToInput(raid: { templateId?: string | null; startsAt: string; durationMin: number; requirements: Composition; notes: string | null; reservesAllowed?: boolean }): RaidInput {
+export function raidToInput(raid: { templateId?: string | null; startsAt: string; durationMin: number; requirements: Composition; notes: string | null; reservesAllowed?: boolean; titleAddition?: string | null }): RaidInput {
   const p = zonedParts(new Date(raid.startsAt), GUILD_TIMEZONE);
   return {
     templateId: raid.templateId ?? '',
@@ -395,6 +408,7 @@ export function raidToInput(raid: { templateId?: string | null; startsAt: string
     requirements: raid.requirements,
     notes: raid.notes ?? '',
     reservesAllowed: raid.reservesAllowed ?? true,
+    titleAddition: raid.titleAddition ?? '',
   };
 }
 
@@ -415,5 +429,6 @@ export function emptyRaidInput(prefill: { weekday?: Weekday; time?: string; leng
     requirements: DEFAULT_REQUIREMENTS,
     notes: '',
     reservesAllowed: true,
+    titleAddition: '',
   };
 }

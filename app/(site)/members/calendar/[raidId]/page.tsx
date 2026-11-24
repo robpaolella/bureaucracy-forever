@@ -72,6 +72,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
         seriesId: true,
         templateId: true,
         reservesAllowed: true,
+        titleAddition: true,
         template: { select: { id: true, short: true, name: true } },
         signups: {
           select: {
@@ -138,6 +139,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
     short: raid.template?.short ?? null,
     onRoster: mine?.standing === 'ROSTER',
     reservesAllowed: raid.reservesAllowed,
+    titleAddition: raid.titleAddition,
   };
   const past = !isUpcoming(card, now);
   const open = !past && !card.cancelled && raid.status === 'SCHEDULED';

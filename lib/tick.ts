@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import type { Prisma } from '@/lib/generated/prisma/client';
 import { enqueue } from '@/lib/outbox';
 import { locksAtFor, parseRequirements } from '@/lib/raids';
-import { instanceName, isRosterRank, missingOccurrences, occurrences } from '@/lib/series';
+import { fitTitleAddition, instanceName, isRosterRank, missingOccurrences, occurrences } from '@/lib/series';
 import { trialCheckInDue } from '@/lib/rank-rules';
 import { applicationReminderDue, dueForClose, dueForLock, dueForPost, HOUR_MS, interviewDone, interviewExpired, interviewHeadsUpDue, interviewReminderDue, joinNoticeDue, pacificDay, proposalLapsed, reminderActivityTime, reminderDue, INTERVIEW_JOIN_EARLY_MS, INTERVIEW_JOIN_LATE_MS } from '@/lib/tick-rules';
 import { lootEnabled } from '@/lib/flags';
@@ -59,12 +59,14 @@ export async function generateInstances(now: Date, roster: string[], seriesId?: 
   let generated = 0;
   const seriesList = await db.raidSeries.findMany({ where: { id: seriesId, active: true, template: { active: true } }, include: { template: true, raids: { select: { startsAt: true } } } });
   for (const s of seriesList) {
+    const addition = fitTitleAddition(s.template.name, s.titleAddition);
     const wanted = occurrences({ weekday: s.weekday, startTime: s.startTime, horizonWeeks: s.horizonWeeks }, now);
     for (const startsAt of missingOccurrences(wanted, s.raids.map((r) => r.startsAt), s.skippedDates)) {
       try {
         await db.raid.create({
           data: {
-            name: instanceName(s.template.name, startsAt),
+            name: instanceName(s.template.name, startsAt, addition),
+            titleAddition: addition,
             startsAt,
             locksAt: locksAtFor(startsAt, s.lockMinutesBefore),
             durationMin: s.durationMin,
