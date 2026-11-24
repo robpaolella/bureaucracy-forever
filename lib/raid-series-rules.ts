@@ -3,9 +3,11 @@
  * by the routes and the forms.
  */
 import { mustAddUpTo, parseRequirementsInput, totalCounts, type Composition } from '@/lib/raids';
+import { parseTitleAddition } from '@/lib/series';
 
 export type TemplateInput = { name: string; short: string; size: number; durationMin: number; requirements: Composition; active: boolean; /** The in-game instance id (GetInstanceInfo), or null when not set. */ instance: number | null };
-export type SeriesInput = { templateId: string; weekday: number; startTime: string; durationMin: number; notes: string; postAheadDays: number; lockMinutesBefore: number; horizonWeeks: number; active: boolean };
+/** `titleAddition` is the words after the template name in every raid the series makes; empty or null means none. */
+export type SeriesInput = { templateId: string; weekday: number; startTime: string; durationMin: number; notes: string; titleAddition: string | null; postAheadDays: number; lockMinutesBefore: number; horizonWeeks: number; active: boolean };
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -58,13 +60,16 @@ export function parseSeriesInput(body: unknown): Parsed<SeriesInput> {
   const durationMin = int(b.durationMin);
   if (!inRange(durationMin, 30, 480) || durationMin % 15 !== 0) return { ok: false, error: 'Length is 30 to 480 minutes, in quarter hours.' };
   const notes = typeof b.notes === 'string' ? b.notes.trim().slice(0, 500) : '';
+  // The whole name's length is checked against the template (`raidNameError`) by the route and the form.
+  const addition = parseTitleAddition(b.titleAddition);
+  if (!addition.ok) return addition;
   const postAheadDays = b.postAheadDays === undefined ? 14 : int(b.postAheadDays);
   if (!inRange(postAheadDays, 1, 60)) return { ok: false, error: 'Post ahead is 1 to 60 days.' };
   const lockMinutesBefore = b.lockMinutesBefore === undefined ? 120 : int(b.lockMinutesBefore);
   if (!inRange(lockMinutesBefore, 0, 1440)) return { ok: false, error: 'Lock is 0 to 1440 minutes before the start.' };
   const horizonWeeks = b.horizonWeeks === undefined ? 4 : int(b.horizonWeeks);
   if (!inRange(horizonWeeks, 1, 12)) return { ok: false, error: 'Horizon is 1 to 12 weeks.' };
-  return { ok: true, value: { templateId, weekday, startTime, durationMin, notes, postAheadDays, lockMinutesBefore, horizonWeeks, active: b.active !== false } };
+  return { ok: true, value: { templateId, weekday, startTime, durationMin, notes, titleAddition: addition.value, postAheadDays, lockMinutesBefore, horizonWeeks, active: b.active !== false } };
 }
 
 export const WEEKDAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;

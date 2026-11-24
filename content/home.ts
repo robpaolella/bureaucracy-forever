@@ -6,7 +6,7 @@ import { DISCORD_INVITE_URL } from '@/lib/config';
 
 export const ANNOUNCEMENT = {
   eyebrow: 'Launch',
-  text: "WoW Forever launches November 4. We're recruiting now.",
+  text: "Raids are launching on December 9. We're recruiting!",
   linkLabel: 'See recruitment needs →',
   href: '/recruitment',
 };
