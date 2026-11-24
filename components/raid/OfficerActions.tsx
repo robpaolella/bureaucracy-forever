@@ -25,6 +25,7 @@ type Props = {
   templates: RaidTemplateOption[];
   /** Loot is on, so Edit shows the Reserves allowed switch. */
   lootOn: boolean;
+  openUntilStart?: boolean;
 };
 
 const RESPONSE_LABEL: Record<RaidResponse, string> = { accept: 'Accept', tentative: 'Tentative', absent: 'Absent' };
@@ -48,7 +49,7 @@ async function failureMessage(res: Response): Promise<string> {
  * with Restore; Delete removes the raid for good, quietly. On phones the row collapses
  * into one button that opens a sheet.
  */
-export function OfficerActions({ raid, members, past, threadUrl, fromSeries, template, templates, lootOn }: Props) {
+export function OfficerActions({ raid, members, past, threadUrl, fromSeries, template, templates, lootOn, openUntilStart }: Props) {
   const router = useRouter();
   const setToast = useToast();
   const [open, setOpen] = useState(false);
@@ -186,7 +187,7 @@ export function OfficerActions({ raid, members, past, threadUrl, fromSeries, tem
       </div>
 
       <Modal open={editing} onClose={() => setEditing(false)} title={OFFICER_ACTIONS.editTitle}>
-        {editing && <RaidForm initial={raidToInput({ ...raid, templateId: template?.id })} templates={template ? [{ ...template, durationMin: raid.durationMin, requirements: raid.requirements }] : templates} templateLocked={template !== null} lootOn={lootOn} lockMinutes={raid.locksAt ? lockOffsetMinutes(new Date(raid.startsAt), new Date(raid.locksAt)) : undefined} submitLabel={OFFICER_ACTIONS.save} onSubmit={saveEdit} onCancel={() => setEditing(false)} />}
+        {editing && <RaidForm initial={raidToInput({ ...raid, templateId: template?.id })} templates={template ? [{ ...template, durationMin: raid.durationMin, requirements: raid.requirements }] : templates} templateLocked={template !== null} lootOn={lootOn} openUntilStart={openUntilStart} lockMinutes={raid.locksAt ? lockOffsetMinutes(new Date(raid.startsAt), new Date(raid.locksAt)) : undefined} submitLabel={OFFICER_ACTIONS.save} onSubmit={saveEdit} onCancel={() => setEditing(false)} />}
       </Modal>
 
       <Modal

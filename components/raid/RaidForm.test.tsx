@@ -3,6 +3,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyRaidInput, type RaidTemplateOption } from '@/lib/raids';
+import { setViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { RaidForm } from './RaidForm';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -149,6 +150,19 @@ describe('RaidForm close sign-ups switch', () => {
     await render([mc], { initial: { ...ready, closeBeforeStart: false } });
     expect(sw().getAttribute('aria-checked')).toBe('false');
     expect(host.textContent).toContain('Sign-ups stay open until the start.');
+  });
+
+  it('labels the officer’s own time with its zone when it differs from guild time', async () => {
+    await act(async () => setViewerTimeZone('Asia/Tokyo'));
+    await render([mc], { initial: ready });
+    expect(host.textContent).toMatch(/guild time \(\d{1,2}:\d{2} [AP]M (GMT\+9|JST) yours\), 2 hours before/);
+    await act(async () => setViewerTimeZone(null));
+  });
+
+  it('says sign-ups stay open until the start while the staging setting forces it', async () => {
+    await render([mc], { initial: ready, openUntilStart: true });
+    expect(host.textContent).toContain('Sign-ups stay open until the start.');
+    expect(host.textContent).not.toMatch(/before the start\./);
   });
 
   it('sends what the officer chose', async () => {

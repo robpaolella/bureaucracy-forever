@@ -19,6 +19,8 @@ type Props = {
   templateLocked?: boolean;
   /** Loot is on: the Reserves allowed switch shows and is sent. Off, it is neither. */
   lootOn?: boolean;
+  /** The staging setting that keeps every sign-up open until the start is on, so the switch changes nothing. */
+  openUntilStart?: boolean;
   /** How many minutes before the start this raid's sign-ups close now (0: at the start); left out for a new raid. */
   lockMinutes?: number;
   submitLabel: string;
@@ -33,7 +35,7 @@ type Props = {
  * the officer's own zone beneath, so nothing is ever a bare time. Validation is the same
  * `parseRaidInput` the route runs, so the form never shows an error the server would not.
  */
-export function RaidForm({ initial, templates, templateLocked = false, lootOn = false, lockMinutes, submitLabel, onSubmit, onCancel }: Props) {
+export function RaidForm({ initial, templates, templateLocked = false, lootOn = false, openUntilStart = false, lockMinutes, submitLabel, onSubmit, onCancel }: Props) {
   const [input, setInput] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -52,13 +54,13 @@ export function RaidForm({ initial, templates, templateLocked = false, lootOn = 
   const tooLong = template && preview ? raidNameError(template.name, addition, preview) : null;
   const additionError = additionCheck.ok ? tooLong : additionCheck.error;
 
-  const closeOn = input.closeBeforeStart ?? true;
+  const closeOn = (input.closeBeforeStart ?? true) && !openUntilStart;
   const closeMinutes = lockMinutesFor(true, lockMinutes ?? null);
   const closeAt = preview ? new Date(preview.getTime() - closeMinutes * 60_000) : null;
   const closeHint = !closeOn
     ? SCHEDULE_FORM.closeSignupsOff
     : closeAt
-      ? SCHEDULE_FORM.closeSignupsOn(formatClock(closeAt, GUILD_TIMEZONE), viewer && viewer.zone !== GUILD_TIMEZONE ? formatClock(closeAt, viewer.zone) : null, durationLabel(closeMinutes))
+      ? SCHEDULE_FORM.closeSignupsOn(formatClock(closeAt, GUILD_TIMEZONE), viewer && viewer.zone !== GUILD_TIMEZONE ? `${formatClock(closeAt, viewer.zone)} ${zoneAbbreviation(closeAt, viewer.zone)}` : null, durationLabel(closeMinutes))
       : null;
 
   async function submit(event: FormEvent) {
@@ -154,7 +156,7 @@ export function RaidForm({ initial, templates, templateLocked = false, lootOn = 
       {lootOn && <Toggle label={SCHEDULE_FORM.reservesAllowed} checked={input.reservesAllowed ?? true} onChange={(on) => set('reservesAllowed', on)} />}
 
       <div className="flex flex-col">
-        <Toggle label={SCHEDULE_FORM.closeSignups} checked={closeOn} onChange={(on) => set('closeBeforeStart', on)} />
+        <Toggle label={SCHEDULE_FORM.closeSignups} checked={input.closeBeforeStart ?? true} onChange={(on) => set('closeBeforeStart', on)} />
         {closeHint && <span className="text-xs text-fg-3" aria-live="polite">{closeHint}</span>}
       </div>
 
