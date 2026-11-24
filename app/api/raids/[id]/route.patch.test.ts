@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
   findTemplate: vi.fn(),
   update: vi.fn(),
+  updateMany: vi.fn(),
   setReservesAllowed: vi.fn(),
 }));
 
@@ -12,7 +13,7 @@ vi.mock('@/lib/session', () => ({ getSession: async () => mocks.session }));
 vi.mock('@/lib/loot-blocks', () => ({ setReservesAllowed: mocks.setReservesAllowed }));
 vi.mock('@/lib/outbox', () => ({ enqueue: vi.fn() }));
 vi.mock('next/server', async (orig) => ({ ...(await orig<typeof import('next/server')>()), after: vi.fn() }));
-vi.mock('@/lib/db', () => ({ db: { raid: { findUnique: mocks.findUnique, update: mocks.update }, raidTemplate: { findFirst: mocks.findTemplate } } }));
+vi.mock('@/lib/db', () => ({ db: { raid: { findUnique: mocks.findUnique, update: mocks.update, updateMany: mocks.updateMany }, raidTemplate: { findFirst: mocks.findTemplate } } }));
 
 import { decideRespond } from '@/lib/signup-rules';
 import { PATCH } from './route';
@@ -37,6 +38,7 @@ describe('PATCH /api/raids/[id] (edit)', () => {
     mocks.findUnique.mockReset().mockResolvedValue(raid());
     mocks.setReservesAllowed.mockReset().mockResolvedValue(true);
     mocks.findTemplate.mockReset().mockResolvedValue({ name: 'Onyxia' });
+    mocks.updateMany.mockReset().mockResolvedValue({ count: 0 });
     mocks.update.mockReset().mockImplementation(async ({ data }) => ({ id: 'r1', name: data.name, startsAt: data.startsAt, discordThreadId: null }));
   });
 
@@ -236,6 +238,8 @@ describe('PATCH /api/raids/[id] (edit)', () => {
       expect(mocks.update).not.toHaveBeenCalled();
     });
 
+    const reopened = { where: { id: 'r1', status: 'LOCKED' }, data: { status: 'SCHEDULED', lockedAt: null } };
+
     it('reopens a locked raid 1 hour before its start when the switch goes off, and a member can then accept', async () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       try {
@@ -244,10 +248,10 @@ describe('PATCH /api/raids/[id] (edit)', () => {
         mocks.findUnique.mockResolvedValue(raid({ status: 'LOCKED', startsAt: start, locksAt: new Date(start.getTime() - 2 * 3600_000) }));
         const res = await patch({ closeBeforeStart: false, date: '2099-11-04', time: '19:00' });
         expect(res.status).toBe(200);
-        const data = mocks.update.mock.calls[0][0].data;
-        expect(data).toMatchObject({ status: 'SCHEDULED', lockedAt: null });
-        // The new start is later than the clock, so a member's Accept goes through on the stored state.
-        expect(decideRespond({ role: 'member' }, { status: data.status, locksAt: data.locksAt }, { standing: 'ROSTER', response: null }, 'accept', new Date())).toMatchObject({ ok: true });
+        expect(mocks.updateMany).toHaveBeenCalledWith(reopened);
+        // The reopened raid is SCHEDULED with a lock still ahead, so a member's Accept goes through.
+        const { locksAt } = mocks.update.mock.calls[0][0].data;
+        expect(decideRespond({ role: 'member' }, { status: 'SCHEDULED', locksAt }, { standing: 'ROSTER', response: null }, 'accept', new Date())).toMatchObject({ ok: true });
       } finally {
         vi.useRealTimers();
       }
@@ -256,28 +260,22 @@ describe('PATCH /api/raids/[id] (edit)', () => {
     it('reopens a locked raid moved a day later with the switch on', async () => {
       mocks.findUnique.mockResolvedValue(withLock(120, { status: 'LOCKED' }));
       await patch({ closeBeforeStart: true });
-      expect(mocks.update.mock.calls[0][0].data).toMatchObject({ status: 'SCHEDULED', lockedAt: null });
+      expect(mocks.updateMany).toHaveBeenCalledWith(reopened);
     });
 
-    it('leaves a scheduled raid whose new lock has passed for tick', async () => {
+    it('also reopens a raid tick locked after the edit read it, because the write is conditional on the stored status', async () => {
+      mocks.findUnique.mockResolvedValue(withLock(120, { status: 'SCHEDULED' }));
+      await patch({ closeBeforeStart: true });
+      expect(mocks.updateMany).toHaveBeenCalledWith(reopened);
+    });
+
+    it('does not touch the status when the new lock is already behind, leaving it to tick', async () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       try {
-        vi.setSystemTime(new Date('2099-11-04T23:30:00.000Z'));
+        vi.setSystemTime(new Date('2099-11-05T02:30:00.000Z'));
         mocks.findUnique.mockResolvedValue(raid({ status: 'SCHEDULED', startsAt: new Date('2099-11-05T01:00:00.000Z'), locksAt: new Date('2099-11-04T23:00:00.000Z') }));
-        await patch({ closeBeforeStart: true });
-        expect(mocks.update.mock.calls[0][0].data).not.toHaveProperty('status');
-      } finally {
-        vi.useRealTimers();
-      }
-    });
-
-    it('keeps a locked raid locked when its new lock is still behind it', async () => {
-      vi.useFakeTimers({ toFake: ['Date'] });
-      try {
-        vi.setSystemTime(new Date('2099-11-05T05:00:00.000Z'));
-        mocks.findUnique.mockResolvedValue(raid({ status: 'LOCKED', startsAt: new Date('2099-11-05T06:00:00.000Z'), locksAt: new Date('2099-11-05T04:00:00.000Z') }));
-        await patch({ closeBeforeStart: true });
-        expect(mocks.update.mock.calls[0][0].data).not.toHaveProperty('status');
+        await patch({ closeBeforeStart: true, date: '2099-11-04', time: '19:00' });
+        expect(mocks.updateMany).not.toHaveBeenCalled();
       } finally {
         vi.useRealTimers();
       }
@@ -287,6 +285,7 @@ describe('PATCH /api/raids/[id] (edit)', () => {
       mocks.findUnique.mockResolvedValue(raid({ status: 'LOCKED', ...over }));
       expect((await patch({ closeBeforeStart: false })).status).toBe(409);
       expect(mocks.update).not.toHaveBeenCalled();
+      expect(mocks.updateMany).not.toHaveBeenCalled();
     });
   });
 });

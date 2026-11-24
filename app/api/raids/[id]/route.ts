@@ -20,7 +20,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (session.role !== 'officer') return NextResponse.json({ error: 'Officers manage raids.' }, { status: 403, headers: NO_STORE });
 
   const { id } = await params;
-  const raid = await db.raid.findUnique({ where: { id }, select: { id: true, startsAt: true, durationMin: true, cancelledAt: true, status: true, discordThreadId: true, locksAt: true, templateId: true, titleAddition: true, template: { select: { name: true, size: true } } } });
+  const raid = await db.raid.findUnique({ where: { id }, select: { id: true, startsAt: true, durationMin: true, cancelledAt: true, discordThreadId: true, locksAt: true, templateId: true, titleAddition: true, template: { select: { name: true, size: true } } } });
   if (!raid) return NextResponse.json({ error: 'No such raid.' }, { status: 404, headers: NO_STORE });
   if (raid.startsAt.getTime() + raid.durationMin * 60_000 < Date.now()) {
     return NextResponse.json({ error: 'This raid has already happened.' }, { status: 409, headers: NO_STORE });
@@ -74,13 +74,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (tooLong) return NextResponse.json({ error: tooLong }, { status: 400, headers: NO_STORE });
   // The name is recomputed from the template's current name, the title addition and the date. Moving the start moves the lock with it; an edited instance leaves its series' edits (SYNC-SPEC §3 detached).
   const locksAt = locksAtFor(parsed.startsAt, lockMinutesFor(value.closeBeforeStart, lockOffsetMinutes(raid.startsAt, raid.locksAt)));
-  // The status follows the new lock time: a locked raid whose lock is ahead reopens; a scheduled one whose lock has passed is left for tick.
-  const reopen = raid.status === 'LOCKED' && locksAt.getTime() > Date.now();
   const updated = await db.raid.update({
     where: { id: raid.id },
-    data: { ...(reopen ? { status: 'SCHEDULED' as const, lockedAt: null } : {}), name: instanceName(templateName!, parsed.startsAt, addition), titleAddition: addition, templateId: value.templateId, startsAt: parsed.startsAt, locksAt, durationMin: value.durationMin, requirements: value.requirements, notes: value.notes || null, detached: true },
+    data: { name: instanceName(templateName!, parsed.startsAt, addition), titleAddition: addition, templateId: value.templateId, startsAt: parsed.startsAt, locksAt, durationMin: value.durationMin, requirements: value.requirements, notes: value.notes || null, detached: true },
     select: { id: true, name: true, startsAt: true, discordThreadId: true },
   });
+  // The status follows the new lock time: a locked raid whose lock is ahead reopens, whether it was locked before this edit or by a tick that ran during it. A scheduled raid whose lock has passed is left for tick.
+  if (locksAt.getTime() > Date.now()) await db.raid.updateMany({ where: { id: raid.id, status: 'LOCKED' }, data: { status: 'SCHEDULED', lockedAt: null } });
   // Through the setter, which takes the reserve lock so a save in flight commits first or is refused. Left out, the stored value stays.
   if (value.reservesAllowed !== undefined && !(await setReservesAllowed(raid.id, value.reservesAllowed))) {
     return NextResponse.json({ error: 'No such raid.' }, { status: 404, headers: NO_STORE });
