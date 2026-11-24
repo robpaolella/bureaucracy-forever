@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { zonedParts } from './time';
-import { guildDateKey, instanceName, isRosterRank, missingOccurrences, occurrenceInWeekOf, occurrences, parseTitleAddition, raidNameError, skippedDatesFor, titleBase } from './series';
+import { guildDateKey, instanceName, isRosterRank, missingOccurrences, occurrenceInWeekOf, occurrences, parseTitleAddition, raidNameError, skippedDatesFor, titleBase, fitTitleAddition } from './series';
 
 describe('series occurrences', () => {
   // Thursday 8 PM Pacific, four weeks, starting Wednesday 14 Oct 2026 (PDT).
@@ -114,5 +114,17 @@ describe('series occurrences', () => {
     expect(raidNameError(template, 'a'.repeat(26))).toMatch(/100 characters or fewer/);
     // A one-digit day leaves one more character for a single raid.
     expect(raidNameError(template, 'a'.repeat(26), new Date('2026-11-04T04:00:00.000Z'))).toBeNull();
+  });
+
+  it('cuts a series addition to fit when its template was renamed longer', () => {
+    expect(fitTitleAddition('Onyxia', 'Key Run')).toBe('Key Run');
+    expect(fitTitleAddition('Onyxia', null)).toBeNull();
+    const template = 'T'.repeat(60);
+    const fitted = fitTitleAddition(template, 'Key Run plus a lot more words here ok')!;
+    expect(fitted).toBe('Key Run plus a lot more w');
+    expect(raidNameError(template, fitted)).toBeNull();
+    // A cut that ends on a space is trimmed; no room at all means no addition.
+    expect(fitTitleAddition(template, 'Key Run plus a lot more  wx')).toBe('Key Run plus a lot more');
+    expect(fitTitleAddition('T'.repeat(86), 'Key Run')).toBeNull();
   });
 });

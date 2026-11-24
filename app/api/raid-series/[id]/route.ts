@@ -38,8 +38,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { value } = parsed;
   const template = await db.raidTemplate.findUnique({ where: { id: value.templateId }, select: { id: true, name: true, requirements: true, active: true } });
   if (!template || !template.active) return NextResponse.json({ error: 'Pick an active template.' }, { status: 400, headers: NO_STORE });
-  // Checked when the form saves; switching a series off or on alone never fails on its title.
-  const tooLong = body && ('titleAddition' in body || 'templateId' in body) ? raidNameError(template.name, value.titleAddition) : null;
+  // Every save that keeps the series on renames its raids, so the title must fit; switching it off never fails on its title.
+  const tooLong = value.active ? raidNameError(template.name, value.titleAddition) : null;
   if (tooLong) return NextResponse.json({ error: tooLong }, { status: 400, headers: NO_STORE });
 
   const now = new Date();

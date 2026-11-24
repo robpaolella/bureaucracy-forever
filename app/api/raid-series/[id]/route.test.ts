@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => {
   return {
     tx,
     seriesFind: vi.fn(), seriesUpdate: vi.fn(), templateFind: vi.fn(),
-    raidFindMany: vi.fn(), raidUpdate: vi.fn(),
+    raidFindMany: vi.fn(), raidUpdate: vi.fn(), raidDeleteMany: vi.fn(),
     transaction: vi.fn(), lock: vi.fn(), enqueue: vi.fn(), generate: vi.fn(),
   };
 });
@@ -15,7 +15,7 @@ vi.mock('@/lib/session', () => ({ getSession: async () => ({ role: 'officer' }) 
 vi.mock('@/lib/db', () => ({ db: {
   raidSeries: { findUnique: mocks.seriesFind, update: mocks.seriesUpdate },
   raidTemplate: { findUnique: mocks.templateFind },
-  raid: { findMany: mocks.raidFindMany, update: mocks.raidUpdate },
+  raid: { findMany: mocks.raidFindMany, update: mocks.raidUpdate, deleteMany: mocks.raidDeleteMany },
   $transaction: mocks.transaction,
 } }));
 vi.mock('@/lib/loot-blocks', () => ({ lockReserveTier: mocks.lock }));
@@ -109,11 +109,26 @@ describe('PATCH /api/raid-series/:id moving future raids', () => {
       expect(mocks.seriesUpdate).not.toHaveBeenCalled();
     });
 
-    it('lets a series be switched off or on alone even if its title has grown too long', async () => {
-      mocks.seriesFind.mockResolvedValue({ ...SERIES, titleAddition: 'x'.repeat(40) });
-      mocks.templateFind.mockResolvedValue({ id: 'tier-b', name: 'T'.repeat(60), requirements: { tank: 4, healer: 10, dps: 26 }, active: true });
-      mocks.raidFindMany.mockResolvedValue([]);
-      expect((await patch({ active: true })).status).toBe(200);
+    describe('after its template was renamed too long for the addition', () => {
+      beforeEach(() => {
+        mocks.seriesFind.mockResolvedValue({ ...SERIES, titleAddition: 'x'.repeat(40) });
+        mocks.templateFind.mockResolvedValue({ id: 'tier-b', name: 'T'.repeat(60), requirements: { tank: 4, healer: 10, dps: 26 }, active: true });
+        mocks.raidFindMany.mockResolvedValue([raid('r1', 'tier-b')]);
+      });
+
+      it('still lets it be switched off', async () => {
+        mocks.raidDeleteMany.mockResolvedValue({ count: 1 });
+        expect(await (await patch({ active: false })).json()).toMatchObject({ dropped: 1 });
+        expect(mocks.seriesUpdate.mock.calls[0][0].data.active).toBe(false);
+      });
+
+      it.each([{ active: true }, { notes: 'x' }])('refuses %j, which would rename its raids too long, and changes nothing', async (body) => {
+        const res = await patch(body);
+        expect(res.status).toBe(400);
+        expect((await res.json()).error).toMatch(/100 characters or fewer/);
+        expect(mocks.seriesUpdate).not.toHaveBeenCalled();
+        expect(mocks.raidUpdate).not.toHaveBeenCalled();
+      });
     });
   });
 

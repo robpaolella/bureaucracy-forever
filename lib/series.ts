@@ -117,3 +117,15 @@ export function raidNameError(templateName: string, addition: string | null, sta
   const length = startsAt ? [...instanceName(templateName, startsAt, addition)].length : [...titleBase(templateName, addition)].length + LONGEST_DATE;
   return length > RAID_NAME_MAX ? `The raid's full title must be ${RAID_NAME_MAX} characters or fewer. Shorten the title addition.` : null;
 }
+
+/**
+ * A series' addition, cut so a generated raid's name still fits the thread name. Saving a
+ * series checks the length, but its template can be renamed longer afterwards; tick must
+ * still make the raid rather than fail or overflow.
+ */
+export function fitTitleAddition(templateName: string, addition: string | null): string | null {
+  if (!addition || !raidNameError(templateName, addition)) return addition;
+  const room = RAID_NAME_MAX - LONGEST_DATE - [...templateName].length - 2;
+  const cut = [...addition].slice(0, Math.max(0, room)).join('').trim();
+  return cut || null;
+}
