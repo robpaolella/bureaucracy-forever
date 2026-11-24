@@ -14,6 +14,7 @@ vi.mock('@/lib/outbox', () => ({ enqueue: vi.fn() }));
 vi.mock('next/server', async (orig) => ({ ...(await orig<typeof import('next/server')>()), after: vi.fn() }));
 vi.mock('@/lib/db', () => ({ db: { raid: { findUnique: mocks.findUnique, update: mocks.update }, raidTemplate: { findFirst: mocks.findTemplate } } }));
 
+import { decideRespond } from '@/lib/signup-rules';
 import { PATCH } from './route';
 
 const form = { date: '2099-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, dps: 20 }, notes: 'n' };
@@ -195,6 +196,97 @@ describe('PATCH /api/raids/[id] (edit)', () => {
     it('gets the template and the name', async () => {
       expect((await patch({ templateId: 't2' })).status).toBe(200);
       expect(mocks.update.mock.calls[0][0].data).toMatchObject({ templateId: 't2', name: 'Onyxia — Wed Nov 4' });
+    });
+  });
+
+  describe('closing sign-ups before the start', () => {
+    const lockGap = () => {
+      const { startsAt, locksAt } = mocks.update.mock.calls[0][0].data;
+      return (startsAt.getTime() - locksAt.getTime()) / 60_000;
+    };
+    // The stored raid starts 2099-10-01T03:00Z; the form moves it to 2099-11-04 19:00 guild time.
+    const withLock = (minutes: number, over: Record<string, unknown> = {}) => raid({ locksAt: new Date(Date.parse('2099-10-01T03:00:00.000Z') - minutes * 60_000), ...over });
+
+    it('off sets the lock to the start', async () => {
+      mocks.findUnique.mockResolvedValue(withLock(120));
+      await patch({ closeBeforeStart: false });
+      expect(lockGap()).toBe(0);
+    });
+
+    it('on sets 2 hours on a raid locked at its start', async () => {
+      mocks.findUnique.mockResolvedValue(withLock(0));
+      await patch({ closeBeforeStart: true });
+      expect(lockGap()).toBe(120);
+    });
+
+    it('on keeps a series raid’s own 60 minutes', async () => {
+      mocks.findUnique.mockResolvedValue(withLock(60));
+      await patch({ closeBeforeStart: true });
+      expect(lockGap()).toBe(60);
+    });
+
+    it.each([120, 60, 0])('left out keeps the %i-minute offset', async (minutes) => {
+      mocks.findUnique.mockResolvedValue(withLock(minutes));
+      await patch();
+      expect(lockGap()).toBe(minutes);
+    });
+
+    it('refuses a value that is not on or off, and changes nothing', async () => {
+      expect((await patch({ closeBeforeStart: 'no' })).status).toBe(400);
+      expect(mocks.update).not.toHaveBeenCalled();
+    });
+
+    it('reopens a locked raid 1 hour before its start when the switch goes off, and a member can then accept', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        const start = new Date('2099-11-05T01:00:00.000Z');
+        vi.setSystemTime(new Date(start.getTime() - 3600_000));
+        mocks.findUnique.mockResolvedValue(raid({ status: 'LOCKED', startsAt: start, locksAt: new Date(start.getTime() - 2 * 3600_000) }));
+        const res = await patch({ closeBeforeStart: false, date: '2099-11-04', time: '19:00' });
+        expect(res.status).toBe(200);
+        const data = mocks.update.mock.calls[0][0].data;
+        expect(data).toMatchObject({ status: 'SCHEDULED', lockedAt: null });
+        // The new start is later than the clock, so a member's Accept goes through on the stored state.
+        expect(decideRespond({ role: 'member' }, { status: data.status, locksAt: data.locksAt }, { standing: 'ROSTER', response: null }, 'accept', new Date())).toMatchObject({ ok: true });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('reopens a locked raid moved a day later with the switch on', async () => {
+      mocks.findUnique.mockResolvedValue(withLock(120, { status: 'LOCKED' }));
+      await patch({ closeBeforeStart: true });
+      expect(mocks.update.mock.calls[0][0].data).toMatchObject({ status: 'SCHEDULED', lockedAt: null });
+    });
+
+    it('leaves a scheduled raid whose new lock has passed for tick', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        vi.setSystemTime(new Date('2099-11-04T23:30:00.000Z'));
+        mocks.findUnique.mockResolvedValue(raid({ status: 'SCHEDULED', startsAt: new Date('2099-11-05T01:00:00.000Z'), locksAt: new Date('2099-11-04T23:00:00.000Z') }));
+        await patch({ closeBeforeStart: true });
+        expect(mocks.update.mock.calls[0][0].data).not.toHaveProperty('status');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('keeps a locked raid locked when its new lock is still behind it', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        vi.setSystemTime(new Date('2099-11-05T05:00:00.000Z'));
+        mocks.findUnique.mockResolvedValue(raid({ status: 'LOCKED', startsAt: new Date('2099-11-05T06:00:00.000Z'), locksAt: new Date('2099-11-05T04:00:00.000Z') }));
+        await patch({ closeBeforeStart: true });
+        expect(mocks.update.mock.calls[0][0].data).not.toHaveProperty('status');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it.each([['cancelled', { cancelledAt: new Date() }], ['finished', { status: 'DONE', startsAt: new Date('2000-01-01T00:00:00Z'), locksAt: new Date('2000-01-01T00:00:00Z') }]])('never changes a %s raid', async (_name, over) => {
+      mocks.findUnique.mockResolvedValue(raid({ status: 'LOCKED', ...over }));
+      expect((await patch({ closeBeforeStart: false })).status).toBe(409);
+      expect(mocks.update).not.toHaveBeenCalled();
     });
   });
 });

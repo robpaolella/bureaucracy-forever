@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { toComposition, applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, durationLabel, durationOptions, emptyRaidInput, locksAtFor, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, linkOpensReserves, neededError, parseRequirements, parseRequirementsInput, promptsReserves, raidDate, raidWeekday, reservesUrl, responseToast, sourceSplit, totalCounts, viewerReserves, type RaidCard, type SignupRow } from './raids';
+import { toComposition, applyResponse, countAccepted, countTone, DEFAULT_REQUIREMENTS, durationLabel, durationOptions, emptyRaidInput, locksAtFor, lockMinutesFor, lockOffsetMinutes, groupSignups, mergeLocal, parseRaidInput, raidToInput, isRaidResponse, isTonight, isUpcoming, linkOpensReserves, neededError, parseRequirements, parseRequirementsInput, promptsReserves, raidDate, raidWeekday, reservesUrl, responseToast, sourceSplit, totalCounts, viewerReserves, type RaidCard, type SignupRow } from './raids';
 
 describe('requirements and counts', () => {
   it('parses a JSON requirements column defensively', () => {
@@ -403,5 +403,35 @@ describe('locksAtFor', () => {
   it('is the start with OPEN_UNTIL_START on, whatever gap is passed', () => {
     vi.stubEnv('OPEN_UNTIL_START', 'true');
     for (const gap of [undefined, 0, 30, 1440]) expect(locksAtFor(start, gap).toISOString()).toBe(start.toISOString());
+  });
+});
+
+describe('lock offset helpers', () => {
+  const start = new Date('2026-11-05T04:00:00Z');
+  it('reads the offset from the lock time, never below zero', () => {
+    expect(lockOffsetMinutes(start, new Date('2026-11-05T02:00:00Z'))).toBe(120);
+    expect(lockOffsetMinutes(start, start)).toBe(0);
+    expect(lockOffsetMinutes(start, new Date('2026-11-05T05:00:00Z'))).toBe(0);
+  });
+  it('picks the offset to store', () => {
+    expect(lockMinutesFor(false, 60)).toBe(0);
+    expect(lockMinutesFor(true, null)).toBe(120);
+    expect(lockMinutesFor(true, 0)).toBe(120);
+    expect(lockMinutesFor(true, 60)).toBe(60);
+    expect(lockMinutesFor(undefined, null)).toBe(120);
+    expect(lockMinutesFor(undefined, 0)).toBe(0);
+    expect(lockMinutesFor(undefined, 45)).toBe(45);
+  });
+  it('starts the edit form with the switch off only when the lock is at the start', () => {
+    const base = { startsAt: start.toISOString(), durationMin: 180, requirements: { tank: 2, healer: 8, dps: 20 }, notes: null };
+    expect(raidToInput({ ...base, locksAt: start.toISOString() }).closeBeforeStart).toBe(false);
+    expect(raidToInput({ ...base, locksAt: '2026-11-05T02:00:00.000Z' }).closeBeforeStart).toBe(true);
+    expect(raidToInput(base).closeBeforeStart).toBe(true);
+  });
+  it('parses the switch and refuses other values', () => {
+    const form = { templateId: 't', date: '2099-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, dps: 20 }, notes: '' };
+    expect(parseRaidInput({ ...form, closeBeforeStart: false })).toMatchObject({ ok: true, value: { closeBeforeStart: false } });
+    expect(parseRaidInput(form)).not.toMatchObject({ value: { closeBeforeStart: expect.anything() } });
+    expect(parseRaidInput({ ...form, closeBeforeStart: 'x' }).ok).toBe(false);
   });
 });
