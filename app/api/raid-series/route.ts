@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { parseSeriesInput } from '@/lib/raid-series-rules';
+import { raidNameError } from '@/lib/series';
 import { generateInstances, rosterUserIds } from '@/lib/tick';
 import { ensureUser } from '@/lib/users';
 import { jsonBody, NO_STORE, requireOfficer } from '../_officer';
@@ -23,8 +24,10 @@ export async function POST(request: Request) {
   if ('deny' in auth) return auth.deny;
   const parsed = parseSeriesInput(await jsonBody(request));
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400, headers: NO_STORE });
-  const template = await db.raidTemplate.findUnique({ where: { id: parsed.value.templateId }, select: { id: true, active: true } });
+  const template = await db.raidTemplate.findUnique({ where: { id: parsed.value.templateId }, select: { id: true, name: true, active: true } });
   if (!template || !template.active) return NextResponse.json({ error: 'Pick an active template.' }, { status: 400, headers: NO_STORE });
+  const tooLong = raidNameError(template.name, parsed.value.titleAddition);
+  if (tooLong) return NextResponse.json({ error: tooLong }, { status: 400, headers: NO_STORE });
   const officer = await ensureUser(auth.session);
   const series = await db.raidSeries.create({ data: { ...parsed.value, createdById: officer.id }, select: { id: true } });
   const generated = await generateInstances(new Date(), await rosterUserIds(), series.id);

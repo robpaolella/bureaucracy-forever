@@ -67,6 +67,41 @@ describe('PATCH /api/raids/[id] (edit)', () => {
     expect(mocks.findTemplate).not.toHaveBeenCalled();
   });
 
+  describe('title addition', () => {
+    it('keeps the stored addition and moves the date part', async () => {
+      mocks.findUnique.mockResolvedValue(raid({ titleAddition: 'Key Run' }));
+      await patch({ titleAddition: 'Key Run', date: '2099-11-05' });
+      expect(mocks.update.mock.calls[0][0].data).toMatchObject({ name: 'Molten Core: Key Run — Thu Nov 5', titleAddition: 'Key Run' });
+    });
+
+    it('keeps the stored addition when the body leaves it out', async () => {
+      mocks.findUnique.mockResolvedValue(raid({ titleAddition: 'Key Run' }));
+      await patch();
+      expect(mocks.update.mock.calls[0][0].data).toMatchObject({ name: 'Molten Core: Key Run — Wed Nov 4', titleAddition: 'Key Run' });
+    });
+
+    it.each(['', '   ', null])('clears it on %j and brings back the plain title', async (value) => {
+      mocks.findUnique.mockResolvedValue(raid({ titleAddition: 'Key Run' }));
+      await patch({ titleAddition: value });
+      expect(mocks.update.mock.calls[0][0].data).toMatchObject({ name: 'Molten Core — Wed Nov 4', titleAddition: null });
+    });
+
+    it('adds one to a raid that had none, tidied', async () => {
+      mocks.findUnique.mockResolvedValue(raid({ titleAddition: null }));
+      await patch({ titleAddition: '  Alt   Run ' });
+      expect(mocks.update.mock.calls[0][0].data).toMatchObject({ name: 'Molten Core: Alt Run — Wed Nov 4', titleAddition: 'Alt Run' });
+    });
+
+    it('refuses an addition over 40 characters or a title over 100, and changes nothing', async () => {
+      expect(await (await patch({ titleAddition: 'x'.repeat(41) })).json()).toEqual({ error: 'Keep the title addition to 40 characters.' });
+      mocks.findUnique.mockResolvedValue(raid({ template: { name: 'T'.repeat(60), size: 30 } }));
+      const res = await patch({ titleAddition: 'x'.repeat(40) });
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toMatch(/100 characters or fewer/);
+      expect(mocks.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe('reserves allowed', () => {
     it('switches it off through the setter, which takes the reserve lock', async () => {
       expect((await patch({ reservesAllowed: false })).status).toBe(200);

@@ -5,6 +5,7 @@ import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { Button, Field, Input, Select, Textarea } from '@/components/ui';
 import { GUILD_TIMEZONE } from '@/lib/config';
 import { parseSeriesInput, WEEKDAY_LABELS, type SeriesInput } from '@/lib/raid-series-rules';
+import { raidNameError, titleBase } from '@/lib/series';
 import { formatClock, nextOccurrence, type Weekday } from '@/lib/time';
 import { SERIES } from '@/content/planner';
 
@@ -26,15 +27,25 @@ export function SeriesForm({ templates, initial, submitLabel, hint, onSubmit, on
     e.preventDefault();
     const parsed = parseSeriesInput(input);
     if (!parsed.ok) return setError(parsed.error);
+    // The whole title must fit Discord's thread name, as the route checks.
+    const template = templates.find((t) => t.id === parsed.value.templateId);
+    const tooLong = template ? raidNameError(template.name, parsed.value.titleAddition) : null;
+    if (tooLong) return setError(tooLong);
     setSaving(true);
     const message = await onSubmit(parsed.value);
     setSaving(false);
     if (message) setError(message);
   }
+  const parsedNow = parseSeriesInput(input);
+  const addition = parsedNow.ok ? parsedNow.value.titleAddition : null;
+  const template = templates.find((t) => t.id === input.templateId);
   const preview = /^\d{2}:\d{2}$/.test(input.startTime) ? nextOccurrence(input.weekday as Weekday, input.startTime, GUILD_TIMEZONE) : null;
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
       <Select label={SERIES.template} options={templates.map((t) => ({ value: t.id, label: t.name }))} value={input.templateId} onChange={(e) => { const t = templates.find((x) => x.id === e.target.value); set('templateId', e.target.value); if (t) set('durationMin', t.durationMin); }} />
+      <Field label={SERIES.titleAddition} hint={template && addition ? SERIES.titleAdditionShown(titleBase(template.name, addition)) : SERIES.titleAdditionHint}>
+        <Input value={input.titleAddition ?? ''} onChange={(e) => set('titleAddition', e.target.value)} />
+      </Field>
       <div className="grid grid-cols-2 gap-3">
         <Select label={SERIES.weekday} options={WEEKDAY_LABELS.map((w, i) => ({ value: String(i), label: w }))} value={String(input.weekday)} onChange={(e) => set('weekday', Number(e.target.value))} />
         <Field label={SERIES.start} hint={preview && viewer ? `${formatClock(preview, GUILD_TIMEZONE)} ${SERIES.guild} · ${formatClock(preview, viewer.zone)} ${SERIES.yours}` : undefined}>

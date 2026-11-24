@@ -129,3 +129,35 @@ describe('RaidForm Reserves allowed switch', () => {
     expect((onSubmit.mock.calls as unknown[][])[0][0]).not.toHaveProperty('reservesAllowed');
   });
 });
+
+describe('RaidForm title addition', () => {
+  const ready = { ...initial, templateId: 'mc' };
+  const box = () => field('Title addition') as HTMLInputElement;
+
+  it('starts with the stored addition on Edit and shows the title it makes', async () => {
+    await render([mc], { initial: { ...ready, titleAddition: 'Key Run' } });
+    expect(box().value).toBe('Key Run');
+    expect(host.textContent).toContain('The title reads Molten Core: Key Run.');
+    expect(host.textContent).toMatch(/Molten Core: Key Run — /);
+  });
+
+  it('sends the tidied addition, and none when blank', async () => {
+    await render([mc], { initial: ready });
+    expect(host.textContent).toContain('Optional. Added after the raid name, such as Key Run.');
+    await change(box(), '  Key   Run ');
+    await submit();
+    expect(onSubmit).toHaveBeenLastCalledWith(expect.objectContaining({ titleAddition: 'Key Run' }));
+    await change(box(), '   ');
+    await submit();
+    expect(onSubmit).toHaveBeenLastCalledWith(expect.objectContaining({ titleAddition: null }));
+  });
+
+  it('shows an error line for a title too long for Discord and does not submit', async () => {
+    const long: RaidTemplateOption = { ...mc, id: 'long', name: 'T'.repeat(60) };
+    await render([long], { initial: { ...ready, templateId: 'long' } });
+    await change(box(), 'x'.repeat(40));
+    await submit();
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(host.querySelector('[role=alert]')?.textContent).toMatch(/100 characters or fewer/);
+  });
+});

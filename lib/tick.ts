@@ -64,7 +64,8 @@ export async function generateInstances(now: Date, roster: string[], seriesId?: 
       try {
         await db.raid.create({
           data: {
-            name: instanceName(s.template.name, startsAt),
+            name: instanceName(s.template.name, startsAt, s.titleAddition),
+            titleAddition: s.titleAddition,
             startsAt,
             locksAt: locksAtFor(startsAt, s.lockMinutesBefore),
             durationMin: s.durationMin,

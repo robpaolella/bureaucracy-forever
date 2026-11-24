@@ -5,7 +5,7 @@ import { lockReserveTier } from '@/lib/loot-blocks';
 import { enqueue } from '@/lib/outbox';
 import { parseSeriesInput } from '@/lib/raid-series-rules';
 import { locksAtFor, parseRequirements } from '@/lib/raids';
-import { instanceName, occurrenceInWeekOf } from '@/lib/series';
+import { instanceName, occurrenceInWeekOf, raidNameError } from '@/lib/series';
 import { generateInstances, rosterUserIds } from '@/lib/tick';
 import { jsonBody, NO_STORE, requireOfficer } from '../../_officer';
 
@@ -19,7 +19,7 @@ function tiersToLock(raids: { templateId: string | null }[], newTier: string): s
 /**
  * PATCH /api/raid-series/:id — "this and future raids" (SYNC-SPEC §9.3). The series changes,
  * and every future instance that was not edited on its own moves with it, in place: same
- * guild week, the new weekday and time, the new length, notes and template. Sign-ups stay,
+ * guild week, the new weekday and time, the new length, notes, template and title addition. Sign-ups stay,
  * links stay, and a posted instance gets a `raid.update` so its Discord post follows. New
  * dates the rule now covers are generated at once. `{ active: false }` deactivates: future
  * unposted instances are removed (the modal says so); posted ones stay to be cancelled one
@@ -38,6 +38,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { value } = parsed;
   const template = await db.raidTemplate.findUnique({ where: { id: value.templateId }, select: { id: true, name: true, requirements: true, active: true } });
   if (!template || !template.active) return NextResponse.json({ error: 'Pick an active template.' }, { status: 400, headers: NO_STORE });
+  // Checked when the form saves; switching a series off or on alone never fails on its title.
+  const tooLong = body && ('titleAddition' in body || 'templateId' in body) ? raidNameError(template.name, value.titleAddition) : null;
+  if (tooLong) return NextResponse.json({ error: tooLong }, { status: 400, headers: NO_STORE });
 
   const now = new Date();
   await db.raidSeries.update({ where: { id }, data: value });
@@ -53,7 +56,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const ownedSelect = { id: true, startsAt: true, discordThreadId: true, templateId: true } as const;
   const requirements = parseRequirements(template.requirements) as unknown as Prisma.InputJsonValue;
   const moveData = (startsAt: Date) => ({
-    name: instanceName(template.name, startsAt),
+    name: instanceName(template.name, startsAt, value.titleAddition),
+    titleAddition: value.titleAddition,
     startsAt,
     locksAt: locksAtFor(startsAt, value.lockMinutesBefore),
     durationMin: value.durationMin,

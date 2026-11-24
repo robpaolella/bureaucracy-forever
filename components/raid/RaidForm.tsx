@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn';
 import { GUILD_TIMEZONE } from '@/lib/config';
 import { COMPOSITION_LABELS, COMPOSITION_ROLES } from '@/lib/design/class-colors';
 import { durationLabel, durationOptions, parseRaidInput, RAID_NOTES_MAX, type RaidInput, type RaidTemplateOption } from '@/lib/raids';
-import { instanceName } from '@/lib/series';
+import { instanceName, raidNameError, titleBase } from '@/lib/series';
 import { formatRange, WEEKDAY_NAMES, zoneAbbreviation, zonedParts } from '@/lib/time';
 import { SCHEDULE_FORM } from '@/content/calendar';
 
@@ -44,12 +44,15 @@ export function RaidForm({ initial, templates, templateLocked = false, lootOn = 
   const previewParse = parsed.ok ? parsed : parseRaidInput({ ...input, templateId: input.templateId || 'preview' });
   const preview = previewParse.ok ? previewParse.startsAt : null;
   const noTemplates = templates.length === 0;
+  const addition = parsed.ok ? (parsed.value.titleAddition ?? null) : null;
+  // The whole title must fit Discord's thread name, as the route checks.
+  const tooLong = parsed.ok && template ? raidNameError(template.name, addition, parsed.startsAt) : null;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (saving || noTemplates) return;
-    if (!parsed.ok) {
-      setError(parsed.error);
+    if (!parsed.ok || tooLong) {
+      setError(parsed.ok ? tooLong : parsed.error);
       return;
     }
     setSaving(true);
@@ -89,6 +92,10 @@ export function RaidForm({ initial, templates, templateLocked = false, lootOn = 
           onChange={(e) => pick(e.target.value)}
         />
       )}
+
+      <Field label={SCHEDULE_FORM.titleAddition} hint={template && addition ? SCHEDULE_FORM.titleAdditionShown(titleBase(template.name, addition)) : SCHEDULE_FORM.titleAdditionHint}>
+        <Input value={input.titleAddition ?? ''} onChange={(e) => set('titleAddition', e.target.value)} />
+      </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={SCHEDULE_FORM.date}>
@@ -138,7 +145,7 @@ export function RaidForm({ initial, templates, templateLocked = false, lootOn = 
         {preview ? (
           <>
             <span className="font-semibold text-fg">
-              {template ? instanceName(template.name, preview) : WEEKDAY_NAMES[zonedParts(preview, GUILD_TIMEZONE).weekday]} · {formatRange(preview, new Date(preview.getTime() + input.durationMin * 60_000), GUILD_TIMEZONE)}
+              {template ? instanceName(template.name, preview, addition) : WEEKDAY_NAMES[zonedParts(preview, GUILD_TIMEZONE).weekday]} · {formatRange(preview, new Date(preview.getTime() + input.durationMin * 60_000), GUILD_TIMEZONE)}
             </span>{' '}
             <span className="text-fg-3">guild ({zoneAbbreviation(preview, GUILD_TIMEZONE)})</span>
             {viewer && viewer.zone !== GUILD_TIMEZONE && (

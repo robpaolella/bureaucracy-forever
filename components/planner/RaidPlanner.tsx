@@ -56,7 +56,7 @@ function Planner({ templates, series, canDeleteTemplates }: Props) {
   const activeTemplates = templates.filter((t) => t.active);
   // Series still on the template being deleted: the route refuses those, so the modal says so up front.
   const templatesInUse = deletingTemplate ? series.filter((s) => s.templateId === deletingTemplate.id).length : 0;
-  const blank: SeriesInput = { templateId: activeTemplates[0]?.id ?? '', weekday: 4, startTime: '20:00', durationMin: activeTemplates[0]?.durationMin ?? 180, notes: '', postAheadDays: 14, lockMinutesBefore: 120, horizonWeeks: 4, active: true };
+  const blank: SeriesInput = { templateId: activeTemplates[0]?.id ?? '', weekday: 4, startTime: '20:00', durationMin: activeTemplates[0]?.durationMin ?? 180, notes: '', titleAddition: '', postAheadDays: 14, lockMinutesBefore: 120, horizonWeeks: 4, active: true };
 
   async function createTemplate(input: TemplateInput): Promise<string | null> {
     const r = await send('/api/raid-templates', 'POST', input);
