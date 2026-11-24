@@ -72,10 +72,60 @@ export function skippedDatesFor(startsAt: Date, series: Pick<SeriesShape, 'weekd
   return [...new Set([guildDateKey(startsAt, zone), guildDateKey(occurrenceInWeekOf(startsAt, series, zone), zone)])];
 }
 
-/** "Molten Core — Thu Oct 15", the post title and the raid name for a generated instance. */
-export function instanceName(templateName: string, startsAt: Date, zone: string = GUILD_TIMEZONE): string {
+/**
+ * "Molten Core — Thu Oct 15", or "Upper Blackrock Spire: Key Run — Tue Nov 24" with a title
+ * addition: the post title and the raid name for every raid, one-off or generated.
+ */
+export function instanceName(templateName: string, startsAt: Date, addition: string | null = null, zone: string = GUILD_TIMEZONE): string {
   const p = zonedParts(startsAt, zone);
   const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][p.weekday];
   const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][p.month - 1];
-  return `${templateName} — ${day} ${month} ${p.day}`;
+  return `${titleBase(templateName, addition)} — ${day} ${month} ${p.day}`;
+}
+
+/** "Upper Blackrock Spire: Key Run": the title without its date, as the forms' hint shows it. */
+export function titleBase(templateName: string, addition: string | null): string {
+  return addition ? `${templateName}: ${addition}` : templateName;
+}
+
+export const TITLE_ADDITION_MAX = 40;
+/** Discord's thread-name limit; the thread is named like the raid. */
+export const RAID_NAME_MAX = 100;
+/** " — Wed Sep 30", the longest date part a name can end with. */
+const LONGEST_DATE = 13;
+
+/**
+ * A title addition as officers type it: trimmed, inner spaces collapsed, 1–40 characters on
+ * one line. Empty or blank (or null) means none. Shared by the forms and the routes.
+ */
+export function parseTitleAddition(value: unknown): { ok: true; value: string | null } | { ok: false; error: string } {
+  if (value === null || value === undefined) return { ok: true, value: null };
+  if (typeof value !== 'string') return { ok: false, error: 'The title addition must be text.' };
+  if (/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/.test(value.trim())) return { ok: false, error: 'Keep the title addition on one line.' };
+  const text = value.trim().replace(/\s+/g, ' ');
+  if (!text) return { ok: true, value: null };
+  if ([...text].length > TITLE_ADDITION_MAX) return { ok: false, error: `Keep the title addition to ${TITLE_ADDITION_MAX} characters.` };
+  return { ok: true, value: text };
+}
+
+/**
+ * The whole name must fit Discord's thread name. A raid checks its own date; a series, with
+ * no date yet, checks the longest one so none of its raids can overflow.
+ */
+export function raidNameError(templateName: string, addition: string | null, startsAt?: Date): string | null {
+  if (!addition) return null;
+  const length = startsAt ? [...instanceName(templateName, startsAt, addition)].length : [...titleBase(templateName, addition)].length + LONGEST_DATE;
+  return length > RAID_NAME_MAX ? `The raid's full title must be ${RAID_NAME_MAX} characters or fewer. Shorten the title addition.` : null;
+}
+
+/**
+ * A series' addition, cut so a generated raid's name still fits the thread name. Saving a
+ * series checks the length, but its template can be renamed longer afterwards; tick must
+ * still make the raid rather than fail or overflow.
+ */
+export function fitTitleAddition(templateName: string, addition: string | null): string | null {
+  if (!addition || !raidNameError(templateName, addition)) return addition;
+  const room = RAID_NAME_MAX - LONGEST_DATE - [...templateName].length - 2;
+  const cut = [...addition].slice(0, Math.max(0, room)).join('').trim();
+  return cut || null;
 }

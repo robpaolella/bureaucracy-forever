@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => {
   return {
     tx,
     seriesFind: vi.fn(), seriesUpdate: vi.fn(), templateFind: vi.fn(),
-    raidFindMany: vi.fn(), raidUpdate: vi.fn(),
+    raidFindMany: vi.fn(), raidUpdate: vi.fn(), raidDeleteMany: vi.fn(),
     transaction: vi.fn(), lock: vi.fn(), enqueue: vi.fn(), generate: vi.fn(),
   };
 });
@@ -15,7 +15,7 @@ vi.mock('@/lib/session', () => ({ getSession: async () => ({ role: 'officer' }) 
 vi.mock('@/lib/db', () => ({ db: {
   raidSeries: { findUnique: mocks.seriesFind, update: mocks.seriesUpdate },
   raidTemplate: { findUnique: mocks.templateFind },
-  raid: { findMany: mocks.raidFindMany, update: mocks.raidUpdate },
+  raid: { findMany: mocks.raidFindMany, update: mocks.raidUpdate, deleteMany: mocks.raidDeleteMany },
   $transaction: mocks.transaction,
 } }));
 vi.mock('@/lib/loot-blocks', () => ({ lockReserveTier: mocks.lock }));
@@ -28,8 +28,8 @@ const SERIES = { id: 's1', templateId: 'tier-b', weekday: 4, startTime: '20:00',
 const FUTURE = new Date('2099-03-04T12:00:00Z');
 const PAST = new Date('2001-03-04T12:00:00Z');
 const raid = (id: string, templateId: string | null, extra: Record<string, unknown> = {}) => ({ id, startsAt: FUTURE, discordThreadId: null, templateId, ...extra });
-const patch = () => PATCH(
-  new Request('https://example.test/api/raid-series/s1', { method: 'PATCH', body: JSON.stringify({}) }),
+const patch = (body: Record<string, unknown> = {}) => PATCH(
+  new Request('https://example.test/api/raid-series/s1', { method: 'PATCH', body: JSON.stringify(body) }),
   { params: Promise.resolve({ id: 's1' }) },
 );
 const p2002 = () => new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' });
@@ -72,6 +72,64 @@ describe('PATCH /api/raid-series/:id moving future raids', () => {
     mocks.raidFindMany.mockResolvedValue([raid('r1', 'tier-b')]);
     mocks.raidUpdate.mockRejectedValue(new Error('boom'));
     await expect(patch()).rejects.toThrow('boom');
+  });
+
+  describe('title addition', () => {
+    it('saves a series with no stored addition (null) without an error', async () => {
+      mocks.seriesFind.mockResolvedValue({ ...SERIES, titleAddition: null });
+      mocks.raidFindMany.mockResolvedValue([raid('r1', 'tier-b')]);
+      expect((await patch({ notes: 'x' })).status).toBe(200);
+      expect(mocks.seriesUpdate.mock.calls[0][0].data.titleAddition).toBeNull();
+      expect(mocks.raidUpdate.mock.calls[0][0].data).toMatchObject({ name: 'Tier B — Thu Mar 5', titleAddition: null });
+    });
+
+    it('renames the future raids it still owns and never reads detached ones', async () => {
+      mocks.raidFindMany.mockResolvedValue([raid('r1', 'tier-b', { discordThreadId: 't' }), raid('r2', 'tier-b')]);
+      expect(await (await patch({ titleAddition: ' Key  Run ' })).json()).toMatchObject({ moved: 2 });
+      expect(mocks.seriesUpdate.mock.calls[0][0].data.titleAddition).toBe('Key Run');
+      expect(mocks.raidFindMany.mock.calls[0][0].where).toMatchObject({ seriesId: 's1', detached: false });
+      for (const [{ data }] of mocks.raidUpdate.mock.calls) expect(data).toMatchObject({ name: 'Tier B: Key Run — Thu Mar 5', titleAddition: 'Key Run' });
+      expect(mocks.enqueue).toHaveBeenCalledWith('raid.update', { raidId: 'r1' });
+    });
+
+    it('keeps the stored addition when the body leaves it out, and clears it on blank', async () => {
+      mocks.seriesFind.mockResolvedValue({ ...SERIES, titleAddition: 'Key Run' });
+      mocks.raidFindMany.mockResolvedValue([raid('r1', 'tier-b')]);
+      await patch({ notes: 'x' });
+      expect(mocks.raidUpdate.mock.calls[0][0].data.name).toBe('Tier B: Key Run — Thu Mar 5');
+      await patch({ titleAddition: '  ' });
+      expect(mocks.raidUpdate.mock.calls[1][0].data).toMatchObject({ name: 'Tier B — Thu Mar 5', titleAddition: null });
+    });
+
+    it('refuses a title that could pass 100 characters, and changes nothing', async () => {
+      mocks.templateFind.mockResolvedValue({ id: 'tier-b', name: 'T'.repeat(60), requirements: { tank: 4, healer: 10, dps: 26 }, active: true });
+      const res = await patch({ titleAddition: 'x'.repeat(26) });
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toMatch(/100 characters or fewer/);
+      expect(mocks.seriesUpdate).not.toHaveBeenCalled();
+    });
+
+    describe('after its template was renamed too long for the addition', () => {
+      beforeEach(() => {
+        mocks.seriesFind.mockResolvedValue({ ...SERIES, titleAddition: 'x'.repeat(40) });
+        mocks.templateFind.mockResolvedValue({ id: 'tier-b', name: 'T'.repeat(60), requirements: { tank: 4, healer: 10, dps: 26 }, active: true });
+        mocks.raidFindMany.mockResolvedValue([raid('r1', 'tier-b')]);
+      });
+
+      it('still lets it be switched off', async () => {
+        mocks.raidDeleteMany.mockResolvedValue({ count: 1 });
+        expect(await (await patch({ active: false })).json()).toMatchObject({ dropped: 1 });
+        expect(mocks.seriesUpdate.mock.calls[0][0].data.active).toBe(false);
+      });
+
+      it.each([{ active: true }, { notes: 'x' }])('refuses %j, which would rename its raids too long, and changes nothing', async (body) => {
+        const res = await patch(body);
+        expect(res.status).toBe(400);
+        expect((await res.json()).error).toMatch(/100 characters or fewer/);
+        expect(mocks.seriesUpdate).not.toHaveBeenCalled();
+        expect(mocks.raidUpdate).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('when the tier changes', () => {
