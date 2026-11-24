@@ -6,9 +6,9 @@ import { Button, CONTROL, Field, FIELD_LABEL, Input, Select, Textarea, TextLink,
 import { cn } from '@/lib/cn';
 import { GUILD_TIMEZONE } from '@/lib/config';
 import { COMPOSITION_LABELS, COMPOSITION_ROLES } from '@/lib/design/class-colors';
-import { durationLabel, durationOptions, parseRaidInput, RAID_NOTES_MAX, type RaidInput, type RaidTemplateOption } from '@/lib/raids';
+import { durationLabel, durationOptions, lockMinutesFor, parseRaidInput, RAID_NOTES_MAX, type RaidInput, type RaidTemplateOption } from '@/lib/raids';
 import { instanceName, parseTitleAddition, raidNameError, TITLE_ADDITION_MAX, titleBase } from '@/lib/series';
-import { formatRange, WEEKDAY_NAMES, zoneAbbreviation, zonedParts } from '@/lib/time';
+import { formatClock, formatRange, WEEKDAY_NAMES, zoneAbbreviation, zonedParts } from '@/lib/time';
 import { SCHEDULE_FORM } from '@/content/calendar';
 
 type Props = {
@@ -19,6 +19,8 @@ type Props = {
   templateLocked?: boolean;
   /** Loot is on: the Reserves allowed switch shows and is sent. Off, it is neither. */
   lootOn?: boolean;
+  /** How many minutes before the start this raid's sign-ups close now (0: at the start); left out for a new raid. */
+  lockMinutes?: number;
   submitLabel: string;
   /** Resolve with an error message to show, or null when saved. */
   onSubmit: (input: RaidInput) => Promise<string | null>;
@@ -31,7 +33,7 @@ type Props = {
  * the officer's own zone beneath, so nothing is ever a bare time. Validation is the same
  * `parseRaidInput` the route runs, so the form never shows an error the server would not.
  */
-export function RaidForm({ initial, templates, templateLocked = false, lootOn = false, submitLabel, onSubmit, onCancel }: Props) {
+export function RaidForm({ initial, templates, templateLocked = false, lootOn = false, lockMinutes, submitLabel, onSubmit, onCancel }: Props) {
   const [input, setInput] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -49,6 +51,15 @@ export function RaidForm({ initial, templates, templateLocked = false, lootOn = 
   // The whole title must fit Discord's thread name, as the route checks.
   const tooLong = template && preview ? raidNameError(template.name, addition, preview) : null;
   const additionError = additionCheck.ok ? tooLong : additionCheck.error;
+
+  const closeOn = input.closeBeforeStart ?? true;
+  const closeMinutes = lockMinutesFor(true, lockMinutes ?? null);
+  const closeAt = preview ? new Date(preview.getTime() - closeMinutes * 60_000) : null;
+  const closeHint = !closeOn
+    ? SCHEDULE_FORM.closeSignupsOff
+    : closeAt
+      ? SCHEDULE_FORM.closeSignupsOn(formatClock(closeAt, GUILD_TIMEZONE), viewer && viewer.zone !== GUILD_TIMEZONE ? formatClock(closeAt, viewer.zone) : null, durationLabel(closeMinutes))
+      : null;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -141,6 +152,11 @@ export function RaidForm({ initial, templates, templateLocked = false, lootOn = 
       </Field>
 
       {lootOn && <Toggle label={SCHEDULE_FORM.reservesAllowed} checked={input.reservesAllowed ?? true} onChange={(on) => set('reservesAllowed', on)} />}
+
+      <div className="flex flex-col">
+        <Toggle label={SCHEDULE_FORM.closeSignups} checked={closeOn} onChange={(on) => set('closeBeforeStart', on)} />
+        {closeHint && <span className="text-xs text-fg-3" aria-live="polite">{closeHint}</span>}
+      </div>
 
       <p className="tabular text-sm text-fg-2" aria-live="polite">
         <span className="text-fg-3">{SCHEDULE_FORM.preview} </span>

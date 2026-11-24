@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useId, useState, type FormEvent } from 'react';
 import { Button, ButtonLink, Field, Modal, Select, Sheet, Textarea, useToast, type ToastData } from '@/components/ui';
-import { raidToInput, RESPONSES, type RaidCard, type RaidInput, type RaidResponse, type RaidTemplateOption } from '@/lib/raids';
+import { lockOffsetMinutes, raidToInput, RESPONSES, type RaidCard, type RaidInput, type RaidResponse, type RaidTemplateOption } from '@/lib/raids';
 import { SAVE_FAILED } from '@/content/calendar';
 import { OFFICER_ACTIONS, onBehalfToast, RAID_TOASTS } from '@/content/raid';
 import { RaidForm } from './RaidForm';
@@ -186,7 +186,7 @@ export function OfficerActions({ raid, members, past, threadUrl, fromSeries, tem
       </div>
 
       <Modal open={editing} onClose={() => setEditing(false)} title={OFFICER_ACTIONS.editTitle}>
-        {editing && <RaidForm initial={raidToInput({ ...raid, templateId: template?.id })} templates={template ? [{ ...template, durationMin: raid.durationMin, requirements: raid.requirements }] : templates} templateLocked={template !== null} lootOn={lootOn} submitLabel={OFFICER_ACTIONS.save} onSubmit={saveEdit} onCancel={() => setEditing(false)} />}
+        {editing && <RaidForm initial={raidToInput({ ...raid, templateId: template?.id })} templates={template ? [{ ...template, durationMin: raid.durationMin, requirements: raid.requirements }] : templates} templateLocked={template !== null} lootOn={lootOn} lockMinutes={raid.locksAt ? lockOffsetMinutes(new Date(raid.startsAt), new Date(raid.locksAt)) : undefined} submitLabel={OFFICER_ACTIONS.save} onSubmit={saveEdit} onCancel={() => setEditing(false)} />}
       </Modal>
 
       <Modal
