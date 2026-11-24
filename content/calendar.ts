@@ -28,7 +28,7 @@ export const SCHEDULE_FORM = {
   templateNeededLink: 'Open raid management',
   titleAddition: 'Title addition',
   titleAdditionHint: 'Optional. Added after the raid name, such as Key Run.',
-  titleAdditionShown: (title: string) => `The title reads ${title}.`,
+  titleAdditionShown: (title: string) => `The title reads “${title}”.`,
   date: 'Date',
   time: 'Start',
   guildHint: 'Guild time. Members see it in their own zone too.',

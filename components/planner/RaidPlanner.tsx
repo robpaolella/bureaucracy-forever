@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Button, Card, Modal, StatusPill, ToastHost, useToast } from '@/components/ui';
 import { COMPOSITION_LABELS, COMPOSITION_ROLES } from '@/lib/design/class-colors';
 import { WEEKDAY_LABELS, type SeriesInput, type TemplateInput } from '@/lib/raid-series-rules';
+import { titleBase } from '@/lib/series';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { GUILD_TIMEZONE } from '@/lib/config';
 import { formatClock, formatGuildClock, nextOccurrence, type Weekday } from '@/lib/time';
@@ -177,7 +178,7 @@ function Planner({ templates, series, canDeleteTemplates }: Props) {
               <li key={s.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
                 <div className="flex min-w-[14rem] flex-1 flex-col">
                   <span className="text-[15px] font-semibold">
-                    {s.templateName} <span className="text-fg-3">· {WEEKDAY_LABELS[s.weekday]}s <SeriesTime weekday={s.weekday} startTime={s.startTime} /></span>
+                    {titleBase(s.templateName, s.titleAddition || null)} <span className="text-fg-3">· {WEEKDAY_LABELS[s.weekday]}s <SeriesTime weekday={s.weekday} startTime={s.startTime} /></span>
                   </span>
                   <span className="tabular text-[13px] text-fg-3">
                     {SERIES.summary(s)} · {SERIES.raids(s.raids)}
@@ -185,7 +186,7 @@ function Planner({ templates, series, canDeleteTemplates }: Props) {
                   </span>
                 </div>
                 <StatusPill tone={s.active ? 'ok' : 'closed'}>{s.active ? TEMPLATES.active : TEMPLATES.inactive}</StatusPill>
-                <Button variant="secondary" size="sm" onClick={() => setEditingSeries(s)} aria-label={`${TEMPLATES.edit} ${s.templateName} ${WEEKDAY_LABELS[s.weekday]}`}>
+                <Button variant="secondary" size="sm" onClick={() => setEditingSeries(s)} aria-label={`${TEMPLATES.edit} ${titleBase(s.templateName, s.titleAddition || null)} ${WEEKDAY_LABELS[s.weekday]}`}>
                   {TEMPLATES.edit}
                 </Button>
                 {s.active ? (
@@ -197,7 +198,7 @@ function Planner({ templates, series, canDeleteTemplates }: Props) {
                     {SERIES.reactivate}
                   </Button>
                 )}
-                <Button variant="ghost" size="sm" className="text-stop" onClick={() => setDeletingSeries(s)} aria-label={`${SERIES.delete} ${s.templateName} ${WEEKDAY_LABELS[s.weekday]}`}>
+                <Button variant="ghost" size="sm" className="text-stop" onClick={() => setDeletingSeries(s)} aria-label={`${SERIES.delete} ${titleBase(s.templateName, s.titleAddition || null)} ${WEEKDAY_LABELS[s.weekday]}`}>
                   {SERIES.delete}
                 </Button>
               </li>

@@ -43,7 +43,7 @@ export const SERIES = {
   template: 'Template',
   titleAddition: 'Title addition',
   titleAdditionHint: 'Optional. Added after the raid name on every raid the series makes, such as Key Run.',
-  titleAdditionShown: (title: string) => `Every raid's title reads ${title}.`,
+  titleAdditionShown: (title: string) => `Every raid's title reads “${title}”.`,
   weekday: 'Weekday',
   start: 'Start (guild time)',
   length: 'Length',

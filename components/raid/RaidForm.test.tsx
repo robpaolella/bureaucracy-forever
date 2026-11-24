@@ -137,7 +137,7 @@ describe('RaidForm title addition', () => {
   it('starts with the stored addition on Edit and shows the title it makes', async () => {
     await render([mc], { initial: { ...ready, titleAddition: 'Key Run' } });
     expect(box().value).toBe('Key Run');
-    expect(host.textContent).toContain('The title reads Molten Core: Key Run.');
+    expect(host.textContent).toContain('The title reads “Molten Core: Key Run”.');
     expect(host.textContent).toMatch(/Molten Core: Key Run — /);
   });
 
@@ -156,8 +156,18 @@ describe('RaidForm title addition', () => {
     const long: RaidTemplateOption = { ...mc, id: 'long', name: 'T'.repeat(60) };
     await render([long], { initial: { ...ready, templateId: 'long' } });
     await change(box(), 'x'.repeat(40));
+    // Shown under the box as soon as it is typed, before any save.
+    expect(box().getAttribute('aria-invalid')).toBe('true');
+    expect(host.textContent).toMatch(/100 characters or fewer/);
     await submit();
     expect(onSubmit).not.toHaveBeenCalled();
     expect(host.querySelector('[role=alert]')?.textContent).toMatch(/100 characters or fewer/);
+  });
+
+  it('keeps the date and time preview while the addition is not valid', async () => {
+    await render([mc], { initial: ready });
+    await change(box(), 'x'.repeat(41));
+    expect(host.textContent).toContain('Keep the title addition to 40 characters.');
+    expect(host.textContent).toMatch(/Members will see Molten Core — /);
   });
 });
