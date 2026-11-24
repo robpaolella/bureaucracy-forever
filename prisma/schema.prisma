@@ -286,6 +286,8 @@ model RaidSeries {
   startTime         String
   durationMin       Int
   notes             String?
+  /// Words after the template name in every raid it makes ("Key Run"); null for none.
+  titleAddition     String?
   postAheadDays     Int          @default(14)
   lockMinutesBefore Int          @default(120)
   horizonWeeks      Int          @default(4)
@@ -306,6 +308,8 @@ model Raid {
   startsAt         DateTime
   durationMin      Int           @default(180)
   notes            String?
+  /// Words after the template name in the title ("Key Run"); null for none. `name` is rebuilt from it.
+  titleAddition    String?
   /// Legacy: a Discord scheduled event id. Nullable, unused; do not build on it (SYNC-SPEC §3).
   discordEventId   String?       @unique
   cancelledAt      DateTime?

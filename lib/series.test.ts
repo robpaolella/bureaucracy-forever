@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { zonedParts } from './time';
-import { guildDateKey, instanceName, isRosterRank, missingOccurrences, occurrenceInWeekOf, occurrences, skippedDatesFor } from './series';
+import { guildDateKey, instanceName, isRosterRank, missingOccurrences, occurrenceInWeekOf, occurrences, parseTitleAddition, raidNameError, skippedDatesFor, titleBase, fitTitleAddition } from './series';
 
 describe('series occurrences', () => {
   // Thursday 8 PM Pacific, four weeks, starting Wednesday 14 Oct 2026 (PDT).
@@ -75,5 +75,56 @@ describe('series occurrences', () => {
     expect(instanceName('Molten Core', new Date('2026-10-16T03:00:00.000Z'))).toBe('Molten Core — Thu Oct 15');
     expect(isRosterRank('RAIDER') && isRosterRank('TRIAL') && isRosterRank('OFFICER')).toBe(true);
     expect(isRosterRank('SOCIAL')).toBe(false);
+  });
+
+  it('puts a title addition after the template name, and leaves the plain title without one', () => {
+    const tue = new Date('2026-11-25T04:00:00.000Z'); // Tue Nov 24, 8 PM PST
+    expect(instanceName('Upper Blackrock Spire', tue, 'Key Run')).toBe('Upper Blackrock Spire: Key Run — Tue Nov 24');
+    expect(instanceName('Upper Blackrock Spire', tue, null)).toBe('Upper Blackrock Spire — Tue Nov 24');
+    expect(instanceName('Upper Blackrock Spire', tue, '')).toBe('Upper Blackrock Spire — Tue Nov 24');
+    expect(titleBase('Upper Blackrock Spire', 'Key Run')).toBe('Upper Blackrock Spire: Key Run');
+    // Late on the night of the fall-back (Sun Nov 1, 11:30 PM PST) is still Sunday in guild time.
+    expect(instanceName('Molten Core', new Date('2026-11-02T07:30:00.000Z'), 'Alt Run')).toBe('Molten Core: Alt Run — Sun Nov 1');
+    // …and the night before the spring-forward (Sat Mar 7 2026, 11 PM PST).
+    expect(instanceName('Molten Core', new Date('2026-03-08T07:00:00.000Z'), 'Alt Run')).toBe('Molten Core: Alt Run — Sat Mar 7');
+  });
+
+  it('reads a title addition as typed: trimmed, spaces collapsed, blank as none', () => {
+    expect(parseTitleAddition('  Key   Run  ')).toEqual({ ok: true, value: 'Key Run' });
+    expect(parseTitleAddition('')).toEqual({ ok: true, value: null });
+    expect(parseTitleAddition('   ')).toEqual({ ok: true, value: null });
+    expect(parseTitleAddition(null)).toEqual({ ok: true, value: null });
+    expect(parseTitleAddition(undefined)).toEqual({ ok: true, value: null });
+    expect(parseTitleAddition('x'.repeat(40))).toEqual({ ok: true, value: 'x'.repeat(40) });
+    expect(parseTitleAddition('x'.repeat(41))).toEqual({ ok: false, error: 'Keep the title addition to 40 characters.' });
+    expect(parseTitleAddition('Key\nRun')).toEqual({ ok: false, error: 'Keep the title addition on one line.' });
+    expect(parseTitleAddition('Key\tRun')).toEqual({ ok: false, error: 'Keep the title addition on one line.' });
+    expect(parseTitleAddition(7)).toEqual({ ok: false, error: 'The title addition must be text.' });
+  });
+
+  it('refuses a full title over 100 characters, the thread-name limit', () => {
+    const template = 'T'.repeat(60);
+    const startsAt = new Date('2026-11-25T04:00:00.000Z'); // " — Tue Nov 24": 13 characters
+    // 60 + ": " + 25 + 13 = 100 fits; one more does not.
+    expect(raidNameError(template, 'a'.repeat(25), startsAt)).toBeNull();
+    expect(raidNameError(template, 'a'.repeat(26), startsAt)).toMatch(/100 characters or fewer/);
+    expect(raidNameError(template, null, startsAt)).toBeNull();
+    // A series has no date yet, so it is held to the longest one.
+    expect(raidNameError(template, 'a'.repeat(25))).toBeNull();
+    expect(raidNameError(template, 'a'.repeat(26))).toMatch(/100 characters or fewer/);
+    // A one-digit day leaves one more character for a single raid.
+    expect(raidNameError(template, 'a'.repeat(26), new Date('2026-11-04T04:00:00.000Z'))).toBeNull();
+  });
+
+  it('cuts a series addition to fit when its template was renamed longer', () => {
+    expect(fitTitleAddition('Onyxia', 'Key Run')).toBe('Key Run');
+    expect(fitTitleAddition('Onyxia', null)).toBeNull();
+    const template = 'T'.repeat(60);
+    const fitted = fitTitleAddition(template, 'Key Run plus a lot more words here ok')!;
+    expect(fitted).toBe('Key Run plus a lot more w');
+    expect(raidNameError(template, fitted)).toBeNull();
+    // A cut that ends on a space is trimmed; no room at all means no addition.
+    expect(fitTitleAddition(template, 'Key Run plus a lot more  wx')).toBe('Key Run plus a lot more');
+    expect(fitTitleAddition('T'.repeat(86), 'Key Run')).toBeNull();
   });
 });

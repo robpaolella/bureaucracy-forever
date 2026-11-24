@@ -46,4 +46,13 @@ describe('template and series input', () => {
     expect(parseSeriesInput({ templateId: 't1', weekday: 4, startTime: '8pm', durationMin: 180 })).toMatchObject({ ok: false, error: /HH:MM/ });
     expect(parseSeriesInput({ templateId: '', weekday: 4, startTime: '20:00', durationMin: 180 })).toMatchObject({ ok: false, error: /template/ });
   });
+
+  it('reads a series title addition, with a stored null or a missing one as none', () => {
+    const base = { templateId: 't1', weekday: 4, startTime: '20:00', durationMin: 180 };
+    expect(parseSeriesInput({ ...base, titleAddition: ' Key  Run ' })).toMatchObject({ ok: true, value: { titleAddition: 'Key Run' } });
+    expect(parseSeriesInput({ ...base, titleAddition: null })).toMatchObject({ ok: true, value: { titleAddition: null } });
+    expect(parseSeriesInput(base)).toMatchObject({ ok: true, value: { titleAddition: null } });
+    expect(parseSeriesInput({ ...base, titleAddition: '   ' })).toMatchObject({ ok: true, value: { titleAddition: null } });
+    expect(parseSeriesInput({ ...base, titleAddition: 'x'.repeat(41) })).toEqual({ ok: false, error: 'Keep the title addition to 40 characters.' });
+  });
 });

@@ -203,6 +203,24 @@ describe('tick generation', () => {
     expect(mocks.raid.create).toHaveBeenCalled();
     for (const [{ data }] of mocks.raid.create.mock.calls) expect(data.requirements).toStrictEqual({ tank: 2, healer: 8, dps: 25 });
   });
+
+  it.each([
+    ['Key Run', 'Onyxia: Key Run — ', 'Key Run'],
+    [null, 'Onyxia — ', null],
+    // The template was renamed longer after the series was saved: cut to fit, never over 100.
+    ['x'.repeat(40), `${'O'.repeat(60)}: ${'x'.repeat(25)} — `, 'x'.repeat(25), 'O'.repeat(60)],
+  ])('copies the series title addition %j into every raid it generates', async (addition, prefix, stored, templateName = 'Onyxia') => {
+    mocks.raidSeries.findMany.mockResolvedValue([{ id: 's', templateId: 't', weekday: 3, startTime: '20:00', horizonWeeks: 1, lockMinutesBefore: 120, durationMin: 180, notes: null, titleAddition: addition, skippedDates: [], raids: [], template: { name: templateName, requirements: { tank: 2, healer: 8, dps: 25 } } }]);
+    mocks.character.findMany.mockResolvedValue([]);
+    mocks.raid.create.mockResolvedValue({});
+    await runTick(now);
+    expect(mocks.raid.create).toHaveBeenCalled();
+    for (const [{ data }] of mocks.raid.create.mock.calls) {
+      expect(data.name.startsWith(prefix)).toBe(true);
+      expect(data.name.length).toBeLessThanOrEqual(100);
+      expect(data.titleAddition).toBe(stored);
+    }
+  });
 });
 
 describe('tick interview digest', () => {

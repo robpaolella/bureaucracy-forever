@@ -288,6 +288,26 @@ describe('schedule form input', () => {
   });
 });
 
+describe('title addition in the raid input', () => {
+  const good = { templateId: 't1', date: '2026-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, dps: 20 }, notes: '' };
+
+  it('tidies it, reads blank as none, and leaves it out when not sent', () => {
+    expect(parseRaidInput({ ...good, titleAddition: ' Key   Run ' })).toMatchObject({ ok: true, value: { titleAddition: 'Key Run' } });
+    expect(parseRaidInput({ ...good, titleAddition: '' })).toMatchObject({ ok: true, value: { titleAddition: null } });
+    expect(parseRaidInput({ ...good, titleAddition: null })).toMatchObject({ ok: true, value: { titleAddition: null } });
+    const left = parseRaidInput(good);
+    expect(left.ok && 'titleAddition' in left.value).toBe(false);
+    expect(parseRaidInput({ ...good, titleAddition: 'x'.repeat(41) })).toEqual({ ok: false, error: 'Keep the title addition to 40 characters.' });
+  });
+
+  it('prefills the edit form with the stored addition', () => {
+    const base = { templateId: 't1', startsAt: '2026-10-08T02:00:00.000Z', durationMin: 180, requirements: good.requirements, notes: null };
+    expect(raidToInput({ ...base, titleAddition: 'Key Run' }).titleAddition).toBe('Key Run');
+    expect(raidToInput({ ...base, titleAddition: null }).titleAddition).toBe('');
+    expect(emptyRaidInput().titleAddition).toBe('');
+  });
+});
+
 describe('reserves allowed in the raid input', () => {
   const good = { templateId: 't1', date: '2026-11-04', time: '19:00', durationMin: 180, requirements: { tank: 2, healer: 8, dps: 20 }, notes: '' };
 

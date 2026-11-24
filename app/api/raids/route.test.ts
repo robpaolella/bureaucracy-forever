@@ -72,6 +72,28 @@ describe('POST /api/raids', () => {
     expect(mocks.create.mock.calls[0][0].data).toMatchObject({ templateId: 't1', name: 'Molten Core — Wed Nov 4' });
   });
 
+  it('adds a title addition after the template name, tidied', async () => {
+    const res = await post({ titleAddition: '  Key   Run ' });
+    expect(res.status).toBe(201);
+    expect(mocks.create.mock.calls[0][0].data).toMatchObject({ name: 'Molten Core: Key Run — Wed Nov 4', titleAddition: 'Key Run' });
+  });
+
+  it.each([undefined, '', '  ', null])('stores no addition and the plain title for %j', async (value) => {
+    await post({ titleAddition: value });
+    expect(mocks.create.mock.calls[0][0].data).toMatchObject({ name: 'Molten Core — Wed Nov 4', titleAddition: null });
+  });
+
+  it('refuses a title addition that is too long or would make the title too long', async () => {
+    const res = await post({ titleAddition: 'x'.repeat(41) });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Keep the title addition to 40 characters.' });
+    mocks.findTemplate.mockResolvedValue({ id: 't1', name: 'T'.repeat(60), size: 30 });
+    const long = await post({ titleAddition: 'x'.repeat(40) });
+    expect(long.status).toBe(400);
+    expect((await long.json()).error).toMatch(/100 characters or fewer/);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
   it('ignores a typed name', async () => {
     await post({ name: 'Something else' });
     expect(mocks.create.mock.calls[0][0].data.name).toBe('Molten Core — Wed Nov 4');
