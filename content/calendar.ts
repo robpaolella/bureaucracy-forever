@@ -40,6 +40,9 @@ export const SCHEDULE_FORM = {
   cancel: 'Cancel',
   preview: 'Members will see',
   reservesAllowed: 'Reserves allowed',
+  closeSignups: 'Close sign-ups before the start',
+  closeSignupsOn: (guild: string, mine: string | null, before: string) => `Sign-ups close at ${guild} guild time${mine ? ` (${mine} yours)` : ''}, ${before} before the start.`,
+  closeSignupsOff: 'Sign-ups stay open until the start.',
 };
 
 export function scheduledToast(name: string, weekday: string): string {

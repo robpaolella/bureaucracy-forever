@@ -3,6 +3,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyRaidInput, type RaidTemplateOption } from '@/lib/raids';
+import { setViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { RaidForm } from './RaidForm';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -100,7 +101,7 @@ describe('RaidForm template', () => {
 });
 
 describe('RaidForm Reserves allowed switch', () => {
-  const sw = () => host.querySelector<HTMLButtonElement>('button[role=switch]');
+  const sw = () => [...host.querySelectorAll<HTMLButtonElement>('button[role=switch]')].find((b) => host.querySelector(`label[for="${b.id}"]`)?.textContent === 'Reserves allowed') ?? null;
   const ready = { ...initial, templateId: 'mc' };
 
   it('shows while loot is on, on by default when scheduling', async () => {
@@ -127,6 +128,48 @@ describe('RaidForm Reserves allowed switch', () => {
     await submit();
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect((onSubmit.mock.calls as unknown[][])[0][0]).not.toHaveProperty('reservesAllowed');
+  });
+});
+
+describe('RaidForm close sign-ups switch', () => {
+  const sw = () => [...host.querySelectorAll<HTMLButtonElement>('button[role=switch]')].find((b) => host.querySelector(`label[for="${b.id}"]`)?.textContent === 'Close sign-ups before the start')!;
+  const ready = { ...initial, templateId: 'mc' };
+
+  it('is on by default and says when and how long before the start', async () => {
+    await render([mc], { initial: ready });
+    expect(sw().getAttribute('aria-checked')).toBe('true');
+    expect(host.textContent).toMatch(/Sign-ups close at .+ guild time.*, 2 hours before the start\./);
+  });
+
+  it('shows the raid’s own offset on Edit', async () => {
+    await render([mc], { initial: ready, lockMinutes: 60 });
+    expect(host.textContent).toMatch(/, 1 hour before the start\./);
+  });
+
+  it('starts off from the raid and says sign-ups stay open', async () => {
+    await render([mc], { initial: { ...ready, closeBeforeStart: false } });
+    expect(sw().getAttribute('aria-checked')).toBe('false');
+    expect(host.textContent).toContain('Sign-ups stay open until the start.');
+  });
+
+  it('labels the officer’s own time with its zone when it differs from guild time', async () => {
+    await act(async () => setViewerTimeZone('Asia/Tokyo'));
+    await render([mc], { initial: ready });
+    expect(host.textContent).toMatch(/guild time \(\d{1,2}:\d{2} [AP]M (GMT\+9|JST) yours\), 2 hours before/);
+    await act(async () => setViewerTimeZone(null));
+  });
+
+  it('says sign-ups stay open until the start while the staging setting forces it', async () => {
+    await render([mc], { initial: ready, openUntilStart: true });
+    expect(host.textContent).toContain('Sign-ups stay open until the start.');
+    expect(host.textContent).not.toMatch(/before the start\./);
+  });
+
+  it('sends what the officer chose', async () => {
+    await render([mc], { initial: ready });
+    await act(async () => sw().click());
+    await submit();
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ closeBeforeStart: false }));
   });
 });
 
