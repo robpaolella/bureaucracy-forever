@@ -41,6 +41,7 @@ describe('RosterLists', () => {
     expect(toggle('No response').getAttribute('aria-expanded')).toBe('false');
     expect(toggle('No response').textContent).toContain('2');
     expect(toggle('Absent').textContent).toContain('1');
+    expect(toggle('Absent').getAttribute('aria-expanded')).toBe('false');
     expect(host.textContent).not.toContain('Quiet Quill');
   });
 
@@ -51,6 +52,12 @@ describe('RosterLists', () => {
     expect(host.textContent).toContain('Away');
     expect(host.textContent).toContain('Away Quill · Mage');
     expect(host.textContent).toContain('“Family dinner”');
+    expect(host.textContent).not.toContain('Quiet Quill');
+    await act(async () => toggle('No response').click());
+    expect(host.textContent).toContain('Quiet Quill · Mage');
+    expect(host.textContent).toContain('Mum Quill · Mage');
+    await act(async () => toggle('No response').click());
+    expect(toggle('No response').getAttribute('aria-expanded')).toBe('false');
     expect(host.textContent).not.toContain('Quiet Quill');
   });
 
