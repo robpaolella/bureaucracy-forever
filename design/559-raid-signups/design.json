@@ -1,0 +1,44 @@
+{
+  "design_issue": 559,
+  "covers": [
+    561,
+    562,
+    563,
+    564,
+    567
+  ],
+  "revision": 1,
+  "versions": {
+    "approved": "index.html"
+  },
+  "states": [
+    "raid-member",
+    "raid-officer",
+    "raid-officer-manage",
+    "raid-officer-sheet",
+    "raid-lists-open",
+    "raid-everyone-answered",
+    "raid-nobody-answered",
+    "raid-locked",
+    "raid-during",
+    "raid-cancelled",
+    "raid-after",
+    "raid-max",
+    "raid-max-manage",
+    "ask-character",
+    "ask-character-under-60",
+    "ask-calendar",
+    "ask-error",
+    "under-60-confirm",
+    "bringing-under-60",
+    "manage-characters",
+    "manage-default-set",
+    "manage-one-character",
+    "manage-error",
+    "roster-members",
+    "roster-officers"
+  ],
+  "themes": [
+    "default"
+  ]
+}
