@@ -300,6 +300,8 @@ export type RaidInput = {
   reservesAllowed?: boolean;
   /** Words added to the title ("Key Run"); empty or null means none. Left out, an edit keeps the stored value. */
   titleAddition?: string | null;
+  /** Sign-ups close before the start (on) or stay open until it (off). Left out, a new raid closes 2 hours before and an edit keeps its lock offset. */
+  closeBeforeStart?: boolean;
 };
 
 export const RAID_NOTES_MAX = 500;
@@ -345,6 +347,22 @@ export function locksAtFor(startsAt: Date, lockMinutesBefore = DEFAULT_LOCK_MINU
   return new Date(startsAt.getTime() - lockMinutesBefore * 60_000);
 }
 
+/** How many minutes before the start a raid's sign-ups close; 0 when they stay open until the start. */
+export function lockOffsetMinutes(startsAt: Date, locksAt: Date): number {
+  return Math.max(0, Math.round((startsAt.getTime() - locksAt.getTime()) / 60_000));
+}
+
+/**
+ * The lock offset a save stores. Off is 0. On keeps the raid's own offset when it has one
+ * (a series' custom lock), else 2 hours. Left out, a new raid (`current` null) takes 2 hours
+ * and an edit keeps what it has.
+ */
+export function lockMinutesFor(closeBeforeStart: boolean | undefined, current: number | null): number {
+  if (closeBeforeStart === false) return 0;
+  if (closeBeforeStart === undefined) return current ?? DEFAULT_LOCK_MINUTES;
+  return current !== null && current > 0 ? current : DEFAULT_LOCK_MINUTES;
+}
+
 export type ParsedRaid = { ok: true; value: RaidInput; startsAt: Date } | { ok: false; error: string };
 
 /**
@@ -384,13 +402,15 @@ export function parseRaidInput(body: unknown): ParsedRaid {
 
   if (b.reservesAllowed !== undefined && typeof b.reservesAllowed !== 'boolean') return { ok: false, error: 'Reserves allowed must be on or off.' };
 
+  if (b.closeBeforeStart !== undefined && typeof b.closeBeforeStart !== 'boolean') return { ok: false, error: 'Close sign-ups before the start must be on or off.' };
+
   // The whole name's length is checked by the route against the template (`raidNameError`).
   const addition = parseTitleAddition(b.titleAddition);
   if (!addition.ok) return addition;
 
   return {
     ok: true,
-    value: { templateId, date, time, durationMin, requirements: req, notes, ...(b.reservesAllowed === undefined ? {} : { reservesAllowed: b.reservesAllowed }), ...(b.titleAddition === undefined ? {} : { titleAddition: addition.value }) },
+    value: { templateId, date, time, durationMin, requirements: req, notes, ...(b.reservesAllowed === undefined ? {} : { reservesAllowed: b.reservesAllowed }), ...(b.titleAddition === undefined ? {} : { titleAddition: addition.value }), ...(b.closeBeforeStart === undefined ? {} : { closeBeforeStart: b.closeBeforeStart }) },
     startsAt,
   };
 }
@@ -398,7 +418,7 @@ export function parseRaidInput(body: unknown): ParsedRaid {
 const pad = (n: number) => String(n).padStart(2, '0');
 
 /** The form values for an existing raid, in guild time. */
-export function raidToInput(raid: { templateId?: string | null; startsAt: string; durationMin: number; requirements: Composition; notes: string | null; reservesAllowed?: boolean; titleAddition?: string | null }): RaidInput {
+export function raidToInput(raid: { templateId?: string | null; startsAt: string; durationMin: number; requirements: Composition; notes: string | null; reservesAllowed?: boolean; titleAddition?: string | null; locksAt?: string }): RaidInput {
   const p = zonedParts(new Date(raid.startsAt), GUILD_TIMEZONE);
   return {
     templateId: raid.templateId ?? '',
@@ -409,6 +429,8 @@ export function raidToInput(raid: { templateId?: string | null; startsAt: string
     notes: raid.notes ?? '',
     reservesAllowed: raid.reservesAllowed ?? true,
     titleAddition: raid.titleAddition ?? '',
+    // On unless the lock is at the start; a raid without a lock time reads as on.
+    closeBeforeStart: raid.locksAt ? Date.parse(raid.locksAt) !== Date.parse(raid.startsAt) : true,
   };
 }
 
@@ -430,5 +452,6 @@ export function emptyRaidInput(prefill: { weekday?: Weekday; time?: string; leng
     notes: '',
     reservesAllowed: true,
     titleAddition: '',
+    closeBeforeStart: true,
   };
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { loadRaidCards } from '@/lib/raid-cards';
-import { isUpcoming, locksAtFor, neededError, parseRaidInput, PICK_TEMPLATE } from '@/lib/raids';
+import { isUpcoming, lockMinutesFor, locksAtFor, neededError, parseRaidInput, PICK_TEMPLATE } from '@/lib/raids';
 import { instanceName, raidNameError } from '@/lib/series';
 import { getSession } from '@/lib/session';
 import { rosterSignups, rosterUserIds } from '@/lib/tick';
@@ -20,7 +20,7 @@ export async function GET() {
 
 /**
  * POST /api/raids — schedule a raid (officers). Body is the form's guild-time wall clock:
- * `{ templateId, date, time, durationMin, requirements, notes, reservesAllowed?, titleAddition? }`; the instant is
+ * `{ templateId, date, time, durationMin, requirements, notes, reservesAllowed?, titleAddition?, closeBeforeStart? }`; the instant is
  * derived here and the name comes from the template and the title addition, like a weekly raid's. A typed `name` is ignored.
  */
 export async function POST(request: Request) {
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       titleAddition: addition,
       templateId: template.id,
       startsAt: parsed.startsAt,
-      locksAt: locksAtFor(parsed.startsAt),
+      locksAt: locksAtFor(parsed.startsAt, lockMinutesFor(value.closeBeforeStart, null)),
       durationMin: value.durationMin,
       requirements: value.requirements,
       notes: value.notes || null,

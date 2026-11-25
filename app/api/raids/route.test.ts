@@ -94,6 +94,17 @@ describe('POST /api/raids', () => {
     expect(mocks.create).not.toHaveBeenCalled();
   });
 
+  it.each([[true, 120], [false, 0], [undefined, 120]])('with the switch %j locks sign-ups %i minutes before the start', async (closeBeforeStart, minutes) => {
+    await post({ closeBeforeStart });
+    const data = mocks.create.mock.calls[0][0].data;
+    expect(data.startsAt.getTime() - data.locksAt.getTime()).toBe(minutes * 60_000);
+  });
+
+  it('refuses a switch that is not on or off', async () => {
+    expect((await post({ closeBeforeStart: 'no' })).status).toBe(400);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
   it('ignores a typed name', async () => {
     await post({ name: 'Something else' });
     expect(mocks.create.mock.calls[0][0].data.name).toBe('Molten Core — Wed Nov 4');
