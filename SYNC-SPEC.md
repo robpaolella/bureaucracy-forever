@@ -939,7 +939,7 @@ are in §13 Rendering, so the contract reads in one place.
    tentative, with Answer and Via columns; below them two collapsible lists, closed by
    default, **No response** (roster members with no answer, holding **Nudge in Discord**,
    which enqueues `raid.remind`) and **Absent** (with reasons); Bench card with "Move to
-   roster"; "Answer for them" per member (officers); "Mark attendance" after the raid ends; Cancel with reason (officers).
+   roster"; "Answer for them" per member and "Move to roster" (officers, behind a **Manage sign-ups** switch that is off whenever the page opens); "Mark attendance" after the raid ends; Cancel with reason (officers).
 6. **Roster editor** — lists everyone in the guild on Discord; a rank change (on a main, or the
    rank select on a member without one) enqueues `member.roles.sync` for the Raider, Trial and
    Social roles. Officer rank is read-only, it comes from the Discord Officer role. Class changes made here
@@ -1420,4 +1420,10 @@ the rows that exist.
   raid-detail line now describes the site's roster lists. It is a site screen only; no endpoint, field
   or status changes, and the bot sends and reads what it does today. Consumer:
   `bureaucracy-forever-discord-bot` copies the §9.5 wording word for word in
+  https://github.com/robpaolella/bureaucracy-forever-discord-bot/issues/442.
+- **Manage sign-ups switch** (site https://github.com/robpaolella/bureaucracy-forever/issues/562): §9.5's
+  raid-detail line now says officers' "Answer for them" and "Move to roster" appear behind a Manage
+  sign-ups switch, off whenever the page opens. It is a site screen only; no endpoint, field or status
+  changes, and the bot sends and reads what it does today. Consumer: `bureaucracy-forever-discord-bot`
+  copies the §9.5 wording word for word in
   https://github.com/robpaolella/bureaucracy-forever-discord-bot/issues/442.
