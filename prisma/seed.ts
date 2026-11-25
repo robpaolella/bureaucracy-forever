@@ -10,7 +10,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@/lib/generated/prisma/client';
 import { assertWriteTarget } from './write-guard';
 import { parseStagingTesters } from './staging-testers';
-import { buildApplications, buildClassNeeds, buildRaids, buildRaidTemplates, buildRoster, paintWeek, rng } from './seed-data';
+import { buildApplications, buildClassNeeds, buildBenchGuests, buildFixtureRaids, buildRaids, buildRaidTemplates, buildRoster, paintWeek, rng } from './seed-data';
 
 loadEnv({ path: '.env.local' });
 loadEnv();
@@ -122,6 +122,43 @@ async function main() {
         },
       });
     }
+  }
+
+  // Fixture raids for the raid page's other states; deterministic, no randomness used.
+  const answerers = users.filter((u) => u.role !== 'SOCIAL');
+  const guests: typeof users = [];
+  for (const g of buildBenchGuests()) {
+    const user = await db.user.create({
+      data: { discordId: g.discordId, discordName: g.name, role: 'MEMBER', rank: 'RAIDER', timezone: 'America/Chicago', characters: { create: { name: g.character, class: CLASS[g.wowClass], spec: g.spec, raidRole: RAID_ROLE[g.raidRole], rank: 'RAIDER' } } },
+      include: { characters: { select: { id: true } } },
+    });
+    guests.push({ id: user.id, characterId: user.characters[0].id, role: 'MEMBER', raidRole: g.raidRole, timezone: 'America/Chicago', name: g.character });
+  }
+  for (const f of buildFixtureRaids(now)) {
+    const raid = await db.raid.create({
+      data: {
+        name: f.name, startsAt: f.startsAt, locksAt: new Date(f.startsAt.getTime() - 120 * 60_000), durationMin: f.durationMin, requirements: f.requirements, notes: f.notes,
+        templateId: templateIds.get(f.template) ?? null, status: f.status, cancelledAt: f.status === 'CANCELLED' ? now : null, cancelReason: f.cancelReason,
+      },
+    });
+    // Roster rows come from the sample members in order, then the bench guests who accepted.
+    const answers = [...Array(f.accept).fill('ACCEPT'), ...Array(f.tentative).fill('TENTATIVE'), ...Array(f.absent).fill('ABSENT'), ...Array(f.none).fill(null)] as Array<'ACCEPT' | 'TENTATIVE' | 'ABSENT' | null>;
+    const rows = [
+      ...answers.map((response, i) => ({ u: answerers[i], response, standing: 'ROSTER' as const })),
+      ...guests.slice(0, f.bench).map((u) => ({ u, response: 'ACCEPT' as const, standing: 'BENCH' as const })),
+    ];
+    await db.signup.createMany({
+      data: rows.map(({ u, response, standing }, i) => ({
+        raidId: raid.id,
+        userId: u.id,
+        characterId: u.characterId,
+        response,
+        standing,
+        attended: f.status === 'DONE' && response === 'ACCEPT' ? true : null,
+        source: i % 3 ? ('WEB' as const) : ('DISCORD' as const),
+        reason: response === 'ABSENT' ? 'Family dinner.' : null,
+      })),
+    });
   }
 
   // Class needs: the recruitment table, one row per spec.

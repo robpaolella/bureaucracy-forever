@@ -10,12 +10,13 @@ import type { DetailRow } from '@/lib/raid-detail';
 import { SAVE_FAILED } from '@/content/calendar';
 import { ROSTER, UNANSWERED, UNKNOWN_MAIN } from '@/content/raid';
 import { AnswerFor } from './AnswerFor';
+import { useManageSignups } from './ManageSignups';
 
 type Props = {
   raidId: string;
   noResponse: DetailRow[];
   absent: DetailRow[];
-  /** Officers get "Answer for them" under each name. */
+  /** Officers get "Answer for them" under each name once Manage sign-ups is on. */
   canAnswerFor: boolean;
   /** Officers get "Nudge in Discord" while the raid is open and posted. */
   officer: boolean;
@@ -76,6 +77,7 @@ function Disclosure({ id, title, rows, empty, raidId, canAnswerFor, action }: { 
 }
 
 function CompactItem({ raidId, row, canAnswerFor }: { raidId: string; row: DetailRow; canAnswerFor: boolean }) {
+  const { on } = useManageSignups();
   const meta = row.wowClass ? [row.character, CLASS_COLORS[row.wowClass].label].filter(Boolean).join(' · ') : UNKNOWN_MAIN;
   return (
     <li className="flex min-h-11 items-start gap-3 py-2">
@@ -88,7 +90,7 @@ function CompactItem({ raidId, row, canAnswerFor }: { raidId: string; row: Detai
         </span>
         <span className="break-words text-small text-fg-3">{meta}</span>
         {row.response === 'absent' && row.reason && <span className="break-words text-small italic text-fg-2">“{row.reason}”</span>}
-        {canAnswerFor && (
+        {canAnswerFor && on && (
           <div className="pt-2">
             <AnswerFor raidId={raidId} userId={row.userId} name={row.name} current={row.response} />
           </div>

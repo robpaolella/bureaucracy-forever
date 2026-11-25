@@ -33,6 +33,9 @@ export const UNKNOWN_MAIN = 'No main on the roster';
 
 export const OFFICER_ACTIONS = {
   heading: 'Officer actions',
+  headingManaging: 'Officer actions · Managing sign-ups',
+  manage: 'Manage sign-ups',
+  manageHint: 'Shows answer controls on each row and the bench.',
   edit: 'Edit raid',
   editTitle: 'Edit raid',
   save: 'Save changes',

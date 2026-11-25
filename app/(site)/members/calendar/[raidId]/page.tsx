@@ -8,6 +8,7 @@ import { loadMemberRaidLoot } from '@/lib/member-loot';
 import { Reserves } from '@/components/loot/Reserves';
 import { AttendanceForm } from '@/components/raid/AttendanceForm';
 import { BenchCard } from '@/components/raid/BenchCard';
+import { ManageSignupsProvider } from '@/components/raid/ManageSignups';
 import { OfficerActions, type MemberOption } from '@/components/raid/OfficerActions';
 import { RaidResponseControl } from '@/components/raid/RaidResponse';
 import { RaidSummary } from '@/components/raid/RaidSummary';
@@ -214,6 +215,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
           />
         </section>
 
+        <ManageSignupsProvider>
         <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_380px] md:items-start">
           <div className="order-2 flex flex-col gap-6 md:order-1">
             {officer && <OfficerActions raid={card} members={memberOptions} past={past} threadUrl={discordThreadUrl(raid.discordThreadId)} fromSeries={raid.seriesId !== null} template={raid.template ? { id: raid.template.id, name: raid.template.name } : null} templates={templates} lootOn={lootEnabled()} openUntilStart={openUntilStart()} />}
@@ -225,6 +227,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
             <BenchCard raidId={raid.id} rows={bench} officer={officer && !past && !card.cancelled} />
           </div>
         </div>
+        </ManageSignupsProvider>
 
         {table && reserveTargets && !raid.reservesAllowed && (
           <section id="loot-reserves" className="flex scroll-mt-24 flex-col gap-3 rounded-card border border-line bg-ink-850 p-4 md:p-5" aria-labelledby="reserves-heading">

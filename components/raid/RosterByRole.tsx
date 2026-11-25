@@ -5,6 +5,7 @@ import { groupByRole, splitStanding, type DetailRow } from '@/lib/raid-detail';
 import { relativeDate } from '@/lib/time';
 import { ANSWER_LABEL, ROSTER, SET_BY, UNKNOWN_MAIN } from '@/content/raid';
 import { AnswerFor } from './AnswerFor';
+import { ManageGate } from './ManageSignups';
 import { RosterLists } from './RosterLists';
 
 type Props = {
@@ -12,7 +13,7 @@ type Props = {
   rows: DetailRow[];
   /** ISO instant the page rendered at; relative timestamps are measured from it. */
   now: string;
-  /** Officers get "Answer for them" on every row while the raid is still ahead. */
+  /** Officers can get "Answer for them" on every row while the raid is still ahead, once Manage sign-ups is on. */
   canAnswerFor: boolean;
   /** After the raid: show who was marked attended instead of the answer control. */
   showAttendance: boolean;
@@ -78,6 +79,7 @@ export function RosterByRole({ raidId, rows, now, canAnswerFor, showAttendance, 
 function Row({ raidId, row, at, canAnswerFor, showAttendance }: { raidId: string; row: DetailRow; at: Date; canAnswerFor: boolean; showAttendance: boolean }) {
   const color = row.wowClass ? CLASS_COLORS[row.wowClass].onInk : undefined;
   const meta = row.wowClass ? [row.character, CLASS_COLORS[row.wowClass].label, row.spec].filter(Boolean).join(' · ') : UNKNOWN_MAIN;
+  const answer = <span className={cn('text-sm font-semibold', row.response ? ANSWER_TONE[row.response] : 'text-fg-3')}>{row.response ? ANSWER_LABEL[row.response] : ROSTER.noAnswer}</span>;
   return (
     <li className={cn('flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2', row.response === 'absent' && 'opacity-60')}>
       <ClassAvatar name={row.name} wowClass={row.wowClass} />
@@ -95,11 +97,7 @@ function Row({ raidId, row, at, canAnswerFor, showAttendance }: { raidId: string
       {/* Phones: the answer details wrap under the name, indented past the avatar. */}
       <div className="ml-9 flex w-[calc(100%-36px)] flex-wrap items-center gap-x-3 gap-y-1 md:ml-0 md:w-auto md:flex-nowrap">
         <div className="md:w-[132px]">
-          {canAnswerFor ? (
-            <AnswerFor raidId={raidId} userId={row.userId} name={row.name} current={row.response} />
-          ) : (
-            <span className={cn('text-sm font-semibold', row.response ? ANSWER_TONE[row.response] : 'text-fg-3')}>{row.response ? ANSWER_LABEL[row.response] : ROSTER.noAnswer}</span>
-          )}
+          {canAnswerFor ? <ManageGate managing={<AnswerFor raidId={raidId} userId={row.userId} name={row.name} current={row.response} />} viewing={answer} /> : answer}
           {showAttendance && row.attended !== null && <span className={cn('block text-small', row.attended ? 'text-ok' : 'text-fg-3')}>{row.attended ? ROSTER.attended : ROSTER.missed}</span>}
         </div>
         <div className="empty:hidden md:w-28 md:empty:block">
