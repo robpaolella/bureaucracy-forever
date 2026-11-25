@@ -54,12 +54,15 @@ describe.skipIf(process.env.RESERVES_SWITCH_INTEGRATION !== '1')('the per-raid r
       }
     }
     const folders = readdirSync('prisma/migrations').filter((f) => /^\d/.test(f)).sort();
-    expect(folders.at(-1)).toBe(MIGRATION);
-    for (const folder of folders.slice(0, -1)) await pool.query(readFileSync(`prisma/migrations/${folder}/migration.sql`, 'utf8'));
+    const at = folders.indexOf(MIGRATION);
+    expect(at).toBeGreaterThanOrEqual(0);
+    for (const folder of folders.slice(0, at)) await pool.query(readFileSync(`prisma/migrations/${folder}/migration.sql`, 'utf8'));
     // A raid that exists before the migration, to show existing rows read yes.
     await pool.query(`INSERT INTO "Raid" ("id", "name", "startsAt", "requirements", "locksAt", "updatedAt") VALUES ('existing', 'Old raid', now(), '{}', now(), now())`);
     await pool.query(readFileSync(`prisma/migrations/${MIGRATION}/migration.sql`, 'utf8'));
     existingAfterMigration = (await pool.query(`SELECT "reservesAllowed" FROM "Raid" WHERE "id" = 'existing'`)).rows[0]?.reservesAllowed;
+    // Later migrations apply after, so a newer one can't break this setup.
+    for (const folder of folders.slice(at + 1)) await pool.query(readFileSync(`prisma/migrations/${folder}/migration.sql`, 'utf8'));
     db = new PrismaClient({ adapter: new PrismaPg(pool) });
     state.db = db;
   }, 120_000);
