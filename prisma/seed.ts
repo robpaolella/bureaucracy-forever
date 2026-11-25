@@ -129,7 +129,7 @@ async function main() {
   const guests: typeof users = [];
   for (const g of buildBenchGuests()) {
     const user = await db.user.create({
-      data: { discordId: g.discordId, discordName: g.name.toLowerCase(), role: 'MEMBER', rank: 'RAIDER', timezone: 'America/Chicago', characters: { create: { name: g.character, class: CLASS[g.wowClass], spec: g.spec, raidRole: RAID_ROLE[g.raidRole], rank: 'RAIDER' } } },
+      data: { discordId: g.discordId, discordName: g.name, role: 'MEMBER', rank: 'RAIDER', timezone: 'America/Chicago', characters: { create: { name: g.character, class: CLASS[g.wowClass], spec: g.spec, raidRole: RAID_ROLE[g.raidRole], rank: 'RAIDER' } } },
       include: { characters: { select: { id: true } } },
     });
     guests.push({ id: user.id, characterId: user.characters[0].id, role: 'MEMBER', raidRole: g.raidRole, timezone: 'America/Chicago', name: g.character });
@@ -141,19 +141,22 @@ async function main() {
         templateId: templateIds.get(f.template) ?? null, status: f.status, cancelledAt: f.status === 'CANCELLED' ? now : null, cancelReason: f.cancelReason,
       },
     });
-    // The bench raid's last three on the bench are the long-named guests.
-    const pool = f.fixture === 'bench' ? [...answerers.slice(0, f.accepted - 3), ...guests, ...answerers.slice(f.accepted - 3)] : answerers;
+    // Roster rows come from the sample members in order, then the bench guests who accepted.
+    const answers = [...Array(f.accept).fill('ACCEPT'), ...Array(f.tentative).fill('TENTATIVE'), ...Array(f.absent).fill('ABSENT'), ...Array(f.none).fill(null)] as Array<'ACCEPT' | 'TENTATIVE' | 'ABSENT' | null>;
+    const rows = [
+      ...answers.map((response, i) => ({ u: answerers[i], response, standing: 'ROSTER' as const })),
+      ...guests.slice(0, f.bench).map((u) => ({ u, response: 'ACCEPT' as const, standing: 'BENCH' as const })),
+    ];
     await db.signup.createMany({
-      data: pool.slice(0, f.accepted + 7).map((u, i) => ({
+      data: rows.map(({ u, response, standing }, i) => ({
         raidId: raid.id,
         userId: u.id,
         characterId: u.characterId,
-        // After the accepted ones: one absent, two tentative, then four who have not answered.
-        response: i < f.accepted ? ('ACCEPT' as const) : i === f.accepted ? ('ABSENT' as const) : i < f.accepted + 3 ? ('TENTATIVE' as const) : null,
-        standing: i >= f.rosterSize && i < f.accepted ? ('BENCH' as const) : ('ROSTER' as const),
-        attended: f.status === 'DONE' && i < f.accepted ? true : null,
+        response,
+        standing,
+        attended: f.status === 'DONE' && response === 'ACCEPT' ? true : null,
         source: i % 3 ? ('WEB' as const) : ('DISCORD' as const),
-        reason: i === f.accepted ? 'Family dinner.' : null,
+        reason: response === 'ABSENT' ? 'Family dinner.' : null,
       })),
     });
   }

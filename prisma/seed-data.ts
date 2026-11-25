@@ -211,26 +211,49 @@ export function buildRaids(from = new Date()): SeedRaid[] {
   return raids.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 }
 
-/** Sample-only raids that reach the raid page's states the weekly schedule never does: a finished raid, a cancelled one, and one whose roster is full with six on the bench. */
-export type SeedFixtureRaid = SeedRaid & { fixture: 'past' | 'cancelled' | 'bench'; status: 'DONE' | 'CANCELLED' | 'SCHEDULED'; cancelReason: string | null; accepted: number; rosterSize: number };
+/**
+ * Sample-only raids that reach the raid page's states the weekly schedule never does: a finished raid, a cancelled one,
+ * and a full 40-person Onyxia's Lair with six on the bench. `accept`..`none` count the roster rows in that order
+ * (they sum to `rosterSize`); `bench` is how many bench guests also accepted.
+ */
+export type SeedFixtureRaid = SeedRaid & {
+  fixture: 'past' | 'cancelled' | 'bench';
+  status: 'DONE' | 'CANCELLED' | 'SCHEDULED';
+  cancelReason: string | null;
+  rosterSize: number;
+  accept: number;
+  tentative: number;
+  absent: number;
+  none: number;
+  bench: number;
+};
 
 export function buildFixtureRaids(from = new Date()): SeedFixtureRaid[] {
   const day = 24 * 3600_000;
-  const base = { template: "Onyxia's Lair", durationMin: 60, notes: null };
+  const base = { template: "Onyxia's Lair", name: "Onyxia's Lair", durationMin: 60, notes: null, requirements: { tank: 3, healer: 12, dps: 25 }, rosterSize: 40, cancelReason: null };
   return [
-    { ...base, name: "Onyxia's Lair", fixture: 'past', status: 'DONE', startsAt: new Date(from.getTime() - 2 * day), requirements: { tank: 3, healer: 12, dps: 25 }, cancelReason: null, accepted: 24, rosterSize: 40 },
-    { ...base, name: "Onyxia's Lair", fixture: 'cancelled', status: 'CANCELLED', startsAt: new Date(from.getTime() + 10 * day), requirements: { tank: 3, healer: 12, dps: 25 }, cancelReason: 'Raid leader is away.', accepted: 20, rosterSize: 40 },
-    { ...base, template: 'Barrow Deeps', name: 'Barrow Deeps', durationMin: 180, fixture: 'bench', status: 'SCHEDULED', startsAt: new Date(from.getTime() + 12 * day), requirements: { tank: 2, healer: 2, dps: 6 }, cancelReason: null, accepted: 16, rosterSize: 10 },
+    { ...base, fixture: 'past', status: 'DONE', startsAt: new Date(from.getTime() - 2 * day), accept: 30, tentative: 2, absent: 1, none: 7, bench: 0 },
+    { ...base, fixture: 'cancelled', status: 'CANCELLED', startsAt: new Date(from.getTime() + 10 * day), cancelReason: 'Raid leader is away.', accept: 30, tentative: 2, absent: 1, none: 7, bench: 0 },
+    { ...base, fixture: 'bench', status: 'SCHEDULED', startsAt: new Date(from.getTime() + 12 * day), accept: 34, tentative: 2, absent: 1, none: 3, bench: 6 },
   ];
 }
 
-/** Three extra sample raiders with the longest two-part names the site allows, for the bench fixture's long-name wrapping. */
+/** Six extra sample raiders for the bench fixture: the longest two-part character names the site allows and long Discord names, to show wrapping. */
 export function buildBenchGuests(): Array<{ name: string; character: string; discordId: string; wowClass: WowClassKey; spec: string; raidRole: RaidRoleKey }> {
-  return [
-    { name: 'Bartholomeus', character: 'Bartholomeus Ironwhistle', discordId: '1000000000090000001', wowClass: 'warrior', spec: 'Protection', raidRole: 'tank' },
-    { name: 'Thunderstorm', character: 'Thunderstorm Blackthorne', discordId: '1000000000090000002', wowClass: 'priest', spec: 'Discipline', raidRole: 'healer' },
-    { name: 'Wilhelminaaa', character: 'Wilhelminaaa Silverbrook', discordId: '1000000000090000003', wowClass: 'mage', spec: 'Frost', raidRole: 'ranged' },
+  const rows: Array<[string, string, WowClassKey, string, RaidRoleKey]> = [
+    ['Bartholomeus', 'Ironwhistle', 'warrior', 'Protection', 'tank'],
+    ['Thunderstorm', 'Blackthorne', 'priest', 'Discipline', 'healer'],
+    ['Wilhelminaaa', 'Silverbrook', 'mage', 'Frost', 'ranged'],
+    ['Constantinos', 'Stormbringer', 'paladin', 'Holy', 'healer'],
+    ['Maximilianne', 'Ravenshadows', 'warlock', 'Destruction', 'ranged'],
+    ['Evangelinaes', 'Goldenhearth', 'rogue', 'Combat', 'melee'],
   ];
+  return rows.map(([first, last, wowClass, spec, raidRole], i) => ({
+    name: `benchwarmer_with_a_long_name_${i + 1}`,
+    character: `${first} ${last}`,
+    discordId: `100000000009000000${i + 1}`,
+    wowClass, spec, raidRole,
+  }));
 }
 
 export type SeedNeed = { wowClass: WowClassKey; spec: string; roles: RaidRoleKey[]; status: 'HIGH' | 'MEDIUM' | 'CLOSED' };
