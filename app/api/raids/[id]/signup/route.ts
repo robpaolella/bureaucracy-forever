@@ -95,7 +95,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const actor = { role: setByUserId ? 'officer' as const : session.role };
     const result = await answerSignup({
       raid, userId: targetId, actor, officerOverride: setByUserId !== null, characterId, makeDefault,
-      notOwned: setByUserId ? 'Choose one of their characters.' : 'Choose one of your characters.',
+      notOwned: setByUserId
+        ? 'That character is no longer available for this member. Choose another and try again.'
+        : 'That character is no longer available. Choose another and try again.',
       decide: (existing) => decideRespond(actor, raid, existing, response, new Date(), setByUserId !== null),
       fields: (outcome) => ({ standing: outcome.standing, response: RESPONSE_ENUM[outcome.response], source: 'WEB', reason: outcome.response === 'absent' ? reason : null, setByUserId }),
     });
