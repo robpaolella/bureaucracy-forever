@@ -12,7 +12,7 @@ import type { RosterRow } from '@/lib/roster';
 const hooks = vi.hoisted(() => ({ values: null as unknown[] | null, index: 0 }));
 vi.mock('react', async (original) => {
   const react = await original<typeof import('react')>();
-  return { ...react, useState: (initial: unknown) => {
+  return { ...react, useId: () => 'group', useState: (initial: unknown) => {
     if (!hooks.values) return react.useState(initial);
     const index = hooks.index++;
     if (!(index in hooks.values)) hooks.values[index] = initial;
@@ -319,8 +319,8 @@ describe('MemberCharacterDialog', () => {
   });
 
   describe('Sign up with', () => {
-    const radios = () => view([main, { ...alt, isDefault: true }]).filter((n) => n.props.name === 'signup-with');
-    const checkedOf = (characters: MemberCharacter[]) => { hooks.values ??= []; return view(characters).filter((n) => n.props.name === 'signup-with' && n.props.checked).map((n) => n.props['aria-label'] ?? 'ask'); };
+    const radios = () => view([main, { ...alt, isDefault: true }]).filter((n) => n.props.name === 'group');
+    const checkedOf = (characters: MemberCharacter[]) => { hooks.values ??= []; return view(characters).filter((n) => n.props.name === 'group' && n.props.checked).map((n) => n.props['aria-label'] ?? 'ask'); };
 
     it('shows the default from the first render, or Ask me each time', () => {
       expect(render([main, { ...alt, isDefault: true }])).toContain(MEMBER_EDITOR.askEachTime);
@@ -359,7 +359,7 @@ describe('MemberCharacterDialog', () => {
       button(MEMBER_EDITOR.manageCharacters)();
       (view().find((n) => n.props['aria-label'] === 'Sign up with Blue Ink')!.props.onChange as () => void)();
       await vi.waitFor(() => expect(view().some((n) => n.props['aria-invalid'] === true)).toBe(true));
-      expect(view().find((n) => n.props.id === 'signup-with-note')?.props.children).toBe(SAVE_FAILED);
+      expect(view().find((n) => n.props.id === 'group-note')?.props.children).toBe(SAVE_FAILED);
       expect(checkedOf([main, alt])).toEqual(['ask']);
     });
 

@@ -2,12 +2,12 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { RosterRow } from '@/lib/roster';
 
-const mocks = vi.hoisted(() => ({ findMany: vi.fn(), findUnique: vi.fn(), rows: [] as RosterRow[], session: null as null | { discordId: string; rank: string; role: string } }));
+const mocks = vi.hoisted(() => ({ findMany: vi.fn(), findUnique: vi.fn(), rows: [] as RosterRow[], viewer: undefined as undefined | { characters: { id: string; isDefault?: boolean }[] }, session: null as null | { discordId: string; rank: string; role: string } }));
 class NotFound extends Error {}
 vi.mock('next/navigation', () => ({ notFound: () => { throw new NotFound(); } }));
 vi.mock('@/lib/db', () => ({ db: { user: { findMany: mocks.findMany, findUnique: mocks.findUnique } } }));
 vi.mock('@/lib/session', () => ({ getSession: async () => mocks.session }));
-vi.mock('@/components/roster/RosterTable', () => ({ RosterTable: ({ rows }: { rows: RosterRow[] }) => { mocks.rows = rows; return null; } }));
+vi.mock('@/components/roster/RosterTable', () => ({ RosterTable: ({ rows, viewer }: { rows: RosterRow[]; viewer?: typeof mocks.viewer }) => { mocks.rows = rows; mocks.viewer = viewer; return null; } }));
 import RosterPage from './page';
 
 const character = (id: string, isMain: boolean) => ({ id, name: id, isMain, class: 'MAGE', spec: 'Frost', raidRole: 'RANGED', attendance: 0.9, joinedAt: new Date('2026-01-01') });
@@ -48,4 +48,16 @@ it('does not treat an orphaned alt as a main or show its lines', async () => {
     expect.objectContaining({ id: 'orphan', character: null, alts: [], wowClass: null, attendance: null }),
   ]));
   expect(mocks.rows[2]).toMatchObject({ character: 'Main', alts: [] });
+});
+
+it('marks the viewer’s default character from the server read, and none when unset', async () => {
+  mocks.findMany.mockResolvedValue([]);
+  const viewerRow = (defaultCharacterId: string | null) => ({ id: 'viewer', defaultCharacterId, characters: [character('Main', true), character('Alt', false)] });
+  mocks.findUnique.mockResolvedValue(viewerRow('Alt'));
+  renderToStaticMarkup(await RosterPage());
+  expect(mocks.findUnique.mock.calls[0][0].select.defaultCharacterId).toBe(true);
+  expect(mocks.viewer?.characters.map((c) => [c.id, c.isDefault])).toEqual([['Main', false], ['Alt', true]]);
+  mocks.findUnique.mockResolvedValue(viewerRow(null));
+  renderToStaticMarkup(await RosterPage());
+  expect(mocks.viewer?.characters.some((c) => c.isDefault)).toBe(false);
 });

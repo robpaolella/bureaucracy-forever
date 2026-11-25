@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Button, ClassAvatar, FIELD_LABEL, Modal, Toast, type ToastData } from '@/components/ui';
 import { SAVE_FAILED } from '@/content/calendar';
 import { MEMBER_EDITOR, EDITOR_TOASTS } from '@/content/roster-editor';
@@ -55,6 +55,8 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
 
+  /** The roster renders this dialog for desktop and phone; one radio group name each keeps them from unchecking each other. */
+  const group = useId();
   const [defaultError, setDefaultError] = useState(false);
   const defaultId = characters.find((character) => character.isDefault)?.id ?? null;
   const main = characters.find((character) => character.isMain) ?? null;
@@ -189,18 +191,18 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
                 <p className="text-sm text-fg-2"><span className="font-semibold text-fg">{main.name}</span>{MEMBER_EDITOR.onlyCharacter}</p>
               </div>
             ) : null}
-            <fieldset className={cn(characters.length === 1 ? 'contents' : 'flex flex-col gap-2.5')} aria-describedby={characters.length === 1 ? undefined : 'signup-with-note'} aria-invalid={defaultError ? true : undefined}>
+            <fieldset className={cn(characters.length === 1 ? 'contents' : 'flex flex-col gap-2.5')} aria-describedby={characters.length === 1 || !defaultError ? undefined : `${group}-note`} aria-invalid={defaultError && characters.length > 1 ? true : undefined}>
               {characters.length > 1 && (
                 <>
                   <legend className={cn(FIELD_LABEL, 'mb-1')}>{MEMBER_EDITOR.signUpWith}</legend>
                   <span className="text-xs text-fg-3">{MEMBER_EDITOR.signUpWithHint}</span>
                 </>
               )}
-              <ul className={cn('divide-y divide-line-faint rounded-card border bg-ink-900', defaultError ? 'border-stop' : 'border-line')}>
+              <ul className={cn('divide-y divide-line-faint rounded-card border bg-ink-900', defaultError && characters.length > 1 ? 'border-stop' : 'border-line')}>
                 {characters.length > 1 && (
                   <li className="flex items-center gap-3 px-4 py-3">
                     <label className="flex min-h-11 flex-1 items-center gap-3 text-sm font-semibold text-fg">
-                      <input type="radio" name="signup-with" className="h-4 w-4 shrink-0 accent-teal" checked={defaultId === null} disabled={busy} onChange={() => { void chooseDefault(null); }} />
+                      <input type="radio" name={group} className="h-4 w-4 shrink-0 accent-teal" checked={defaultId === null} disabled={busy} onChange={() => { void chooseDefault(null); }} />
                       {MEMBER_EDITOR.askEachTime}
                     </label>
                   </li>
@@ -208,7 +210,9 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
                 {characters.map((character) => (
                   <li key={character.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
                     {characters.length > 1 && (
-                      <input type="radio" name="signup-with" aria-label={`Sign up with ${character.name}`} className="h-4 w-4 shrink-0 accent-teal" checked={defaultId === character.id} disabled={busy} onChange={() => { void chooseDefault(character); }} />
+                      <label className="-m-3.5 flex shrink-0 p-3.5">
+                        <input type="radio" name={group} aria-label={`Sign up with ${character.name}`} className="h-4 w-4 shrink-0 accent-teal" checked={defaultId === character.id} disabled={busy} onChange={() => { void chooseDefault(character); }} />
+                      </label>
                     )}
                     <ClassAvatar name={character.name} wowClass={character.wowClass} size={28} />
                     <div className="min-w-0 flex-1">
@@ -220,7 +224,7 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
                   </li>
                 ))}
               </ul>
-              {defaultError && <span id="signup-with-note" role="alert" className="text-xs text-stop">{SAVE_FAILED}</span>}
+              {defaultError && characters.length > 1 && <span id={`${group}-note`} role="alert" className="text-xs text-stop">{SAVE_FAILED}</span>}
             </fieldset>
             <Button onClick={() => setEditing({ kind: 'add', main: false })}>{MEMBER_EDITOR.addAlt}</Button>
           </div>
