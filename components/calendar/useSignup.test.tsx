@@ -187,9 +187,9 @@ describe('useSignup character choice', () => {
     await render([card({ mine: null, signupRole: 'healer', counts: { ...ZERO_COUNTS, healer: 2 } })]);
     await act(async () => { hook.respond('raid', 'accept', true, choice); });
     expect(hook.raids[0]).toMatchObject({ mine: 'accept', signupRole: 'ranged', counts: { healer: 2, ranged: 1 } });
-    await act(async () => { request.resolve(response(400, { error: 'Choose one of your characters.' })); });
+    await act(async () => { request.resolve(response(400, { error: 'That character is no longer available. Choose another and try again.' })); });
     expect(hook.raids[0]).toEqual(card({ mine: null, signupRole: 'healer', counts: { ...ZERO_COUNTS, healer: 2 } }));
-    expect(onResult).toHaveBeenCalledWith(false, expect.anything(), 'accept', expect.any(Function), false, 'Choose one of your characters.');
+    expect(onResult).toHaveBeenCalledWith(false, expect.anything(), 'accept', expect.any(Function), false, 'That character is no longer available. Choose another and try again.');
     expect(hook.madeDefault).toBeNull();
   });
 

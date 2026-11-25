@@ -175,11 +175,11 @@ describe('RaidResponseControl character question', () => {
   });
 
   it('shows the route message and rolls back on a refused write', async () => {
-    fetcher.mockResolvedValue(response(400, { error: 'Choose one of your characters.' }));
+    fetcher.mockResolvedValue(response(400, { error: 'That character is no longer available. Choose another and try again.' }));
     await render(unanswered);
     await click(button('Accept'));
     await click(button('Accept', dialog()));
-    expect(host.textContent).toContain('Choose one of your characters.');
+    expect(host.textContent).toContain('That character is no longer available. Choose another and try again.');
     expect(host.textContent).not.toContain("Couldn't save that");
     expect(host.querySelector('[aria-checked=true]')).toBeNull();
   });
