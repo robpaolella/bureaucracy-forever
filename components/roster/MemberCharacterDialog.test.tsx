@@ -317,4 +317,71 @@ describe('MemberCharacterDialog', () => {
       await vi.waitFor(() => expect(said(MEMBER_EDITOR.staleFailedBody)).toBe(false));
     });
   });
+
+  describe('Sign up with', () => {
+    const radios = () => view([main, { ...alt, isDefault: true }]).filter((n) => n.props.name === 'signup-with');
+    const checkedOf = (characters: MemberCharacter[]) => { hooks.values ??= []; return view(characters).filter((n) => n.props.name === 'signup-with' && n.props.checked).map((n) => n.props['aria-label'] ?? 'ask'); };
+
+    it('shows the default from the first render, or Ask me each time', () => {
+      expect(render([main, { ...alt, isDefault: true }])).toContain(MEMBER_EDITOR.askEachTime);
+      expect(checkedOf([main, { ...alt, isDefault: true }])).toEqual(['Sign up with Blue Ink']);
+      hooks.values = [];
+      expect(checkedOf([main, alt])).toEqual(['ask']);
+    });
+
+    it('saves the chosen character and toasts', async () => {
+      hooks.values = [];
+      const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ defaultCharacterId: 'alt' })));
+      vi.stubGlobal('fetch', request);
+      button(MEMBER_EDITOR.manageCharacters)();
+      (view().find((n) => n.props['aria-label'] === 'Sign up with Blue Ink')!.props.onChange as () => void)();
+      await vi.waitFor(() => expect(view().find((n) => n.type === Toast)?.props.toast).toEqual({ tone: 'ok', title: 'You’ll sign up with Blue Ink' }));
+      expect(request).toHaveBeenCalledWith('/api/me/characters/default', expect.objectContaining({ method: 'PUT', body: JSON.stringify({ characterId: 'alt' }) }));
+      expect(checkedOf([main, alt])).toEqual(['Sign up with Blue Ink']);
+    });
+
+    it('clears the default with Ask me each time', async () => {
+      hooks.values = [];
+      const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ defaultCharacterId: null })));
+      vi.stubGlobal('fetch', request);
+      button(MEMBER_EDITOR.manageCharacters, [main, { ...alt, isDefault: true }])();
+      (radios().find((n) => n.props['aria-label'] === undefined)!.props.onChange as () => void)();
+      await vi.waitFor(() => expect(view([main, { ...alt, isDefault: true }]).find((n) => n.type === Toast)?.props.toast).toEqual({ tone: 'ok', title: 'We’ll ask which character each time' }));
+      expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({ characterId: null });
+      expect(checkedOf([main, alt])).toEqual(['ask']);
+    });
+
+    it.each([[500], [404]])('keeps the old value and marks the list invalid when the save answers %i', async (status) => {
+      hooks.values = [];
+      vi.stubGlobal('fetch', vi.fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'No such character.' }), { status }))
+        .mockResolvedValue(new Response(JSON.stringify([{ ...main, class: 'WARRIOR', raidRole: 'TANK' }, { ...alt, class: 'MAGE', raidRole: 'RANGED' }]))));
+      button(MEMBER_EDITOR.manageCharacters)();
+      (view().find((n) => n.props['aria-label'] === 'Sign up with Blue Ink')!.props.onChange as () => void)();
+      await vi.waitFor(() => expect(view().some((n) => n.props['aria-invalid'] === true)).toBe(true));
+      expect(view().find((n) => n.props.id === 'signup-with-note')?.props.children).toBe(SAVE_FAILED);
+      expect(checkedOf([main, alt])).toEqual(['ask']);
+    });
+
+    it('returns to Ask me each time after the default character is removed', async () => {
+      hooks.values = [];
+      const request = vi.fn()
+        .mockResolvedValueOnce(new Response('{}'))
+        .mockResolvedValueOnce(new Response(JSON.stringify([{ ...main, class: 'WARRIOR', raidRole: 'TANK', isDefault: false }, { ...alt, id: 'alt2', name: 'Green Quill', class: 'MAGE', raidRole: 'RANGED', isDefault: false }])));
+      vi.stubGlobal('fetch', request);
+      const chars = [main, { ...alt, isDefault: true }];
+      button(MEMBER_EDITOR.manageCharacters, chars)();
+      button('Edit Blue Ink', chars)();
+      (view(chars).find((n) => n.type === CharacterForm)!.props.onRemove as () => void)();
+      button(MEMBER_EDITOR.removeConfirm, chars)();
+      await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(checkedOf(chars)).toEqual(['ask']));
+    });
+
+    it('with one character, says so and offers no choice', () => {
+      const html = render([main]);
+      expect(html).toContain('your only character');
+      expect(html).not.toContain('type="radio"');
+    });
+  });
 });
