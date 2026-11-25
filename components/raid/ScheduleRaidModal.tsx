@@ -12,12 +12,13 @@ type Props = {
   initial: RaidInput;
   templates: RaidTemplateOption[];
   lootOn: boolean;
+  openUntilStart?: boolean;
   onClose: () => void;
   onScheduled: (raid: Created) => void;
 };
 
 /** The schedule form in a modal, posting to /api/raids. Officers only reach it. */
-export function ScheduleRaidModal({ open, initial, templates, lootOn, onClose, onScheduled }: Props) {
+export function ScheduleRaidModal({ open, initial, templates, lootOn, openUntilStart, onClose, onScheduled }: Props) {
   async function submit(input: RaidInput): Promise<string | null> {
     try {
       const res = await fetch('/api/raids', {
@@ -37,7 +38,7 @@ export function ScheduleRaidModal({ open, initial, templates, lootOn, onClose, o
 
   return (
     <Modal open={open} onClose={onClose} title={SCHEDULE_FORM.title}>
-      {open && <RaidForm key={initial.date + initial.time} initial={initial} templates={templates} lootOn={lootOn} submitLabel={SCHEDULE_FORM.submit} onSubmit={submit} onCancel={onClose} />}
+      {open && <RaidForm key={initial.date + initial.time} initial={initial} templates={templates} lootOn={lootOn} openUntilStart={openUntilStart} submitLabel={SCHEDULE_FORM.submit} onSubmit={submit} onCancel={onClose} />}
     </Modal>
   );
 }

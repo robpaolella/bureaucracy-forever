@@ -323,3 +323,22 @@ describe('tick interview digest', () => {
     expect(digestJobs()[0][1].interviews.map((i: { interviewId: string }) => i.interviewId)).toEqual(['in']);
   });
 });
+
+describe('tick lock step', () => {
+  const due = { id: 'r', status: 'SCHEDULED', startsAt: new Date('2026-10-16T18:00:00Z'), durationMin: 180, locksAt: new Date('2026-10-16T16:00:00Z'), postedAt: new Date('2026-10-01'), remind72At: new Date(), remind24At: new Date(), discordThreadId: 'th', series: null };
+  beforeEach(() => {
+    mocks.enabled.mockReturnValue(false);
+    mocks.raid.findMany.mockImplementation(async (args) => (args.select?.remind72At ? [{ ...due }] : []));
+  });
+  it('locks a due raid with a condition and queues raid.lock', async () => {
+    mocks.raid.updateMany.mockResolvedValue({ count: 1 });
+    expect((await runTick(now)).locked).toBe(1);
+    expect(mocks.raid.updateMany).toHaveBeenCalledWith({ where: { id: 'r', status: 'SCHEDULED', locksAt: { lte: now } }, data: { status: 'LOCKED', lockedAt: now } });
+    expect(mocks.enqueue).toHaveBeenCalledExactlyOnceWith('raid.lock', { raidId: 'r' }, mocks);
+  });
+  it('does not lock or queue raid.lock when the raid was reopened after it was read', async () => {
+    mocks.raid.updateMany.mockResolvedValue({ count: 0 });
+    expect((await runTick(now)).locked).toBe(0);
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+});

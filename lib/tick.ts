@@ -146,12 +146,16 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
       counts.reminded += 1;
     }
     if (dueForLock(raid, now)) {
-      await db.$transaction(async (tx) => {
-        await tx.raid.update({ where: { id: raid.id }, data: { status: 'LOCKED', lockedAt: now } });
-        if (raid.discordThreadId) await enqueue('raid.lock', { raidId: raid.id }, tx);
+      // Checked again as it writes: an edit may have reopened the raid since it was read.
+      const locked = await db.$transaction(async (tx) => {
+        const { count } = await tx.raid.updateMany({ where: { id: raid.id, status: 'SCHEDULED', locksAt: { lte: now } }, data: { status: 'LOCKED', lockedAt: now } });
+        if (count > 0 && raid.discordThreadId) await enqueue('raid.lock', { raidId: raid.id }, tx);
+        return count > 0;
       });
-      raid.status = 'LOCKED';
-      counts.locked += 1;
+      if (locked) {
+        raid.status = 'LOCKED';
+        counts.locked += 1;
+      }
     }
     if (dueForClose(raid, now)) {
       await db.$transaction(async (tx) => {
