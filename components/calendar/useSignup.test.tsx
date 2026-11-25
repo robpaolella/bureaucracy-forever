@@ -168,3 +168,35 @@ describe('useSignup DPS counts', () => {
     expect(hook.raids[0].counts.healer).toBe(2);
   });
 });
+
+describe('useSignup character choice', () => {
+  const choice = { characterId: 'alt', role: 'ranged' as const, makeDefault: false };
+  it('sends characterId, and makeDefault only when ticked', async () => {
+    fetcher.mockResolvedValue(response(200, { response: 'accept', characterId: 'alt', counts: { ...ZERO_COUNTS, ranged: 1 } }));
+    await render([card({ mine: null, signupRole: 'healer' })]);
+    await act(async () => { hook.respond('raid', 'accept', true, choice); });
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ response: 'accept', characterId: 'alt' });
+    expect(hook.madeDefault).toBeNull();
+    await act(async () => { hook.respond('raid', 'tentative', true, { ...choice, makeDefault: true }); });
+    expect(JSON.parse(fetcher.mock.calls[1][1].body)).toEqual({ response: 'tentative', characterId: 'alt', makeDefault: true });
+    expect(hook.madeDefault).toBe('alt');
+  });
+
+  it('counts the chosen role at once and hands the route message to onResult on a refusal', async () => {
+    const request = deferred(); fetcher.mockReturnValue(request.promise);
+    await render([card({ mine: null, signupRole: 'healer', counts: { ...ZERO_COUNTS, healer: 2 } })]);
+    await act(async () => { hook.respond('raid', 'accept', true, choice); });
+    expect(hook.raids[0]).toMatchObject({ mine: 'accept', signupRole: 'ranged', counts: { healer: 2, ranged: 1 } });
+    await act(async () => { request.resolve(response(400, { error: 'Choose one of your characters.' })); });
+    expect(hook.raids[0]).toEqual(card({ mine: null, signupRole: 'healer', counts: { ...ZERO_COUNTS, healer: 2 } }));
+    expect(onResult).toHaveBeenCalledWith(false, expect.anything(), 'accept', expect.any(Function), false, 'Choose one of your characters.');
+    expect(hook.madeDefault).toBeNull();
+  });
+
+  it('leaves the message out for a network failure so the caller shows its generic copy', async () => {
+    fetcher.mockRejectedValue(new Error('offline'));
+    await render([card({ mine: null })]);
+    await act(async () => { hook.respond('raid', 'accept'); });
+    expect(onResult).toHaveBeenCalledWith(false, expect.anything(), 'accept', expect.any(Function), false, undefined);
+  });
+});

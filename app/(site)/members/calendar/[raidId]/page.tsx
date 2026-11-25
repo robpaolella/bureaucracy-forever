@@ -91,7 +91,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
     }),
     db.user.findUnique({
       where: { discordId: session.discordId },
-      select: { characters: { select: { id: true, name: true, class: true, raidRole: true }, orderBy: { isMain: 'desc' } } },
+      select: { defaultCharacterId: true, characters: { select: { id: true, name: true, class: true, spec: true, raidRole: true, isMain: true }, orderBy: [{ isMain: 'desc' }, { name: 'asc' }] } },
     }),
     officer
       ? db.user.findMany({ where: { role: { in: ['MEMBER', 'OFFICER'] } }, select: { id: true, discordName: true }, orderBy: { discordName: 'asc' } })
@@ -203,8 +203,11 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
               id: character.id,
               name: character.name,
               wowClass: character.class.toLowerCase() as WowClass,
+              spec: character.spec,
               role: character.raidRole.toLowerCase() as Role,
+              isMain: character.isMain,
             }))}
+            defaultCharacterId={me?.defaultCharacterId ?? null}
             broughtId={mine ? characterBrought(mine)?.id ?? null : null}
             past={past}
             now={now.toISOString()}

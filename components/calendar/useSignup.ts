@@ -7,11 +7,18 @@ import type { Character } from '@/lib/generated/prisma/client';
 import { SAVE_FAILED } from '@/content/calendar';
 import { applyResponse, mergeLocal, signupRoleFor, type LocalAnswer, type RaidCard, type RaidResponse, type RoleCounts } from '@/lib/raids';
 
-type Result = { raidId: string; userId: string; response: RaidResponse | null; counts: RoleCounts };
+type Result = { raidId: string; userId: string; response: RaidResponse | null; characterId?: string | null; counts: RoleCounts };
+/** The character the member picked in the question: sent with a first Accept or Tentative; `role` feeds the optimistic counts only. */
+export type CharacterChoice = { characterId: string; role: Role; makeDefault: boolean };
 type SwitchCharacter = Pick<Character, 'id' | 'name' | 'class' | 'spec' | 'raidRole'>;
 export type CharacterSwitchResult =
   | { ok: true; character: SwitchCharacter; removed: RemovedReserve[] }
   | { ok: false; status: number | null; error: string };
+
+/** A refusal from the route; `reason` is its message when it sent one. */
+class Refused extends Error {
+  constructor(readonly reason?: string) { super(reason ?? 'refused'); }
+}
 
 /** Bench acceptances never contribute to the composition bars. */
 function withRole(raid: RaidCard, role: Role | null, mainRole: Role | null): LocalAnswer {
@@ -27,7 +34,7 @@ function withRole(raid: RaidCard, role: Role | null, mainRole: Role | null): Loc
  * last change; `onResult` hears whether an answer was that undo. One request per raid at a time: a newer answer supersedes an in-flight one
  * by ignoring its reply.
  */
-export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult: (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void, undone: boolean) => void) {
+export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult: (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void, undone: boolean, error?: string) => void) {
   // The server's cards stay the base and only the viewer's answers ride on top, so a
   // refreshed page (a raid scheduled, another member's answer) shows up without losing
   // the optimistic state.
@@ -43,13 +50,15 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
     if (value) busy.current.add(id); else busy.current.delete(id);
     setPending(new Set(busy.current));
   }, []);
+  // A default the member set in the question: later answers in this visit must not ask again.
+  const [madeDefault, setMadeDefault] = useState<string | null>(null);
   const previous = useRef(new Map<string, RaidResponse | null>());
   const inflight = useRef(new Map<string, number>());
   /** Per-raid promise chain so writes reach the server in click order. */
   const queue = useRef(new Map<string, Promise<void>>());
   // undo() runs from a toast created by respond(), and respond() hands undo to the toast:
   // the ref breaks that cycle without either closing over a stale version of the other.
-  const respondRef = useRef<(id: string, response: RaidResponse | null, remember?: boolean) => void>(() => {});
+  const respondRef = useRef<(id: string, response: RaidResponse | null, remember?: boolean, choice?: CharacterChoice) => void>(() => {});
 
   const undo = useCallback((id: string) => {
     if (!previous.current.has(id) || switching.current.has(id)) return;
@@ -59,13 +68,13 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
   }, []);
 
   const respond = useCallback(
-    (id: string, response: RaidResponse | null, remember = true) => {
+    (id: string, response: RaidResponse | null, remember = true, choice?: CharacterChoice) => {
       const before = raids.find((r) => r.id === id);
       if (!before || before.mine === response || switching.current.has(id)) return;
       if (remember) previous.current.set(id, before.mine);
 
-      const signupRole = before.signupRole;
-      setRaid(id, { mine: response, signupRole, counts: applyResponse(before.counts, signupRoleFor(before, viewerRole), before.mine, response) });
+      const signupRole = choice ? choice.role : before.signupRole;
+      setRaid(id, { mine: response, signupRole, counts: applyResponse(before.counts, choice && before.onRoster !== false ? choice.role : signupRoleFor(before, viewerRole), before.mine, response) });
       markPending(id, true);
 
       const seq = (inflight.current.get(id) ?? 0) + 1;
@@ -77,20 +86,26 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
           fetch(`/api/raids/${id}/signup`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ response }),
+            body: JSON.stringify(choice ? { response, characterId: choice.characterId, ...(choice.makeDefault && { makeDefault: true }) } : { response }),
             credentials: 'same-origin',
           }),
         )
-        .then((res) => (res.ok ? (res.json() as Promise<Result>) : Promise.reject(new Error(String(res.status)))))
+        .then(async (res) => {
+          if (res.ok) return res.json() as Promise<Result>;
+          // The route's own message (a lock, a deleted character) reaches the caller's toast.
+          const body = await res.json().catch(() => null) as { error?: unknown } | null;
+          throw new Refused(typeof body?.error === 'string' ? body.error : undefined);
+        })
         .then((result) => {
           if (inflight.current.get(id) !== seq) return;
           setRaid(id, { mine: result.response, signupRole, counts: result.counts });
+          if (choice?.makeDefault) setMadeDefault(choice.characterId);
           onResult(true, before, response, () => undo(id), !remember);
         })
-        .catch(() => {
+        .catch((error: unknown) => {
           if (inflight.current.get(id) !== seq) return;
           setRaid(id, { mine: before.mine, signupRole: before.signupRole, counts: before.counts });
-          onResult(false, before, response, () => undo(id), !remember);
+          onResult(false, before, response, () => undo(id), !remember, error instanceof Refused ? error.reason : undefined);
         })
         .finally(() => { if (inflight.current.get(id) === seq) markPending(id, false); });
       queue.current.set(id, run);
@@ -135,5 +150,5 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
     }
   }, [raids, viewerRole, setRaid, markPending]);
 
-  return { raids, respond, undo, switchCharacter, pending };
+  return { raids, respond, undo, switchCharacter, pending, madeDefault };
 }
