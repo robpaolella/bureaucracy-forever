@@ -177,6 +177,10 @@ model User {
   /// IANA zone the member chose; overrides browser detection (docs/01 § Time).
   timezone        String?
   characters      Character[]
+  /// Brought by a first Accept or Tentative with no character chosen; cleared when that
+  /// character is deleted.
+  defaultCharacterId String?
+  defaultCharacter   Character?  @relation("defaultCharacter", fields: [defaultCharacterId], references: [id], onDelete: SetNull)
   availability    Availability?
   signups         Signup[]
   notes           OfficerNote[] @relation("noteAuthor")
@@ -205,6 +209,7 @@ model Character {
   reserves   Reserve[]
   lootAwards LootAward[]
   signups    Signup[]
+  defaultFor User[]      @relation("defaultCharacter")
 
   @@index([userId])
 }
