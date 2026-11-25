@@ -199,4 +199,15 @@ describe('useSignup character choice', () => {
     await act(async () => { hook.respond('raid', 'accept'); });
     expect(onResult).toHaveBeenCalledWith(false, expect.anything(), 'accept', expect.any(Function), false, undefined);
   });
+
+  it('remembers a saved default even when a newer answer on the raid supersedes its reply', async () => {
+    const first = deferred(), second = deferred();
+    fetcher.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    await render([card({ mine: null })]);
+    await act(async () => { hook.respond('raid', 'accept', true, { ...choice, makeDefault: true }); });
+    await act(async () => { hook.respond('raid', 'absent'); });
+    await act(async () => { first.resolve(response(200, { response: 'accept', characterId: 'alt', counts: ZERO_COUNTS })); });
+    expect(hook.madeDefault).toBe('alt');
+    await act(async () => { second.resolve(response(200, { response: 'absent', counts: ZERO_COUNTS })); });
+  });
 });

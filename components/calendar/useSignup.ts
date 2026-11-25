@@ -97,9 +97,10 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
           throw new Refused(typeof body?.error === 'string' ? body.error : undefined);
         })
         .then((result) => {
+          // The default is saved whatever happens to the answer, even one a newer answer superseded.
+          if (choice?.makeDefault) setMadeDefault(choice.characterId);
           if (inflight.current.get(id) !== seq) return;
           setRaid(id, { mine: result.response, signupRole, counts: result.counts });
-          if (choice?.makeDefault) setMadeDefault(choice.characterId);
           onResult(true, before, response, () => undo(id), !remember);
         })
         .catch((error: unknown) => {
