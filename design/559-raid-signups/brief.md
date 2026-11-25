@@ -64,6 +64,11 @@ Not applicable, because this design changes neither:
 - Verification skill: `.pi/skills/verify-guild/SKILL.md`. Evidence: `/tmp/verify-guild-PTXWuA`
   (launch.txt, Doctor PASS, cleanup.txt Cleanup PASS, live and offline screenshots, offline network logs).
 - Source commit: `53f0450` (origin/package/556-raid-signups). Seeded sample data only.
+- Base moved to `d689623` before the PR (#570, optional raid title addition). On the raid page it
+  only adds `titleAddition` to the raid passed to OfficerActions, which fills the Edit raid form;
+  the head title, roster and summary markup are unchanged, so the page renders as captured. The
+  title addition is out of scope for this design (#559, Out of scope; #556 decision 23), so the
+  snapshot was not recaptured.
 - Hosts (single-file exports, scripts removed, CSP meta allows inline script; removed from the
   folder at freeze, 2026-11-25, after the final offline proof of index.html):
   - `hosts/raid-member.html`: member `redtape`, `/members/calendar/<Thu Dec 3 Onyxia's Lair>`, reached by clicking the raid title in the list.
