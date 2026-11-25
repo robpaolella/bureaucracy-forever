@@ -11,7 +11,8 @@ export async function GET() {
     select: { id: true, name: true, class: true, spec: true, raidRole: true, isMain: true },
     orderBy: [{ isMain: 'desc' }, { name: 'asc' }],
   }) : [];
-  return NextResponse.json(characters, { headers: NO_STORE });
+  // isDefault: the character a first Accept/Tentative brings when none is chosen.
+  return NextResponse.json(characters.map((c) => ({ ...c, isDefault: c.id === v.user?.defaultCharacterId })), { headers: NO_STORE });
 }
 
 export async function POST(request: Request) {
