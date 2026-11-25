@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useId, useState, type ReactNode } from 'react';
 import type { CharacterChoice } from '@/components/calendar/useSignup';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { Button, ChoiceGroup, ClassAvatar, Modal } from '@/components/ui';
@@ -84,6 +84,7 @@ type WindowProps = {
 
 function CharacterQuestionWindow({ asked, characters, chosenId, makeDefault, onChoose, onMakeDefault, onCancel, onConfirm }: WindowProps) {
   const viewer = useViewerTimeZone();
+  const hintId = useId();
   // Keep the last raid while the dialog closes so its text does not vanish mid-fade.
   const [last, setLast] = useState(asked);
   if (asked && asked !== last) setLast(asked);
@@ -118,10 +119,10 @@ function CharacterQuestionWindow({ asked, characters, chosenId, makeDefault, onC
         </ChoiceGroup>
         <div className="flex flex-col">
           <label className="flex min-h-11 items-start gap-3 text-sm leading-normal text-fg-2">
-            <input type="checkbox" checked={makeDefault} onChange={(e) => onMakeDefault(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-teal" />
+            <input type="checkbox" aria-describedby={hintId} checked={makeDefault} onChange={(e) => onMakeDefault(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-teal" />
             <span>{CHARACTER_QUESTION.makeDefault}</span>
           </label>
-          <span className="text-xs text-fg-3">{CHARACTER_QUESTION.hint}</span>
+          <span id={hintId} className="text-xs text-fg-3">{CHARACTER_QUESTION.hint}</span>
         </div>
       </div>
     </Modal>
