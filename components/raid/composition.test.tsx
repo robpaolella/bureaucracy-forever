@@ -34,9 +34,9 @@ describe('composition displays', () => {
 
   it('the sign-up list groups Tanks, Healers and DPS', () => {
     const row = (name: string, role: DetailRow['role']): DetailRow => ({ userId: name, name, character: name, wowClass: 'mage', spec: 'Fire', role, standing: 'ROSTER', response: 'accept', attended: null, source: 'web', reason: null, setBy: null, updatedAt: '2030-01-01T00:00:00Z' });
-    const html = renderToStaticMarkup(<RosterByRole raidId="r" rows={[row('A', 'melee'), row('B', 'ranged'), row('C', 'tank'), row('D', null)]} now="2030-01-02T00:00:00Z" canAnswerFor={false} showAttendance={false} />);
+    const html = renderToStaticMarkup(<RosterByRole raidId="r" rows={[row('A', 'melee'), row('B', 'ranged'), row('C', 'tank'), row('D', null)]} now="2030-01-02T00:00:00Z" canAnswerFor={false} showAttendance={false} officer={false} posted open />);
     const heads = [...html.matchAll(/<h3[^>]*>(.*?)<span/g)].map((m) => m[1]);
-    expect(heads).toEqual(['Tank', 'DPS', 'No main set']);
+    expect(heads).toEqual(['Tank', 'Healer', 'DPS', 'No main set', 'No response', 'Absent']);
     expect(html).toContain('A</span>');
     expect(html).toContain('Mage');
   });

@@ -935,9 +935,11 @@ are in §13 Rendering, so the contract reads in one place.
    `short · time`, a sand edge when the viewer has answered. Upcoming list beside the grid,
    sorted with "needs your answer" first.
 5. **Raid detail** — viewer's own response control first; composition bars; roster grouped
-   by role with Answer and Via columns; Bench card with "Move to roster"; "Hasn't answered"
-   card with **Nudge in Discord** (enqueues `raid.remind`); "Answer for them" per row
-   (officers); "Mark attendance" after the raid ends; Cancel with reason (officers).
+   by role (Tanks, Healers, DPS, plus "No main set") listing only members who accepted or are
+   tentative, with Answer and Via columns; below them two collapsible lists, closed by
+   default, **No response** (roster members with no answer, holding **Nudge in Discord**,
+   which enqueues `raid.remind`) and **Absent** (with reasons); Bench card with "Move to
+   roster"; "Answer for them" per member (officers); "Mark attendance" after the raid ends; Cancel with reason (officers).
 6. **Roster editor** — lists everyone in the guild on Discord; a rank change (on a main, or the
    rank select on a member without one) enqueues `member.roles.sync` for the Raider, Trial and
    Social roles. Officer rank is read-only, it comes from the Discord Officer role. Class changes made here
@@ -1413,4 +1415,9 @@ the rows that exist.
   `GET /raids/:id` `character` and `POST /raids/:id/respond` wording now describe the member's default
   character. No field or status changes; the bot sends what it sends today. Consumer:
   `bureaucracy-forever-discord-bot` copies this wording word for word in
+  https://github.com/robpaolella/bureaucracy-forever-discord-bot/issues/442.
+- **Raid page roster lists** (site https://github.com/robpaolella/bureaucracy-forever/issues/561): §9.5's
+  raid-detail line now describes the site's roster lists. It is a site screen only; no endpoint, field
+  or status changes, and the bot sends and reads what it does today. Consumer:
+  `bureaucracy-forever-discord-bot` copies the §9.5 wording word for word in
   https://github.com/robpaolella/bureaucracy-forever-discord-bot/issues/442.
