@@ -10,7 +10,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@/lib/generated/prisma/client';
 import { assertWriteTarget } from './write-guard';
 import { parseStagingTesters } from './staging-testers';
-import { buildApplications, buildClassNeeds, buildFixtureRaids, buildRaids, buildRaidTemplates, buildRoster, paintWeek, rng } from './seed-data';
+import { buildApplications, buildClassNeeds, buildBenchGuests, buildFixtureRaids, buildRaids, buildRaidTemplates, buildRoster, paintWeek, rng } from './seed-data';
 
 loadEnv({ path: '.env.local' });
 loadEnv();
@@ -126,6 +126,14 @@ async function main() {
 
   // Fixture raids for the raid page's other states; deterministic, no randomness used.
   const answerers = users.filter((u) => u.role !== 'SOCIAL');
+  const guests: typeof users = [];
+  for (const g of buildBenchGuests()) {
+    const user = await db.user.create({
+      data: { discordId: g.discordId, discordName: g.name.toLowerCase(), role: 'MEMBER', rank: 'RAIDER', timezone: 'America/Chicago', characters: { create: { name: g.character, class: CLASS[g.wowClass], spec: g.spec, raidRole: RAID_ROLE[g.raidRole], rank: 'RAIDER' } } },
+      include: { characters: { select: { id: true } } },
+    });
+    guests.push({ id: user.id, characterId: user.characters[0].id, role: 'MEMBER', raidRole: g.raidRole, timezone: 'America/Chicago', name: g.character });
+  }
   for (const f of buildFixtureRaids(now)) {
     const raid = await db.raid.create({
       data: {
@@ -133,12 +141,15 @@ async function main() {
         templateId: templateIds.get(f.template) ?? null, status: f.status, cancelledAt: f.status === 'CANCELLED' ? now : null, cancelReason: f.cancelReason,
       },
     });
+    // The bench raid's last three on the bench are the long-named guests.
+    const pool = f.fixture === 'bench' ? [...answerers.slice(0, f.accepted - 3), ...guests, ...answerers.slice(f.accepted - 3)] : answerers;
     await db.signup.createMany({
-      data: answerers.slice(0, f.accepted + 3).map((u, i) => ({
+      data: pool.slice(0, f.accepted + 7).map((u, i) => ({
         raidId: raid.id,
         userId: u.id,
         characterId: u.characterId,
-        response: i < f.accepted ? ('ACCEPT' as const) : i === f.accepted ? ('ABSENT' as const) : ('TENTATIVE' as const),
+        // After the accepted ones: one absent, two tentative, then four who have not answered.
+        response: i < f.accepted ? ('ACCEPT' as const) : i === f.accepted ? ('ABSENT' as const) : i < f.accepted + 3 ? ('TENTATIVE' as const) : null,
         standing: i >= f.rosterSize && i < f.accepted ? ('BENCH' as const) : ('ROSTER' as const),
         attended: f.status === 'DONE' && i < f.accepted ? true : null,
         source: i % 3 ? ('WEB' as const) : ('DISCORD' as const),

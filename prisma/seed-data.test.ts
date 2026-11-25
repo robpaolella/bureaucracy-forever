@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildApplications, buildClassNeeds, buildFixtureRaids, buildRaids, buildRaidTemplates, buildRoster, mondayIndex, officerNames, paintWeek, rng } from './seed-data';
+import { buildApplications, buildClassNeeds, buildBenchGuests, buildFixtureRaids, buildRaids, buildRaidTemplates, buildRoster, mondayIndex, officerNames, paintWeek, rng } from './seed-data';
 
 describe('roster', () => {
   const roster = buildRoster();
@@ -167,11 +167,18 @@ describe('fixture raids', () => {
 
   it('never asks for more sign-ups than the roster has members to give', () => {
     const answerers = buildRoster().filter((m) => m.role !== 'SOCIAL').length;
-    for (const f of fixtures) expect(f.accepted + 3).toBeLessThanOrEqual(answerers);
+    for (const f of fixtures) expect(f.accepted + 7).toBeLessThanOrEqual(answerers);
   });
 
   it('uses only configured templates', () => {
     const known = buildRaidTemplates().map((t) => t.name);
     expect(fixtures.every((f) => known.includes(f.template))).toBe(true);
+  });
+
+  it('gives the bench guests Forever-style names: two parts, 2-12 letters each, unique ids', () => {
+    const guests = buildBenchGuests();
+    for (const g of guests) expect(g.character).toMatch(/^[A-Za-z]{2,12} [A-Za-z]{2,12}$/);
+    const ids = new Set([...guests.map((g) => g.discordId), ...buildRoster().map((m) => m.discordId)]);
+    expect(ids.size).toBe(guests.length + 41);
   });
 });

@@ -224,6 +224,15 @@ export function buildFixtureRaids(from = new Date()): SeedFixtureRaid[] {
   ];
 }
 
+/** Three extra sample raiders with the longest two-part names the site allows, for the bench fixture's long-name wrapping. */
+export function buildBenchGuests(): Array<{ name: string; character: string; discordId: string; wowClass: WowClassKey; spec: string; raidRole: RaidRoleKey }> {
+  return [
+    { name: 'Bartholomeus', character: 'Bartholomeus Ironwhistle', discordId: '1000000000090000001', wowClass: 'warrior', spec: 'Protection', raidRole: 'tank' },
+    { name: 'Thunderstorm', character: 'Thunderstorm Blackthorne', discordId: '1000000000090000002', wowClass: 'priest', spec: 'Discipline', raidRole: 'healer' },
+    { name: 'Wilhelminaaa', character: 'Wilhelminaaa Silverbrook', discordId: '1000000000090000003', wowClass: 'mage', spec: 'Frost', raidRole: 'ranged' },
+  ];
+}
+
 export type SeedNeed = { wowClass: WowClassKey; spec: string; roles: RaidRoleKey[]; status: 'HIGH' | 'MEDIUM' | 'CLOSED' };
 
 /**
