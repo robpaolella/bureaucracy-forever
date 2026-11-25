@@ -129,3 +129,15 @@ export const RESPONSE_NOTES = {
   offRoster: "You're not on this roster. Accepting puts you on the bench.",
   youAnswered: 'You answered',
 };
+
+/** The character question a member with alts answers before a first Accept or Tentative. */
+export const CHARACTER_QUESTION = {
+  title: 'Which character are you bringing?',
+  legend: 'Character',
+  main: 'Main',
+  makeDefault: 'Use this character by default',
+  hint: 'You can change this in Manage characters on the Roster page.',
+  cancel: 'Cancel',
+  accept: 'Accept',
+  tentative: 'Tentative',
+};
