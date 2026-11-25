@@ -32,7 +32,7 @@ export default async function RosterPage() {
     }),
     db.user.findUnique({
       where: { discordId: session.discordId },
-      select: { id: true, characters: { select: { id: true, name: true, class: true, spec: true, raidRole: true, isMain: true }, orderBy: [{ isMain: 'desc' }, { name: 'asc' }] } },
+      select: { id: true, defaultCharacterId: true, characters: { select: { id: true, name: true, class: true, spec: true, raidRole: true, isMain: true }, orderBy: [{ isMain: 'desc' }, { name: 'asc' }] } },
     }),
   ]);
   const rows: RosterRow[] = users.map((u) => {
@@ -76,6 +76,7 @@ export default async function RosterPage() {
             spec: character.spec,
             role: character.raidRole.toLowerCase() as Role,
             isMain: character.isMain,
+            isDefault: character.id === viewer.defaultCharacterId,
           })),
         } : undefined}
       />

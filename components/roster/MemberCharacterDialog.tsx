@@ -1,17 +1,18 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { Button, ClassAvatar, Modal, Toast, type ToastData } from '@/components/ui';
+import { useId, useState } from 'react';
+import { Button, ClassAvatar, FIELD_LABEL, Modal, Toast, type ToastData } from '@/components/ui';
 import { SAVE_FAILED } from '@/content/calendar';
 import { MEMBER_EDITOR, EDITOR_TOASTS } from '@/content/roster-editor';
+import { cn } from '@/lib/cn';
 import { CLASS_COLORS, ROLE_LABELS } from '@/lib/design/class-colors';
 import { emptyCharacter, type CharacterInput } from '@/lib/roster-edit';
 import { CharacterForm } from './CharacterForm';
 
-export type MemberCharacter = Omit<CharacterInput, 'rank'> & { id: string; isMain: boolean };
+export type MemberCharacter = Omit<CharacterInput, 'rank'> & { id: string; isMain: boolean; isDefault?: boolean };
 type EditableCharacter = CharacterInput & { id: string; isMain?: boolean };
-type ApiCharacter = { id: string; name: string; class: string; spec: string; raidRole: string; isMain: boolean };
+type ApiCharacter = { id: string; name: string; class: string; spec: string; raidRole: string; isMain: boolean; isDefault?: boolean };
 
 function fromApi(character: ApiCharacter): MemberCharacter {
   return {
@@ -21,6 +22,7 @@ function fromApi(character: ApiCharacter): MemberCharacter {
     spec: character.spec,
     role: character.raidRole.toLowerCase() as MemberCharacter['role'],
     isMain: character.isMain,
+    isDefault: character.isDefault === true,
   };
 }
 type Editing = { kind: 'add'; main: boolean } | { kind: 'edit'; character: EditableCharacter };
@@ -53,6 +55,10 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
 
+  /** The roster renders this dialog for desktop and phone; one radio group name each keeps them from unchecking each other. */
+  const group = useId();
+  const [defaultError, setDefaultError] = useState(false);
+  const defaultId = characters.find((character) => character.isDefault)?.id ?? null;
   const main = characters.find((character) => character.isMain) ?? null;
   /** Reloads the list; when that fails the old list is hidden rather than shown as current. */
   async function refreshCharacters(staleKind: 'saved' | 'failed') {
@@ -65,6 +71,28 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
       setStale(null);
     } catch {
       setStale(staleKind);
+    }
+  }
+
+  /** The "Sign up with" setting: saves at once, and on a failure keeps the old value and marks the list invalid. */
+  async function chooseDefault(character: MemberCharacter | null) {
+    if (busy) return;
+    setBusy(true);
+    setDefaultError(false);
+    try {
+      const res = await send('/api/me/characters/default', 'PUT', { characterId: character?.id ?? null });
+      if (!res.ok) {
+        setDefaultError(true);
+        // A 404 means the character is gone; the reload drops it from the list.
+        if (res.status === 404) await refreshCharacters('failed');
+        return;
+      }
+      setCharacters(characters.map((c) => ({ ...c, isDefault: c.id === character?.id })));
+      setToast({ tone: 'ok', title: character ? EDITOR_TOASTS.signUpWith(character.name) : EDITOR_TOASTS.askEachTime });
+    } catch {
+      setDefaultError(true);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -127,6 +155,7 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
     if (busy) return;
     setEditing(null);
     setConfirmation(null);
+    setDefaultError(false);
     setOpen(false);
   }
 
@@ -156,19 +185,47 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
           <Button onClick={() => setEditing({ kind: 'add', main: true })}>{MEMBER_EDITOR.addMain}</Button>
         ) : (
           <div className="flex flex-col gap-4">
-            <ul className="divide-y divide-line-faint rounded-card border border-line bg-ink-900">
-              {characters.map((character) => (
-                <li key={character.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                  <ClassAvatar name={character.name} wowClass={character.wowClass} size={28} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold" style={{ color: CLASS_COLORS[character.wowClass].onInk }}>{character.name}</p>
-                    <p className="truncate text-[13px] text-fg-3">{CLASS_COLORS[character.wowClass].label} · {character.spec} · {ROLE_LABELS[character.role]}</p>
-                  </div>
-                  {character.isMain && <span className="text-small text-fg-3">{MEMBER_EDITOR.main}</span>}
-                  <Button variant="secondary" size="sm" onClick={() => setEditing({ kind: 'edit', character: { ...character, rank } })} aria-label={`Edit ${character.name}`}>{MEMBER_EDITOR.edit}</Button>
-                </li>
-              ))}
-            </ul>
+            {characters.length === 1 ? (
+              <div className="flex flex-col gap-1.5">
+                <span className={FIELD_LABEL}>{MEMBER_EDITOR.signUpWith}</span>
+                <p className="text-sm text-fg-2"><span className="font-semibold text-fg">{main.name}</span>{MEMBER_EDITOR.onlyCharacter}</p>
+              </div>
+            ) : null}
+            <fieldset className={cn(characters.length === 1 ? 'contents' : 'flex flex-col gap-2.5')} aria-describedby={characters.length === 1 || !defaultError ? undefined : `${group}-note`} aria-invalid={defaultError && characters.length > 1 ? true : undefined}>
+              {characters.length > 1 && (
+                <>
+                  <legend className={cn(FIELD_LABEL, 'mb-1')}>{MEMBER_EDITOR.signUpWith}</legend>
+                  <span className="text-xs text-fg-3">{MEMBER_EDITOR.signUpWithHint}</span>
+                </>
+              )}
+              <ul className={cn('divide-y divide-line-faint rounded-card border bg-ink-900', defaultError && characters.length > 1 ? 'border-stop' : 'border-line')}>
+                {characters.length > 1 && (
+                  <li className="flex items-center gap-3 px-4 py-3">
+                    <label className="flex min-h-11 flex-1 items-center gap-3 text-sm font-semibold text-fg">
+                      <input type="radio" name={group} className="h-4 w-4 shrink-0 accent-teal" checked={defaultId === null} disabled={busy} onChange={() => { void chooseDefault(null); }} />
+                      {MEMBER_EDITOR.askEachTime}
+                    </label>
+                  </li>
+                )}
+                {characters.map((character) => (
+                  <li key={character.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                    {characters.length > 1 && (
+                      <label className="-m-3.5 flex shrink-0 p-3.5">
+                        <input type="radio" name={group} aria-label={`Sign up with ${character.name}`} className="h-4 w-4 shrink-0 accent-teal" checked={defaultId === character.id} disabled={busy} onChange={() => { void chooseDefault(character); }} />
+                      </label>
+                    )}
+                    <ClassAvatar name={character.name} wowClass={character.wowClass} size={28} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold" style={{ color: CLASS_COLORS[character.wowClass].onInk }}>{character.name}</p>
+                      <p className="truncate text-[13px] text-fg-3">{CLASS_COLORS[character.wowClass].label} · {character.spec} · {ROLE_LABELS[character.role]}</p>
+                    </div>
+                    {character.isMain && <span className="text-small text-fg-3">{MEMBER_EDITOR.main}</span>}
+                    <Button variant="secondary" size="sm" onClick={() => setEditing({ kind: 'edit', character: { ...character, rank } })} aria-label={`Edit ${character.name}`}>{MEMBER_EDITOR.edit}</Button>
+                  </li>
+                ))}
+              </ul>
+              {defaultError && characters.length > 1 && <span id={`${group}-note`} role="alert" className="text-xs text-stop">{SAVE_FAILED}</span>}
+            </fieldset>
             <Button onClick={() => setEditing({ kind: 'add', main: false })}>{MEMBER_EDITOR.addAlt}</Button>
           </div>
         )}
