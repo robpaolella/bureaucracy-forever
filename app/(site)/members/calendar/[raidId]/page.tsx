@@ -19,7 +19,7 @@ import { db } from '@/lib/db';
 import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import type { Role, WowClass } from '@/lib/design/class-colors';
 import { discordThreadUrl } from '@/lib/discord-links';
-import { lootEnabled } from '@/lib/flags';
+import { lootEnabled, openUntilStart } from '@/lib/flags';
 import { loadActiveReserves, loadAwards, loadLootLogContext, loadLootTable, loadReserveTargets } from '@/lib/loot-data';
 import { reservesLockAt, reservesLocked } from '@/lib/loot-rules';
 import { loadActiveTemplates } from '@/lib/raid-cards';
@@ -214,7 +214,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
 
         <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_380px] md:items-start">
           <div className="order-2 flex flex-col gap-6 md:order-1">
-            {officer && <OfficerActions raid={card} members={memberOptions} past={past} threadUrl={discordThreadUrl(raid.discordThreadId)} fromSeries={raid.seriesId !== null} template={raid.template ? { id: raid.template.id, name: raid.template.name } : null} templates={templates} lootOn={lootEnabled()} />}
+            {officer && <OfficerActions raid={card} members={memberOptions} past={past} threadUrl={discordThreadUrl(raid.discordThreadId)} fromSeries={raid.seriesId !== null} template={raid.template ? { id: raid.template.id, name: raid.template.name } : null} templates={templates} lootOn={lootEnabled()} openUntilStart={openUntilStart()} />}
             {officer && past && !card.cancelled && <AttendanceForm raidId={raid.id} rows={rows} />}
             <RosterByRole raidId={raid.id} rows={roster} now={now.toISOString()} canAnswerFor={officer && !past && !card.cancelled} showAttendance={past} />
           </div>
