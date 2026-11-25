@@ -10,7 +10,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@/lib/generated/prisma/client';
 import { assertWriteTarget } from './write-guard';
 import { parseStagingTesters } from './staging-testers';
-import { buildApplications, buildClassNeeds, buildRaids, buildRaidTemplates, buildRoster, paintWeek, rng } from './seed-data';
+import { buildApplications, buildClassNeeds, buildFixtureRaids, buildRaids, buildRaidTemplates, buildRoster, paintWeek, rng } from './seed-data';
 
 loadEnv({ path: '.env.local' });
 loadEnv();
@@ -122,6 +122,29 @@ async function main() {
         },
       });
     }
+  }
+
+  // Fixture raids for the raid page's other states; deterministic, no randomness used.
+  const answerers = users.filter((u) => u.role !== 'SOCIAL');
+  for (const f of buildFixtureRaids(now)) {
+    const raid = await db.raid.create({
+      data: {
+        name: f.name, startsAt: f.startsAt, locksAt: new Date(f.startsAt.getTime() - 120 * 60_000), durationMin: f.durationMin, requirements: f.requirements, notes: f.notes,
+        templateId: templateIds.get(f.template) ?? null, status: f.status, cancelledAt: f.status === 'CANCELLED' ? now : null, cancelReason: f.cancelReason,
+      },
+    });
+    await db.signup.createMany({
+      data: answerers.slice(0, f.accepted + 3).map((u, i) => ({
+        raidId: raid.id,
+        userId: u.id,
+        characterId: u.characterId,
+        response: i < f.accepted ? ('ACCEPT' as const) : i === f.accepted ? ('ABSENT' as const) : ('TENTATIVE' as const),
+        standing: i >= f.rosterSize && i < f.accepted ? ('BENCH' as const) : ('ROSTER' as const),
+        attended: f.status === 'DONE' && i < f.accepted ? true : null,
+        source: i % 3 ? ('WEB' as const) : ('DISCORD' as const),
+        reason: i === f.accepted ? 'Family dinner.' : null,
+      })),
+    });
   }
 
   // Class needs: the recruitment table, one row per spec.

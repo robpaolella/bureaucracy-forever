@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildApplications, buildClassNeeds, buildRaids, buildRaidTemplates, buildRoster, mondayIndex, officerNames, paintWeek, rng } from './seed-data';
+import { buildApplications, buildClassNeeds, buildFixtureRaids, buildRaids, buildRaidTemplates, buildRoster, mondayIndex, officerNames, paintWeek, rng } from './seed-data';
 
 describe('roster', () => {
   const roster = buildRoster();
@@ -148,5 +148,30 @@ describe('raids, needs, applications', () => {
         expect(['Footnote', 'Loophole', 'Indexcard', 'Smallprint', 'Backlog', 'Redline', 'Fineprint', 'Sidebar', 'Stapler', 'Typo']).toContain(i.app.character);
       }
     });
+  });
+});
+
+describe('fixture raids', () => {
+  const from = new Date('2026-09-30T12:00:00Z');
+  const fixtures = buildFixtureRaids(from);
+
+  it('adds a finished raid, a cancelled one and one with six on the bench', () => {
+    expect(fixtures.map((f) => f.fixture)).toEqual(['past', 'cancelled', 'bench']);
+    expect(fixtures[0].startsAt.getTime()).toBeLessThan(from.getTime());
+    expect(fixtures[1].startsAt.getTime()).toBeGreaterThan(from.getTime());
+    expect(fixtures[1].cancelReason).toBeTruthy();
+    const bench = fixtures[2];
+    expect(bench.accepted - bench.rosterSize).toBe(6);
+    expect(Object.values(bench.requirements).reduce((a, b) => a + b, 0)).toBe(bench.rosterSize);
+  });
+
+  it('never asks for more sign-ups than the roster has members to give', () => {
+    const answerers = buildRoster().filter((m) => m.role !== 'SOCIAL').length;
+    for (const f of fixtures) expect(f.accepted + 3).toBeLessThanOrEqual(answerers);
+  });
+
+  it('uses only configured templates', () => {
+    const known = buildRaidTemplates().map((t) => t.name);
+    expect(fixtures.every((f) => known.includes(f.template))).toBe(true);
   });
 });

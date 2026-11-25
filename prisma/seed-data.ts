@@ -211,6 +211,19 @@ export function buildRaids(from = new Date()): SeedRaid[] {
   return raids.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 }
 
+/** Sample-only raids that reach the raid page's states the weekly schedule never does: a finished raid, a cancelled one, and one whose roster is full with six on the bench. */
+export type SeedFixtureRaid = SeedRaid & { fixture: 'past' | 'cancelled' | 'bench'; status: 'DONE' | 'CANCELLED' | 'SCHEDULED'; cancelReason: string | null; accepted: number; rosterSize: number };
+
+export function buildFixtureRaids(from = new Date()): SeedFixtureRaid[] {
+  const day = 24 * 3600_000;
+  const base = { template: "Onyxia's Lair", durationMin: 60, notes: null };
+  return [
+    { ...base, name: "Onyxia's Lair", fixture: 'past', status: 'DONE', startsAt: new Date(from.getTime() - 2 * day), requirements: { tank: 3, healer: 12, dps: 25 }, cancelReason: null, accepted: 24, rosterSize: 40 },
+    { ...base, name: "Onyxia's Lair", fixture: 'cancelled', status: 'CANCELLED', startsAt: new Date(from.getTime() + 10 * day), requirements: { tank: 3, healer: 12, dps: 25 }, cancelReason: 'Raid leader is away.', accepted: 20, rosterSize: 40 },
+    { ...base, template: 'Barrow Deeps', name: 'Barrow Deeps', durationMin: 180, fixture: 'bench', status: 'SCHEDULED', startsAt: new Date(from.getTime() + 12 * day), requirements: { tank: 2, healer: 2, dps: 6 }, cancelReason: null, accepted: 16, rosterSize: 10 },
+  ];
+}
+
 export type SeedNeed = { wowClass: WowClassKey; spec: string; roles: RaidRoleKey[]; status: 'HIGH' | 'MEDIUM' | 'CLOSED' };
 
 /**
