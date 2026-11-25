@@ -79,6 +79,11 @@ export const ROSTER = {
   heading: 'Roster',
   empty: 'Nobody is on this roster yet. The roster comes from rank: raiders, trials and officers.',
   noRole: 'No main set',
+  signedUp: (signed: number, total: number) => `${signed} of ${total} signed up`,
+  emptyRole: { tank: 'No tanks have signed up yet.', healer: 'No healers have signed up yet.', dps: 'No DPS have signed up yet.' },
+  noResponse: 'No response',
+  absent: 'Absent',
+  noAbsent: 'Nobody has declined.',
   member: 'Member',
   updated: 'Updated',
   answer: 'Answer',
@@ -101,7 +106,6 @@ export const BENCH = {
 };
 
 export const UNANSWERED = {
-  heading: "Hasn't answered",
   empty: 'Everyone on the roster has answered.',
   nudge: 'Nudge in Discord',
   nudgeHint: 'Sends each of them a Discord DM.',
