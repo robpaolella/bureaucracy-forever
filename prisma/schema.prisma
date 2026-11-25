@@ -205,6 +205,13 @@ model Character {
   isMain     Boolean     @default(true)
   /// 0–1, computed from Signup history.
   attendance Float?
+  /// From Blizzard's WoW Forever profile API (lib/armory.ts). Read it through
+  /// lib/character-level.ts: a level last confirmed over 30 days ago counts as unknown.
+  level      Int?
+  /// Last successful check: a level, or Blizzard answered "not found".
+  levelCheckedAt   DateTime?
+  /// Last attempt, successful or not.
+  levelAttemptedAt DateTime?
   joinedAt   DateTime    @default(now())
   reserves   Reserve[]
   lootAwards LootAward[]
