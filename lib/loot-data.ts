@@ -172,6 +172,8 @@ export type AwardView = {
   recordedBy: string | null;
   voidedAt: string | null;
   voidReason: string | null;
+  /** Set for an add-on award only; a hand-typed one has none. */
+  addon: { handedOutBy: string | null; via: 'helper' | 'import' | null; confirmed: boolean; practice: boolean } | null;
 };
 
 /** A raid's loot records, newest first, voided ones included (the caller decides who sees them). */
@@ -181,6 +183,7 @@ export async function loadAwards(raidId: string): Promise<AwardView[]> {
     orderBy: { createdAt: 'desc' },
     select: {
       id: true, itemId: true, bossName: true, characterName: true, method: true, roll: true, note: true, createdAt: true, recordedById: true, voidedAt: true, voidReason: true,
+      source: true, handedOutByName: true, deliveredVia: true, confirmation: true, practice: true,
       user: { select: { discordName: true } },
       character: { select: { class: true } },
     },
@@ -198,6 +201,7 @@ export async function loadAwards(raidId: string): Promise<AwardView[]> {
     recordedBy: officers.get(r.recordedById) ?? null,
     voidedAt: r.voidedAt?.toISOString() ?? null,
     voidReason: r.voidReason,
+    addon: r.source === 'ADDON' ? { handedOutBy: r.handedOutByName, via: r.deliveredVia === null ? null : r.deliveredVia === 'HELPER' ? 'helper' : 'import', confirmed: r.confirmation !== 'NOT_CONFIRMED', practice: r.practice } : null,
   }));
 }
 

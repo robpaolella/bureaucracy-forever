@@ -19,6 +19,7 @@ import { db } from '@/lib/db';
 import { freshLevel } from '@/lib/character-level';
 import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import type { Role, WowClass } from '@/lib/design/class-colors';
+import { isStagingDeployment } from '@/lib/deploy-env';
 import { discordThreadUrl } from '@/lib/discord-links';
 import { lootEnabled, openUntilStart } from '@/lib/flags';
 import { loadActiveReserves, loadAwards, loadLootLogContext, loadLootTable, loadReserveTargets } from '@/lib/loot-data';
@@ -258,7 +259,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
         )}
         {memberLoot && <RaidLoot key={raid.id} raidId={raid.id} initial={memberLoot} />}
         {loadedTable && logContext && !card.cancelled && raid.templateId && (
-          <LootLog raidId={raid.id} templateId={raid.templateId} templateName={raid.template?.name ?? ''} table={loadedTable} reserves={reserves} candidates={logContext.candidates} raidAwards={logContext.raidAwards} hrAwards={logContext.hrAwards} awards={awards} />
+          <LootLog raidId={raid.id} templateId={raid.templateId} templateName={raid.template?.name ?? ''} table={loadedTable} reserves={reserves} candidates={logContext.candidates} raidAwards={logContext.raidAwards} hrAwards={logContext.hrAwards} awards={awards} staging={isStagingDeployment()} />
         )}
       </div>
     </ToastHost>

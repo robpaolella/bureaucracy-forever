@@ -190,3 +190,105 @@ export function parseIdsFile(json: unknown): ParsedTable {
 export function allItemIds(table: ParsedTable): number[] {
   return [...new Set(table.bosses.flatMap((b) => b.itemIds))];
 }
+
+/* ---- foreverchanges.pro (WoW Forever dungeons) ---- */
+
+export type ForeverDungeon = { slug: string; name: string };
+
+const HTML_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+const decodeHtml = (text: string) => text.replace(/&(?:#x([0-9a-f]+)|#(\d+)|([a-z]+));/gi, (whole, hex, dec, named) => {
+  if (named) return HTML_ENTITIES[named.toLowerCase()] ?? whole;
+  const code = hex ? parseInt(hex, 16) : Number(dec);
+  return Number.isSafeInteger(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+});
+
+/** The dungeons on foreverchanges.pro's index, each slug once (fragments such as `#quests` dropped), in page order. */
+export function listForeverDungeons(html: string): ForeverDungeon[] {
+  const found = new Map<string, { name: string; plain: boolean }>();
+  for (const m of html.matchAll(/<a href="\/dungeons\/([a-z0-9-]+)(#[^"]*)?">([^<]+)<\/a>/g)) {
+    const [, slug, fragment, text] = m;
+    const name = decodeHtml(text).trim();
+    const seen = found.get(slug);
+    if (!name || (seen && (seen.plain || fragment))) continue;
+    found.set(slug, { name, plain: !fragment });
+  }
+  return [...found].map(([slug, { name }]) => ({ slug, name }));
+}
+
+/** The text a Next.js page streams as `self.__next_f.push([1,"…"])` chunks, in order. */
+function nextPayload(html: string): string {
+  let text = '';
+  for (const m of html.matchAll(/self\.__next_f\.push\((\[1,"[\s\S]*?"\])\)<\/script>/g)) {
+    const chunk = JSON.parse(m[1]) as [number, string];
+    text += chunk[1];
+  }
+  return text;
+}
+
+/** The JSON array that starts at `start`, or throws if it never closes or isn't JSON. */
+function jsonArrayAt(text: string, start: number): unknown[] {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === '"') inString = false;
+    } else if (c === '"') inString = true;
+    else if (c === '[') depth++;
+    else if (c === ']' && --depth === 0) return JSON.parse(text.slice(start, i + 1)) as unknown[];
+  }
+  throw new Error('the embedded data is cut off.');
+}
+
+const FOREVER_KINDS = new Set(['boss', 'rare', 'object', 'trash']);
+const UNCOMMON = 2;
+
+/**
+ * A foreverchanges.pro dungeon page as a loot table: bosses, rare monsters and objects in page order,
+ * every `trash` entry on one "Trash" row (where the first one sits), uncommon (green) and better
+ * items only, each id once. Strict: anything unrecognised throws, so a misread page never yields a
+ * partial table. Rows left with no items are dropped; a dungeon with none at all throws.
+ */
+export function parseForeverDungeon(html: string): ParsedTable {
+  let payload: string;
+  let raw: unknown[] | null = null;
+  try {
+    payload = nextPayload(html);
+    // The page repeats the boss data; every copy must agree.
+    for (const m of payload.matchAll(/"bosses":\[/g)) {
+      const copy = jsonArrayAt(payload, m.index + m[0].length - 1);
+      if (raw && JSON.stringify(raw) !== JSON.stringify(copy)) throw new Error('the page’s copies of the boss data differ.');
+      raw ??= copy;
+    }
+  } catch (error) {
+    throw new Error(`the page’s data couldn’t be read (${(error as Error).message.replace(/\.$/, '')}).`);
+  }
+  if (!raw || raw.length === 0) throw new Error('the page has no boss data.');
+
+  const rows: { name: string; trash: boolean; items: number[] }[] = [];
+  let trashRow: (typeof rows)[number] | null = null;
+  raw.forEach((entry, n) => {
+    const { name, kind, items } = (entry ?? {}) as { name?: unknown; kind?: unknown; items?: unknown };
+    if (typeof name !== 'string' || !name.trim()) throw new Error(`entry ${n + 1} has no name.`);
+    if (typeof kind !== 'string' || !FOREVER_KINDS.has(kind)) throw new Error(`"${name}" is a kind of entry this site doesn’t know (${JSON.stringify(kind)}).`);
+    if (!Array.isArray(items)) throw new Error(`"${name}" has no item list.`);
+    const ids: number[] = [];
+    for (const item of items) {
+      const { i, q } = (item ?? {}) as { i?: unknown; q?: unknown };
+      if (!Number.isSafeInteger(i) || (i as number) <= 0) throw new Error(`"${name}" has an item with no item id.`);
+      if (!Number.isSafeInteger(q) || (q as number) < 0) throw new Error(`"${name}" has an item with no quality.`);
+      if ((q as number) >= UNCOMMON) ids.push(i as number);
+    }
+    if (kind === 'trash') {
+      if (!trashRow) { trashRow = { name: 'Trash', trash: true, items: [] }; rows.push(trashRow); }
+      trashRow.items.push(...ids);
+    } else rows.push({ name: name.trim(), trash: false, items: ids });
+  });
+
+  const kept = rows.filter((row) => row.items.length > 0);
+  if (kept.length === 0) throw new Error('it has no green or better items.');
+  return parseIdsFile({ bosses: kept.map((row) => ({ name: row.name, trash: row.trash, items: row.items })) });
+}
