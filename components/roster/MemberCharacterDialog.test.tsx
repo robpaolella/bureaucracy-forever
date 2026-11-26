@@ -47,8 +47,8 @@ function render(characters: MemberCharacter[] = [main, alt]) {
 describe('MemberCharacterDialog', () => {
   it('shows every character’s level, Level unknown when it is not known', () => {
     const html = render([main, alt, { ...alt, id: 'third', name: 'Mystery Ink', level: null }]);
-    expect(html).toContain('Warrior · Protection · Tank · <span class="whitespace-nowrap">Level 60</span>');
-    expect(html).toContain('<span class="whitespace-nowrap text-warn">Level 52</span>');
+    expect(html).toContain('Warrior · Protection · Tank · Level 60');
+    expect(html).toContain('Level 52');
     expect(html).toContain('Level unknown');
   });
 

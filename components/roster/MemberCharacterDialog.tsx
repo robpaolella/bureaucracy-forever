@@ -7,9 +7,9 @@ import { SAVE_FAILED } from '@/content/calendar';
 import { MEMBER_EDITOR, EDITOR_TOASTS } from '@/content/roster-editor';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS, ROLE_LABELS } from '@/lib/design/class-colors';
+import { levelText } from '@/lib/roster-level';
 import { emptyCharacter, type CharacterInput } from '@/lib/roster-edit';
 import { CharacterForm } from './CharacterForm';
-import { LevelText } from './LevelText';
 
 /** `level` is the fresh level; null is unknown. */
 export type MemberCharacter = Omit<CharacterInput, 'rank'> & { id: string; isMain: boolean; isDefault?: boolean; level: number | null };
@@ -219,8 +219,8 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
                     )}
                     <ClassAvatar name={character.name} wowClass={character.wowClass} size={28} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold" style={{ color: CLASS_COLORS[character.wowClass].onInk }}>{character.name}</p>
-                      <p className="truncate text-[13px] text-fg-3">{CLASS_COLORS[character.wowClass].label} · {character.spec} · {ROLE_LABELS[character.role]} · <LevelText level={character.level} /></p>
+                      <p className="break-words text-sm font-semibold" style={{ color: CLASS_COLORS[character.wowClass].onInk }}>{character.name}</p>
+                      <p className="break-words text-[13px] text-fg-3">{CLASS_COLORS[character.wowClass].label} · {character.spec} · {ROLE_LABELS[character.role]} · {levelText(character.level)}</p>
                     </div>
                     {character.isMain && <span className="text-small text-fg-3">{MEMBER_EDITOR.main}</span>}
                     <Button variant="secondary" size="sm" onClick={() => setEditing({ kind: 'edit', character: { ...character, rank } })} aria-label={`Edit ${character.name}`}>{MEMBER_EDITOR.edit}</Button>
