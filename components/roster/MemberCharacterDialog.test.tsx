@@ -393,6 +393,22 @@ describe('MemberCharacterDialog', () => {
       expect(view().find((n) => n.props.id === 'group-note')?.props.role).toBe('alert');
     });
 
+    it('shows the failure in the Add main state when the reload leaves no characters, and drops it on Add main', async () => {
+      hooks.values = [];
+      vi.stubGlobal('fetch', vi.fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Character not found' }), { status: 404 }))
+        .mockResolvedValue(new Response(JSON.stringify([]))));
+      button(MEMBER_EDITOR.manageCharacters)();
+      (view().find((n) => n.props['aria-label'] === 'Sign up with Blue Ink')!.props.onChange as () => void)();
+      await vi.waitFor(() => expect(view().some((n) => n.props.role === 'alert')).toBe(true));
+      const alerts = view().filter((n) => n.props.role === 'alert');
+      expect(alerts).toHaveLength(1);
+      expect(alerts[0].props.children).toBe(SAVE_FAILED);
+      expect(view().some((n) => n.props.children === MEMBER_EDITOR.addMain)).toBe(true);
+      button(MEMBER_EDITOR.addMain)();
+      expect(view().some((n) => n.props.role === 'alert')).toBe(false);
+    });
+
     it('returns to Ask me each time after the default character is removed', async () => {
       hooks.values = [];
       const request = vi.fn()
