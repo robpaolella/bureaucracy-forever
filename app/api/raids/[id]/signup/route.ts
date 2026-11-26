@@ -7,6 +7,7 @@ import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import type { Role } from '@/lib/design/class-colors';
 import { countAccepted, isRaidResponse, type RaidResponse } from '@/lib/raids';
 import { getSession } from '@/lib/session';
+import { webReason } from '@/lib/signup-web-reason';
 
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
 const RESPONSE_ENUM = { accept: 'ACCEPT', tentative: 'TENTATIVE', absent: 'ABSENT' } as const;
@@ -85,7 +86,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     // Withdrawing obeys the lock like any other answer (SYNC-SPEC §7); an officer acting
     // for someone is the exception. A roster member goes back to unanswered; a bench row goes away.
     const stop = raidClosed(raid, new Date(), setByUserId !== null);
-    if (stop) return NextResponse.json({ error: stop.reason }, { status: stop.status, headers: NO_STORE });
+    if (stop) return NextResponse.json({ error: webReason(stop.reason) }, { status: stop.status, headers: NO_STORE });
     await db.$transaction(async (tx) => {
       await lockSignup(tx, raid.id, targetId);
       const row = await tx.signup.findUnique({ where: { raidId_userId: { raidId: raid.id, userId: targetId } }, select: { standing: true } });
@@ -106,7 +107,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       decide: (existing) => decideRespond(actor, raid, existing, response, new Date(), setByUserId !== null),
       fields: (outcome) => ({ standing: outcome.standing, response: RESPONSE_ENUM[outcome.response], source: 'WEB', reason: outcome.response === 'absent' ? reason : null, setByUserId }),
     });
-    if (!result.ok) return NextResponse.json({ error: result.reason }, { status: result.status, headers: NO_STORE });
+    if (!result.ok) return NextResponse.json({ error: webReason(result.reason) }, { status: result.status, headers: NO_STORE });
   }
 
   const signups = await db.signup.findMany({

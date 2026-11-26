@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient, loot: tru
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
 vi.mock('@/lib/session', () => ({ getSession: async () => state.session && { ...state.session, name: 'Sample' } }));
 vi.mock('@/lib/flags', () => ({ lootEnabled: () => state.loot, openUntilStart: () => false }));
+import { RESPONSE_NOTES } from '@/content/raid';
 import { switchCharacter, switchCharacterInTransaction } from './character-switch';
 import { PUT } from '@/app/api/raids/[id]/signup/character/route';
 import { REASONS } from './signup-rules';
@@ -187,12 +188,12 @@ describe.skipIf(process.env.CHARACTER_SWITCH_INTEGRATION !== '1')('character swi
   it.each(['time', 'status'])('member obeys the sign-up %s lock, officer can switch for them', async (kind) => {
     await db.raid.update({ where: { id: 'raid' }, data: kind === 'time' ? { locksAt: new Date(0) } : { status: 'LOCKED' } });
     const response = await request();
-    expect(response.status).toBe(409); expect(await response.json()).toEqual({ error: REASONS.locked });
+    expect(response.status).toBe(409); expect(await response.json()).toEqual({ error: RESPONSE_NOTES.locked });
     expect((await signup()).characterId).toBe('main');
     state.session = { discordId: 'member', role: 'officer' };
     for (const body of [{ characterId: 'alt' }, { characterId: 'alt', forUserId: 'member' }]) {
       const own = await request(body);
-      expect(own.status).toBe(409); expect(await own.json()).toEqual({ error: REASONS.locked });
+      expect(own.status).toBe(409); expect(await own.json()).toEqual({ error: RESPONSE_NOTES.locked });
     }
     state.session = { discordId: 'stranger', role: 'officer' };
     expect((await request({ characterId: 'alt', forUserId: 'member' })).status).toBe(200);
