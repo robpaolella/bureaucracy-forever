@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { queueLevelLookup } from '@/lib/armory-store';
 import { db } from '@/lib/db';
 import { addAlt, queueClassSync } from '@/lib/characters';
 import { Prisma } from '@/lib/generated/prisma/client';
@@ -48,6 +49,8 @@ export async function POST(request: Request) {
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
     if ('error' in outcome) return NextResponse.json({ error: outcome.error }, { status: outcome.status, headers: NO_STORE });
+    // Queued as soon as the main exists, so a failure in the rank step below can't skip it.
+    queueLevelLookup(outcome.created.id);
     // The character's rank field mirrors the user's; the user's is what the roster and the Discord
     // roles follow. An officer keeps OFFICER whatever the form said; the main mirrors that.
     const wrote = await setRankFromWeb(userId, parsed.value.rank.toUpperCase() as Uppercase<typeof parsed.value.rank>);

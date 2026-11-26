@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { after } from 'next/server';
 import { db } from '@/lib/db';
 import { armorySettings, createArmoryClient, type ArmoryClient } from '@/lib/armory';
 
@@ -42,9 +43,23 @@ export async function lookupAndStoreLevel(
       result.kind === 'found' ? { level: result.level, levelCheckedAt: at, levelAttemptedAt: at }
       : result.kind === 'not-found' ? { level: null, levelCheckedAt: at, levelAttemptedAt: at }
       : { levelAttemptedAt: at };
-    const { count } = await db.character.updateMany({ where: { id: characterId, name: character.name }, data });
+    // Case-blind like the lookup itself: a capitalisation edit is not a rename (lib/character-level.ts).
+    const { count } = await db.character.updateMany({ where: { id: characterId, name: { equals: character.name, mode: 'insensitive' } }, data });
     return count === 0 ? 'gone' : result.kind;
   } catch {
     return 'failed';
+  }
+}
+
+/**
+ * Runs the lookup after the response (#569), so a save never waits for Blizzard and a failed
+ * lookup never fails it. Outside a request (scripts, tests) `after` throws; the lookup then
+ * runs unawaited instead, which is equally safe because it never rejects.
+ */
+export function queueLevelLookup(characterId: string): void {
+  try {
+    after(() => lookupAndStoreLevel(characterId));
+  } catch {
+    void lookupAndStoreLevel(characterId);
   }
 }

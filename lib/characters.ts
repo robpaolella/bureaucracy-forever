@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { queueLevelLookup } from '@/lib/armory-store';
+import { isRename, LEVEL_CLEARED } from '@/lib/character-level';
 import { db } from '@/lib/db';
 import { Prisma, type Character } from '@/lib/generated/prisma/client';
 import { enqueue } from '@/lib/outbox';
@@ -44,6 +46,12 @@ export async function queueClassSync(tx: Prisma.TransactionClient, userId: strin
   await enqueue('member.classes.sync', { discordId, classes: [...new Set(classes.map((c) => c.toLowerCase()))].sort(), main }, tx);
 }
 
+/** A new character's level is looked up after the response; a retry's was queued the first time. */
+function lookUpNew(result: CharacterResult): CharacterResult {
+  if (result.status === 201) queueLevelLookup(result.character.id);
+  return result;
+}
+
 /** Shared validation; rank is deliberately not writable through these rules. */
 function fields(input: unknown) {
   const parsed = parseCharacterInput({ ...(input && typeof input === 'object' ? input : {}), rank: 'social' });
@@ -59,7 +67,7 @@ function fields(input: unknown) {
 export async function addAlt(userId: string, input: unknown): Promise<CharacterResult> {
   const parsed = fields(input);
   if (!parsed.ok) return failure(400, 'invalid', parsed.error);
-  return change(async (tx) => {
+  return lookUpNew(await change(async (tx) => {
     const user = await tx.user.findUnique({ where: { id: userId }, select: { rank: true, characters: true } });
     if (!user) return failure(404, 'not_found', 'No such member.');
     if (!user.characters.some((c) => c.isMain)) return failure(409, 'no_main', 'Set a main first.');
@@ -73,14 +81,14 @@ export async function addAlt(userId: string, input: unknown): Promise<CharacterR
     const character = await tx.character.create({ data: { ...parsed.value, userId, isMain: false, rank: user.rank } });
     await queueClassSync(tx, userId, [character.class], false);
     return { status: 201, character };
-  });
+  }));
 }
 
 /** Members without a main create one; the character's rank mirrors the member's. */
 export async function addMain(userId: string, input: unknown): Promise<CharacterResult> {
   const parsed = fields(input);
   if (!parsed.ok) return failure(400, 'invalid', parsed.error);
-  return change(async (tx) => {
+  return lookUpNew(await change(async (tx) => {
     const user = await tx.user.findUnique({ where: { id: userId }, select: { rank: true, characters: true } });
     if (!user) return failure(404, 'not_found', 'No such member.');
     const main = user.characters.find((c) => c.isMain);
@@ -95,24 +103,29 @@ export async function addMain(userId: string, input: unknown): Promise<Character
     const character = await tx.character.create({ data: { ...parsed.value, userId, isMain: true, rank: user.rank } });
     await queueClassSync(tx, userId, [character.class], true);
     return { status: 201, character };
-  });
+  }));
 }
 
 export async function editCharacter(userId: string, characterId: string, input: unknown, options: { altOnly?: boolean } = {}): Promise<CharacterResult> {
   const parsed = fields(input);
   if (!parsed.ok) return failure(400, 'invalid', parsed.error);
-  return change(async (tx) => {
+  let renamed = false;
+  const result = await change(async (tx) => {
     const existing = await tx.character.findFirst({ where: { id: characterId, userId } });
     if (!existing) return missing();
     if (existing.isMain && options.altOnly) return failure(409, 'main', 'Only alt characters can be edited.');
     const named = await tx.character.findFirst({ where: { id: { not: characterId }, name: { equals: parsed.value.name, mode: 'insensitive' } } });
     if (named) return nameTaken(named.userId === userId);
-    const character = await tx.character.update({ where: { id: characterId }, data: parsed.value });
+    // A rename clears the old name's level in the same write; the new name is looked up after.
+    renamed = isRename(existing.name, parsed.value.name);
+    const character = await tx.character.update({ where: { id: characterId }, data: renamed ? { ...parsed.value, ...LEVEL_CLEARED } : parsed.value });
     if (existing.raidRole !== character.raidRole) await refreshPostedRaidsForCharacter(existing, tx);
     // Name, spec and raid role leave Discord's class roles as they are.
     if (existing.class !== character.class) await queueClassSync(tx, userId, [existing.class, character.class], existing.isMain);
     return { status: 200, character };
   });
+  if (renamed && result.status === 200) queueLevelLookup(characterId);
+  return result;
 }
 
 /** Officer callers authorize first; ownership and rank come from the stored character. */

@@ -7,11 +7,15 @@ import { lootEnabled } from '@/lib/flags';
 import { toComposition, viewerReserves, type Composition, type RaidResponse } from '@/lib/raids';
 import { countsForBars } from '@/lib/signup-rules';
 import { SITE_URL } from '@/lib/config';
+import { levelForBot } from '@/lib/character-level';
 
 type ViewerCharacter = { id: string; name: string; wowClass: string; spec: string; raidRole: string };
 const viewerCharacter = (c: { id: string; name: string; class: string; spec: string; raidRole: string }): ViewerCharacter => ({
   id: c.id, name: c.name, wowClass: c.class.toLowerCase(), spec: c.spec, raidRole: c.raidRole.toLowerCase(),
 });
+/** The brought character also carries its level (SYNC-SPEC §4); stale levels read as unknown. */
+type BroughtCharacter = ViewerCharacter & ReturnType<typeof levelForBot>;
+const BROUGHT = { select: { ...MAIN_CHARACTER.select, level: true, levelCheckedAt: true } } as const;
 
 export type RaidView = {
   id: string;
@@ -33,7 +37,7 @@ export type RaidView = {
   discord: { threadId: string | null; messageId: string | null };
   url: string;
   /** Null when the viewer has no sign-up, which also means they cannot reserve. */
-  viewer: ({ standing: 'ROSTER' | 'BENCH'; response: RaidResponse | null; character: ViewerCharacter | null; characters?: (ViewerCharacter & { isMain: boolean })[] } & ReturnType<typeof viewerReserves>) | null;
+  viewer: ({ standing: 'ROSTER' | 'BENCH'; response: RaidResponse | null; character: BroughtCharacter | null; characters?: (ViewerCharacter & { isMain: boolean })[] } & ReturnType<typeof viewerReserves>) | null;
 };
 
 /** GET /api/bot/raids/:id (SYNC-SPEC §4): everything the embed needs, and the viewer's own standing and reserves when asked. */
@@ -44,7 +48,7 @@ export async function loadRaidView(id: string, viewerDiscordId: string | null): 
       id: true, templateId: true, reservesAllowed: true, name: true, status: true, startsAt: true, locksAt: true, durationMin: true, notes: true, cancelReason: true, requirements: true, postedAt: true, discordThreadId: true, discordMessageId: true,
       template: { select: { name: true, short: true, size: true } },
       series: { select: { postAheadDays: true } },
-      signups: { select: { standing: true, response: true, attended: true, character: { select: MAIN_CHARACTER.select }, user: { select: { discordId: true, rank: true, reserves: { where: { raidId: id }, select: { kind: true } }, characters: MAIN_CHARACTER } } } },
+      signups: { select: { standing: true, response: true, attended: true, character: BROUGHT, user: { select: { discordId: true, rank: true, reserves: { where: { raidId: id }, select: { kind: true } }, characters: { ...MAIN_CHARACTER, ...BROUGHT } } } } },
     },
   });
   if (!r) return null;
@@ -82,7 +86,7 @@ export async function loadRaidView(id: string, viewerDiscordId: string | null): 
     },
     discord: { threadId: r.discordThreadId, messageId: r.discordMessageId },
     url: `${SITE_URL}/members/calendar/${r.id}`,
-    viewer: mine ? { standing: mine.standing, response: mine.response, character: mine.character ? viewerCharacter(mine.character) : null,
+    viewer: mine ? { standing: mine.standing, response: mine.response, character: mine.character ? { ...viewerCharacter(mine.character), ...levelForBot(mine.character) } : null,
       ...(characters.length > 1 ? { characters: characters.map((c) => ({ ...viewerCharacter(c), isMain: c.isMain })) } : {}), ...viewerReserves({ id: r.id, startsAt: r.startsAt, hasLootTable }, mine.kinds, new Date(), lootEnabled()) } : null,
   };
 }

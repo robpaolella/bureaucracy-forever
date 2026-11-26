@@ -2,8 +2,9 @@ import { beforeEach, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   session: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(),
-  remove: vi.fn(), count: vi.fn(), user: vi.fn(), transaction: vi.fn(), rank: vi.fn(), refresh: vi.fn(), discordId: vi.fn(), job: vi.fn(),
+  remove: vi.fn(), count: vi.fn(), user: vi.fn(), transaction: vi.fn(), rank: vi.fn(), refresh: vi.fn(), discordId: vi.fn(), job: vi.fn(), lookup: vi.fn(),
 }));
+vi.mock('@/lib/armory-store', () => ({ queueLevelLookup: mocks.lookup }));
 vi.mock('@/lib/session', () => ({ getSession: mocks.session }));
 vi.mock('@/lib/db', () => ({ db: {
   character: { findUnique: mocks.findUnique }, $transaction: mocks.transaction,
@@ -91,9 +92,12 @@ it('keeps create-main success, existing-main rejection and officer-rank rejectio
   expect(mocks.rank).toHaveBeenCalledWith('member', 'RAIDER');
   // Queued in the same transaction as the new main.
   expect(queued()).toEqual([{ discordId: 'discord-member', classes: ['paladin'], main: true }]);
+  // Its level is looked up after the response (#569); a refused second main looks nothing up.
+  expect(mocks.lookup).toHaveBeenCalledExactlyOnceWith('character');
   mocks.user.mockResolvedValue({ id: 'member', characters: [character] });
   expect((await POST(request('POST'))).status).toBe(409);
   expect(mocks.job).toHaveBeenCalledTimes(1);
+  expect(mocks.lookup).toHaveBeenCalledTimes(1);
   mocks.transaction.mockClear();
   const denied = await POST(request('POST', { ...body, rank: 'officer' }));
   expect(denied.status).toBe(400);
@@ -166,4 +170,26 @@ it.each(['PATCH', 'DELETE'])('%s returns 404 for an unknown id before editing', 
   expect(response.status).toBe(404);
   expect(await response.json()).toEqual({ error: 'No such character.' });
   expect(mocks.transaction).not.toHaveBeenCalled();
+});
+
+it('looks up a new alt and a renamed character, not a retry or an edit that keeps the name (#569)', async () => {
+  expect((await POST(request('POST', { ...body, alt: true }))).status).toBe(201);
+  expect(mocks.lookup).toHaveBeenLastCalledWith('character');
+  mocks.findFirst.mockResolvedValueOnce(character);
+  expect((await POST(request('POST', { ...body, alt: true }))).status).toBe(200);
+  mocks.findFirst.mockResolvedValueOnce(character).mockResolvedValueOnce(null);
+  expect((await PATCH(request('PATCH', { ...body, spec: 'Retribution', role: 'melee' }), params)).status).toBe(200);
+  expect(mocks.lookup).toHaveBeenCalledTimes(1);
+  mocks.findFirst.mockResolvedValueOnce(character).mockResolvedValueOnce(null);
+  expect((await PATCH(request('PATCH', { ...body, name: 'Fresh Name' }), params)).status).toBe(200);
+  expect(mocks.update).toHaveBeenLastCalledWith({ where: { id: 'character' }, data: expect.objectContaining({ name: 'Fresh Name', level: null, levelCheckedAt: null, levelAttemptedAt: null }) });
+  expect(mocks.lookup.mock.calls).toEqual([['character'], ['character']]);
+});
+
+it('queues the new main\'s lookup even when the rank step after the save fails (#569)', async () => {
+  mocks.user.mockResolvedValue({ id: 'member', characters: [] });
+  mocks.create.mockResolvedValue({ id: 'character', name: 'Sample Name' });
+  mocks.rank.mockRejectedValue(new Error('roles unavailable'));
+  await expect(POST(request('POST'))).rejects.toThrow('roles unavailable');
+  expect(mocks.lookup).toHaveBeenCalledExactlyOnceWith('character');
 });

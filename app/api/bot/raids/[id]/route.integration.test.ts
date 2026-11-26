@@ -73,7 +73,7 @@ describe.skipIf(process.env.RAID_VIEW_INTEGRATION !== '1')('GET /api/bot/raids/:
     expect(await viewer('r-one')).toEqual({
       standing: 'ROSTER',
       response: 'accept',
-      character: { id: 'c1', name: 'Sampleone', wowClass: 'mage', spec: 'Frost', raidRole: 'ranged' },
+      character: { id: 'c1', name: 'Sampleone', wowClass: 'mage', spec: 'Frost', raidRole: 'ranged', level: null, underRaidLevel: false },
       lootTable: true,
       reservesLocked: false,
       reservesComplete: false,
