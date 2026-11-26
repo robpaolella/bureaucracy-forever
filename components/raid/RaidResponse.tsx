@@ -75,7 +75,7 @@ export function RaidResponseControl({ raid: initial, viewer, characters, default
     },
     [zone, router, afterAnswer],
   );
-  const { raids, respond, switchCharacter, pending, madeDefault } = useSignup([initial], viewer.raidRole, onResult);
+  const { raids, respond, switchCharacter, pending, madeDefault } = useSignup([initial], viewer.raidRole, onResult, { characters, defaultId: defaultCharacterId });
   const raid = raids[0];
   const { answer, question } = useCharacterQuestion(characters, madeDefault ?? defaultCharacterId, respond);
 

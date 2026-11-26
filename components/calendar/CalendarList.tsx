@@ -72,7 +72,7 @@ export function CalendarList({ raids: initial, viewer, characters, defaultCharac
     },
     [zone, afterAnswer],
   );
-  const { raids, respond, madeDefault } = useSignup(initial, viewer.raidRole, onResult);
+  const { raids, respond, madeDefault } = useSignup(initial, viewer.raidRole, onResult, { characters, defaultId: defaultCharacterId });
   const { answer, question } = useCharacterQuestion(characters, madeDefault ?? defaultCharacterId, respond);
 
   const canRespond = viewer.role !== 'social';

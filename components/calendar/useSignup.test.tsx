@@ -15,12 +15,13 @@ const removed = [{ kind: 'HR', itemId: 1, itemName: 'Blade', reason: 'Already wo
 const response = (status = 200, body: unknown = { character, removed }) => ({ ok: status < 400, status, json: async () => body });
 const fetcher = vi.fn(), onResult = vi.fn();
 let root: Root, host: HTMLDivElement, hook: ReturnType<typeof useSignup>;
-function Harness({ initial }: { initial: RaidCard[] }) {
-  const state = useSignup(initial, 'healer', onResult);
+const defaults = { characters: [{ id: 'main', role: 'healer' as const }, { id: 'alt', role: 'ranged' as const }], defaultId: 'alt' };
+function Harness({ initial, withDefault = false }: { initial: RaidCard[]; withDefault?: boolean }) {
+  const state = useSignup(initial, 'healer', onResult, withDefault ? defaults : undefined);
   useLayoutEffect(() => { hook = state; });
   return null;
 }
-const render = async (initial = [card()]) => act(async () => root.render(<Harness initial={initial} />));
+const render = async (initial = [card()], withDefault = false) => act(async () => root.render(<Harness initial={initial} withDefault={withDefault} />));
 function deferred() {
   let resolve!: (value: ReturnType<typeof response>) => void;
   let reject!: (reason: Error) => void;
@@ -219,5 +220,58 @@ describe('useSignup character choice', () => {
     await act(async () => { first.resolve(response(200, { response: 'accept', characterId: 'alt', counts: ZERO_COUNTS })); });
     expect(hook.madeDefault).toBe('alt');
     await act(async () => { second.resolve(response(200, { response: 'absent', counts: ZERO_COUNTS })); });
+  });
+});
+
+describe('useSignup default character', () => {
+  const unanswered = () => card({ mine: null, signupRole: 'healer', counts: { ...ZERO_COUNTS, healer: 2 } });
+  const reply = (r: string | null, role: string | null, counts: object) => response(200, { response: r, characterId: role === 'ranged' ? 'alt' : 'main', role, counts: { ...ZERO_COUNTS, ...counts } });
+
+  it('counts a first Accept under the default role, keeps it after the reply, and moves that role on Tentative then Absent', async () => {
+    await render([unanswered()], true);
+    const first = deferred(); fetcher.mockReturnValueOnce(first.promise);
+    await act(async () => { hook.respond('raid', 'accept'); });
+    expect(hook.raids[0]).toMatchObject({ mine: 'accept', signupRole: 'ranged', counts: { healer: 2, ranged: 1 } });
+    await act(async () => { first.resolve(reply('accept', 'ranged', { healer: 2, ranged: 1 })); });
+    expect(hook.raids[0]).toMatchObject({ signupRole: 'ranged', counts: { healer: 2, ranged: 1 } });
+
+    const second = deferred(); fetcher.mockReturnValueOnce(second.promise);
+    await act(async () => { hook.respond('raid', 'tentative'); });
+    expect(hook.raids[0]).toMatchObject({ mine: 'tentative', counts: { healer: 2, ranged: 0 } });
+    await act(async () => { second.resolve(reply('tentative', 'ranged', { healer: 2 })); });
+    expect(hook.raids[0]).toMatchObject({ signupRole: 'ranged', counts: { healer: 2, ranged: 0 } });
+
+    const third = deferred(); fetcher.mockReturnValueOnce(third.promise);
+    await act(async () => { hook.respond('raid', 'accept'); });
+    expect(hook.raids[0]).toMatchObject({ mine: 'accept', counts: { healer: 2, ranged: 1 } });
+    await act(async () => { third.resolve(reply('accept', 'ranged', { healer: 2, ranged: 1 })); });
+    expect(hook.raids[0]).toMatchObject({ mine: 'accept', signupRole: 'ranged', counts: { healer: 2, ranged: 1 } });
+
+    const fourth = deferred(); fetcher.mockReturnValueOnce(fourth.promise);
+    await act(async () => { hook.respond('raid', 'absent'); });
+    expect(hook.raids[0]).toMatchObject({ mine: 'absent', counts: { healer: 2, ranged: 0 } });
+    await act(async () => { fourth.resolve(reply('absent', 'ranged', { healer: 2 })); });
+    expect(hook.raids[0]).toMatchObject({ mine: 'absent', signupRole: 'ranged', counts: { healer: 2, ranged: 0 } });
+  });
+
+  it('takes the role from the reply when the guess was wrong', async () => {
+    await render([unanswered()]);
+    fetcher.mockResolvedValue(reply('accept', 'ranged', { healer: 2, ranged: 1 }));
+    await act(async () => { hook.respond('raid', 'accept'); });
+    expect(hook.raids[0]).toMatchObject({ signupRole: 'ranged' });
+  });
+
+  it('puts the earlier answer, role and counts back when refused', async () => {
+    await render([unanswered()], true);
+    fetcher.mockResolvedValue(response(409, { error: 'Locked.' }));
+    await act(async () => { hook.respond('raid', 'accept'); });
+    expect(hook.raids[0]).toEqual(unanswered());
+  });
+
+  it('leaves Undo and an answered row on their brought character', async () => {
+    await render([card({ mine: 'accept', signupRole: 'healer' })], true);
+    fetcher.mockResolvedValue(reply('tentative', 'healer', { healer: 1 }));
+    await act(async () => { hook.respond('raid', 'tentative'); });
+    expect(hook.raids[0]).toMatchObject({ signupRole: 'healer', counts: { healer: 1, ranged: 0 } });
   });
 });

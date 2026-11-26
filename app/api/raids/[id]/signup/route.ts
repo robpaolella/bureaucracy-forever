@@ -25,7 +25,7 @@ const RESPONSE_ENUM = { accept: 'ACCEPT', tentative: 'TENTATIVE', absent: 'ABSEN
  * `source: WEB`; the last write wins on updatedAt (docs/06 § Discord bot sync). Members
  * only: socials do not sign up (docs/03 § Roles). Officers may pass `forUserId` to answer
  * on a member's behalf (docs/04 § Raid detail); that write records `setBy`. Returns the
- * answered user's id, response and brought character's id with the raid's accepted counts.
+ * answered user's id, response and brought character's id and role with the raid's accepted counts.
  */
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -119,5 +119,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     signups.filter((s) => s.standing === 'ROSTER').map((s) => ({ response: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null, role: (characterBrought(s)?.raidRole.toLowerCase() as Role | undefined) ?? null })),
   );
   const own = signups.find((s) => s.userId === targetId);
-  return NextResponse.json({ raidId: raid.id, userId: targetId, response, characterId: own ? characterBrought(own)?.id ?? null : null, counts }, { headers: NO_STORE });
+  const brought = own ? characterBrought(own) : null;
+  return NextResponse.json({ raidId: raid.id, userId: targetId, response, characterId: brought?.id ?? null, role: (brought?.raidRole.toLowerCase() as Role | undefined) ?? null, counts }, { headers: NO_STORE });
 }
