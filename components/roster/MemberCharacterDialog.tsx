@@ -185,7 +185,10 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
             <Button onClick={() => { void refreshCharacters(stale); }}>{MEMBER_EDITOR.reload}</Button>
           </div>
         ) : !main ? (
-          <Button onClick={() => setEditing({ kind: 'add', main: true })}>{MEMBER_EDITOR.addMain}</Button>
+          <div className="flex flex-col gap-3">
+            {defaultError && <span role="alert" className="text-xs text-stop">{SAVE_FAILED}</span>}
+            <Button onClick={() => { setDefaultError(false); setEditing({ kind: 'add', main: true }); }}>{MEMBER_EDITOR.addMain}</Button>
+          </div>
         ) : (
           <div className="flex flex-col gap-4">
             {characters.length === 1 ? (
