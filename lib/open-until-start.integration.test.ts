@@ -24,7 +24,7 @@ describe.skipIf(process.env.OPEN_UNTIL_START_INTEGRATION !== '1')('OPEN_UNTIL_ST
   let container: string, pool: Pool, db: PrismaClient;
   const docker = (...args: string[]) => execFileSync('docker', args, { encoding: 'utf8', timeout: 120_000 }).trim();
   const MINUTE = 60_000;
-  const form = { templateId: 'tier', date: '2099-06-01', time: '20:00', durationMin: 180, requirements: { tank: 1, healer: 1, melee: 0, ranged: 0 }, notes: '' };
+  const form = { templateId: 'tier', date: '2099-06-01', time: '20:00', durationMin: 180, requirements: { tank: 2, healer: 2, melee: 3, ranged: 3 }, notes: '' };
   const json = (body: unknown) => ({ method: 'PUT', body: JSON.stringify(body) });
   const params = (id: string) => ({ params: Promise.resolve({ id }) });
   const raidRow = (id: string) => db.raid.findUniqueOrThrow({ where: { id } });
@@ -136,8 +136,10 @@ describe.skipIf(process.env.OPEN_UNTIL_START_INTEGRATION !== '1')('OPEN_UNTIL_ST
     expect(moved.startsAt.getTime()).toBe(raid.startsAt.getTime() + 24 * 60 * MINUTE);
     expect(moved.locksAt).toEqual(moved.startsAt);
 
+    // Editing a locked raid whose new lock is still ahead reopens it (by design); an edit made after the lock time leaves it locked.
+    clock(new Date(moved.startsAt.getTime() + 30 * MINUTE));
     await db.raid.update({ where: { id: raid.id }, data: { status: 'LOCKED', lockedAt: new Date() } });
-    expect((await edit('2099-06-03')).status).toBe(200);
+    expect((await edit('2099-06-02')).status).toBe(200);
     const locked = await raidRow(raid.id);
     expect(locked.status).toBe('LOCKED');
     expect(locked.locksAt).toEqual(locked.startsAt);

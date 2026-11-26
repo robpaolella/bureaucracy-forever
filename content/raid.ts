@@ -33,6 +33,9 @@ export const UNKNOWN_MAIN = 'No main on the roster';
 
 export const OFFICER_ACTIONS = {
   heading: 'Officer actions',
+  headingManaging: 'Officer actions · Managing sign-ups',
+  manage: 'Manage sign-ups',
+  manageHint: 'Shows answer controls on each row and the bench.',
   edit: 'Edit raid',
   editTitle: 'Edit raid',
   save: 'Save changes',
@@ -79,6 +82,11 @@ export const ROSTER = {
   heading: 'Roster',
   empty: 'Nobody is on this roster yet. The roster comes from rank: raiders, trials and officers.',
   noRole: 'No main set',
+  signedUp: (signed: number, total: number) => `${signed} of ${total} signed up`,
+  emptyRole: { tank: 'No tanks have signed up yet.', healer: 'No healers have signed up yet.', dps: 'No DPS have signed up yet.' },
+  noResponse: 'No response',
+  absent: 'Absent',
+  noAbsent: 'Nobody has declined.',
   member: 'Member',
   updated: 'Updated',
   answer: 'Answer',
@@ -101,7 +109,6 @@ export const BENCH = {
 };
 
 export const UNANSWERED = {
-  heading: "Hasn't answered",
   empty: 'Everyone on the roster has answered.',
   nudge: 'Nudge in Discord',
   nudgeHint: 'Sends each of them a Discord DM.',
@@ -124,4 +131,16 @@ export const RESPONSE_NOTES = {
   locked: 'Sign-ups are locked. Ask an officer if something changed.',
   offRoster: "You're not on this roster. Accepting puts you on the bench.",
   youAnswered: 'You answered',
+};
+
+/** The character question a member with alts answers before a first Accept or Tentative. */
+export const CHARACTER_QUESTION = {
+  title: 'Which character are you bringing?',
+  legend: 'Character',
+  main: 'Main',
+  makeDefault: 'Use this character by default',
+  hint: 'You can change this in Manage characters on the Roster page.',
+  cancel: 'Cancel',
+  accept: 'Accept',
+  tentative: 'Tentative',
 };

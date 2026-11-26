@@ -148,16 +148,17 @@ describe.skipIf(process.env.SIGNUP_DEFAULT_INTEGRATION !== '1')('default sign-up
 
   describe('the website route', () => {
     it.each([
-      ['makeDefault with forUserId', { response: 'accept', characterId: 'alt', makeDefault: true, forUserId: 'member' }, 'officer'],
-      ['another member\'s character', { response: 'accept', characterId: 'foreign' }, 'member'],
-      ['a character with Absent', { response: 'absent', characterId: 'alt' }, 'member'],
-      ['a character with a withdrawal', { response: null, characterId: 'alt' }, 'member'],
-      ['makeDefault without a character', { response: 'accept', makeDefault: true }, 'member'],
-      ['an officer\'s character for someone else', { response: 'accept', characterId: 'foreign', forUserId: 'member' }, 'officer'],
-    ])('refuses %s with 400 and writes nothing', async (_name, body, as) => {
+      ['makeDefault with forUserId', { response: 'accept', characterId: 'alt', makeDefault: true, forUserId: 'member' }, 'officer', undefined],
+      ['another member\'s character', { response: 'accept', characterId: 'foreign' }, 'member', 'That character is no longer available. Choose another and try again.'],
+      ['a character with Absent', { response: 'absent', characterId: 'alt' }, 'member', undefined],
+      ['a character with a withdrawal', { response: null, characterId: 'alt' }, 'member', undefined],
+      ['makeDefault without a character', { response: 'accept', makeDefault: true }, 'member', undefined],
+      ['an officer\'s character for someone else', { response: 'accept', characterId: 'foreign', forUserId: 'member' }, 'officer', 'That character is no longer available for this member. Choose another and try again.'],
+    ])('refuses %s with 400 and writes nothing', async (_name, body, as, expectedError) => {
       const result = await web(body, as);
       expect(result.status).toBe(400);
-      expect(result.body.error).toEqual(expect.any(String));
+      if (expectedError) expect(result.body.error).toBe(expectedError);
+      else expect(result.body.error).toEqual(expect.any(String));
       expect(await row()).toMatchObject({ response: null, characterId: 'main' });
       expect(await defaultOf()).toBeNull();
     });

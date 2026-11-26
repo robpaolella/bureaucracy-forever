@@ -70,9 +70,15 @@ export const MEMBER_EDITOR = {
   removeBody: 'This alt’s reserves for upcoming raids will be removed. Past loot stays under the alt’s name.',
   removeConfirm: 'Remove',
   keep: 'Keep it',
+  signUpWith: 'Sign up with',
+  signUpWithHint: 'Used when you accept or go tentative on a raid. You can still change the character on each raid.',
+  askEachTime: 'Ask me each time',
+  onlyCharacter: ', your only character. Add an alt to choose between them.',
 };
 
 export const EDITOR_TOASTS = {
+  signUpWith: (name: string) => `You’ll sign up with ${name}`,
+  askEachTime: 'We’ll ask which character each time',
   saved: (name: string) => `Saved ${name}`,
   added: (name: string) => `Added ${name} to the roster`,
   removed: (name: string) => `Removed ${name}`,
