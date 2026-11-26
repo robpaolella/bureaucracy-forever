@@ -41,10 +41,11 @@ export function UnderLevelWindow({ ask, onCancel, onConfirm }: { ask: UnderLevel
       onClose={onCancel}
       title={shown?.title ?? ''}
       actions={
-        <>
+        // Two-part character names make the labels long: wrap onto two lines on a phone, as the approved design does.
+        <div className="flex w-full flex-wrap justify-end gap-2.5">
           <Button variant="ghost" onClick={onCancel}>{shown?.cancel}</Button>
           <Button onClick={onConfirm}>{shown?.confirm}</Button>
-        </>
+        </div>
       }
     >
       <p>{shown?.body}</p>
