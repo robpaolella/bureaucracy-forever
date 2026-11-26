@@ -10,8 +10,8 @@ vi.mock('@/components/time/useViewerTimeZone', () => ({ useViewerTimeZone: () =>
 vi.mock('@/components/loot/ReserveWindow', () => ({ useReservePrompt: () => ({ afterAnswer: async () => false, window: null }) }));
 
 const characters = [
-  { id: 'main', name: 'Redtape', wowClass: 'warrior' as const, spec: 'Protection', role: 'tank' as const, isMain: true },
-  { id: 'alt', name: 'Triplicate', wowClass: 'mage' as const, spec: 'Frost', role: 'ranged' as const, isMain: false },
+  { id: 'main', name: 'Redtape', wowClass: 'warrior' as const, spec: 'Protection', role: 'tank' as const, isMain: true, level: 60 },
+  { id: 'alt', name: 'Triplicate', wowClass: 'mage' as const, spec: 'Frost', role: 'ranged' as const, isMain: false, level: 60 },
 ];
 const raid: RaidCard = {
   id: 'raid', name: 'Molten Core', startsAt: '2099-01-01T20:00:00Z', durationMin: 180, notes: null, cancelled: false,
