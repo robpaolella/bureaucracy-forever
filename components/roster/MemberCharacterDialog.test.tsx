@@ -382,6 +382,17 @@ describe('MemberCharacterDialog', () => {
       expect(checkedOf([main, alt])).toEqual(['ask']);
     });
 
+    it('still shows the failure when the reload leaves only the main', async () => {
+      hooks.values = [];
+      vi.stubGlobal('fetch', vi.fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Character not found' }), { status: 404 }))
+        .mockResolvedValue(new Response(JSON.stringify([{ ...main, class: 'WARRIOR', raidRole: 'TANK' }]))));
+      button(MEMBER_EDITOR.manageCharacters)();
+      (view().find((n) => n.props['aria-label'] === 'Sign up with Blue Ink')!.props.onChange as () => void)();
+      await vi.waitFor(() => expect(view().find((n) => n.props.id === 'group-note')?.props.children).toBe(SAVE_FAILED));
+      expect(view().find((n) => n.props.id === 'group-note')?.props.role).toBe('alert');
+    });
+
     it('returns to Ask me each time after the default character is removed', async () => {
       hooks.values = [];
       const request = vi.fn()

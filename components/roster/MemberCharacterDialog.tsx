@@ -194,7 +194,7 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
                 <p className="text-sm text-fg-2"><span className="font-semibold text-fg">{main.name}</span>{MEMBER_EDITOR.onlyCharacter}</p>
               </div>
             ) : null}
-            <fieldset className={cn(characters.length === 1 ? 'contents' : 'flex flex-col gap-2.5')} aria-describedby={characters.length === 1 || !defaultError ? undefined : `${group}-note`} aria-invalid={defaultError && characters.length > 1 ? true : undefined}>
+            <fieldset className={cn(characters.length === 1 ? 'contents' : 'flex flex-col gap-2.5')} aria-describedby={!defaultError ? undefined : `${group}-note`} aria-invalid={defaultError && characters.length > 1 ? true : undefined}>
               {characters.length > 1 && (
                 <>
                   <legend className={cn(FIELD_LABEL, 'mb-1')}>{MEMBER_EDITOR.signUpWith}</legend>
@@ -227,7 +227,7 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
                   </li>
                 ))}
               </ul>
-              {defaultError && characters.length > 1 && <span id={`${group}-note`} role="alert" className="text-xs text-stop">{SAVE_FAILED}</span>}
+              {defaultError && <span id={`${group}-note`} role="alert" className="text-xs text-stop">{SAVE_FAILED}</span>}
             </fieldset>
             <Button onClick={() => setEditing({ kind: 'add', main: false })}>{MEMBER_EDITOR.addAlt}</Button>
           </div>
