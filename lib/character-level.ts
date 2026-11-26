@@ -13,3 +13,18 @@ export function freshLevel(
   if (level === null || !levelCheckedAt) return null;
   return now.getTime() - levelCheckedAt.getTime() <= LEVEL_MAX_AGE_MS ? level : null;
 }
+
+/** The raid level: a known level under it is flagged to the bot as `underRaidLevel` (#569). */
+export const RAID_LEVEL = 60;
+
+/** `level` and `underRaidLevel` for the bot (SYNC-SPEC §4): unknown or stale reads as null and false. */
+export function levelForBot(character: { level: number | null; levelCheckedAt: Date | null }, now: Date = new Date()) {
+  const level = freshLevel(character, now);
+  return { level, underRaidLevel: level !== null && level < RAID_LEVEL };
+}
+
+/** A name change that Blizzard sees: its lookup is case-blind, like the site's name rule. */
+export const isRename = (before: string, after: string) => before.toLowerCase() !== after.toLowerCase();
+
+/** Written with the new name on a rename, so the old name's level never shows for the new one. */
+export const LEVEL_CLEARED = { level: null, levelCheckedAt: null, levelAttemptedAt: null } as const;

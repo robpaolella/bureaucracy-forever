@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const store = vi.hoisted(() => ({ user: vi.fn(), transaction: vi.fn() }));
+const store = vi.hoisted(() => ({ user: vi.fn(), transaction: vi.fn(), lookup: vi.fn() }));
+vi.mock('@/lib/armory-store', () => ({ queueLevelLookup: store.lookup }));
 vi.mock('@/lib/db', () => ({ db: { user: { findUnique: store.user }, $transaction: store.transaction } }));
 vi.mock('@/lib/roles-sync', () => ({ refreshPostedRaidsFor: vi.fn() }));
 import { PUT } from './route';
@@ -61,7 +62,7 @@ describe('PUT /api/bot/members/:discordId/main', () => {
     });
 
     it('queues only the new class when "Set my main" changes a Druid main to a Warrior', async () => {
-      tx.character.findFirst.mockResolvedValue({ id: 'main', class: 'DRUID', raidRole: 'TANK' });
+      tx.character.findFirst.mockResolvedValue({ id: 'main', name: 'Red Tape', class: 'DRUID', raidRole: 'TANK' });
       tx.character.update.mockResolvedValue({ ...mage, class: 'WARRIOR', spec: 'Protection', raidRole: 'TANK' });
       const response = await call({ ...input, wowClass: 'warrior', spec: 'Protection', raidRole: 'tank' });
       expect(response.status).toBe(200);
@@ -70,7 +71,7 @@ describe('PUT /api/bot/members/:discordId/main', () => {
     });
 
     it('queues nothing when the main keeps its class', async () => {
-      tx.character.findFirst.mockResolvedValue({ id: 'main', class: 'MAGE', raidRole: 'MELEE' });
+      tx.character.findFirst.mockResolvedValue({ id: 'main', name: 'Red Tape', class: 'MAGE', raidRole: 'MELEE' });
       tx.character.update.mockResolvedValue(mage);
       expect((await call(input)).status).toBe(200);
       expect(tx.outboxJob.create).not.toHaveBeenCalled();
@@ -81,6 +82,48 @@ describe('PUT /api/bot/members/:discordId/main', () => {
       expect((await call(input)).status).toBe(409);
       expect(tx.character.create).not.toHaveBeenCalled();
       expect(tx.outboxJob.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('level lookups (#569)', () => {
+    const tx = {
+      user: { findUniqueOrThrow: vi.fn() }, outboxJob: { create: vi.fn() },
+      character: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn(), create: vi.fn() },
+    };
+    const saved = { id: 'main', name: 'Red Tape', class: 'MAGE', spec: 'Frost', raidRole: 'RANGED' };
+    beforeEach(() => {
+      store.transaction.mockImplementation((run) => run(tx));
+      tx.user.findUniqueOrThrow.mockResolvedValue({ discordId });
+      tx.outboxJob.create.mockResolvedValue({ id: 'job' });
+      tx.character.findUnique.mockResolvedValue(null);
+      tx.character.create.mockResolvedValue(saved);
+      tx.character.update.mockResolvedValue(saved);
+    });
+
+    it('queues a lookup for a new main', async () => {
+      tx.character.findFirst.mockResolvedValue(null);
+      expect((await call(input)).status).toBe(200);
+      expect(store.lookup).toHaveBeenCalledExactlyOnceWith('main');
+    });
+
+    it('clears the level in the rename write and queues a lookup', async () => {
+      tx.character.findFirst.mockResolvedValue({ id: 'main', name: 'Old Name', class: 'MAGE', raidRole: 'RANGED' });
+      expect((await call(input)).status).toBe(200);
+      expect(tx.character.update.mock.calls[0][0].data).toMatchObject({ name: 'Red Tape', level: null, levelCheckedAt: null, levelAttemptedAt: null });
+      expect(store.lookup).toHaveBeenCalledExactlyOnceWith('main');
+    });
+
+    it('keeps the level and queues none when the name stays (capitalisation aside)', async () => {
+      tx.character.findFirst.mockResolvedValue({ id: 'main', name: 'RED tape', class: 'MAGE', raidRole: 'MELEE' });
+      expect((await call({ ...input, spec: 'Fire' })).status).toBe(200);
+      expect(tx.character.update.mock.calls[0][0].data).not.toHaveProperty('level');
+      expect(store.lookup).not.toHaveBeenCalled();
+    });
+
+    it('queues none for a refused name', async () => {
+      tx.character.findUnique.mockResolvedValue({ userId: 'other' });
+      expect((await call(input)).status).toBe(409);
+      expect(store.lookup).not.toHaveBeenCalled();
     });
   });
 });

@@ -117,7 +117,7 @@ it.each(['member', 'officer'])('%s edits their main\'s name, class, spec and rai
   const response = await call('PATCH', { ...body, name: 'Fresh Name', spec: 'Holy', role: 'healer' });
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({ id: 'main', name: 'Fresh Name' });
-  expect(m.update).toHaveBeenCalledWith({ where: { id: 'alt' }, data: { name: 'Fresh Name', class: 'PALADIN', spec: 'Holy', raidRole: 'HEALER' } });
+  expect(m.update).toHaveBeenCalledWith({ where: { id: 'alt' }, data: { name: 'Fresh Name', class: 'PALADIN', spec: 'Holy', raidRole: 'HEALER', level: null, levelCheckedAt: null, levelAttemptedAt: null } });
   // A raid-role change refreshes posted raids, as for alts.
   expect(m.refresh).toHaveBeenCalledWith(main, tx);
   // Name, spec and raid role leave Discord's class roles alone.

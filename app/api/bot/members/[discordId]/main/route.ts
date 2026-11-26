@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { queueLevelLookup } from '@/lib/armory-store';
+import { isRename, LEVEL_CLEARED } from '@/lib/character-level';
 import { db } from '@/lib/db';
 import { queueClassSync } from '@/lib/characters';
 import { Prisma } from '@/lib/generated/prisma/client';
@@ -35,18 +37,21 @@ export async function PUT(request: Request, { params }: { params: Promise<{ disc
         async (tx) => {
           const clash = await tx.character.findUnique({ where: { name: data.name }, select: { userId: true } });
           if (clash && clash.userId !== user.id) return { taken: true as const };
-          const current = await tx.character.findFirst({ where: { userId: user.id, isMain: true }, select: { id: true, class: true, raidRole: true } });
+          const current = await tx.character.findFirst({ where: { userId: user.id, isMain: true }, select: { id: true, name: true, class: true, raidRole: true } });
+          // A new main, or a renamed one, is looked up after the response; a rename clears the old level in this write.
+          const lookUp = !current || isRename(current.name, data.name);
           const main = current
-            ? await tx.character.update({ where: { id: current.id }, data, select: { name: true, class: true, spec: true, raidRole: true } })
-            : await tx.character.create({ data: { userId: user.id, isMain: true, ...data }, select: { name: true, class: true, spec: true, raidRole: true } });
+            ? await tx.character.update({ where: { id: current.id }, data: lookUp ? { ...data, ...LEVEL_CLEARED } : data, select: { id: true, name: true, class: true, spec: true, raidRole: true } })
+            : await tx.character.create({ data: { userId: user.id, isMain: true, ...data }, select: { id: true, name: true, class: true, spec: true, raidRole: true } });
           // Only the new class: the panel chose to leave the old class tag in place (SYNC-SPEC §5).
           if (current?.class !== main.class) await queueClassSync(tx, user.id, [main.class], true);
-          return { taken: false as const, main, roleChanged: current?.raidRole !== main.raidRole };
+          return { taken: false as const, main, lookUp, roleChanged: current?.raidRole !== main.raidRole };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
       if (outcome.taken) return reply(409, { reason: `Someone on the roster is already called ${data.name}.` });
       if (outcome.roleChanged) await refreshPostedRaidsFor(user.id);
+      if (outcome.lookUp) queueLevelLookup(outcome.main.id);
       const { main } = outcome;
       return reply(200, { discordId, main: { name: main.name, class: main.class.toLowerCase(), spec: main.spec, raidRole: main.raidRole.toLowerCase() }, rank: user.rank.toLowerCase() });
     } catch (e) {

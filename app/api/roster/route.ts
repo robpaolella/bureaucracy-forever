@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { queueLevelLookup } from '@/lib/armory-store';
 import { db } from '@/lib/db';
 import { addAlt, queueClassSync } from '@/lib/characters';
 import { Prisma } from '@/lib/generated/prisma/client';
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
     // roles follow. An officer keeps OFFICER whatever the form said; the main mirrors that.
     const wrote = await setRankFromWeb(userId, parsed.value.rank.toUpperCase() as Uppercase<typeof parsed.value.rank>);
     if (wrote === 'officer') await db.character.updateMany({ where: { userId, isMain: true }, data: { rank: 'OFFICER' } });
+    queueLevelLookup(outcome.created.id);
     return NextResponse.json(outcome.created, { status: 201, headers: NO_STORE });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {

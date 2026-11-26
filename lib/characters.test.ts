@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@/lib/generated/prisma/client';
 
-const mocks = vi.hoisted(() => ({ transaction: vi.fn() }));
+const mocks = vi.hoisted(() => ({ transaction: vi.fn(), lookup: vi.fn() }));
 vi.mock('@/lib/db', () => ({ db: { $transaction: mocks.transaction } }));
+vi.mock('@/lib/armory-store', () => ({ queueLevelLookup: mocks.lookup }));
 vi.mock('@/lib/roles-sync', () => ({ refreshPostedRaidsForCharacter: vi.fn() }));
 import { addAlt, addMain, changeMain, editCharacter, removeCharacter } from './characters';
 
@@ -28,8 +29,8 @@ it.each(['P2002', 'P2034', 'P2025'])('retries %s without guessing which constrai
 it('retries a pg adapter serialization failure at commit', async () => {
   const error = new Error('TransactionWriteConflict', { cause: { kind: 'TransactionWriteConflict' } });
   error.name = 'DriverAdapterError';
-  mocks.transaction.mockRejectedValueOnce(error).mockResolvedValueOnce({ status: 201 });
-  expect(await addAlt('member', valid)).toEqual({ status: 201 });
+  mocks.transaction.mockRejectedValueOnce(error).mockResolvedValueOnce({ status: 201, character: { id: 'alt' } });
+  expect(await addAlt('member', valid)).toEqual({ status: 201, character: { id: 'alt' } });
   expect(mocks.transaction).toHaveBeenCalledTimes(2);
 });
 it('bounds retries and gives an honest conflict rather than a name-index guess', async () => {
@@ -142,5 +143,62 @@ describe('member.classes.sync', () => {
     tx.character.count.mockResolvedValue(1);
     expect(await removeCharacter('member', 'main')).toMatchObject({ status: 409, reason: 'main' });
     expect(tx.outboxJob.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('level lookups (#569)', () => {
+  const tx = {
+    user: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn() }, signup: { updateMany: vi.fn() }, outboxJob: { create: vi.fn() },
+    character: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+  };
+  const main = { id: 'main', userId: 'member', name: 'Sample Name', class: 'PALADIN', spec: 'Protection', isMain: true, raidRole: 'TANK' };
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.transaction.mockImplementation((run) => run(tx));
+    tx.user.findUniqueOrThrow.mockResolvedValue({ rank: 'RAIDER', discordId: '100000000000000001' });
+    tx.user.findUnique.mockResolvedValue({ rank: 'RAIDER', characters: [main] });
+    tx.character.update.mockImplementation(async ({ data }) => ({ ...main, ...data }));
+    tx.outboxJob.create.mockResolvedValue({ id: 'job' });
+  });
+
+  it('queues a lookup for a new alt and a new main, after the save', async () => {
+    tx.character.create.mockResolvedValueOnce({ id: 'alt', class: 'MAGE', isMain: false });
+    expect(await addAlt('member', { ...valid, name: 'Other Name' })).toMatchObject({ status: 201 });
+    tx.user.findUnique.mockResolvedValueOnce({ rank: 'RAIDER', characters: [] });
+    tx.character.create.mockResolvedValueOnce({ id: 'new-main', class: 'PALADIN', isMain: true });
+    expect(await addMain('member', valid)).toMatchObject({ status: 201 });
+    expect(mocks.lookup.mock.calls).toEqual([['alt'], ['new-main']]);
+  });
+
+  it('clears the level in the rename write and queues a lookup', async () => {
+    tx.character.findFirst.mockResolvedValueOnce(main).mockResolvedValueOnce(null);
+    expect(await editCharacter('member', 'main', { ...valid, name: 'Fresh Name' })).toMatchObject({ status: 200 });
+    expect(tx.character.update).toHaveBeenCalledExactlyOnceWith({ where: { id: 'main' }, data: {
+      name: 'Fresh Name', class: 'PALADIN', spec: 'Protection', raidRole: 'TANK', level: null, levelCheckedAt: null, levelAttemptedAt: null,
+    } });
+    expect(mocks.lookup).toHaveBeenCalledExactlyOnceWith('main');
+  });
+
+  it.each([
+    ['a class, spec or role edit', { ...valid, wowClass: 'warrior', spec: 'Arms', role: 'melee' }],
+    ['a capitalisation-only edit', { ...valid, name: 'SAMPLE name' }],
+  ])('keeps the level and queues none for %s', async (_label, input) => {
+    tx.character.findFirst.mockResolvedValueOnce(main).mockResolvedValueOnce(null);
+    expect(await editCharacter('member', 'main', input)).toMatchObject({ status: 200 });
+    expect(tx.character.update.mock.calls[0][0].data).not.toHaveProperty('level');
+    expect(mocks.lookup).not.toHaveBeenCalled();
+  });
+
+  it('queues none for a make-main, a retried add or a refused change', async () => {
+    const alt = { ...main, id: 'alt', name: 'Other Name', isMain: false };
+    tx.character.findUnique.mockResolvedValue(alt);
+    tx.character.findFirst.mockResolvedValue(main);
+    expect(await changeMain('alt')).toMatchObject({ status: 200 });
+    tx.character.findFirst.mockResolvedValueOnce(alt);
+    expect(await addAlt('member', { ...valid, name: 'Other Name' })).toMatchObject({ status: 200 });
+    expect(await addMain('member', valid)).toMatchObject({ status: 200 });
+    tx.character.findFirst.mockResolvedValueOnce(main).mockResolvedValueOnce({ ...main, id: 'taken', userId: 'other' });
+    expect(await editCharacter('member', 'main', { ...valid, name: 'Taken Name' })).toMatchObject({ status: 409, reason: 'name_taken' });
+    expect(mocks.lookup).not.toHaveBeenCalled();
   });
 });
