@@ -46,7 +46,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (makeDefault && b.forUserId != null) return NextResponse.json({ error: 'Only the member can set their own default character.' }, { status: 400, headers: NO_STORE });
   if (b.keepCharacter !== undefined && typeof b.keepCharacter !== 'boolean') return NextResponse.json({ error: 'keepCharacter must be true or false.' }, { status: 400, headers: NO_STORE });
   const keepCharacter = b.keepCharacter === true;
-  if (keepCharacter && (characterId || b.makeDefault !== undefined)) return NextResponse.json({ error: 'Keeping the character cannot come with choosing one.' }, { status: 400, headers: NO_STORE });
+  if (b.keepCharacter !== undefined && (b.characterId != null || b.makeDefault !== undefined)) return NextResponse.json({ error: 'Keeping the character cannot come with choosing one.' }, { status: 400, headers: NO_STORE });
   const reason = typeof b.reason === 'string' && b.reason.trim() ? b.reason.trim().slice(0, 200) : null;
   const forUserId = typeof b.forUserId === 'string' && b.forUserId ? b.forUserId : null;
   if (forUserId && session.role !== 'officer') {

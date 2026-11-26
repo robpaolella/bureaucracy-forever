@@ -156,6 +156,8 @@ describe.skipIf(process.env.SIGNUP_DEFAULT_INTEGRATION !== '1')('default sign-up
       ['keepCharacter that is not a boolean', { response: 'accept', keepCharacter: 'yes' }, 'member', undefined],
       ['keepCharacter with a character', { response: 'accept', characterId: 'alt', keepCharacter: true }, 'member', undefined],
       ['keepCharacter with makeDefault', { response: 'accept', makeDefault: true, keepCharacter: true }, 'member', undefined],
+      ['keepCharacter: false with a character', { response: 'accept', characterId: 'alt', keepCharacter: false }, 'member', undefined],
+      ['keepCharacter: false with makeDefault', { response: 'accept', makeDefault: true, keepCharacter: false }, 'member', undefined],
       ['an officer\'s character for someone else', { response: 'accept', characterId: 'foreign', forUserId: 'member' }, 'officer', 'That character is no longer available for this member. Choose another and try again.'],
     ])('refuses %s with 400 and writes nothing', async (_name, body, as, expectedError) => {
       const result = await web(body, as);
