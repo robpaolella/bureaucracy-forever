@@ -4,15 +4,17 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button, ClassAvatar, SourceBadge, useToast } from '@/components/ui';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
+import { raidRowMeta } from '@/lib/roster-level';
 import type { DetailRow } from '@/lib/raid-detail';
 import { SAVE_FAILED } from '@/content/calendar';
 import { ANSWER_LABEL, BENCH, UNKNOWN_MAIN } from '@/content/raid';
 import { AnswerFor } from './AnswerFor';
+import { useManageSignups } from './ManageSignups';
 
 type Props = {
   raidId: string;
   rows: DetailRow[];
-  /** Officers can move a bench member onto the roster or answer for them while the raid is open. */
+  /** Officers can move a bench member onto the roster or answer for them while the raid is open, once Manage sign-ups is on. */
   officer: boolean;
 };
 
@@ -21,6 +23,8 @@ export function BenchCard({ raidId, rows, officer }: Props) {
   const router = useRouter();
   const toast = useToast();
   const [moving, setMoving] = useState<string | null>(null);
+  const { on } = useManageSignups();
+  const manage = officer && on;
 
   async function moveToRoster(row: DetailRow) {
     if (moving) return;
@@ -59,6 +63,29 @@ export function BenchCard({ raidId, rows, officer }: Props) {
         <ul className="divide-y divide-line-faint">
           {rows.map((row) => {
             const color = row.wowClass ? CLASS_COLORS[row.wowClass].onInk : undefined;
+            const meta = row.wowClass ? raidRowMeta([row.character, CLASS_COLORS[row.wowClass].label, row.spec], row.level) : UNKNOWN_MAIN;
+            if (manage) {
+              return (
+                <li key={row.userId} className="flex flex-col gap-2 py-3">
+                  <div className="flex items-start gap-3">
+                    <ClassAvatar name={row.name} wowClass={row.wowClass} />
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="text-[15px] font-semibold [overflow-wrap:anywhere]" style={{ color }}>
+                        {row.name}
+                      </span>
+                      <span className="text-small text-fg-3 [overflow-wrap:anywhere]">{meta}</span>
+                    </div>
+                    <Button variant="secondary" size="sm" className="shrink-0" loading={moving === row.userId} onClick={() => moveToRoster(row)}>
+                      {BENCH.moveToRoster}
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 pl-9">
+                    <AnswerFor raidId={raidId} userId={row.userId} name={row.name} current={row.response} allowAbsent={false} />
+                    <SourceBadge source={row.source} />
+                  </div>
+                </li>
+              );
+            }
             return (
               <li key={row.userId} className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 py-2">
                 <ClassAvatar name={row.name} wowClass={row.wowClass} />
@@ -66,15 +93,10 @@ export function BenchCard({ raidId, rows, officer }: Props) {
                   <span className="truncate text-[15px] font-semibold" style={{ color }}>
                     {row.name}
                   </span>
-                  <span className="truncate text-small text-fg-3">{row.wowClass ? [row.character, CLASS_COLORS[row.wowClass].label, row.spec].filter(Boolean).join(' · ') : UNKNOWN_MAIN}</span>
+                  <span className="truncate text-small text-fg-3">{meta}</span>
                 </div>
-                {officer ? <AnswerFor raidId={raidId} userId={row.userId} name={row.name} current={row.response} allowAbsent={false} /> : <span className="text-sm font-semibold text-fg-2">{row.response ? ANSWER_LABEL[row.response] : ''}</span>}
+                <span className="text-sm font-semibold text-fg-2">{row.response ? ANSWER_LABEL[row.response] : ''}</span>
                 <SourceBadge source={row.source} />
-                {officer && (
-                  <Button variant="secondary" size="sm" loading={moving === row.userId} onClick={() => moveToRoster(row)}>
-                    {BENCH.moveToRoster}
-                  </Button>
-                )}
               </li>
             );
           })}

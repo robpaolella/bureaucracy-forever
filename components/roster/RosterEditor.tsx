@@ -13,18 +13,22 @@ import { EDITOR, EDITOR_TOASTS } from '@/content/roster-editor';
 import { ROSTER_ALTS } from '@/content/roster';
 import { AltsToggle } from './AltsToggle';
 import { CharacterForm } from './CharacterForm';
+import { LevelText } from './LevelText';
+
+/** A character as the editor lists it; `level` is the fresh level, null when unknown. */
+type EditorCharacter = CharacterInput & { id: string; level: number | null };
 
 export type EditorMember = {
   userId: string;
   discordName: string;
   /** The member's rank; the main, when there is one, mirrors it. */
   rank: Rank;
-  main: (CharacterInput & { id: string }) | null;
-  alts: (CharacterInput & { id: string })[];
+  main: EditorCharacter | null;
+  alts: EditorCharacter[];
 };
 
 type Props = { members: EditorMember[] };
-type Character = CharacterInput & { id: string };
+type Character = EditorCharacter;
 type Editing =
   | { kind: 'add-main'; member: EditorMember }
   | { kind: 'add-alt'; member: EditorMember }
@@ -157,7 +161,7 @@ export function RosterEditor({ members }: Props) {
                     )}
                   </div>
                   <span className="text-[13px] text-fg-3 sm:truncate">
-                    {m.main ? `${m.main.name} · ${CLASS_COLORS[m.main.wowClass].label} · ${m.main.spec} · ${ROLE_LABELS[m.main.role]}` : EDITOR.noMain}
+                    {m.main ? <>{`${m.main.name} · ${CLASS_COLORS[m.main.wowClass].label} · ${m.main.spec} · ${ROLE_LABELS[m.main.role]} · `}<LevelText level={m.main.level} /></> : EDITOR.noMain}
                   </span>
                 </div>
                 {!m.main &&
@@ -191,7 +195,7 @@ export function RosterEditor({ members }: Props) {
                 <ul id={`officer-alts-${m.userId}`} aria-label={`Alts for ${m.discordName}`} className="border-t border-line-faint bg-ink-850/40">
                   {m.alts.map((alt) => (
                     <li key={alt.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line-faint px-4 py-3 first:border-t-0 sm:pl-[60px]">
-                      <span className="min-w-0 flex-1 text-[13px] text-fg-3 sm:truncate">{alt.name} · {CLASS_COLORS[alt.wowClass].label} · {alt.spec} · {ROLE_LABELS[alt.role]}</span>
+                      <span className="min-w-0 flex-1 text-[13px] text-fg-3 sm:truncate">{alt.name} · {CLASS_COLORS[alt.wowClass].label} · {alt.spec} · {ROLE_LABELS[alt.role]} · <LevelText level={alt.level} /></span>
                       <Button variant="secondary" size="sm" onClick={() => setEditing({ kind: 'edit-alt', member: m, character: alt })} aria-label={`${EDITOR.edit} ${alt.name}`}>
                         {EDITOR.edit}
                       </Button>

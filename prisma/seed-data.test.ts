@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildApplications, buildClassNeeds, buildRaids, buildRaidTemplates, buildRoster, mondayIndex, officerNames, paintWeek, rng } from './seed-data';
+import { buildApplications, buildClassNeeds, buildBenchGuests, buildFixtureRaids, buildRaids, buildRaidTemplates, buildRoster, mondayIndex, officerNames, paintWeek, rng } from './seed-data';
 
 describe('roster', () => {
   const roster = buildRoster();
@@ -148,5 +148,43 @@ describe('raids, needs, applications', () => {
         expect(['Footnote', 'Loophole', 'Indexcard', 'Smallprint', 'Backlog', 'Redline', 'Fineprint', 'Sidebar', 'Stapler', 'Typo']).toContain(i.app.character);
       }
     });
+  });
+});
+
+describe('fixture raids', () => {
+  const from = new Date('2026-09-30T12:00:00Z');
+  const fixtures = buildFixtureRaids(from);
+  const answerers = buildRoster().filter((m) => m.role !== 'SOCIAL').length;
+
+  it('adds a finished raid, a cancelled one and a full 40-person raid with six on the bench', () => {
+    expect(fixtures.map((f) => f.fixture)).toEqual(['past', 'cancelled', 'bench']);
+    expect(fixtures[0].startsAt.getTime()).toBeLessThan(from.getTime());
+    expect(fixtures[1].startsAt.getTime()).toBeGreaterThan(from.getTime());
+    expect(fixtures[1].cancelReason).toBeTruthy();
+    const bench = fixtures[2];
+    expect(bench.bench).toBe(6);
+    expect(bench.rosterSize).toBe(40);
+    expect(Object.values(bench.requirements).reduce((a, b) => a + b, 0)).toBe(40);
+  });
+
+  it('gives every raid a roster that adds up and that the sample members can fill', () => {
+    for (const f of fixtures) {
+      expect(f.accept + f.tentative + f.absent + f.none).toBe(f.rosterSize);
+      expect(f.rosterSize).toBeLessThanOrEqual(answerers);
+      expect(f.bench).toBeLessThanOrEqual(buildBenchGuests().length);
+    }
+  });
+
+  it('uses only configured templates', () => {
+    const known = buildRaidTemplates().map((t) => t.name);
+    expect(fixtures.every((f) => known.includes(f.template))).toBe(true);
+  });
+
+  it('gives the bench guests Forever-style character names and long Discord names, with unique ids', () => {
+    const guests = buildBenchGuests();
+    for (const g of guests) expect(g.character).toMatch(/^[A-Za-z]{2,12} [A-Za-z]{2,12}$/);
+    expect(guests.every((g) => g.name.length >= 25)).toBe(true);
+    const ids = new Set([...guests.map((g) => g.discordId), ...buildRoster().map((m) => m.discordId)]);
+    expect(ids.size).toBe(guests.length + 41);
   });
 });

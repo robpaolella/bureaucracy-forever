@@ -8,14 +8,15 @@ import { loadMemberRaidLoot } from '@/lib/member-loot';
 import { Reserves } from '@/components/loot/Reserves';
 import { AttendanceForm } from '@/components/raid/AttendanceForm';
 import { BenchCard } from '@/components/raid/BenchCard';
+import { ManageSignupsProvider } from '@/components/raid/ManageSignups';
 import { OfficerActions, type MemberOption } from '@/components/raid/OfficerActions';
 import { RaidResponseControl } from '@/components/raid/RaidResponse';
 import { RaidSummary } from '@/components/raid/RaidSummary';
 import { RosterByRole } from '@/components/raid/RosterByRole';
-import { UnansweredCard } from '@/components/raid/UnansweredCard';
 import { LocalTime } from '@/components/time/LocalTime';
 import { ToastHost } from '@/components/ui';
 import { db } from '@/lib/db';
+import { freshLevel } from '@/lib/character-level';
 import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import type { Role, WowClass } from '@/lib/design/class-colors';
 import { isStagingDeployment } from '@/lib/deploy-env';
@@ -29,6 +30,9 @@ import { countAccepted, isUpcoming, linkOpensReserves, parseRequirements, RESERV
 import { getSession } from '@/lib/session';
 import { BACK_TO_CALENDAR, RAID_EYEBROW, SUMMARY } from '@/content/raid';
 import { RESERVES } from '@/content/reserves';
+
+/** The brought character's fields, with the level fields `freshLevel` reads. */
+const SIGNUP_CHARACTER = { ...MAIN_CHARACTER.select, level: true, levelCheckedAt: true } as const;
 
 type Params = { params: Promise<{ raidId: string }> };
 type Props = Params & { searchParams: Promise<Record<string, string | string[] | undefined>> };
@@ -44,9 +48,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 /**
  * Raid detail (docs/04 § Raid detail, SYNC-SPEC §9.5): the viewer's own response in the
- * head, the roster grouped by role with Answer and Via columns, the bench, who has not
- * answered, and the composition card. Officers get the actions row, "Answer for them" on
- * every row, "Nudge in Discord", "Move to roster" and, after the night, attendance.
+ * head, the roster grouped by role (signed-up members only) with Answer and Via columns, the
+ * No response and Absent lists, the bench, and the composition card. Officers get the actions row, "Answer for them" on
+ * every row, "Nudge in Discord" (on No response), "Move to roster" and, after the night, attendance.
  * Guild Members and officers only: a social gets the 404 before anything is read.
  */
 export default async function RaidDetailPage({ params, searchParams }: Props) {
@@ -84,8 +88,8 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
             source: true,
             reason: true,
             updatedAt: true,
-            character: { select: MAIN_CHARACTER.select },
-            user: { select: { discordId: true, discordName: true, characters: MAIN_CHARACTER } },
+            character: { select: SIGNUP_CHARACTER },
+            user: { select: { discordId: true, discordName: true, characters: { ...MAIN_CHARACTER, select: SIGNUP_CHARACTER } } },
             setBy: { select: { discordName: true } },
           },
         },
@@ -93,7 +97,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
     }),
     db.user.findUnique({
       where: { discordId: session.discordId },
-      select: { characters: { select: { id: true, name: true, class: true, raidRole: true }, orderBy: { isMain: 'desc' } } },
+      select: { defaultCharacterId: true, characters: { select: { id: true, name: true, class: true, spec: true, raidRole: true, isMain: true, level: true, levelCheckedAt: true }, orderBy: [{ isMain: 'desc' }, { name: 'asc' }] } },
     }),
     officer
       ? db.user.findMany({ where: { role: { in: ['MEMBER', 'OFFICER'] } }, select: { id: true, discordName: true }, orderBy: { discordName: 'asc' } })
@@ -112,6 +116,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
       wowClass: (main?.class.toLowerCase() as WowClass | undefined) ?? null,
       spec: main?.spec ?? null,
       role: (main?.raidRole.toLowerCase() as Role | undefined) ?? null,
+      level: main ? freshLevel(main) : null,
       standing: s.standing,
       response: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null,
       attended: s.attended,
@@ -121,7 +126,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
       updatedAt: s.updatedAt.toISOString(),
     };
   });
-  const { roster, bench, unanswered } = splitStanding(rows);
+  const { roster, bench } = splitStanding(rows);
   const mine = raid.signups.find((s) => s.user.discordId === session.discordId);
   const card: RaidCard = {
     id: raid.id,
@@ -205,26 +210,31 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
               id: character.id,
               name: character.name,
               wowClass: character.class.toLowerCase() as WowClass,
+              spec: character.spec,
               role: character.raidRole.toLowerCase() as Role,
+              isMain: character.isMain,
+              level: freshLevel(character),
             }))}
+            defaultCharacterId={me?.defaultCharacterId ?? null}
             broughtId={mine ? characterBrought(mine)?.id ?? null : null}
             past={past}
             now={now.toISOString()}
           />
         </section>
 
+        <ManageSignupsProvider>
         <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_380px] md:items-start">
           <div className="order-2 flex flex-col gap-6 md:order-1">
             {officer && <OfficerActions raid={card} members={memberOptions} past={past} threadUrl={discordThreadUrl(raid.discordThreadId)} fromSeries={raid.seriesId !== null} template={raid.template ? { id: raid.template.id, name: raid.template.name } : null} templates={templates} lootOn={lootEnabled()} openUntilStart={openUntilStart()} />}
             {officer && past && !card.cancelled && <AttendanceForm raidId={raid.id} rows={rows} />}
-            <RosterByRole raidId={raid.id} rows={roster} now={now.toISOString()} canAnswerFor={officer && !past && !card.cancelled} showAttendance={past} />
+            <RosterByRole raidId={raid.id} rows={roster} now={now.toISOString()} canAnswerFor={officer && !past && !card.cancelled} showAttendance={past} officer={officer} posted={raid.discordThreadId !== null} open={open} />
           </div>
           <div className="order-1 flex flex-col gap-6 md:order-2">
             <RaidSummary counts={card.counts} requirements={card.requirements} split={sourceSplit(answered)} notes={raid.notes} cancelled={card.cancelled} status={raid.status} locksAt={raid.locksAt.toISOString()} />
-            <UnansweredCard raidId={raid.id} rows={unanswered} officer={officer} posted={raid.discordThreadId !== null} open={open} />
             <BenchCard raidId={raid.id} rows={bench} officer={officer && !past && !card.cancelled} />
           </div>
         </div>
+        </ManageSignupsProvider>
 
         {table && reserveTargets && !raid.reservesAllowed && (
           <section id="loot-reserves" className="flex scroll-mt-24 flex-col gap-3 rounded-card border border-line bg-ink-850 p-4 md:p-5" aria-labelledby="reserves-heading">

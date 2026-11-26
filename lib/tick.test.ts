@@ -5,10 +5,11 @@ const mocks = vi.hoisted(() => ({
   signup: { findMany: vi.fn() }, reserve: { findMany: vi.fn() },
   user: { findMany: vi.fn() }, raidSeries: { findMany: vi.fn() },
   application: { findMany: vi.fn(), updateMany: vi.fn() }, interview: { findMany: vi.fn(), updateMany: vi.fn() }, botRequest: { findUnique: vi.fn(), create: vi.fn() },
-  enqueue: vi.fn(), enabled: vi.fn(),
+  enqueue: vi.fn(), enabled: vi.fn(), refresh: vi.fn(),
 }));
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/db', () => ({ db: { ...mocks, $transaction: async (fn: (tx: typeof mocks) => unknown) => fn(mocks) } }));
+vi.mock('@/lib/character-level-refresh', () => ({ refreshCharacterLevels: mocks.refresh }));
 vi.mock('@/lib/outbox', () => ({ enqueue: mocks.enqueue }));
 vi.mock('@/lib/flags', async () => ({ ...(await vi.importActual<typeof import('@/lib/flags')>('@/lib/flags')), lootEnabled: mocks.enabled }));
 import { runTick } from './tick';
@@ -22,6 +23,7 @@ beforeEach(() => {
   vi.unstubAllEnvs();
   marked = false;
   mocks.enabled.mockReturnValue(true);
+  mocks.refresh.mockResolvedValue(0);
   mocks.user.findMany.mockResolvedValue([]);
   mocks.raidSeries.findMany.mockResolvedValue([]);
   mocks.application.findMany.mockResolvedValue([]);
@@ -35,6 +37,13 @@ beforeEach(() => {
   });
   mocks.signup.findMany.mockResolvedValue([signup('a'), signup('b')]);
   mocks.reserve.findMany.mockResolvedValue([{ userId: 'b', kind: 'HR' }, { userId: 'b', kind: 'SR' }]);
+});
+describe('tick level refresh', () => {
+  it('runs the refresh step and reports how many levels it refreshed', async () => {
+    mocks.refresh.mockResolvedValue(3);
+    expect((await runTick(now)).levelsRefreshed).toBe(3);
+    expect(mocks.refresh).toHaveBeenCalledWith(now);
+  });
 });
 describe('tick reserve reminders', () => {
   it('queues the expected recipients once across repeated ticks', async () => {

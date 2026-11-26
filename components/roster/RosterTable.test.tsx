@@ -8,10 +8,10 @@ import { CLASS_COLORS } from '@/lib/design/class-colors';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
-const main: RosterRow = { id: 'member', name: 'Ledgerline', character: 'Ledgerline', wowClass: 'warrior', spec: 'Protection', role: 'tank', rank: 'officer', attendance: 0.9, joinedAt: '2026-01-01T00:00:00Z', alts: [] };
+const main: RosterRow = { id: 'member', name: 'Ledgerline', character: 'Ledgerline', wowClass: 'warrior', spec: 'Protection', role: 'tank', level: 60, rank: 'officer', attendance: 0.9, joinedAt: '2026-01-01T00:00:00Z', alts: [] };
 const alts: RosterRow['alts'] = [
-  { id: 'a', name: 'Inkwell', wowClass: 'mage', spec: 'Frost', role: 'ranged' },
-  { id: 'b', name: 'Sealwax', wowClass: 'priest', spec: 'Holy', role: 'healer' },
+  { id: 'a', name: 'Inkwell', wowClass: 'mage', spec: 'Frost', role: 'ranged', level: 52 },
+  { id: 'b', name: 'Sealwax', wowClass: 'priest', spec: 'Holy', role: 'healer', level: null },
 ];
 let host: HTMLDivElement;
 let root: Root;
@@ -84,5 +84,34 @@ describe('roster alt disclosure', () => {
     expect(host.textContent).not.toContain('Alts for');
     expect([...host.querySelectorAll('button')].some((button) => button.textContent?.startsWith('Alts '))).toBe(false);
     expect(host.textContent).toContain('No main yet');
+  });
+});
+
+describe('roster levels', () => {
+  const people: RosterRow[] = [
+    { ...main, id: 'a', name: 'Sixty', level: 60 },
+    { ...main, id: 'b', name: 'Under', level: 52 },
+    { ...main, id: 'c', name: 'Unknown', level: null },
+    { ...main, id: 'd', name: 'Nomain', character: null, wowClass: null, spec: null, role: null, level: null },
+  ];
+
+  it('shows the level of the main in its own column, warning under 60, Unknown when missing, a dash without a main', async () => {
+    await render(people);
+    expect([...host.querySelectorAll('th')].map((th) => th.textContent)).toContain('Level');
+    const byName = (name: string) => [...host.querySelectorAll('tbody > tr')].find((tr) => tr.textContent?.includes(name))!.querySelectorAll('td')[5];
+    expect(byName('Sixty').textContent).toBe('60');
+    expect(byName('Sixty').querySelector('.text-warn')).toBeNull();
+    expect(byName('Under').textContent).toBe('52');
+    expect(byName('Under').querySelector('.text-warn')).not.toBeNull();
+    expect(byName('Unknown').textContent).toBe('Unknown');
+    expect(byName('Nomain').textContent).toBe('—');
+  });
+
+  it('shows Level on the phone cards and on every alt, with Level unknown and no reason', async () => {
+    await render([{ ...main, level: 52, alts }]);
+    expect(host.textContent).toContain('Protection · Tank · Level 52');
+    await act(async () => [...host.querySelectorAll('button')].find((b) => b.textContent === 'Alts 2')!.click());
+    expect(host.textContent).toContain('Inkwell · Mage · Frost · Ranged DPS · Level 52');
+    expect(host.textContent).toContain('Sealwax · Priest · Holy · Healer · Level unknown');
   });
 });

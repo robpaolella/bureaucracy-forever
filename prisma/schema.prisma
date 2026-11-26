@@ -211,6 +211,10 @@ model User {
   /// IANA zone the member chose; overrides browser detection (docs/01 § Time).
   timezone        String?
   characters      Character[]
+  /// Brought by a first Accept or Tentative with no character chosen; cleared when that
+  /// character is deleted.
+  defaultCharacterId String?
+  defaultCharacter   Character?  @relation("defaultCharacter", fields: [defaultCharacterId], references: [id], onDelete: SetNull)
   availability    Availability?
   signups         Signup[]
   notes           OfficerNote[] @relation("noteAuthor")
@@ -236,10 +240,18 @@ model Character {
   isMain     Boolean     @default(true)
   /// 0–1, computed from Signup history.
   attendance Float?
+  /// From Blizzard's WoW Forever profile API (lib/armory.ts). Read it through
+  /// lib/character-level.ts: a level last confirmed over 30 days ago counts as unknown.
+  level      Int?
+  /// Last successful check: a level, or Blizzard answered "not found".
+  levelCheckedAt   DateTime?
+  /// Last attempt, successful or not.
+  levelAttemptedAt DateTime?
   joinedAt   DateTime    @default(now())
   reserves   Reserve[]
   lootAwards LootAward[]
   signups    Signup[]
+  defaultFor User[]      @relation("defaultCharacter")
 
   @@index([userId])
 }

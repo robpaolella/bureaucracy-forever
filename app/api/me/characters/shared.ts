@@ -11,7 +11,7 @@ export async function viewer() {
   if (!session) return { denied: error('Log in first.', 401) };
   // Guild Member or Officer, re-read from Discord hourly (lib/auth/token-roles.ts).
   if (session.role !== 'member' && session.role !== 'officer') return { denied: error('Only guild members can change characters.', 403) };
-  const user = await db.user.findUnique({ where: { discordId: session.discordId }, select: { id: true } });
+  const user = await db.user.findUnique({ where: { discordId: session.discordId }, select: { id: true, defaultCharacterId: true } });
   return { user };
 }
 

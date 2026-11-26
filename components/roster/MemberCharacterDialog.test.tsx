@@ -12,7 +12,7 @@ import type { RosterRow } from '@/lib/roster';
 const hooks = vi.hoisted(() => ({ values: null as unknown[] | null, index: 0 }));
 vi.mock('react', async (original) => {
   const react = await original<typeof import('react')>();
-  return { ...react, useState: (initial: unknown) => {
+  return { ...react, useId: () => 'group', useState: (initial: unknown) => {
     if (!hooks.values) return react.useState(initial);
     const index = hooks.index++;
     if (!(index in hooks.values)) hooks.values[index] = initial;
@@ -24,8 +24,8 @@ afterEach(() => { hooks.values = null; vi.unstubAllGlobals(); vi.clearAllMocks()
 const refresh = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
-const main: MemberCharacter = { id: 'main', name: 'Red Tape', wowClass: 'warrior', spec: 'Protection', role: 'tank', isMain: true };
-const alt: MemberCharacter = { id: 'alt', name: 'Blue Ink', wowClass: 'mage', spec: 'Frost', role: 'ranged', isMain: false };
+const main: MemberCharacter = { id: 'main', name: 'Red Tape', wowClass: 'warrior', spec: 'Protection', role: 'tank', isMain: true, level: 60 };
+const alt: MemberCharacter = { id: 'alt', name: 'Blue Ink', wowClass: 'mage', spec: 'Frost', role: 'ranged', isMain: false, level: 52 };
 
 type Node = ReactElement<Record<string, unknown>>;
 function nodes(value: ReactNode): Node[] {
@@ -45,6 +45,25 @@ function render(characters: MemberCharacter[] = [main, alt]) {
 }
 
 describe('MemberCharacterDialog', () => {
+  it('shows every character’s level, Level unknown when it is not known', () => {
+    const html = render([main, alt, { ...alt, id: 'third', name: 'Mystery Ink', level: null }]);
+    expect(html).toContain('Warrior · Protection · Tank · Level 60');
+    expect(html).toContain('Level 52');
+    expect(html).toContain('Level unknown');
+  });
+
+  it('reads levels from the reloaded list, stale ones as null from the API', async () => {
+    hooks.values = [];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([{ ...main, class: 'WARRIOR', raidRole: 'TANK', level: 52 }, { ...alt, class: 'MAGE', raidRole: 'RANGED', level: null }]))));
+    button(MEMBER_EDITOR.manageCharacters)();
+    button('Edit Red Tape')();
+    const form = view().find((node) => node.type === CharacterForm)!;
+    await (form.props.onSubmit as (value: unknown) => Promise<unknown>)({ ...main, rank: 'raider' });
+    const html = renderToStaticMarkup(<>{view().find((node) => node.type === Modal)!.props.children as ReactNode}</>);
+    expect(html).toContain('Level 52');
+    expect(html).toContain('Level unknown');
+  });
+
   it('labels the main and lets the member edit the main and the alts', () => {
     const html = render();
     expect(html).toContain('Red Tape');
@@ -156,8 +175,8 @@ describe('MemberCharacterDialog', () => {
 
   it('shows the entry point only on the viewer’s own row', () => {
     const rows: RosterRow[] = [
-      { id: 'viewer', name: 'Redtape', character: 'Red Tape', alts: [], wowClass: 'warrior', spec: 'Protection', role: 'tank', rank: 'raider', attendance: null, joinedAt: '2026-01-01T00:00:00.000Z' },
-      { id: 'other', name: 'Ledgerline', character: 'Blue Ink', alts: [], wowClass: 'mage', spec: 'Frost', role: 'ranged', rank: 'officer', attendance: null, joinedAt: '2026-01-01T00:00:00.000Z' },
+      { id: 'viewer', name: 'Redtape', character: 'Red Tape', alts: [], wowClass: 'warrior', spec: 'Protection', role: 'tank', level: 60, rank: 'raider', attendance: null, joinedAt: '2026-01-01T00:00:00.000Z' },
+      { id: 'other', name: 'Ledgerline', character: 'Blue Ink', alts: [], wowClass: 'mage', spec: 'Frost', role: 'ranged', level: null, rank: 'officer', attendance: null, joinedAt: '2026-01-01T00:00:00.000Z' },
     ];
     const html = renderToStaticMarkup(<RosterTable rows={rows} viewer={{ id: 'viewer', rank: 'raider', characters: [main] }} />);
     expect(html.match(/aria-label="Manage characters"/g)).toHaveLength(2); // One action in each responsive rendering, never on the other row.
@@ -315,6 +334,100 @@ describe('MemberCharacterDialog', () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(JSON.stringify([{ ...main, class: 'WARRIOR', raidRole: 'TANK' }]))));
       button(MEMBER_EDITOR.reload)();
       await vi.waitFor(() => expect(said(MEMBER_EDITOR.staleFailedBody)).toBe(false));
+    });
+  });
+
+  describe('Sign up with', () => {
+    const radios = () => view([main, { ...alt, isDefault: true }]).filter((n) => n.props.name === 'group');
+    const checkedOf = (characters: MemberCharacter[]) => { hooks.values ??= []; return view(characters).filter((n) => n.props.name === 'group' && n.props.checked).map((n) => n.props['aria-label'] ?? 'ask'); };
+
+    it('shows the default from the first render, or Ask me each time', () => {
+      expect(render([main, { ...alt, isDefault: true }])).toContain(MEMBER_EDITOR.askEachTime);
+      expect(checkedOf([main, { ...alt, isDefault: true }])).toEqual(['Sign up with Blue Ink']);
+      hooks.values = [];
+      expect(checkedOf([main, alt])).toEqual(['ask']);
+    });
+
+    it('saves the chosen character and toasts', async () => {
+      hooks.values = [];
+      const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ defaultCharacterId: 'alt' })));
+      vi.stubGlobal('fetch', request);
+      button(MEMBER_EDITOR.manageCharacters)();
+      (view().find((n) => n.props['aria-label'] === 'Sign up with Blue Ink')!.props.onChange as () => void)();
+      await vi.waitFor(() => expect(view().find((n) => n.type === Toast)?.props.toast).toEqual({ tone: 'ok', title: 'You’ll sign up with Blue Ink' }));
+      expect(request).toHaveBeenCalledWith('/api/me/characters/default', expect.objectContaining({ method: 'PUT', body: JSON.stringify({ characterId: 'alt' }) }));
+      expect(checkedOf([main, alt])).toEqual(['Sign up with Blue Ink']);
+    });
+
+    it('clears the default with Ask me each time', async () => {
+      hooks.values = [];
+      const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ defaultCharacterId: null })));
+      vi.stubGlobal('fetch', request);
+      button(MEMBER_EDITOR.manageCharacters, [main, { ...alt, isDefault: true }])();
+      (radios().find((n) => n.props['aria-label'] === undefined)!.props.onChange as () => void)();
+      await vi.waitFor(() => expect(view([main, { ...alt, isDefault: true }]).find((n) => n.type === Toast)?.props.toast).toEqual({ tone: 'ok', title: 'We’ll ask which character each time' }));
+      expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({ characterId: null });
+      expect(checkedOf([main, alt])).toEqual(['ask']);
+    });
+
+    it.each([[500], [404]])('keeps the old value and marks the list invalid when the save answers %i', async (status) => {
+      hooks.values = [];
+      vi.stubGlobal('fetch', vi.fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'No such character.' }), { status }))
+        .mockResolvedValue(new Response(JSON.stringify([{ ...main, class: 'WARRIOR', raidRole: 'TANK' }, { ...alt, class: 'MAGE', raidRole: 'RANGED' }]))));
+      button(MEMBER_EDITOR.manageCharacters)();
+      (view().find((n) => n.props['aria-label'] === 'Sign up with Blue Ink')!.props.onChange as () => void)();
+      await vi.waitFor(() => expect(view().some((n) => n.props['aria-invalid'] === true)).toBe(true));
+      expect(view().find((n) => n.props.id === 'group-note')?.props.children).toBe(SAVE_FAILED);
+      expect(checkedOf([main, alt])).toEqual(['ask']);
+    });
+
+    it('still shows the failure when the reload leaves only the main', async () => {
+      hooks.values = [];
+      vi.stubGlobal('fetch', vi.fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Character not found' }), { status: 404 }))
+        .mockResolvedValue(new Response(JSON.stringify([{ ...main, class: 'WARRIOR', raidRole: 'TANK' }]))));
+      button(MEMBER_EDITOR.manageCharacters)();
+      (view().find((n) => n.props['aria-label'] === 'Sign up with Blue Ink')!.props.onChange as () => void)();
+      await vi.waitFor(() => expect(view().find((n) => n.props.id === 'group-note')?.props.children).toBe(SAVE_FAILED));
+      expect(view().find((n) => n.props.id === 'group-note')?.props.role).toBe('alert');
+    });
+
+    it('shows the failure in the Add main state when the reload leaves no characters, and drops it on Add main', async () => {
+      hooks.values = [];
+      vi.stubGlobal('fetch', vi.fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Character not found' }), { status: 404 }))
+        .mockResolvedValue(new Response(JSON.stringify([]))));
+      button(MEMBER_EDITOR.manageCharacters)();
+      (view().find((n) => n.props['aria-label'] === 'Sign up with Blue Ink')!.props.onChange as () => void)();
+      await vi.waitFor(() => expect(view().some((n) => n.props.role === 'alert')).toBe(true));
+      const alerts = view().filter((n) => n.props.role === 'alert');
+      expect(alerts).toHaveLength(1);
+      expect(alerts[0].props.children).toBe(SAVE_FAILED);
+      expect(view().some((n) => n.props.children === MEMBER_EDITOR.addMain)).toBe(true);
+      button(MEMBER_EDITOR.addMain)();
+      expect(view().some((n) => n.props.role === 'alert')).toBe(false);
+    });
+
+    it('returns to Ask me each time after the default character is removed', async () => {
+      hooks.values = [];
+      const request = vi.fn()
+        .mockResolvedValueOnce(new Response('{}'))
+        .mockResolvedValueOnce(new Response(JSON.stringify([{ ...main, class: 'WARRIOR', raidRole: 'TANK', isDefault: false }, { ...alt, id: 'alt2', name: 'Green Quill', class: 'MAGE', raidRole: 'RANGED', isDefault: false }])));
+      vi.stubGlobal('fetch', request);
+      const chars = [main, { ...alt, isDefault: true }];
+      button(MEMBER_EDITOR.manageCharacters, chars)();
+      button('Edit Blue Ink', chars)();
+      (view(chars).find((n) => n.type === CharacterForm)!.props.onRemove as () => void)();
+      button(MEMBER_EDITOR.removeConfirm, chars)();
+      await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(checkedOf(chars)).toEqual(['ask']));
+    });
+
+    it('with one character, says so and offers no choice', () => {
+      const html = render([main]);
+      expect(html).toContain('your only character');
+      expect(html).not.toContain('type="radio"');
     });
   });
 });

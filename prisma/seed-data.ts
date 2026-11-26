@@ -28,7 +28,8 @@ export function rng(seed: number): () => number {
 export type SeedRank = 'OFFICER' | 'RAIDER' | 'TRIAL' | 'SOCIAL';
 export type SeedRole = 'SOCIAL' | 'MEMBER' | 'OFFICER';
 
-export type SeedAlt = { name: string; wowClass: WowClassKey; spec: string; raidRole: RaidRoleKey };
+/** `level` is a sample level looked up at seed time; omitted means unknown. */
+export type SeedAlt = { name: string; wowClass: WowClassKey; spec: string; raidRole: RaidRoleKey; level?: number };
 
 export type SeedMember = {
   name: string;
@@ -42,6 +43,8 @@ export type SeedMember = {
   /** 0–1 */
   attendance: number;
   joinedDaysAgo: number;
+  /** The main's sample level; omitted means unknown. */
+  level?: number;
   alts: SeedAlt[];
 };
 
@@ -126,12 +129,14 @@ export function buildRoster(): SeedMember[] {
       attendance: isSocial ? 0 : isTrial ? 0.7 + random() * 0.2 : 0.82 + random() * 0.18,
       joinedDaysAgo: isTrial ? Math.floor(random() * 14) : 30 + Math.floor(random() * 700),
       // Invented stationery-themed characters; Redtape is the member-session fixture.
+      // Sample levels for the under-60 states: Redtape's alts are 52, 60 and unknown.
+      level: i < 2 ? 60 : undefined,
       alts: i === 0 ? [
         { name: 'Inkwell', wowClass: 'mage', spec: 'Frost', raidRole: 'ranged' },
         { name: 'Sealwax', wowClass: 'priest', spec: 'Holy', raidRole: 'healer' },
       ] : i === 1 ? [
-        { name: 'Blotter', wowClass: 'warlock', spec: 'Affliction', raidRole: 'ranged' },
-        { name: 'Carbonleaf', wowClass: 'rogue', spec: 'Combat', raidRole: 'melee' },
+        { name: 'Blotter', wowClass: 'warlock', spec: 'Affliction', raidRole: 'ranged', level: 52 },
+        { name: 'Carbonleaf', wowClass: 'rogue', spec: 'Combat', raidRole: 'melee', level: 60 },
         { name: 'Deskstamp', wowClass: 'paladin', spec: 'Holy', raidRole: 'healer' },
         { name: 'Filetab', wowClass: 'hunter', spec: 'Beast Mastery', raidRole: 'ranged' },
         { name: 'Inktray', wowClass: 'shaman', spec: 'Restoration', raidRole: 'healer' },
@@ -209,6 +214,51 @@ export function buildRaids(from = new Date()): SeedRaid[] {
     }
   }
   return raids.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+}
+
+/**
+ * Sample-only raids that reach the raid page's states the weekly schedule never does: a finished raid, a cancelled one,
+ * and a full 40-person Onyxia's Lair with six on the bench. `accept`..`none` count the roster rows in that order
+ * (they sum to `rosterSize`); `bench` is how many bench guests also accepted.
+ */
+export type SeedFixtureRaid = SeedRaid & {
+  fixture: 'past' | 'cancelled' | 'bench';
+  status: 'DONE' | 'CANCELLED' | 'SCHEDULED';
+  cancelReason: string | null;
+  rosterSize: number;
+  accept: number;
+  tentative: number;
+  absent: number;
+  none: number;
+  bench: number;
+};
+
+export function buildFixtureRaids(from = new Date()): SeedFixtureRaid[] {
+  const day = 24 * 3600_000;
+  const base = { template: "Onyxia's Lair", name: "Onyxia's Lair", durationMin: 60, notes: null, requirements: { tank: 3, healer: 12, dps: 25 }, rosterSize: 40, cancelReason: null };
+  return [
+    { ...base, fixture: 'past', status: 'DONE', startsAt: new Date(from.getTime() - 2 * day), accept: 30, tentative: 2, absent: 1, none: 7, bench: 0 },
+    { ...base, fixture: 'cancelled', status: 'CANCELLED', startsAt: new Date(from.getTime() + 10 * day), cancelReason: 'Raid leader is away.', accept: 30, tentative: 2, absent: 1, none: 7, bench: 0 },
+    { ...base, fixture: 'bench', status: 'SCHEDULED', startsAt: new Date(from.getTime() + 12 * day), accept: 34, tentative: 2, absent: 1, none: 3, bench: 6 },
+  ];
+}
+
+/** Six extra sample raiders for the bench fixture: the longest two-part character names the site allows and long Discord names, to show wrapping. */
+export function buildBenchGuests(): Array<{ name: string; character: string; discordId: string; wowClass: WowClassKey; spec: string; raidRole: RaidRoleKey }> {
+  const rows: Array<[string, string, WowClassKey, string, RaidRoleKey]> = [
+    ['Bartholomeus', 'Ironwhistle', 'warrior', 'Protection', 'tank'],
+    ['Thunderstorm', 'Blackthorne', 'priest', 'Discipline', 'healer'],
+    ['Wilhelminaaa', 'Silverbrook', 'mage', 'Frost', 'ranged'],
+    ['Constantinos', 'Stormbringer', 'paladin', 'Holy', 'healer'],
+    ['Maximilianne', 'Ravenshadows', 'warlock', 'Destruction', 'ranged'],
+    ['Evangelinaes', 'Goldenhearth', 'rogue', 'Combat', 'melee'],
+  ];
+  return rows.map(([first, last, wowClass, spec, raidRole], i) => ({
+    name: `benchwarmer_with_a_long_name_${i + 1}`,
+    character: `${first} ${last}`,
+    discordId: `100000000009000000${i + 1}`,
+    wowClass, spec, raidRole,
+  }));
 }
 
 export type SeedNeed = { wowClass: WowClassKey; spec: string; roles: RaidRoleKey[]; status: 'HIGH' | 'MEDIUM' | 'CLOSED' };

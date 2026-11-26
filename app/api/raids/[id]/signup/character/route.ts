@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { switchCharacter } from '@/lib/character-switch';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/session';
+import { webReason } from '@/lib/signup-web-reason';
 import { jsonBody, NO_STORE } from '../../../../_officer';
 
 /** PUT { characterId, forUserId? }; only officers may choose for another member. */
@@ -19,6 +20,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (!target) return NextResponse.json({ error: forUserId ? 'No such member.' : 'Sign up as Accept or Tentative to reserve.' }, { status: forUserId ? 404 : 409, headers: NO_STORE });
   const { id: raidId } = await params;
   const result = await switchCharacter({ raidId, userId: target.id, characterId: body.characterId, actor: { role: session.role }, officerOverride: officer && target.discordId !== session.discordId });
-  if (!result.ok) return NextResponse.json({ error: result.reason }, { status: result.status, headers: NO_STORE });
+  if (!result.ok) return NextResponse.json({ error: webReason(result.reason) }, { status: result.status, headers: NO_STORE });
   return NextResponse.json({ character: result.character, removed: result.removed }, { headers: NO_STORE });
 }

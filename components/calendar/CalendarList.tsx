@@ -11,6 +11,7 @@ import { sortNeedsAnswerFirst } from '@/lib/calendar-grid';
 import { isTonight, isUpcoming, raidWeekday, responseToast, type RaidCard, type RaidInput, type RaidResponse, type RaidTemplateOption } from '@/lib/raids';
 import { MonthGrid } from './MonthGrid';
 import { AVAILABILITY_PROMPT, CALENDAR_EMPTY, CALENDAR_PAST_EMPTY, MONTH, SAVE_FAILED, SCHEDULE_RAID, scheduledToast } from '@/content/calendar';
+import { useCharacterQuestion, type QuestionCharacter } from '@/components/raid/CharacterQuestion';
 import { RaidCardRow } from './RaidCardRow';
 import { useSignup } from './useSignup';
 
@@ -20,6 +21,9 @@ type View = 'list' | 'month';
 type Props = {
   raids: RaidCard[];
   viewer: { role: 'social' | 'member' | 'officer'; raidRole: Role | null; availabilitySubmitted: boolean };
+  /** The viewer's characters (main first) and default, for the character question. */
+  characters: QuestionCharacter[];
+  defaultCharacterId: string | null;
   /** Officers only: the blank (or window-prefilled) form, and whether `?new=1` asked for it open. */
   schedule?: { initial: RaidInput; templates: RaidTemplateOption[]; lootOn: boolean; openUntilStart?: boolean; openOnLoad: boolean };
 };
@@ -29,7 +33,7 @@ type Props = {
  * raid with the viewer's response written optimistically, tonight pinned first, the toast
  * with Undo, and the one-line availability prompt for members who have not painted yet.
  */
-export function CalendarList({ raids: initial, viewer, schedule }: Props) {
+export function CalendarList({ raids: initial, viewer, characters, defaultCharacterId, schedule }: Props) {
   const router = useRouter();
   const [scope, setScope] = useState<Scope>('upcoming');
   // List is the default everywhere and the only view on phones (SYNC-SPEC §9.4).
@@ -54,9 +58,9 @@ export function CalendarList({ raids: initial, viewer, schedule }: Props) {
 
   const { afterAnswer, window: reserveWindow } = useReservePrompt(setToast);
   const onResult = useCallback(
-    (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void, undone: boolean) => {
+    (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void, undone: boolean, error?: string) => {
       if (!ok) {
-        setToast({ tone: 'stop', title: SAVE_FAILED });
+        setToast({ tone: 'stop', title: error ?? SAVE_FAILED });
         return;
       }
       const copy = responseToast(raid, response, zone?.zone ?? null);
@@ -68,7 +72,8 @@ export function CalendarList({ raids: initial, viewer, schedule }: Props) {
     },
     [zone, afterAnswer],
   );
-  const { raids, respond } = useSignup(initial, viewer.raidRole, onResult);
+  const { raids, respond, madeDefault } = useSignup(initial, viewer.raidRole, onResult, { characters, defaultId: defaultCharacterId });
+  const { answer, question } = useCharacterQuestion(characters, madeDefault ?? defaultCharacterId, respond);
 
   const canRespond = viewer.role !== 'social';
   // Sorted from the server's cards, then the optimistic answers laid on top: answering the
@@ -148,12 +153,13 @@ export function CalendarList({ raids: initial, viewer, schedule }: Props) {
       ) : (
         <ol className="flex flex-col gap-3">
           {ordered.map((raid) => (
-            <RaidCardRow key={raid.id} raid={raid} tonight={raid.id === tonightId} canRespond={canRespond} past={scope === 'past'} now={now.toISOString()} onRespond={(response) => respond(raid.id, response)} />
+            <RaidCardRow key={raid.id} raid={raid} tonight={raid.id === tonightId} canRespond={canRespond} past={scope === 'past'} now={now.toISOString()} onRespond={(response) => answer(raid, response)} />
           ))}
         </ol>
       )}
 
       {schedule && <ScheduleRaidModal open={scheduling} initial={schedule.initial} templates={schedule.templates} lootOn={schedule.lootOn} openUntilStart={schedule.openUntilStart} onClose={closeSchedule} onScheduled={onScheduled} />}
+      {question}
       {reserveWindow}
       <Toast toast={toast} onDismiss={() => setToast(null)} />
     </div>

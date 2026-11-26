@@ -2,10 +2,12 @@
 
 import { useRouter } from 'next/navigation';
 import { useId, useState, type FormEvent } from 'react';
-import { Button, ButtonLink, Field, Modal, Select, Sheet, Textarea, useToast, type ToastData } from '@/components/ui';
+import { Button, ButtonLink, Field, Modal, Select, Sheet, Textarea, Toggle, useToast, type ToastData } from '@/components/ui';
 import { lockOffsetMinutes, raidToInput, RESPONSES, type RaidCard, type RaidInput, type RaidResponse, type RaidTemplateOption } from '@/lib/raids';
+import { cn } from '@/lib/cn';
 import { SAVE_FAILED } from '@/content/calendar';
 import { OFFICER_ACTIONS, onBehalfToast, RAID_TOASTS } from '@/content/raid';
+import { useManageSignups } from './ManageSignups';
 import { RaidForm } from './RaidForm';
 
 export type MemberOption = { id: string; label: string };
@@ -58,6 +60,8 @@ export function OfficerActions({ raid, members, past, threadUrl, fromSeries, tem
   const [deleting, setDeleting] = useState(false);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const { on: managing, setOn: setManaging } = useManageSignups();
+  const canManage = !past && !raid.cancelled;
   const sheetId = useId();
   const reasonId = useId();
 
@@ -117,72 +121,89 @@ export function OfficerActions({ raid, members, past, threadUrl, fromSeries, tem
     }
   }
 
-  const content = (
-    <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end md:justify-between">
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={past || raid.cancelled}
-          title={past ? OFFICER_ACTIONS.finished : raid.cancelled ? OFFICER_ACTIONS.restoreFirst : undefined}
-          onClick={() => {
-            setOpen(false);
-            setEditing(true);
-          }}
-        >
-          {OFFICER_ACTIONS.edit}
-        </Button>
-        {threadUrl ? (
-          <ButtonLink href={threadUrl} variant="secondary" size="sm" target="_blank" rel="noreferrer">
-            {OFFICER_ACTIONS.openThread}
-          </ButtonLink>
-        ) : (
-          <Button variant="secondary" size="sm" disabled title={OFFICER_ACTIONS.notPostedHint}>
-            {OFFICER_ACTIONS.notPosted}
+  /** The row of buttons. In the phone sheet the switch leads, with its hint; inline it sits at the right end. */
+  const renderContent = (inSheet: boolean) => (
+    <div className="flex flex-col gap-4">
+      {canManage && inSheet && (
+        <Toggle
+          label={
+            <span className="flex flex-col">
+              <span className="font-semibold text-fg">{OFFICER_ACTIONS.manage}</span>
+              <span className="text-small text-fg-3">{OFFICER_ACTIONS.manageHint}</span>
+            </span>
+          }
+          checked={managing}
+          onChange={setManaging}
+          className="border-b border-line-faint pb-3"
+        />
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={past || raid.cancelled}
+            title={past ? OFFICER_ACTIONS.finished : raid.cancelled ? OFFICER_ACTIONS.restoreFirst : undefined}
+            onClick={() => {
+              setOpen(false);
+              setEditing(true);
+            }}
+          >
+            {OFFICER_ACTIONS.edit}
           </Button>
-        )}
-        {raid.cancelled ? (
-          <Button variant="secondary" size="sm" disabled={past} title={past ? OFFICER_ACTIONS.finished : undefined} loading={busy} onClick={() => setCancelled(false)}>
-            {OFFICER_ACTIONS.restore}
-          </Button>
-        ) : (
+          {threadUrl ? (
+            <ButtonLink href={threadUrl} variant="secondary" size="sm" target="_blank" rel="noreferrer">
+              {OFFICER_ACTIONS.openThread}
+            </ButtonLink>
+          ) : (
+            <Button variant="secondary" size="sm" disabled title={OFFICER_ACTIONS.notPostedHint}>
+              {OFFICER_ACTIONS.notPosted}
+            </Button>
+          )}
+          {raid.cancelled ? (
+            <Button variant="secondary" size="sm" disabled={past} title={past ? OFFICER_ACTIONS.finished : undefined} loading={busy} onClick={() => setCancelled(false)}>
+              {OFFICER_ACTIONS.restore}
+            </Button>
+          ) : (
+            <Button
+              variant="danger"
+              size="sm"
+              disabled={past}
+              title={past ? OFFICER_ACTIONS.finished : undefined}
+              onClick={() => {
+                setOpen(false);
+                setConfirming(true);
+              }}
+            >
+              {OFFICER_ACTIONS.cancel}
+            </Button>
+          )}
           <Button
             variant="danger"
             size="sm"
-            disabled={past}
-            title={past ? OFFICER_ACTIONS.finished : undefined}
             onClick={() => {
               setOpen(false);
-              setConfirming(true);
+              setDeleting(true);
             }}
           >
-            {OFFICER_ACTIONS.cancel}
+            {OFFICER_ACTIONS.delete}
           </Button>
-        )}
-        <Button
-          variant="danger"
-          size="sm"
-          onClick={() => {
-            setOpen(false);
-            setDeleting(true);
-          }}
-        >
-          {OFFICER_ACTIONS.delete}
-        </Button>
+        </div>
+      {canManage && !inSheet && <Toggle label={<span className="whitespace-nowrap font-semibold text-fg">{OFFICER_ACTIONS.manage}</span>} checked={managing} onChange={setManaging} />}
       </div>
-      {!past && !raid.cancelled && <OnBehalfForm raidId={raid.id} members={members} onToast={setToast} onDone={() => setOpen(false)} />}
+      {canManage && managing && <OnBehalfForm raidId={raid.id} members={members} onToast={setToast} onDone={() => setOpen(false)} />}
     </div>
   );
 
   return (
     <section aria-label={OFFICER_ACTIONS.heading} className="rounded-card border border-line bg-ink-850 p-4">
-      <div className="hidden md:block">{content}</div>
+      <div className="hidden md:block">{renderContent(false)}</div>
       <div className="md:hidden">
-        <Button variant="secondary" size="sm" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-controls={sheetId} aria-expanded={open} className="w-full">
-          {OFFICER_ACTIONS.heading}
+        <Button variant="secondary" size="sm" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-controls={sheetId} aria-expanded={open} className={cn('w-full', canManage && managing && 'border-teal-dim')}>
+          {canManage && managing ? OFFICER_ACTIONS.headingManaging : OFFICER_ACTIONS.heading}
         </Button>
         <Sheet id={sheetId} open={open} onClose={() => setOpen(false)} title={OFFICER_ACTIONS.heading}>
-          {content}
+          {renderContent(true)}
         </Sheet>
       </div>
 
