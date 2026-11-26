@@ -389,7 +389,11 @@ describe('MemberCharacterDialog', () => {
         .mockResolvedValue(new Response(JSON.stringify([{ ...main, class: 'WARRIOR', raidRole: 'TANK' }]))));
       button(MEMBER_EDITOR.manageCharacters)();
       (view().find((n) => n.props['aria-label'] === 'Sign up with Blue Ink')!.props.onChange as () => void)();
-      await vi.waitFor(() => expect(view().find((n) => n.props.id === 'group-note')?.props.children).toBe(SAVE_FAILED));
+      await vi.waitFor(() => {
+        expect(view().some((n) => n.props['aria-label'] === 'Sign up with Blue Ink')).toBe(false);
+        expect(view().some((n) => Array.isArray(n.props.children) && n.props.children.includes(MEMBER_EDITOR.onlyCharacter))).toBe(true);
+      });
+      expect(view().find((n) => n.props.id === 'group-note')?.props.children).toBe(SAVE_FAILED);
       expect(view().find((n) => n.props.id === 'group-note')?.props.role).toBe('alert');
     });
 
