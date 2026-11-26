@@ -241,9 +241,17 @@ describe('useSignup default character', () => {
     await act(async () => { second.resolve(reply('tentative', 'ranged', { healer: 2 })); });
     expect(hook.raids[0]).toMatchObject({ signupRole: 'ranged', counts: { healer: 2, ranged: 0 } });
 
+    const third = deferred(); fetcher.mockReturnValueOnce(third.promise);
     await act(async () => { hook.respond('raid', 'accept'); });
+    expect(hook.raids[0]).toMatchObject({ mine: 'accept', counts: { healer: 2, ranged: 1 } });
+    await act(async () => { third.resolve(reply('accept', 'ranged', { healer: 2, ranged: 1 })); });
+    expect(hook.raids[0]).toMatchObject({ mine: 'accept', signupRole: 'ranged', counts: { healer: 2, ranged: 1 } });
+
+    const fourth = deferred(); fetcher.mockReturnValueOnce(fourth.promise);
     await act(async () => { hook.respond('raid', 'absent'); });
-    expect(hook.raids[0].counts).toMatchObject({ healer: 2, ranged: 0 });
+    expect(hook.raids[0]).toMatchObject({ mine: 'absent', counts: { healer: 2, ranged: 0 } });
+    await act(async () => { fourth.resolve(reply('absent', 'ranged', { healer: 2 })); });
+    expect(hook.raids[0]).toMatchObject({ mine: 'absent', signupRole: 'ranged', counts: { healer: 2, ranged: 0 } });
   });
 
   it('takes the role from the reply when the guess was wrong', async () => {
