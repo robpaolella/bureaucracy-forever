@@ -58,7 +58,7 @@ describe.skipIf(process.env.OPEN_UNTIL_START_VIEWS_INTEGRATION !== '1')('OPEN_UN
     }
     db = new PrismaClient({ adapter: new PrismaPg(pool) }); state.db = db;
   }, 120_000);
-  afterAll(async () => { await db?.$disconnect(); await pool?.end(); if (container) docker('stop', container); }, 120_000);
+  afterAll(async () => { await db?.$disconnect(); await pool?.end(); if (container) docker('stop', container); });
   beforeEach(async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     state.open = true;
