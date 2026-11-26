@@ -24,8 +24,8 @@ afterEach(() => { hooks.values = null; vi.unstubAllGlobals(); vi.clearAllMocks()
 const refresh = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
 
-const main: MemberCharacter = { id: 'main', name: 'Red Tape', wowClass: 'warrior', spec: 'Protection', role: 'tank', isMain: true };
-const alt: MemberCharacter = { id: 'alt', name: 'Blue Ink', wowClass: 'mage', spec: 'Frost', role: 'ranged', isMain: false };
+const main: MemberCharacter = { id: 'main', name: 'Red Tape', wowClass: 'warrior', spec: 'Protection', role: 'tank', isMain: true, level: 60 };
+const alt: MemberCharacter = { id: 'alt', name: 'Blue Ink', wowClass: 'mage', spec: 'Frost', role: 'ranged', isMain: false, level: 52 };
 
 type Node = ReactElement<Record<string, unknown>>;
 function nodes(value: ReactNode): Node[] {
@@ -45,6 +45,25 @@ function render(characters: MemberCharacter[] = [main, alt]) {
 }
 
 describe('MemberCharacterDialog', () => {
+  it('shows every character’s level, Level unknown when it is not known', () => {
+    const html = render([main, alt, { ...alt, id: 'third', name: 'Mystery Ink', level: null }]);
+    expect(html).toContain('Warrior · Protection · Tank · <span class="whitespace-nowrap">Level 60</span>');
+    expect(html).toContain('<span class="whitespace-nowrap text-warn">Level 52</span>');
+    expect(html).toContain('Level unknown');
+  });
+
+  it('reads levels from the reloaded list, stale ones as null from the API', async () => {
+    hooks.values = [];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([{ ...main, class: 'WARRIOR', raidRole: 'TANK', level: 52 }, { ...alt, class: 'MAGE', raidRole: 'RANGED', level: null }]))));
+    button(MEMBER_EDITOR.manageCharacters)();
+    button('Edit Red Tape')();
+    const form = view().find((node) => node.type === CharacterForm)!;
+    await (form.props.onSubmit as (value: unknown) => Promise<unknown>)({ ...main, rank: 'raider' });
+    const html = renderToStaticMarkup(<>{view().find((node) => node.type === Modal)!.props.children as ReactNode}</>);
+    expect(html).toContain('Level 52');
+    expect(html).toContain('Level unknown');
+  });
+
   it('labels the main and lets the member edit the main and the alts', () => {
     const html = render();
     expect(html).toContain('Red Tape');
@@ -156,8 +175,8 @@ describe('MemberCharacterDialog', () => {
 
   it('shows the entry point only on the viewer’s own row', () => {
     const rows: RosterRow[] = [
-      { id: 'viewer', name: 'Redtape', character: 'Red Tape', alts: [], wowClass: 'warrior', spec: 'Protection', role: 'tank', rank: 'raider', attendance: null, joinedAt: '2026-01-01T00:00:00.000Z' },
-      { id: 'other', name: 'Ledgerline', character: 'Blue Ink', alts: [], wowClass: 'mage', spec: 'Frost', role: 'ranged', rank: 'officer', attendance: null, joinedAt: '2026-01-01T00:00:00.000Z' },
+      { id: 'viewer', name: 'Redtape', character: 'Red Tape', alts: [], wowClass: 'warrior', spec: 'Protection', role: 'tank', level: 60, rank: 'raider', attendance: null, joinedAt: '2026-01-01T00:00:00.000Z' },
+      { id: 'other', name: 'Ledgerline', character: 'Blue Ink', alts: [], wowClass: 'mage', spec: 'Frost', role: 'ranged', level: null, rank: 'officer', attendance: null, joinedAt: '2026-01-01T00:00:00.000Z' },
     ];
     const html = renderToStaticMarkup(<RosterTable rows={rows} viewer={{ id: 'viewer', rank: 'raider', characters: [main] }} />);
     expect(html.match(/aria-label="Manage characters"/g)).toHaveLength(2); // One action in each responsive rendering, never on the other row.

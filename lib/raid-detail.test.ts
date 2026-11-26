@@ -8,6 +8,7 @@ const row = (over: Partial<DetailRow>): DetailRow => ({
   wowClass: 'warrior',
   spec: 'Protection',
   role: 'tank',
+  level: 60,
   standing: 'ROSTER',
   response: 'accept',
   attended: null,

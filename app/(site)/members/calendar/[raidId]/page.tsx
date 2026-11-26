@@ -16,6 +16,7 @@ import { RosterByRole } from '@/components/raid/RosterByRole';
 import { LocalTime } from '@/components/time/LocalTime';
 import { ToastHost } from '@/components/ui';
 import { db } from '@/lib/db';
+import { freshLevel } from '@/lib/character-level';
 import { characterBrought, MAIN_CHARACTER } from '@/lib/signup-character';
 import type { Role, WowClass } from '@/lib/design/class-colors';
 import { discordThreadUrl } from '@/lib/discord-links';
@@ -28,6 +29,9 @@ import { countAccepted, isUpcoming, linkOpensReserves, parseRequirements, RESERV
 import { getSession } from '@/lib/session';
 import { BACK_TO_CALENDAR, RAID_EYEBROW, SUMMARY } from '@/content/raid';
 import { RESERVES } from '@/content/reserves';
+
+/** The brought character's fields, with the level fields `freshLevel` reads. */
+const SIGNUP_CHARACTER = { ...MAIN_CHARACTER.select, level: true, levelCheckedAt: true } as const;
 
 type Params = { params: Promise<{ raidId: string }> };
 type Props = Params & { searchParams: Promise<Record<string, string | string[] | undefined>> };
@@ -83,8 +87,8 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
             source: true,
             reason: true,
             updatedAt: true,
-            character: { select: MAIN_CHARACTER.select },
-            user: { select: { discordId: true, discordName: true, characters: MAIN_CHARACTER } },
+            character: { select: SIGNUP_CHARACTER },
+            user: { select: { discordId: true, discordName: true, characters: { ...MAIN_CHARACTER, select: SIGNUP_CHARACTER } } },
             setBy: { select: { discordName: true } },
           },
         },
@@ -92,7 +96,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
     }),
     db.user.findUnique({
       where: { discordId: session.discordId },
-      select: { defaultCharacterId: true, characters: { select: { id: true, name: true, class: true, spec: true, raidRole: true, isMain: true }, orderBy: [{ isMain: 'desc' }, { name: 'asc' }] } },
+      select: { defaultCharacterId: true, characters: { select: { id: true, name: true, class: true, spec: true, raidRole: true, isMain: true, level: true, levelCheckedAt: true }, orderBy: [{ isMain: 'desc' }, { name: 'asc' }] } },
     }),
     officer
       ? db.user.findMany({ where: { role: { in: ['MEMBER', 'OFFICER'] } }, select: { id: true, discordName: true }, orderBy: { discordName: 'asc' } })
@@ -111,6 +115,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
       wowClass: (main?.class.toLowerCase() as WowClass | undefined) ?? null,
       spec: main?.spec ?? null,
       role: (main?.raidRole.toLowerCase() as Role | undefined) ?? null,
+      level: main ? freshLevel(main) : null,
       standing: s.standing,
       response: (s.response?.toLowerCase() as RaidResponse | undefined) ?? null,
       attended: s.attended,
@@ -207,6 +212,7 @@ export default async function RaidDetailPage({ params, searchParams }: Props) {
               spec: character.spec,
               role: character.raidRole.toLowerCase() as Role,
               isMain: character.isMain,
+              level: freshLevel(character),
             }))}
             defaultCharacterId={me?.defaultCharacterId ?? null}
             broughtId={mine ? characterBrought(mine)?.id ?? null : null}

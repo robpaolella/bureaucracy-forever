@@ -18,6 +18,8 @@ export type DetailRow = {
   wowClass: WowClass | null;
   spec: string | null;
   role: Role | null;
+  /** The brought character's fresh level; null is unknown. Raid page rows show it only under 60. */
+  level: number | null;
   standing: Standing;
   response: RaidResponse | null;
   attended: boolean | null;

@@ -14,7 +14,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), replac
 vi.mock('./AnswerFor', () => ({ AnswerFor: ({ name }: { name: string }) => <select aria-label={`Answer for ${name}`} /> }));
 
 const row = (name: string, over: Partial<DetailRow> = {}): DetailRow => ({
-  userId: name, name, character: `${name} Quill`, wowClass: 'mage', spec: 'Fire', role: 'ranged', standing: 'ROSTER',
+  userId: name, name, character: `${name} Quill`, wowClass: 'mage', spec: 'Fire', role: 'ranged', level: null, standing: 'ROSTER',
   response: 'accept', attended: null, source: 'web', reason: null, setBy: null, updatedAt: '2030-01-01T00:00:00Z', ...over,
 });
 const raid = { id: 'r', name: 'Onyxia', startsAt: '2030-01-01T20:00:00Z', durationMin: 180, notes: null, cancelled: false, requirements: { tank: 2, healer: 8, dps: 25 }, counts: { tank: 0, healer: 0, melee: 0, ranged: 0 }, mine: null, locksAt: null } as unknown as RaidCard;

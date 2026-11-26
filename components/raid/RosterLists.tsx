@@ -11,6 +11,7 @@ import { SAVE_FAILED } from '@/content/calendar';
 import { ROSTER, UNANSWERED, UNKNOWN_MAIN } from '@/content/raid';
 import { AnswerFor } from './AnswerFor';
 import { useManageSignups } from './ManageSignups';
+import { raidRowMeta } from '@/lib/roster-level';
 
 type Props = {
   raidId: string;
@@ -78,7 +79,7 @@ function Disclosure({ id, title, rows, empty, raidId, canAnswerFor, action }: { 
 
 function CompactItem({ raidId, row, canAnswerFor }: { raidId: string; row: DetailRow; canAnswerFor: boolean }) {
   const { on } = useManageSignups();
-  const meta = row.wowClass ? [row.character, CLASS_COLORS[row.wowClass].label].filter(Boolean).join(' · ') : UNKNOWN_MAIN;
+  const meta = row.wowClass ? raidRowMeta([row.character, CLASS_COLORS[row.wowClass].label], row.level) : UNKNOWN_MAIN;
   return (
     <li className="flex min-h-11 items-start gap-3 py-2">
       <span className="pt-1">

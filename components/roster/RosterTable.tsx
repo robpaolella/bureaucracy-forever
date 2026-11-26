@@ -19,9 +19,11 @@ import {
   type RosterSortKey,
   type SortDir,
 } from '@/lib/roster';
+import { isUnderRaidLevel } from '@/lib/roster-level';
 import { relativeDate } from '@/lib/time';
 import { ROSTER_ALTS, ROSTER_EMPTY, ROSTER_NO_MAIN, ROSTER_NO_MATCH } from '@/content/roster';
 import { AltsToggle } from './AltsToggle';
+import { LevelText } from './LevelText';
 import { MemberCharacterDialog, type MemberCharacter } from './MemberCharacterDialog';
 import { setDensity, useDensity } from './useDensity';
 
@@ -38,7 +40,7 @@ function altLines(row: RosterRow, id: string) {
       {row.alts.map((alt) => (
         <li key={alt.id} className="break-words border-t border-line-faint py-3 pl-14 pr-4 text-[13px] text-fg-3 first:border-t-0 md:pl-[60px]">
           <span style={{ color: CLASS_COLORS[alt.wowClass].onInk }}>{alt.name}</span>
-          {' · '}{CLASS_COLORS[alt.wowClass].label}{' · '}{alt.spec}{' · '}{ROLE_LABELS[alt.role]}
+          {' · '}{CLASS_COLORS[alt.wowClass].label}{' · '}{alt.spec}{' · '}{ROLE_LABELS[alt.role]}{' · '}<LevelText level={alt.level} />
         </li>
       ))}
     </ul>
@@ -102,6 +104,12 @@ export function RosterTable({ rows, viewer }: Props) {
     { key: 'class', header: 'Class', render: (r) => (r.wowClass ? CLASS_COLORS[r.wowClass].label : <span className="text-fg-3">{ROSTER_NO_MAIN}</span>) },
     { key: 'spec', header: 'Spec', render: (r) => <span className="text-fg-2">{r.spec ?? '—'}</span> },
     { key: 'role', header: 'Role', render: (r) => <span className="text-fg-2">{r.role ? ROLE_LABELS[r.role] : '—'}</span> },
+    {
+      key: 'level',
+      header: 'Level',
+      numeric: true,
+      render: (r) => !r.character ? <span className="text-fg-3">—</span> : r.level === null ? <span className="text-fg-3">Unknown</span> : <span className={isUnderRaidLevel(r.level) ? 'text-warn' : 'text-fg-2'}>{r.level}</span>,
+    },
     { key: 'rank', header: 'Rank', sortable: true, render: (r) => <RankBadge rank={r.rank} /> },
     { key: 'attendance', header: 'Attendance', sortable: true, numeric: true, render: (r) => formatAttendance(r.attendance) },
     { key: 'joinedAt', header: 'Joined', sortable: true, align: 'right', render: (r) => <span className="text-fg-2">{relativeDate(new Date(r.joinedAt), now)}</span> },
@@ -208,7 +216,7 @@ export function RosterTable({ rows, viewer }: Props) {
                           <RankBadge rank={r.rank} />
                           {altsToggle(r, `member-alts-mobile-${r.id}`)}
                         </div>
-                        <span className="truncate text-[13px] text-fg-3">{r.wowClass && r.role ? `${r.character} · ${CLASS_COLORS[r.wowClass].label} · ${r.spec} · ${ROLE_LABELS[r.role]}` : ROSTER_NO_MAIN}</span>
+                        <span className="break-words text-[13px] text-fg-3">{r.wowClass && r.role ? <>{`${r.character} · ${CLASS_COLORS[r.wowClass].label} · ${r.spec} · ${ROLE_LABELS[r.role]} · `}<LevelText level={r.level} /></> : ROSTER_NO_MAIN}</span>
                         {r.id === viewer?.id && <div className="pt-2"><MemberCharacterDialog characters={viewer.characters} rank={viewer.rank} /></div>}
                       </div>
                       <span className="tabular shrink-0 text-sm text-fg-2">{formatAttendance(r.attendance)}</span>

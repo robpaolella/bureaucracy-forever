@@ -80,7 +80,7 @@ it.each(['member', 'officer'])('%s with a main can list, add, edit and remove th
     const response = await call(method);
     expect(response.status).toBe(method === 'POST' ? 201 : 200);
     expect(response.headers.get('Cache-Control')).toBe('private, no-store');
-    expect(await response.json()).toEqual(method === 'GET' ? [{ ...alt, isDefault: false }] : { id: 'alt', name: 'Sample Name' });
+    expect(await response.json()).toEqual(method === 'GET' ? [{ ...alt, level: null, isDefault: false }] : { id: 'alt', name: 'Sample Name' });
   }
   expect(m.user).toHaveBeenCalledWith({ where: { discordId: 'discord-owner' }, select: { id: true, defaultCharacterId: true } });
   expect(m.list).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'owner' } }));
