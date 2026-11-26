@@ -123,6 +123,16 @@ describe('useSignup character switches', () => {
     await act(async () => { undoRequest.resolve(response(200, { response: 'accept', counts: hook.raids[0].counts })); });
   });
 
+  it('Undo sends an answer-only request (keepCharacter); a normal answer does not', async () => {
+    fetcher.mockResolvedValue(response(200, { response: 'absent', counts: ZERO_COUNTS }));
+    await render();
+    await act(async () => { hook.respond('raid', 'absent'); });
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ response: 'absent' });
+    fetcher.mockResolvedValue(response(200, { response: 'accept', counts: ZERO_COUNTS }));
+    await act(async () => { hook.undo('raid'); });
+    expect(JSON.parse(fetcher.mock.calls[1][1].body)).toEqual({ response: 'accept', keepCharacter: true });
+  });
+
   it('prevents overlapping switches and answers on the same raid', async () => {
     const request = deferred(); fetcher.mockReturnValue(request.promise);
     await render();
