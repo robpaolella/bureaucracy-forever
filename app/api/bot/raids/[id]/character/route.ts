@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
+import { levelForBot } from '@/lib/character-level';
 import { switchCharacter } from '@/lib/character-switch';
+import { db } from '@/lib/db';
 import { reply, withIdempotency } from '@/lib/idempotency';
 import { REASONS as LOOT_REASONS } from '@/lib/loot-rules';
 import { REASONS } from '@/lib/signup-rules';
@@ -36,7 +38,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return reply(result.status, { reason: reasons[result.reason] ?? 'forbidden', error: result.reason });
     }
     const { id: characterIdResult, name, class: wowClass, spec, raidRole } = result.character;
-    return reply(200, { character: { id: characterIdResult, name, wowClass: wowClass.toLowerCase(), spec, raidRole: raidRole.toLowerCase() },
+    // Its level as stored now (SYNC-SPEC §4); a character deleted since reads as unknown.
+    const stored = await db.character.findUnique({ where: { id: characterIdResult }, select: { level: true, levelCheckedAt: true } });
+    return reply(200, { character: { id: characterIdResult, name, wowClass: wowClass.toLowerCase(), spec, raidRole: raidRole.toLowerCase(),
+      ...levelForBot(stored ?? { level: null, levelCheckedAt: null }) },
       removedReserves: result.removed.map(({ kind, itemName, reason }) => ({ kind, itemName, reason })) });
   });
 }

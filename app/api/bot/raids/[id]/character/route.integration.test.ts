@@ -68,7 +68,7 @@ describe.skipIf(process.env.BOT_CHARACTER_INTEGRATION !== '1')('bot character sw
     const res = await request();
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('private, no-store');
-    expect(await res.json()).toEqual({ character: { id: 'alt', name: 'alt', wowClass: 'warrior', spec: 'Sample', raidRole: 'healer' }, removedReserves: [] });
+    expect(await res.json()).toEqual({ character: { id: 'alt', name: 'alt', wowClass: 'warrior', spec: 'Sample', raidRole: 'healer', level: null, underRaidLevel: false }, removedReserves: [] });
     expect(await db.signup.findUnique({ where: { id: 'signup' } })).toMatchObject({ characterId: 'alt', response });
     expect((await db.reserve.findMany()).map((r) => r.characterId)).toEqual(['alt', 'alt']);
   });
