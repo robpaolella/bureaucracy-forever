@@ -590,6 +590,20 @@ overlapping ticks do one thing once; ending an interview also sets `endedAt` and
 14. **Application reminders.** Switched on, replacing step 7; reply count
     `remindersQueued` (the old `nudged` count is gone). Rules below.
 
+16. **Character levels.** Keeps stored levels inside Blizzard's 30-day limit. Always first clears any
+    level whose last success is over 30 days old (`level` and its check time set to null), with or
+    without Blizzard keys. Then, with `BLIZZARD_CLIENT_ID` and `BLIZZARD_CLIENT_SECRET` set (without
+    them the step does nothing more), looks up at most 5 due characters: those under level 60 or
+    with no known level whose last success is over 24 hours old, any whose last success is over
+    25 days old, and any that never succeeded. Oldest last-attempt first (never attempted first), so
+    a character that keeps failing cannot hold the front of the queue. A result is written only if
+    the character's name is still the one looked up, so overlapping ticks write nothing stale. The
+    first failed lookup (429, 5xx, timeout) stops the step for this tick; its attempt time is
+    stored, which backs that character off. The reply counts it as `levelsRefreshed` (lookups where
+    Blizzard answered found or not found). The bot sends nothing new and may ignore the count.
+    Replays stored for `Idempotency-Key` (which can carry `level`) are deleted after 14 days by the
+    hourly reconcile, and no outbox job carries a level, so no stored copy outlives 30 days.
+
 ### Application reminders (step 14)
 
 An application that sits PENDING gets a reminder in its thread, at most once per Pacific day,
@@ -1432,4 +1446,9 @@ the rows that exist.
   the `PUT /raids/:id/character` reply gains `level` (number or `null`) and `underRaidLevel` (boolean).
   Additive: no request, status or other field changes, and the bot must tolerate both missing. Consumer:
   `bureaucracy-forever-discord-bot` copies this wording word for word and reads both fields in
+  https://github.com/robpaolella/bureaucracy-forever-discord-bot/issues/442.
+- **Level refresh in tick** (site https://github.com/robpaolella/bureaucracy-forever/issues/566): §6 gains
+  step 16, and the `POST /tick` reply gains a `levelsRefreshed` count. Additive: the bot sends nothing
+  new and must tolerate the count missing or ignore it. Consumer: `bureaucracy-forever-discord-bot`
+  copies the step 16 wording word for word in
   https://github.com/robpaolella/bureaucracy-forever-discord-bot/issues/442.
