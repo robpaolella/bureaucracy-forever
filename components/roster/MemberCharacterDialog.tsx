@@ -7,12 +7,14 @@ import { SAVE_FAILED } from '@/content/calendar';
 import { MEMBER_EDITOR, EDITOR_TOASTS } from '@/content/roster-editor';
 import { cn } from '@/lib/cn';
 import { CLASS_COLORS, ROLE_LABELS } from '@/lib/design/class-colors';
+import { levelText } from '@/lib/roster-level';
 import { emptyCharacter, type CharacterInput } from '@/lib/roster-edit';
 import { CharacterForm } from './CharacterForm';
 
-export type MemberCharacter = Omit<CharacterInput, 'rank'> & { id: string; isMain: boolean; isDefault?: boolean };
+/** `level` is the fresh level; null is unknown. */
+export type MemberCharacter = Omit<CharacterInput, 'rank'> & { id: string; isMain: boolean; isDefault?: boolean; level: number | null };
 type EditableCharacter = CharacterInput & { id: string; isMain?: boolean };
-type ApiCharacter = { id: string; name: string; class: string; spec: string; raidRole: string; isMain: boolean; isDefault?: boolean };
+type ApiCharacter = { id: string; name: string; class: string; spec: string; raidRole: string; isMain: boolean; isDefault?: boolean; level?: number | null };
 
 function fromApi(character: ApiCharacter): MemberCharacter {
   return {
@@ -23,6 +25,7 @@ function fromApi(character: ApiCharacter): MemberCharacter {
     role: character.raidRole.toLowerCase() as MemberCharacter['role'],
     isMain: character.isMain,
     isDefault: character.isDefault === true,
+    level: character.level ?? null,
   };
 }
 type Editing = { kind: 'add'; main: boolean } | { kind: 'edit'; character: EditableCharacter };
@@ -216,8 +219,8 @@ export function MemberCharacterDialog({ characters: initialCharacters, rank }: M
                     )}
                     <ClassAvatar name={character.name} wowClass={character.wowClass} size={28} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold" style={{ color: CLASS_COLORS[character.wowClass].onInk }}>{character.name}</p>
-                      <p className="truncate text-[13px] text-fg-3">{CLASS_COLORS[character.wowClass].label} · {character.spec} · {ROLE_LABELS[character.role]}</p>
+                      <p className="break-words text-sm font-semibold" style={{ color: CLASS_COLORS[character.wowClass].onInk }}>{character.name}</p>
+                      <p className="break-words text-[13px] text-fg-3">{CLASS_COLORS[character.wowClass].label} · {character.spec} · {ROLE_LABELS[character.role]} · {levelText(character.level)}</p>
                     </div>
                     {character.isMain && <span className="text-small text-fg-3">{MEMBER_EDITOR.main}</span>}
                     <Button variant="secondary" size="sm" onClick={() => setEditing({ kind: 'edit', character: { ...character, rank } })} aria-label={`Edit ${character.name}`}>{MEMBER_EDITOR.edit}</Button>

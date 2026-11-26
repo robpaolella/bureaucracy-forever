@@ -1,5 +1,7 @@
 /** Copy for the raid detail page (docs/04 § Raid detail). */
 
+import { RAID_LEVEL } from '@/lib/character-level';
+
 export const RAID_EYEBROW = 'Raid';
 export const BACK_TO_CALENDAR = 'Back to the calendar';
 
@@ -143,4 +145,17 @@ export const CHARACTER_QUESTION = {
   cancel: 'Cancel',
   accept: 'Accept',
   tentative: 'Tentative',
+};
+
+/** The question before signing up with, or bringing, a character known to be under level 60 (#567). */
+export const UNDER_60 = {
+  warning: (name: string, level: number) => `${name} is level ${level}, not yet ${RAID_LEVEL}.`,
+  signUpTitle: (name: string) => `Sign up with ${name}?`,
+  signUpBody: (name: string, level: number) => `${name} is level ${level}, not yet ${RAID_LEVEL}. Sign up anyway?`,
+  signUpAnyway: 'Sign up anyway',
+  cancel: 'Cancel',
+  bringTitle: (name: string) => `Bring ${name}?`,
+  bringBody: (name: string, level: number) => `${name} is level ${level}, not yet ${RAID_LEVEL}. Bring ${name} anyway?`,
+  keep: (name: string) => `Keep ${name}`,
+  bring: (name: string) => `Bring ${name}`,
 };

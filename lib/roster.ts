@@ -7,7 +7,8 @@ import type { Rank } from '@/components/ui/Badges';
 import type { Role, WowClass } from '@/lib/design/class-colors';
 import { ROSTER_NO_MAIN } from '@/content/roster';
 
-export type RosterAlt = { id: string; name: string; wowClass: WowClass; spec: string; role: Role };
+/** `level` is the fresh level (lib/character-level.ts); null is unknown. */
+export type RosterAlt = { id: string; name: string; wowClass: WowClass; spec: string; role: Role; level: number | null };
 
 export type RosterRow = {
   id: string;
@@ -21,6 +22,8 @@ export type RosterRow = {
   wowClass: WowClass | null;
   spec: string | null;
   role: Role | null;
+  /** The main's fresh level; null when unknown or without a main. */
+  level: number | null;
   rank: Rank;
   /** 0–1, or null before the first raid is recorded. */
   attendance: number | null;

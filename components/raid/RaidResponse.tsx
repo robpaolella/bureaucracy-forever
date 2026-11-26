@@ -10,9 +10,10 @@ import { CLASS_COLORS, type Role } from '@/lib/design/class-colors';
 import { responseToast, type RaidCard, type RaidResponse } from '@/lib/raids';
 import { signupsClosed } from '@/lib/raid-detail';
 import { SAVE_FAILED } from '@/content/calendar';
-import { RESPONSE_NOTES } from '@/content/raid';
+import { RESPONSE_NOTES, UNDER_60 } from '@/content/raid';
+import { isUnderRaidLevel } from '@/lib/roster-level';
 import { RESERVES } from '@/content/reserves';
-import { useCharacterQuestion, type QuestionCharacter } from './CharacterQuestion';
+import { UnderLevelWindow, useCharacterQuestion, type QuestionCharacter } from './CharacterQuestion';
 
 const RESPONSE_OPTIONS = [
   { value: 'accept', label: 'Accept', tone: 'ok' },
@@ -48,6 +49,8 @@ export function RaidResponseControl({ raid: initial, viewer, characters, default
   const [selectedId, setSelectedId] = useState(broughtId ?? '');
   const [selectedBroughtId, setSelectedBroughtId] = useState(broughtId);
   const [lockedBySwitch, setLockedBySwitch] = useState(false);
+  /** A switch to a character under level 60, waiting for the member's go-ahead. */
+  const [bringAsk, setBringAsk] = useState<QuestionCharacter | null>(null);
   // A router refresh supplies the saved choice as a new prop. Reset during render so the
   // browser never paints a stale local choice, while a pending local switch remains intact.
   if (broughtId !== selectedBroughtId) {
@@ -83,10 +86,19 @@ export function RaidResponseControl({ raid: initial, viewer, characters, default
   const canChooseCharacter = characters.length > 1 && (raid.mine === 'accept' || raid.mine === 'tentative');
   const brought = characters.find((character) => character.id === selectedId) ?? characters.find((character) => character.id === broughtId);
 
-  async function chooseCharacter(characterId: string) {
+  function chooseCharacter(characterId: string) {
     if (!brought || characterId === brought.id) return;
     const character = characters.find((candidate) => candidate.id === characterId);
     if (!character) return;
+    if (isUnderRaidLevel(character.level)) {
+      setBringAsk(character);
+      return;
+    }
+    void switchTo(character);
+  }
+
+  async function switchTo(character: QuestionCharacter) {
+    const characterId = character.id;
     const previousId = selectedId;
     setSelectedId(characterId);
     const result = await switchCharacter(raid.id, character.id, character.role);
@@ -130,7 +142,7 @@ export function RaidResponseControl({ raid: initial, viewer, characters, default
                 className={`${CONTROL} h-[46px] px-3`}
                 value={selectedId}
                 disabled={pending.has(raid.id)}
-                onChange={(event) => void chooseCharacter(event.target.value)}
+                onChange={(event) => chooseCharacter(event.target.value)}
               >
                 {characters.map((character) => <option key={character.id} value={character.id}>{character.name} · {CLASS_COLORS[character.wowClass].label}</option>)}
               </select>
@@ -140,6 +152,17 @@ export function RaidResponseControl({ raid: initial, viewer, characters, default
         </>
       )}
       {question}
+      <UnderLevelWindow
+        ask={bringAsk && bringAsk.level !== null && brought
+          ? { title: UNDER_60.bringTitle(bringAsk.name), body: UNDER_60.bringBody(bringAsk.name, bringAsk.level), cancel: UNDER_60.keep(brought.name), confirm: UNDER_60.bring(bringAsk.name) }
+          : null}
+        onCancel={() => setBringAsk(null)}
+        onConfirm={() => {
+          const character = bringAsk;
+          setBringAsk(null);
+          if (character) void switchTo(character);
+        }}
+      />
       {reserveWindow}
       <Toast toast={toast} onDismiss={() => setToast(null)} />
     </div>

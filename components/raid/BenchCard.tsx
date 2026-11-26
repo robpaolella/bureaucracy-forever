@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button, ClassAvatar, SourceBadge, useToast } from '@/components/ui';
 import { CLASS_COLORS } from '@/lib/design/class-colors';
+import { raidRowMeta } from '@/lib/roster-level';
 import type { DetailRow } from '@/lib/raid-detail';
 import { SAVE_FAILED } from '@/content/calendar';
 import { ANSWER_LABEL, BENCH, UNKNOWN_MAIN } from '@/content/raid';
@@ -62,7 +63,7 @@ export function BenchCard({ raidId, rows, officer }: Props) {
         <ul className="divide-y divide-line-faint">
           {rows.map((row) => {
             const color = row.wowClass ? CLASS_COLORS[row.wowClass].onInk : undefined;
-            const meta = row.wowClass ? [row.character, CLASS_COLORS[row.wowClass].label, row.spec].filter(Boolean).join(' · ') : UNKNOWN_MAIN;
+            const meta = row.wowClass ? raidRowMeta([row.character, CLASS_COLORS[row.wowClass].label, row.spec], row.level) : UNKNOWN_MAIN;
             if (manage) {
               return (
                 <li key={row.userId} className="flex flex-col gap-2 py-3">

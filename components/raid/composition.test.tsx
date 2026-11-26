@@ -32,8 +32,18 @@ describe('composition displays', () => {
     expect(html).toContain('7<span class="sr-only"> of 25 needed</span>');
   });
 
+  it('roster rows name a level only when it is known and under 60', () => {
+    const row = (name: string, level: number | null): DetailRow => ({ userId: name, name, character: `${name} Quill`, wowClass: 'mage', spec: 'Fire', role: 'ranged', level, standing: 'ROSTER', response: 'accept', attended: null, source: 'web', reason: null, setBy: null, updatedAt: '2030-01-01T00:00:00Z' });
+    const html = renderToStaticMarkup(<RosterByRole raidId="r" rows={[row('Low', 52), row('Full', 60), row('Unknown', null)]} now="2030-01-02T00:00:00Z" canAnswerFor={false} showAttendance={false} officer={false} posted open />);
+    expect(html).toContain('Low Quill · Mage · Fire · Level 52');
+    expect(html).toContain('Full Quill · Mage · Fire<');
+    expect(html).toContain('Unknown Quill · Mage · Fire<');
+    expect(html).not.toContain('Level 60');
+    expect(html).not.toContain('Level unknown');
+  });
+
   it('the sign-up list groups Tanks, Healers and DPS', () => {
-    const row = (name: string, role: DetailRow['role']): DetailRow => ({ userId: name, name, character: name, wowClass: 'mage', spec: 'Fire', role, standing: 'ROSTER', response: 'accept', attended: null, source: 'web', reason: null, setBy: null, updatedAt: '2030-01-01T00:00:00Z' });
+    const row = (name: string, role: DetailRow['role']): DetailRow => ({ userId: name, name, character: name, wowClass: 'mage', spec: 'Fire', role, level: null, standing: 'ROSTER', response: 'accept', attended: null, source: 'web', reason: null, setBy: null, updatedAt: '2030-01-01T00:00:00Z' });
     const html = renderToStaticMarkup(<RosterByRole raidId="r" rows={[row('A', 'melee'), row('B', 'ranged'), row('C', 'tank'), row('D', null)]} now="2030-01-02T00:00:00Z" canAnswerFor={false} showAttendance={false} officer={false} posted open />);
     const heads = [...html.matchAll(/<h3[^>]*>(.*?)<span/g)].map((m) => m[1]);
     expect(heads).toEqual(['Tank', 'Healer', 'DPS', 'No main set', 'No response', 'Absent']);

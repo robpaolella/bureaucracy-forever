@@ -28,7 +28,8 @@ export function rng(seed: number): () => number {
 export type SeedRank = 'OFFICER' | 'RAIDER' | 'TRIAL' | 'SOCIAL';
 export type SeedRole = 'SOCIAL' | 'MEMBER' | 'OFFICER';
 
-export type SeedAlt = { name: string; wowClass: WowClassKey; spec: string; raidRole: RaidRoleKey };
+/** `level` is a sample level looked up at seed time; omitted means unknown. */
+export type SeedAlt = { name: string; wowClass: WowClassKey; spec: string; raidRole: RaidRoleKey; level?: number };
 
 export type SeedMember = {
   name: string;
@@ -42,6 +43,8 @@ export type SeedMember = {
   /** 0–1 */
   attendance: number;
   joinedDaysAgo: number;
+  /** The main's sample level; omitted means unknown. */
+  level?: number;
   alts: SeedAlt[];
 };
 
@@ -126,12 +129,14 @@ export function buildRoster(): SeedMember[] {
       attendance: isSocial ? 0 : isTrial ? 0.7 + random() * 0.2 : 0.82 + random() * 0.18,
       joinedDaysAgo: isTrial ? Math.floor(random() * 14) : 30 + Math.floor(random() * 700),
       // Invented stationery-themed characters; Redtape is the member-session fixture.
+      // Sample levels for the under-60 states: Redtape's alts are 52, 60 and unknown.
+      level: i < 2 ? 60 : undefined,
       alts: i === 0 ? [
         { name: 'Inkwell', wowClass: 'mage', spec: 'Frost', raidRole: 'ranged' },
         { name: 'Sealwax', wowClass: 'priest', spec: 'Holy', raidRole: 'healer' },
       ] : i === 1 ? [
-        { name: 'Blotter', wowClass: 'warlock', spec: 'Affliction', raidRole: 'ranged' },
-        { name: 'Carbonleaf', wowClass: 'rogue', spec: 'Combat', raidRole: 'melee' },
+        { name: 'Blotter', wowClass: 'warlock', spec: 'Affliction', raidRole: 'ranged', level: 52 },
+        { name: 'Carbonleaf', wowClass: 'rogue', spec: 'Combat', raidRole: 'melee', level: 60 },
         { name: 'Deskstamp', wowClass: 'paladin', spec: 'Holy', raidRole: 'healer' },
         { name: 'Filetab', wowClass: 'hunter', spec: 'Beast Mastery', raidRole: 'ranged' },
         { name: 'Inktray', wowClass: 'shaman', spec: 'Restoration', raidRole: 'healer' },

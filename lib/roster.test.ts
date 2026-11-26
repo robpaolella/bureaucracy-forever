@@ -9,6 +9,7 @@ const row = (name: string, extra: Partial<RosterRow> = {}): RosterRow => ({
   wowClass: 'warrior',
   spec: 'Fury',
   role: 'melee',
+  level: 60,
   rank: 'raider',
   attendance: 0.9,
   joinedAt: '2026-01-01T00:00:00Z',
@@ -40,7 +41,7 @@ describe('filterRoster', () => {
 });
 
 describe('alts', () => {
-  const alts: RosterRow['alts'] = [{ id: 'alt', name: 'Inkwell', wowClass: 'rogue', spec: 'Combat', role: 'melee' }, { id: 'alt2', name: 'Inktray', wowClass: 'shaman', spec: 'Restoration', role: 'healer' }];
+  const alts: RosterRow['alts'] = [{ id: 'alt', name: 'Inkwell', wowClass: 'rogue', spec: 'Combat', role: 'melee', level: 60 }, { id: 'alt2', name: 'Inktray', wowClass: 'shaman', spec: 'Restoration', role: 'healer', level: 60 }];
 
   it('finds alt-name matches only, case-insensitively, and ignores empty search', () => {
     expect(matchingAltNames(alts, ' INK ')).toEqual(['Inkwell', 'Inktray']);

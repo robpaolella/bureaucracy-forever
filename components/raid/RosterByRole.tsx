@@ -7,6 +7,7 @@ import { ANSWER_LABEL, ROSTER, SET_BY, UNKNOWN_MAIN } from '@/content/raid';
 import { AnswerFor } from './AnswerFor';
 import { ManageGate } from './ManageSignups';
 import { RosterLists } from './RosterLists';
+import { raidRowMeta } from '@/lib/roster-level';
 
 type Props = {
   raidId: string;
@@ -78,7 +79,7 @@ export function RosterByRole({ raidId, rows, now, canAnswerFor, showAttendance, 
 
 function Row({ raidId, row, at, canAnswerFor, showAttendance }: { raidId: string; row: DetailRow; at: Date; canAnswerFor: boolean; showAttendance: boolean }) {
   const color = row.wowClass ? CLASS_COLORS[row.wowClass].onInk : undefined;
-  const meta = row.wowClass ? [row.character, CLASS_COLORS[row.wowClass].label, row.spec].filter(Boolean).join(' · ') : UNKNOWN_MAIN;
+  const meta = row.wowClass ? raidRowMeta([row.character, CLASS_COLORS[row.wowClass].label, row.spec], row.level) : UNKNOWN_MAIN;
   const answer = <span className={cn('text-sm font-semibold', row.response ? ANSWER_TONE[row.response] : 'text-fg-3')}>{row.response ? ANSWER_LABEL[row.response] : ROSTER.noAnswer}</span>;
   return (
     <li className={cn('flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2', row.response === 'absent' && 'opacity-60')}>

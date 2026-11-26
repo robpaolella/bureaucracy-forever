@@ -33,8 +33,8 @@ const member: EditorMember = {
   userId: 'member-1',
   discordName: 'Paperclip',
   rank: 'raider',
-  main: { id: 'main-1', name: 'Red Tape', wowClass: 'warrior', spec: 'Protection', role: 'tank', rank: 'raider' },
-  alts: [{ id: 'alt-1', name: 'Blue Ink', wowClass: 'mage', spec: 'Frost', role: 'ranged', rank: 'raider' }],
+  main: { id: 'main-1', name: 'Red Tape', wowClass: 'warrior', spec: 'Protection', role: 'tank', rank: 'raider', level: 60 },
+  alts: [{ id: 'alt-1', name: 'Blue Ink', wowClass: 'mage', spec: 'Frost', role: 'ranged', rank: 'raider', level: 52 }],
 };
 
 function render(members: EditorMember[] = [member]) {
@@ -56,6 +56,20 @@ function button(label: string) {
 function form() { return view().find((n) => n.type === CharacterForm)!.props; }
 function openAlts() { (view().find((n) => n.type === AltsToggle)!.props.onToggle as () => void)(); }
 function start() { hooks.values = []; return vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}'))); }
+
+describe('RosterEditor levels', () => {
+  it('shows the main and every alt with a level, Level unknown when missing, warning colour under 60', () => {
+    const html = render([{ ...member, main: { ...member.main!, level: null }, alts: [{ ...member.alts[0], level: 52 }] }]);
+    expect(html).toContain('Red Tape · Warrior · Protection · Tank · <span class="whitespace-nowrap">Level unknown</span>');
+    expect(html).not.toContain('Level 60');
+    // The alts list is closed until opened, so check an open view too.
+    start(); openAlts();
+    const alt = view().find((n) => n.props['aria-label'] === 'Alts for Paperclip');
+    expect(alt).toBeDefined();
+    const text = renderToStaticMarkup(<>{alt!.props.children as ReactNode}</>);
+    expect(text).toContain('<span class="whitespace-nowrap text-warn">Level 52</span>');
+  });
+});
 
 describe('RosterEditor actions', () => {
   it('adds an alt for the selected member with no rank picker', async () => {

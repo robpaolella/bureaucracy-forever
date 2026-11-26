@@ -79,6 +79,7 @@ async function main() {
             raidRole: RAID_ROLE[m.raidRole],
             rank: m.rank,
             attendance: m.attendance,
+            ...(m.level ? { level: m.level, levelCheckedAt: now } : {}),
             joinedAt: new Date(now.getTime() - m.joinedDaysAgo * 86_400_000),
           },
         },
@@ -88,7 +89,7 @@ async function main() {
     users.push({ id: user.id, characterId: user.characters[0].id, role: m.role, raidRole: m.raidRole, timezone: m.timezone, name: m.name });
     // Keep the main's id above for signups; extra sample characters are never mains.
     if (m.alts.length) await db.character.createMany({
-      data: m.alts.map((alt) => ({ userId: user.id, name: alt.name, class: CLASS[alt.wowClass], spec: alt.spec, raidRole: RAID_ROLE[alt.raidRole], rank: m.rank, isMain: false })),
+      data: m.alts.map((alt) => ({ userId: user.id, name: alt.name, class: CLASS[alt.wowClass], spec: alt.spec, raidRole: RAID_ROLE[alt.raidRole], rank: m.rank, isMain: false, ...(alt.level ? { level: alt.level, levelCheckedAt: now } : {}) })),
     });
     // Most members have painted; a few have not (drives the "Not submitted" states).
     if (m.role !== 'SOCIAL' && random() < 0.88) {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { freshLevel } from '@/lib/character-level';
 import { addAlt, addMain } from '@/lib/characters';
 import { error, NO_STORE, resultResponse, viewer } from './shared';
 
@@ -8,11 +9,11 @@ export async function GET() {
   if (v.denied) return v.denied;
   const characters = v.user ? await db.character.findMany({
     where: { userId: v.user.id },
-    select: { id: true, name: true, class: true, spec: true, raidRole: true, isMain: true },
+    select: { id: true, name: true, class: true, spec: true, raidRole: true, isMain: true, level: true, levelCheckedAt: true },
     orderBy: [{ isMain: 'desc' }, { name: 'asc' }],
   }) : [];
   // isDefault: the character a first Accept/Tentative brings when none is chosen.
-  return NextResponse.json(characters.map((c) => ({ ...c, isDefault: c.id === v.user?.defaultCharacterId })), { headers: NO_STORE });
+  return NextResponse.json(characters.map(({ levelCheckedAt, ...c }) => ({ ...c, level: freshLevel({ level: c.level, levelCheckedAt }), isDefault: c.id === v.user?.defaultCharacterId })), { headers: NO_STORE });
 }
 
 export async function POST(request: Request) {
