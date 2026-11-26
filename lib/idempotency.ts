@@ -3,7 +3,6 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Prisma } from '@/lib/generated/prisma/client';
-import { LEVEL_REPLAY_SCRUB_AFTER_MS } from '@/lib/character-level';
 
 export const IDEMPOTENCY_HEADER = 'idempotency-key';
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
@@ -33,6 +32,28 @@ function response(status: number, body: Record<string, unknown>, replay = false)
   return [204, 205, 304].includes(status)
     ? new NextResponse(null, { status, headers })
     : NextResponse.json(body, { status, headers });
+}
+
+/**
+ * A reply as stored for replay: without the character level fields (`level`, `underRaidLevel`),
+ * so a replay never keeps a level past Blizzard's 30-day limit, even when ticks stop (#566).
+ * The original response keeps them; a replay reads the level as unknown, which the bot tolerates
+ * (SYNC-SPEC §4). They sit on `character` (character switch) or `viewer.character` (sign-up).
+ */
+export function storable(body: Record<string, unknown>): Prisma.InputJsonValue {
+  const strip = (value: unknown): unknown => {
+    if (typeof value !== 'object' || value === null) return value;
+    const rest = { ...(value as Record<string, unknown>) };
+    delete rest.level;
+    delete rest.underRaidLevel;
+    return rest;
+  };
+  const viewer = body.viewer;
+  return {
+    ...body,
+    ...('character' in body ? { character: strip(body.character) } : {}),
+    ...(typeof viewer === 'object' && viewer !== null && 'character' in viewer ? { viewer: { ...viewer, character: strip((viewer as { character: unknown }).character) } } : {}),
+  } as Prisma.InputJsonValue;
 }
 
 export function reply(status: number, body: Record<string, unknown>): Reply {
@@ -86,7 +107,7 @@ export async function withIdempotency(request: Request, handler: (complete: Comp
   const mine = { key, statusCode: CLAIMED, createdAt: claimed.claimedAt };
   const complete: Complete = async (tx, r) => {
     if (r.status >= 500) return r;
-    const done = await tx.botRequest.updateMany({ where: mine, data: { statusCode: r.status, body: r.body as Prisma.InputJsonValue } });
+    const done = await tx.botRequest.updateMany({ where: mine, data: { statusCode: r.status, body: storable(r.body) } });
     if (done.count !== 1) throw new Error(`Idempotency-Key ${key} is no longer claimed by this request.`);
     return r;
   };
@@ -100,21 +121,6 @@ export async function withIdempotency(request: Request, handler: (complete: Comp
   // Both match only a claim still open: after `complete` committed they change nothing, and
   // after its transaction rolled back they store or release as for any handler.
   if (r.status >= 500) await db.botRequest.deleteMany({ where: mine });
-  else await db.botRequest.updateMany({ where: mine, data: { statusCode: r.status, body: r.body as Prisma.InputJsonValue } });
+  else await db.botRequest.updateMany({ where: mine, data: { statusCode: r.status, body: storable(r.body) } });
   return response(r.status, r.body);
-}
-
-/**
- * Removes `level` and `underRaidLevel` from stored replies older than LEVEL_REPLAY_SCRUB_AFTER_MS
- * (the character-switch reply and the sign-up viewer block carry them), so a replay never keeps
- * a level past Blizzard's 30-day limit (#566). The row stays, so the key still replays; a replay
- * just reads the level as unknown, which the bot tolerates. Returns the rows changed.
- */
-export async function scrubStoredLevels(now: Date): Promise<number> {
-  const cutoff = new Date(now.getTime() - LEVEL_REPLAY_SCRUB_AFTER_MS);
-  return db.$executeRaw`
-    UPDATE "BotRequest"
-    SET "body" = "body" #- '{character,level}' #- '{character,underRaidLevel}' #- '{viewer,character,level}' #- '{viewer,character,underRaidLevel}'
-    WHERE "createdAt" < ${cutoff} AND "statusCode" <> ${CLAIMED}
-      AND (("body" #> '{character,level}') IS NOT NULL OR ("body" #> '{viewer,character,level}') IS NOT NULL)`;
 }

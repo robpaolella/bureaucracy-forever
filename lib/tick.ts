@@ -10,7 +10,6 @@ import { applicationReminderDue, dueForClose, dueForLock, dueForPost, HOUR_MS, i
 import { lootEnabled } from '@/lib/flags';
 import { reserveLockMinutes, reservesLockAt } from '@/lib/loot-rules';
 import { DIGEST_ORDER, DIGEST_SELECT, digestKey, digestPayload, digestUsers, digestWindow } from '@/lib/interview-digest';
-import { scrubStoredLevels } from '@/lib/idempotency';
 import { refreshCharacterLevels } from '@/lib/character-level-refresh';
 import { reserveReminderDue, reserveReminderRecipients } from '@/lib/reserve-reminder';
 
@@ -331,7 +330,6 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
     const cutoff = new Date(now.getTime() - RETENTION_DAYS * 24 * HOUR_MS);
     await db.outboxJob.deleteMany({ where: { status: { in: ['DONE', 'FAILED'] }, createdAt: { lt: cutoff } } });
     await db.botRequest.deleteMany({ where: { createdAt: { lt: cutoff }, key: { not: RECONCILE_MARKER } } });
-    await scrubStoredLevels(now);
     const raids = await db.raid.findMany({ where: { discordThreadId: { not: null }, status: { in: ['LOCKED', 'DONE', 'CANCELLED'] }, startsAt: { gt: new Date(now.getTime() - 14 * 24 * HOUR_MS) } }, select: { id: true } });
     const apps = await db.application.findMany({ where: { discordThreadId: { not: null }, status: { in: ['ACCEPTED', 'DECLINED'] }, createdAt: { gt: new Date(now.getTime() - 30 * 24 * HOUR_MS) } }, select: { id: true } });
     for (const r of raids) await enqueue('raid.update', { raidId: r.id, reconcile: true });

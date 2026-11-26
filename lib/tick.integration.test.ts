@@ -11,7 +11,6 @@ vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
 vi.mock('@/lib/flags', () => ({ lootEnabled: () => false, openUntilStart: () => false }));
 import { notifyVoiceJoin, runTick } from './tick';
 import { refreshCharacterLevels } from './character-level-refresh';
-import { scrubStoredLevels } from './idempotency';
 import type { ArmoryClient, ArmoryResult } from './armory';
 
 // TICK_INTEGRATION=1 npx vitest run lib/tick.integration.test.ts
@@ -179,21 +178,6 @@ describe.skipIf(process.env.TICK_INTEGRATION !== '1')('interview tick steps on P
       expect(await refreshCharacterLevels(now)).toBe(0);
       expect(await db.character.findUniqueOrThrow({ where: { id: 'Expired One' } })).toMatchObject({ level: null, levelCheckedAt: null });
       expect(await db.character.findUniqueOrThrow({ where: { id: 'Kept One' } })).toMatchObject({ level: 55 });
-    });
-
-    it('scrubs levels from old stored replies but keeps the rows, and leaves new ones', async () => {
-      const row = (key: string, body: object, createdAt: Date, statusCode = 200) => db.botRequest.create({ data: { key, statusCode, body, createdAt } });
-      const old = new Date(Date.now() - 13 * 3_600_000);
-      await row('sw-old', { character: { id: 'c', name: 'A B', level: 42, underRaidLevel: true }, removedReserves: [] }, old);
-      await row('vw-old', { raidId: 'r', viewer: { character: { id: 'c', level: null, underRaidLevel: false }, standing: 'ROSTER' } }, old);
-      await row('sw-new', { character: { id: 'c', level: 42, underRaidLevel: true } }, new Date());
-      await row('plain', { ok: true }, old);
-      await scrubStoredLevels(new Date());
-      const body = async (key: string) => (await db.botRequest.findUniqueOrThrow({ where: { key } })).body;
-      expect(await body('sw-old')).toEqual({ character: { id: 'c', name: 'A B' }, removedReserves: [] });
-      expect(await body('vw-old')).toEqual({ raidId: 'r', viewer: { character: { id: 'c' }, standing: 'ROSTER' } });
-      expect(await body('sw-new')).toEqual({ character: { id: 'c', level: 42, underRaidLevel: true } });
-      expect(await body('plain')).toEqual({ ok: true });
     });
   });
 });
