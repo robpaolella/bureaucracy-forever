@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const store = vi.hoisted(() => ({ user: vi.fn(), transaction: vi.fn(), lookup: vi.fn() }));
 vi.mock('@/lib/armory-store', () => ({ queueLevelLookup: store.lookup }));
 vi.mock('@/lib/db', () => ({ db: { user: { findUnique: store.user }, $transaction: store.transaction } }));
-vi.mock('@/lib/roles-sync', () => ({ refreshPostedRaidsFor: vi.fn() }));
+const refresh = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/roles-sync', () => ({ refreshPostedRaidsFor: refresh }));
 import { PUT } from './route';
 
 const discordId = '100000000000000001';
@@ -118,6 +119,13 @@ describe('PUT /api/bot/members/:discordId/main', () => {
       expect((await call({ ...input, spec: 'Fire' })).status).toBe(200);
       expect(tx.character.update.mock.calls[0][0].data).not.toHaveProperty('level');
       expect(store.lookup).not.toHaveBeenCalled();
+    });
+
+    it('queues the lookup even when the raid refresh after the save fails', async () => {
+      tx.character.findFirst.mockResolvedValue({ id: 'main', name: 'Old Name', class: 'MAGE', raidRole: 'MELEE' });
+      refresh.mockRejectedValue(new Error('refresh failed'));
+      await expect(call(input)).rejects.toThrow('refresh failed');
+      expect(store.lookup).toHaveBeenCalledExactlyOnceWith('main');
     });
 
     it('queues none for a refused name', async () => {

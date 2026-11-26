@@ -50,8 +50,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ disc
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
       if (outcome.taken) return reply(409, { reason: `Someone on the roster is already called ${data.name}.` });
-      if (outcome.roleChanged) await refreshPostedRaidsFor(user.id);
+      // Queued before the raid refresh, so a failure there can't skip it.
       if (outcome.lookUp) queueLevelLookup(outcome.main.id);
+      if (outcome.roleChanged) await refreshPostedRaidsFor(user.id);
       const { main } = outcome;
       return reply(200, { discordId, main: { name: main.name, class: main.class.toLowerCase(), spec: main.spec, raidRole: main.raidRole.toLowerCase() }, rank: user.rank.toLowerCase() });
     } catch (e) {

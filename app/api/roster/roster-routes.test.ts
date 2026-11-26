@@ -185,3 +185,11 @@ it('looks up a new alt and a renamed character, not a retry or an edit that keep
   expect(mocks.update).toHaveBeenLastCalledWith({ where: { id: 'character' }, data: expect.objectContaining({ name: 'Fresh Name', level: null, levelCheckedAt: null, levelAttemptedAt: null }) });
   expect(mocks.lookup.mock.calls).toEqual([['character'], ['character']]);
 });
+
+it('queues the new main\'s lookup even when the rank step after the save fails (#569)', async () => {
+  mocks.user.mockResolvedValue({ id: 'member', characters: [] });
+  mocks.create.mockResolvedValue({ id: 'character', name: 'Sample Name' });
+  mocks.rank.mockRejectedValue(new Error('roles unavailable'));
+  await expect(POST(request('POST'))).rejects.toThrow('roles unavailable');
+  expect(mocks.lookup).toHaveBeenCalledExactlyOnceWith('character');
+});
