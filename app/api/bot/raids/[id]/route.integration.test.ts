@@ -166,7 +166,14 @@ describe.skipIf(process.env.RAID_VIEW_INTEGRATION !== '1')('GET /api/bot/raids/:
     expect(await client.reserve.findMany({ where: { raidId: 'removals' } })).toMatchObject([{ kind: 'SR', characterId: 'alt' }]);
     const replay = await answer('removals', { characterId: 'alt' }, 'choose-alt');
     expect(replay.headers.get('Idempotent-Replay')).toBe('true');
-    expect(await replay.json()).toEqual(body);
+    const replayBody = await replay.json();
+    expect(body.viewer.character).toMatchObject({ level: null, underRaidLevel: false });
+    expect(replayBody.viewer.character).not.toHaveProperty('level');
+    expect(replayBody.viewer.character).not.toHaveProperty('underRaidLevel');
+    expect(replayBody).toEqual({
+      ...body,
+      viewer: { ...body.viewer, character: Object.fromEntries(Object.entries(body.viewer.character).filter(([key]) => key !== 'level' && key !== 'underRaidLevel')) },
+    });
     expect((await (await answer('removals', { characterId: 'alt' })).json()).removedReserves).toEqual([]);
   });
 

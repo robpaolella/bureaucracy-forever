@@ -44,7 +44,7 @@ describe.skipIf(process.env.CHARACTER_SWITCH_INTEGRATION !== '1')('character swi
     }
     db = new PrismaClient({ adapter: new PrismaPg(pool) }); state.db = db;
   }, 120_000);
-  afterAll(async () => { await db?.$disconnect(); await pool?.end(); if (container) docker('stop', container); });
+  afterAll(async () => { await db?.$disconnect(); await pool?.end(); if (container) docker('stop', container); }, 120_000);
   beforeEach(async () => {
     await pool.query('TRUNCATE "User", "Raid", "RaidTemplate", "LootItem", "OutboxJob" CASCADE');
     state.session = { discordId: 'member', role: 'member' }; state.loot = true;
