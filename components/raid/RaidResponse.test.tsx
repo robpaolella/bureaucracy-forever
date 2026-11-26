@@ -222,7 +222,7 @@ describe('RaidResponseControl character question', () => {
     expect(bodyOf()).toEqual({ response: 'accept', characterId: 'main' });
     await click(button('Undo'));
     expect(dialog().open).toBe(false);
-    expect(bodyOf(1)).toEqual({ response: 'absent' });
+    expect(bodyOf(1)).toEqual({ response: 'absent', keepCharacter: true });
   });
 });
 

@@ -86,7 +86,7 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
           fetch(`/api/raids/${id}/signup`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(choice ? { response, characterId: choice.characterId, ...(choice.makeDefault && { makeDefault: true }) } : { response }),
+            body: JSON.stringify(choice ? { response, characterId: choice.characterId, ...(choice.makeDefault && { makeDefault: true }) } : { response, ...(!remember && response !== null && { keepCharacter: true }) }),
             credentials: 'same-origin',
           }),
         )

@@ -13,12 +13,14 @@ const RESPONSE_ENUM = { accept: 'ACCEPT', tentative: 'TENTATIVE', absent: 'ABSEN
 
 /**
  * PUT /api/raids/[id]/signup — the viewer's own answer to a raid (docs/06 § API routes).
- * Body `{ response: "accept" | "tentative" | "absent" | null, reason?, characterId?, makeDefault? }`;
+ * Body `{ response: "accept" | "tentative" | "absent" | null, reason?, characterId?, makeDefault?, keepCharacter? }`;
  * null withdraws the answer, which is what Undo sends when there was none before (Undo
  * restores the answer only, never the character or default). `characterId` (Accept or
  * Tentative only) is the character brought; without it a first Accept/Tentative brings
  * the member's default (lib/signup-rules.ts). `makeDefault: true` also saves it as the
- * member's default, never with `forUserId`. Writes carry
+ * member's default, never with `forUserId`. `keepCharacter: true` (what Undo sends with a
+ * restored answer) changes the answer only and brings no character, so the default rule
+ * never applies; it is refused with `characterId` or `makeDefault`. Writes carry
  * `source: WEB`; the last write wins on updatedAt (docs/06 § Discord bot sync). Members
  * only: socials do not sign up (docs/03 § Roles). Officers may pass `forUserId` to answer
  * on a member's behalf (docs/04 § Raid detail); that write records `setBy`. Returns the
@@ -31,7 +33,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const body: unknown = await request.json().catch(() => null);
-  const b = body && typeof body === 'object' ? (body as { response?: unknown; reason?: unknown; forUserId?: unknown; characterId?: unknown; makeDefault?: unknown }) : {};
+  const b = body && typeof body === 'object' ? (body as { response?: unknown; reason?: unknown; forUserId?: unknown; characterId?: unknown; makeDefault?: unknown; keepCharacter?: unknown }) : {};
   if (b.response !== null && !isRaidResponse(b.response)) {
     return NextResponse.json({ error: 'response must be "accept", "tentative", "absent" or null.' }, { status: 400, headers: NO_STORE });
   }
@@ -42,6 +44,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const makeDefault = b.makeDefault === true;
   if (makeDefault && !characterId) return NextResponse.json({ error: 'Pick the character to sign up with every time.' }, { status: 400, headers: NO_STORE });
   if (makeDefault && b.forUserId != null) return NextResponse.json({ error: 'Only the member can set their own default character.' }, { status: 400, headers: NO_STORE });
+  if (b.keepCharacter !== undefined && typeof b.keepCharacter !== 'boolean') return NextResponse.json({ error: 'keepCharacter must be true or false.' }, { status: 400, headers: NO_STORE });
+  const keepCharacter = b.keepCharacter === true;
+  if (b.keepCharacter !== undefined && (b.characterId != null || b.makeDefault !== undefined)) return NextResponse.json({ error: 'Keeping the character cannot come with choosing one.' }, { status: 400, headers: NO_STORE });
   const reason = typeof b.reason === 'string' && b.reason.trim() ? b.reason.trim().slice(0, 200) : null;
   const forUserId = typeof b.forUserId === 'string' && b.forUserId ? b.forUserId : null;
   if (forUserId && session.role !== 'officer') {
@@ -94,7 +99,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     // character it brings gets the same override.
     const actor = { role: setByUserId ? 'officer' as const : session.role };
     const result = await answerSignup({
-      raid, userId: targetId, actor, officerOverride: setByUserId !== null, characterId, makeDefault,
+      raid, userId: targetId, actor, officerOverride: setByUserId !== null, characterId, makeDefault, keepCharacter,
       notOwned: setByUserId
         ? 'That character is no longer available for this member. Choose another and try again.'
         : 'That character is no longer available. Choose another and try again.',

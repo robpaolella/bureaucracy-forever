@@ -153,6 +153,11 @@ describe.skipIf(process.env.SIGNUP_DEFAULT_INTEGRATION !== '1')('default sign-up
       ['a character with Absent', { response: 'absent', characterId: 'alt' }, 'member', undefined],
       ['a character with a withdrawal', { response: null, characterId: 'alt' }, 'member', undefined],
       ['makeDefault without a character', { response: 'accept', makeDefault: true }, 'member', undefined],
+      ['keepCharacter that is not a boolean', { response: 'accept', keepCharacter: 'yes' }, 'member', undefined],
+      ['keepCharacter with a character', { response: 'accept', characterId: 'alt', keepCharacter: true }, 'member', undefined],
+      ['keepCharacter with makeDefault', { response: 'accept', makeDefault: true, keepCharacter: true }, 'member', undefined],
+      ['keepCharacter: false with a character', { response: 'accept', characterId: 'alt', keepCharacter: false }, 'member', undefined],
+      ['keepCharacter: false with makeDefault', { response: 'accept', makeDefault: true, keepCharacter: false }, 'member', undefined],
       ['an officer\'s character for someone else', { response: 'accept', characterId: 'foreign', forUserId: 'member' }, 'officer', 'That character is no longer available for this member. Choose another and try again.'],
     ])('refuses %s with 400 and writes nothing', async (_name, body, as, expectedError) => {
       const result = await web(body, as);
@@ -161,6 +166,30 @@ describe.skipIf(process.env.SIGNUP_DEFAULT_INTEGRATION !== '1')('default sign-up
       else expect(result.body.error).toEqual(expect.any(String));
       expect(await row()).toMatchObject({ response: null, characterId: 'main' });
       expect(await defaultOf()).toBeNull();
+    });
+    it('Undo after Absent (keepCharacter) restores the answer and keeps the brought character, reserves and default', async () => {
+      await db.signup.update({ where: { raidId_userId: { raidId: 'raid', userId: 'member' } }, data: { response: 'ACCEPT', characterId: 'alt' } });
+      await setDefault('main');
+      await db.lootItem.create({ data: { id: 1, name: 'Sample', quality: 4, icon: 'sample', tooltipHtml: '', source: 'FOREVER', fetchedAt: new Date() } });
+      await db.reserve.create({ data: { raidId: 'raid', userId: 'member', characterId: 'alt', itemId: 1, kind: 'SR' } });
+      expect((await web({ response: 'absent' })).status).toBe(200);
+      const result = await web({ response: 'accept', keepCharacter: true });
+      expect(result).toMatchObject({ status: 200, body: { response: 'accept', characterId: 'alt' } });
+      expect(await row()).toMatchObject({ response: 'ACCEPT', characterId: 'alt' });
+      expect(await db.reserve.count({ where: { raidId: 'raid', userId: 'member', characterId: 'alt' } })).toBe(1);
+      expect(await defaultOf()).toBe('main');
+    });
+    it('a plain Absent then Accept (no keepCharacter) still brings the default', async () => {
+      await db.signup.update({ where: { raidId_userId: { raidId: 'raid', userId: 'member' } }, data: { response: 'ACCEPT', characterId: 'alt' } });
+      await setDefault('main');
+      expect((await web({ response: 'absent' })).status).toBe(200);
+      expect((await web({ response: 'accept' })).status).toBe(200);
+      expect(await brought()).toBe('main');
+    });
+    it('keepCharacter is accepted with forUserId and with a null response', async () => {
+      expect((await web({ response: 'accept', keepCharacter: true, forUserId: 'member' }, 'officer')).status).toBe(200);
+      expect((await web({ response: null, keepCharacter: true })).status).toBe(200);
+      expect(await row()).toMatchObject({ response: null, characterId: 'main' });
     });
     it('makeDefault saves the chosen character as the default in the same write', async () => {
       const result = await web({ response: 'accept', characterId: 'alt', makeDefault: true });

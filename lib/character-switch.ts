@@ -85,6 +85,8 @@ type AnswerInput = {
   characterId: string | null;
   /** Also make `characterId` the member's default. Only the member themself sets it. */
   makeDefault?: boolean;
+  /** Undo: change the answer only; the row's character stays and the default is not brought. */
+  keepCharacter?: boolean;
   /** Said when `characterId` isn't the member's. */
   notOwned: string;
   actor: Actor;
@@ -122,7 +124,7 @@ export async function answerSignup(input: AnswerInput): Promise<AnswerResult> {
       }
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { defaultCharacter: { select: { id: true, userId: true } }, characters: MAIN_CHARACTER } });
       const defaultId = user.defaultCharacter?.userId === userId ? user.defaultCharacter.id : null;
-      const target = characterToBring(existing?.response ?? null, outcome.response, input.characterId, defaultId);
+      const target = characterToBring(existing?.response ?? null, outcome.response, input.characterId, input.keepCharacter ? null : defaultId);
       if (target && raid.templateId) await lockReserveTier(tx, raid.templateId);
       const fields = input.fields(outcome);
       const saved = await tx.signup.upsert({
