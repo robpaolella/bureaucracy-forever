@@ -3,6 +3,7 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Prisma } from '@/lib/generated/prisma/client';
+import { LEVEL_REPLAY_SCRUB_AFTER_MS } from '@/lib/character-level';
 
 export const IDEMPOTENCY_HEADER = 'idempotency-key';
 const NO_STORE = { 'Cache-Control': 'private, no-store' };
@@ -101,4 +102,19 @@ export async function withIdempotency(request: Request, handler: (complete: Comp
   if (r.status >= 500) await db.botRequest.deleteMany({ where: mine });
   else await db.botRequest.updateMany({ where: mine, data: { statusCode: r.status, body: r.body as Prisma.InputJsonValue } });
   return response(r.status, r.body);
+}
+
+/**
+ * Removes `level` and `underRaidLevel` from stored replies older than LEVEL_REPLAY_SCRUB_AFTER_MS
+ * (the character-switch reply and the sign-up viewer block carry them), so a replay never keeps
+ * a level past Blizzard's 30-day limit (#566). The row stays, so the key still replays; a replay
+ * just reads the level as unknown, which the bot tolerates. Returns the rows changed.
+ */
+export async function scrubStoredLevels(now: Date): Promise<number> {
+  const cutoff = new Date(now.getTime() - LEVEL_REPLAY_SCRUB_AFTER_MS);
+  return db.$executeRaw`
+    UPDATE "BotRequest"
+    SET "body" = "body" #- '{character,level}' #- '{character,underRaidLevel}' #- '{viewer,character,level}' #- '{viewer,character,underRaidLevel}'
+    WHERE "createdAt" < ${cutoff} AND "statusCode" <> ${CLAIMED}
+      AND (("body" #> '{character,level}') IS NOT NULL OR ("body" #> '{viewer,character,level}') IS NOT NULL)`;
 }

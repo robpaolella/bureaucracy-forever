@@ -43,7 +43,7 @@ export async function refreshCharacterLevels(now: Date, client?: ArmoryClient | 
   });
   let refreshed = 0;
   for (const { id } of due) {
-    const outcome = await lookupAndStoreLevel(id, client, () => new Date());
+    const outcome = await lookupAndStoreLevel(id, client, () => now);
     if (outcome === 'failed') break;
     if (outcome === 'found' || outcome === 'not-found') refreshed += 1;
   }

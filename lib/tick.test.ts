@@ -5,11 +5,12 @@ const mocks = vi.hoisted(() => ({
   signup: { findMany: vi.fn() }, reserve: { findMany: vi.fn() },
   user: { findMany: vi.fn() }, raidSeries: { findMany: vi.fn() },
   application: { findMany: vi.fn(), updateMany: vi.fn() }, interview: { findMany: vi.fn(), updateMany: vi.fn() }, botRequest: { findUnique: vi.fn(), create: vi.fn() },
-  enqueue: vi.fn(), enabled: vi.fn(), refresh: vi.fn(),
+  enqueue: vi.fn(), enabled: vi.fn(), refresh: vi.fn(), scrub: vi.fn(),
 }));
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/db', () => ({ db: { ...mocks, $transaction: async (fn: (tx: typeof mocks) => unknown) => fn(mocks) } }));
 vi.mock('@/lib/character-level-refresh', () => ({ refreshCharacterLevels: mocks.refresh }));
+vi.mock('@/lib/idempotency', () => ({ scrubStoredLevels: mocks.scrub }));
 vi.mock('@/lib/outbox', () => ({ enqueue: mocks.enqueue }));
 vi.mock('@/lib/flags', async () => ({ ...(await vi.importActual<typeof import('@/lib/flags')>('@/lib/flags')), lootEnabled: mocks.enabled }));
 import { runTick } from './tick';

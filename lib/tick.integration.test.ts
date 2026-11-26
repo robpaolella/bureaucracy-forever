@@ -10,6 +10,9 @@ vi.mock('server-only', () => ({}));
 vi.mock('@/lib/db', () => ({ get db() { return state.db; } }));
 vi.mock('@/lib/flags', () => ({ lootEnabled: () => false, openUntilStart: () => false }));
 import { notifyVoiceJoin, runTick } from './tick';
+import { refreshCharacterLevels } from './character-level-refresh';
+import { scrubStoredLevels } from './idempotency';
+import type { ArmoryClient, ArmoryResult } from './armory';
 
 // TICK_INTEGRATION=1 npx vitest run lib/tick.integration.test.ts
 // Like characters.integration.test.ts, owns a disposable loopback-only Postgres, never an existing DB.
@@ -124,5 +127,73 @@ describe.skipIf(process.env.TICK_INTEGRATION !== '1')('interview tick steps on P
     expect(results.filter((r) => r.notified)).toEqual([{ notified: true, interviewId: 'join' }]);
     expect(await jobs('interview.joined')).toHaveLength(1);
     expect(await notifyVoiceJoin('d-app-join', at(-4))).toEqual({ notified: false });
+  });
+  describe('character levels', () => {
+    const now = new Date('2099-06-01T12:00:00.000Z');
+    const ago = (ms: number) => new Date(now.getTime() - ms);
+    const DAY = 86_400_000;
+    const character = (name: string, data: Record<string, unknown> = {}) => db.character.create({ data: { id: name, name, userId: 'u-lvl', class: 'WARRIOR', spec: 'Arms', raidRole: 'MELEE', isMain: false, ...data } as never });
+    const fake = (results: Record<string, ArmoryResult>): ArmoryClient & { asked: string[] } => {
+      const asked: string[] = [];
+      return { asked, checkKeys: async () => true, lookupLevel: async (name) => { asked.push(name); return results[name] ?? { kind: 'failed', status: 429 }; } };
+    };
+    beforeEach(async () => {
+      await db.character.deleteMany();
+      await db.user.create({ data: { id: 'u-lvl', discordId: 'd-lvl', discordName: 'lvl', rank: 'RAIDER' } });
+    });
+
+    it('a failing character goes to the back, so the next tick reaches the others', async () => {
+      await character('Aaa Failing', { levelAttemptedAt: ago(3 * DAY) });
+      await character('Bbb Working', { levelAttemptedAt: ago(2 * DAY) });
+      const client = fake({ 'Bbb Working': { kind: 'found', level: 40, status: 200 } });
+      // Tick 1: the failing one is first (oldest attempt), fails, and stops the step.
+      expect(await refreshCharacterLevels(now, client)).toBe(0);
+      expect(client.asked).toEqual(['Aaa Failing']);
+      // Tick 2: its attempt time moved it behind the other, which is refreshed.
+      expect(await refreshCharacterLevels(new Date(now.getTime() + 60_000), client)).toBe(1);
+      expect(client.asked).toEqual(['Aaa Failing', 'Bbb Working', 'Aaa Failing']);
+      expect(await db.character.findUniqueOrThrow({ where: { id: 'Bbb Working' } })).toMatchObject({ level: 40 });
+    });
+
+    it('selects only due characters, never-attempted first, and no more than five', async () => {
+      await character('Fresh Sixty', { level: 60, levelCheckedAt: ago(10 * DAY), levelAttemptedAt: ago(10 * DAY) });
+      await character('Old Sixty', { level: 60, levelCheckedAt: ago(26 * DAY), levelAttemptedAt: ago(26 * DAY) });
+      await character('Low Stale', { level: 30, levelCheckedAt: ago(2 * DAY), levelAttemptedAt: ago(2 * DAY) });
+      await character('Low Recent', { level: 30, levelCheckedAt: ago(DAY / 2), levelAttemptedAt: ago(DAY / 2) });
+      await character('Never Asked');
+      for (const n of ['Extra One', 'Extra Two', 'Extra Three', 'Extra Four']) await character(n, { levelAttemptedAt: ago(40 * DAY) });
+      const client = fake({});
+      await refreshCharacterLevels(now, client);
+      // The first lookup fails and stops the step, so only the head of the queue is asked.
+      expect(client.asked).toEqual(['Never Asked']);
+      const found = fake(Object.fromEntries(['Never Asked', 'Extra One', 'Extra Two', 'Extra Three', 'Extra Four', 'Old Sixty', 'Low Stale'].map((n) => [n, { kind: 'found', level: 61, status: 200 } as ArmoryResult])));
+      expect(await refreshCharacterLevels(now, found)).toBe(5);
+      expect(found.asked).toHaveLength(5);
+      expect(found.asked).not.toContain('Fresh Sixty');
+      expect(found.asked).not.toContain('Low Recent');
+    });
+
+    it('clears a level last confirmed over 30 days ago, with no Blizzard keys', async () => {
+      await character('Expired One', { level: 55, levelCheckedAt: ago(31 * DAY) });
+      await character('Kept One', { level: 55, levelCheckedAt: ago(29 * DAY) });
+      expect(await refreshCharacterLevels(now)).toBe(0);
+      expect(await db.character.findUniqueOrThrow({ where: { id: 'Expired One' } })).toMatchObject({ level: null, levelCheckedAt: null });
+      expect(await db.character.findUniqueOrThrow({ where: { id: 'Kept One' } })).toMatchObject({ level: 55 });
+    });
+
+    it('scrubs levels from old stored replies but keeps the rows, and leaves new ones', async () => {
+      const row = (key: string, body: object, createdAt: Date, statusCode = 200) => db.botRequest.create({ data: { key, statusCode, body, createdAt } });
+      const old = new Date(Date.now() - 13 * 3_600_000);
+      await row('sw-old', { character: { id: 'c', name: 'A B', level: 42, underRaidLevel: true }, removedReserves: [] }, old);
+      await row('vw-old', { raidId: 'r', viewer: { character: { id: 'c', level: null, underRaidLevel: false }, standing: 'ROSTER' } }, old);
+      await row('sw-new', { character: { id: 'c', level: 42, underRaidLevel: true } }, new Date());
+      await row('plain', { ok: true }, old);
+      await scrubStoredLevels(new Date());
+      const body = async (key: string) => (await db.botRequest.findUniqueOrThrow({ where: { key } })).body;
+      expect(await body('sw-old')).toEqual({ character: { id: 'c', name: 'A B' }, removedReserves: [] });
+      expect(await body('vw-old')).toEqual({ raidId: 'r', viewer: { character: { id: 'c' }, standing: 'ROSTER' } });
+      expect(await body('sw-new')).toEqual({ character: { id: 'c', level: 42, underRaidLevel: true } });
+      expect(await body('plain')).toEqual({ ok: true });
+    });
   });
 });
