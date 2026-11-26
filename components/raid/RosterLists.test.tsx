@@ -97,4 +97,3 @@ describe('RosterLists level text', () => {
     expect(host.textContent).toContain('Full Quill · Mage');
   });
 });
-
