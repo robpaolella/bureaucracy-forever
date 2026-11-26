@@ -5,9 +5,12 @@ import type { Role } from '@/lib/design/class-colors';
 import type { RemovedReserve } from '@/lib/character-switch';
 import type { Character } from '@/lib/generated/prisma/client';
 import { SAVE_FAILED } from '@/content/calendar';
+import { isFirstAnswer } from '@/lib/signup-rules';
 import { applyResponse, mergeLocal, signupRoleFor, type LocalAnswer, type RaidCard, type RaidResponse, type RoleCounts } from '@/lib/raids';
 
-type Result = { raidId: string; userId: string; response: RaidResponse | null; characterId?: string | null; counts: RoleCounts };
+type Result = { raidId: string; userId: string; response: RaidResponse | null; characterId?: string | null; role?: Role | null; counts: RoleCounts };
+/** The viewer's characters and default, so a first answer with no choice counts under the default's role, as the server will sign it up. */
+export type DefaultCharacters = { characters: readonly { id: string; role: Role }[]; defaultId: string | null };
 /** The character the member picked in the question: sent with a first Accept or Tentative; `role` feeds the optimistic counts only. */
 export type CharacterChoice = { characterId: string; role: Role; makeDefault: boolean };
 type SwitchCharacter = Pick<Character, 'id' | 'name' | 'class' | 'spec' | 'raidRole'>;
@@ -34,7 +37,7 @@ function withRole(raid: RaidCard, role: Role | null, mainRole: Role | null): Loc
  * last change; `onResult` hears whether an answer was that undo. One request per raid at a time: a newer answer supersedes an in-flight one
  * by ignoring its reply.
  */
-export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult: (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void, undone: boolean, error?: string) => void) {
+export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult: (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void, undone: boolean, error?: string) => void, defaults?: DefaultCharacters) {
   // The server's cards stay the base and only the viewer's answers ride on top, so a
   // refreshed page (a raid scheduled, another member's answer) shows up without losing
   // the optimistic state.
@@ -73,8 +76,13 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
       if (!before || before.mine === response || switching.current.has(id)) return;
       if (remember) previous.current.set(id, before.mine);
 
-      const signupRole = choice ? choice.role : before.signupRole;
-      setRaid(id, { mine: response, signupRole, counts: applyResponse(before.counts, choice && before.onRoster !== false ? choice.role : signupRoleFor(before, viewerRole), before.mine, response) });
+      // A first Accept or Tentative with no choice brings the default character (Undo keeps the brought one).
+      const defaultId = madeDefault ?? defaults?.defaultId ?? null;
+      const defaultRole = !choice && remember && response && isFirstAnswer(before.mine, response) && before.onRoster !== false && defaultId
+        ? defaults?.characters.find((c) => c.id === defaultId)?.role : undefined;
+      const brought = choice ? choice.role : defaultRole;
+      const signupRole = brought ?? before.signupRole;
+      setRaid(id, { mine: response, signupRole, counts: applyResponse(before.counts, brought && before.onRoster !== false ? brought : signupRoleFor(before, viewerRole), before.mine, response) });
       markPending(id, true);
 
       const seq = (inflight.current.get(id) ?? 0) + 1;
@@ -100,7 +108,8 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
           // The default is saved whatever happens to the answer, even one a newer answer superseded.
           if (choice?.makeDefault) setMadeDefault(choice.characterId);
           if (inflight.current.get(id) !== seq) return;
-          setRaid(id, { mine: result.response, signupRole, counts: result.counts });
+          // The server's reply names the character actually signed up; later answers move that role's count.
+          setRaid(id, { mine: result.response, signupRole: result.role === undefined ? signupRole : result.role, counts: result.counts });
           onResult(true, before, response, () => undo(id), !remember);
         })
         .catch((error: unknown) => {
@@ -111,7 +120,7 @@ export function useSignup(initial: RaidCard[], viewerRole: Role | null, onResult
         .finally(() => { if (inflight.current.get(id) === seq) markPending(id, false); });
       queue.current.set(id, run);
     },
-    [raids, viewerRole, onResult, undo, setRaid, markPending],
+    [raids, viewerRole, onResult, undo, setRaid, markPending, madeDefault, defaults],
   );
 
   useEffect(() => {
