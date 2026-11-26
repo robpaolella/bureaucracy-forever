@@ -3,15 +3,17 @@ import { beforeEach, expect, it, vi } from 'vitest';
 const m = vi.hoisted(() => ({
   session: vi.fn(), user: vi.fn(), existing: vi.fn(), list: vi.fn(), transaction: vi.fn(),
   txUser: vi.fn(), txUserOrThrow: vi.fn(), txFind: vi.fn(), pin: vi.fn(), find: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn(), count: vi.fn(), refresh: vi.fn(), job: vi.fn(),
+  setUser: vi.fn(), setUserIfOwned: vi.fn(),
 }));
 vi.mock('@/lib/session', () => ({ getSession: m.session }));
 vi.mock('@/lib/db', () => ({ db: {
-  user: { findUnique: m.user }, character: { findUnique: m.existing, findMany: m.list }, $transaction: m.transaction,
+  user: { findUnique: m.user, update: m.setUser, updateMany: m.setUserIfOwned }, character: { findUnique: m.existing, findMany: m.list }, $transaction: m.transaction,
 } }));
 vi.mock('@/lib/roles-sync', () => ({ refreshPostedRaidsForCharacter: m.refresh }));
 import { GET, POST } from './route';
 import { PATCH, DELETE } from './[characterId]/route';
 import { POST as MAKE_MAIN } from './[characterId]/main/route';
+import { PUT as SET_DEFAULT } from './default/route';
 
 const alt = { id: 'alt', userId: 'owner', name: 'Sample Name', class: 'PALADIN', isMain: false, raidRole: 'TANK' };
 const body = { name: 'Sample Name', wowClass: 'paladin', spec: 'Protection', role: 'tank', rank: 'officer', isMain: true, userId: 'other' };
@@ -24,9 +26,10 @@ const main = { ...alt, id: 'main', name: 'Main Name', isMain: true, joinedAt: ne
 const params = { params: Promise.resolve({ characterId: 'alt' }) };
 function call(method: string, data: unknown = body) {
   const request = new Request('http://localhost/api/me/characters/alt', {
-    method: method === 'MAIN' ? 'POST' : method, ...(['POST', 'PATCH'].includes(method) ? { body: JSON.stringify(data) } : {}),
+    method: method === 'MAIN' ? 'POST' : method === 'DEFAULT' ? 'PUT' : method, ...(['POST', 'PATCH', 'DEFAULT'].includes(method) ? { body: JSON.stringify(data) } : {}),
   });
   if (method === 'MAIN') return MAKE_MAIN(request, params);
+  if (method === 'DEFAULT') return SET_DEFAULT(request);
   return method === 'GET' ? GET() : method === 'POST' ? POST(request) : method === 'PATCH' ? PATCH(request, params) : DELETE(request, params);
 }
 beforeEach(() => {
@@ -45,7 +48,7 @@ beforeEach(() => {
   m.job.mockResolvedValue({ id: 'job' });
 });
 
-const METHODS = ['GET', 'POST', 'PATCH', 'DELETE', 'MAIN'];
+const METHODS = ['GET', 'POST', 'PATCH', 'DELETE', 'MAIN', 'DEFAULT'];
 it.each(METHODS)('%s refuses signed-out callers before database access', async (method) => {
   m.session.mockResolvedValue(null);
   const response = await call(method);
@@ -77,9 +80,9 @@ it.each(['member', 'officer'])('%s with a main can list, add, edit and remove th
     const response = await call(method);
     expect(response.status).toBe(method === 'POST' ? 201 : 200);
     expect(response.headers.get('Cache-Control')).toBe('private, no-store');
-    expect(await response.json()).toEqual(method === 'GET' ? [alt] : { id: 'alt', name: 'Sample Name' });
+    expect(await response.json()).toEqual(method === 'GET' ? [{ ...alt, level: null, isDefault: false }] : { id: 'alt', name: 'Sample Name' });
   }
-  expect(m.user).toHaveBeenCalledWith({ where: { discordId: 'discord-owner' }, select: { id: true } });
+  expect(m.user).toHaveBeenCalledWith({ where: { discordId: 'discord-owner' }, select: { id: true, defaultCharacterId: true } });
   expect(m.list).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'owner' } }));
   // Neither supplied userId, isMain nor rank is writable, including by officers here.
   expect(m.create).toHaveBeenCalledWith({ data: { name: 'Sample Name', class: 'PALADIN', spec: 'Protection', raidRole: 'TANK', userId: 'owner', isMain: false, rank } });
@@ -114,7 +117,7 @@ it.each(['member', 'officer'])('%s edits their main\'s name, class, spec and rai
   const response = await call('PATCH', { ...body, name: 'Fresh Name', spec: 'Holy', role: 'healer' });
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({ id: 'main', name: 'Fresh Name' });
-  expect(m.update).toHaveBeenCalledWith({ where: { id: 'alt' }, data: { name: 'Fresh Name', class: 'PALADIN', spec: 'Holy', raidRole: 'HEALER' } });
+  expect(m.update).toHaveBeenCalledWith({ where: { id: 'alt' }, data: { name: 'Fresh Name', class: 'PALADIN', spec: 'Holy', raidRole: 'HEALER', level: null, levelCheckedAt: null, levelAttemptedAt: null } });
   // A raid-role change refreshes posted raids, as for alts.
   expect(m.refresh).toHaveBeenCalledWith(main, tx);
   // Name, spec and raid role leave Discord's class roles alone.
@@ -277,4 +280,41 @@ it.each(['PATCH', 'DELETE'])('%s preserves a character disappearing after the ow
   expect(await response.json()).toEqual({ error: 'No such character.' });
   expect(m.update).not.toHaveBeenCalled();
   expect(m.remove).not.toHaveBeenCalled();
+});
+
+it('lists which character is the default', async () => {
+  m.user.mockResolvedValue({ id: 'owner', defaultCharacterId: 'alt' });
+  m.list.mockResolvedValue([main, alt]);
+  const listed = await (await call('GET')).json();
+  expect(listed.map((c: { id: string; isDefault: boolean }) => [c.id, c.isDefault])).toEqual([['main', false], ['alt', true]]);
+});
+it('sets the default only to one of the member\'s own characters, checked in the write', async () => {
+  m.setUserIfOwned.mockResolvedValue({ count: 1 });
+  const response = await call('DEFAULT', { characterId: 'alt' });
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ defaultCharacterId: 'alt' });
+  expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+  expect(m.setUserIfOwned).toHaveBeenCalledWith({ where: { id: 'owner', characters: { some: { id: 'alt' } } }, data: { defaultCharacterId: 'alt' } });
+});
+it.each([
+  ['someone else\'s or a missing character', async () => m.setUserIfOwned.mockResolvedValue({ count: 0 })],
+  ['a character deleted mid-write', async () => m.setUserIfOwned.mockRejectedValue(Object.assign(new Error('fk'), { code: 'P2003' }))],
+  ['a member with no characters yet', async () => m.user.mockResolvedValue(null)],
+])('setting %s as the default answers 404', async (_name, arrange) => {
+  await arrange();
+  const response = await call('DEFAULT', { characterId: 'foreign' });
+  expect(response.status).toBe(404);
+  expect(await response.json()).toEqual({ error: 'No such character.' });
+});
+it('clears the default with null', async () => {
+  const response = await call('DEFAULT', { characterId: null });
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ defaultCharacterId: null });
+  expect(m.setUser).toHaveBeenCalledWith({ where: { id: 'owner' }, data: { defaultCharacterId: null } });
+});
+it.each([{}, { characterId: '' }, { characterId: 7 }, null])('refuses a default body without a character id or null: %j', async (data) => {
+  const response = await call('DEFAULT', data);
+  expect(response.status).toBe(400);
+  expect(m.setUser).not.toHaveBeenCalled();
+  expect(m.setUserIfOwned).not.toHaveBeenCalled();
 });

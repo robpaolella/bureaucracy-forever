@@ -44,6 +44,24 @@ export function decideRespond(actor: Actor, raid: RaidState, existing: Existing,
   return { ok: true, standing: 'BENCH', response };
 }
 
+/**
+ * A first Accept or Tentative: the row had no answer (none yet, withdrawn, or no row) or
+ * Absent. Only this answer brings the member's default character (#560).
+ */
+export function isFirstAnswer(previous: RaidResponse | null, next: RaidResponse): boolean {
+  return (previous === null || previous === 'absent') && next !== 'absent';
+}
+
+/**
+ * The character an answer switches the sign-up to, or null to keep the row's character
+ * (a new row brings the main). A chosen character always wins; otherwise a first
+ * Accept/Tentative brings the default when one is set.
+ */
+export function characterToBring(previous: RaidResponse | null, next: RaidResponse, chosenId: string | null, defaultId: string | null): string | null {
+  if (chosenId) return chosenId;
+  return isFirstAnswer(previous, next) ? defaultId : null;
+}
+
 /** "Join bench": bench + accept. Roster members are already in. */
 export function decideBench(actor: Actor, raid: RaidState, existing: Existing, now: Date): Outcome {
   if (actor.role === 'social') return { ok: false, status: 403, reason: REASONS.social };

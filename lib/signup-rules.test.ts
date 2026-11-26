@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countsForBars, decideBench, decideRespond, raidClosed, REASONS, type RaidState } from './signup-rules';
+import { characterToBring, countsForBars, decideBench, decideRespond, isFirstAnswer, raidClosed, REASONS, type RaidState } from './signup-rules';
 
 const now = new Date('2026-10-15T20:00:00.000Z');
 const open: RaidState = { status: 'SCHEDULED', locksAt: new Date('2026-10-16T01:00:00.000Z') };
@@ -64,5 +64,28 @@ describe('sign-up rules', () => {
         { standing: 'ROSTER', response: 'accept', role: 'unknown' },
       ]),
     ).toEqual({ tank: 0, healer: 0, dps: 2 });
+  });
+});
+
+describe('the character an answer brings (#560)', () => {
+  it('counts no answer, a withdrawn answer or Absent, followed by Accept/Tentative, as a first answer', () => {
+    for (const previous of [null, 'absent'] as const) for (const next of ['accept', 'tentative'] as const) expect(isFirstAnswer(previous, next)).toBe(true);
+    for (const previous of ['accept', 'tentative'] as const) for (const next of ['accept', 'tentative', 'absent'] as const) expect(isFirstAnswer(previous, next)).toBe(false);
+    expect(isFirstAnswer(null, 'absent')).toBe(false);
+  });
+  it.each([
+    ['first answer, character chosen', null, 'accept', 'chosen', 'default', 'chosen'],
+    ['first answer after Absent, character chosen', 'absent', 'tentative', 'chosen', null, 'chosen'],
+    ['first answer, none chosen, default set', null, 'tentative', null, 'default', 'default'],
+    ['first answer after Absent, none chosen, default set', 'absent', 'accept', null, 'default', 'default'],
+    ['first answer, none chosen, no default: keep (row or main)', null, 'accept', null, null, null],
+    ['Accept to Tentative: unchanged', 'accept', 'tentative', null, 'default', null],
+    ['Tentative to Accept: unchanged', 'tentative', 'accept', null, 'default', null],
+    ['Accept to Absent: unchanged', 'accept', 'absent', null, 'default', null],
+    ['Tentative to Absent: unchanged', 'tentative', 'absent', null, 'default', null],
+    ['Absent again: unchanged', 'absent', 'absent', null, 'default', null],
+    ['a chosen character on a later answer still switches', 'accept', 'tentative', 'chosen', 'default', 'chosen'],
+  ] as const)('%s', (_name, previous, next, chosen, fallback, expected) => {
+    expect(characterToBring(previous, next, chosen, fallback)).toBe(expected);
   });
 });

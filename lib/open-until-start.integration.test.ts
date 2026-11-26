@@ -15,6 +15,7 @@ import { PATCH } from '@/app/api/raids/[id]/route';
 import { PUT as signUp } from '@/app/api/raids/[id]/signup/route';
 import { PUT as switchCharacter } from '@/app/api/raids/[id]/signup/character/route';
 import { applyDiscordAnswer } from '@/app/api/bot/raids/_respond';
+import { RESPONSE_NOTES } from '@/content/raid';
 import { REASONS } from './signup-rules';
 import { generateInstances, runTick } from './tick';
 
@@ -24,7 +25,7 @@ describe.skipIf(process.env.OPEN_UNTIL_START_INTEGRATION !== '1')('OPEN_UNTIL_ST
   let container: string, pool: Pool, db: PrismaClient;
   const docker = (...args: string[]) => execFileSync('docker', args, { encoding: 'utf8', timeout: 120_000 }).trim();
   const MINUTE = 60_000;
-  const form = { templateId: 'tier', date: '2099-06-01', time: '20:00', durationMin: 180, requirements: { tank: 1, healer: 1, melee: 0, ranged: 0 }, notes: '' };
+  const form = { templateId: 'tier', date: '2099-06-01', time: '20:00', durationMin: 180, requirements: { tank: 2, healer: 2, melee: 3, ranged: 3 }, notes: '' };
   const json = (body: unknown) => ({ method: 'PUT', body: JSON.stringify(body) });
   const params = (id: string) => ({ params: Promise.resolve({ id }) });
   const raidRow = (id: string) => db.raid.findUniqueOrThrow({ where: { id } });
@@ -44,10 +45,11 @@ describe.skipIf(process.env.OPEN_UNTIL_START_INTEGRATION !== '1')('OPEN_UNTIL_ST
   /** What a member can do at a moment: the web answer, the bot's answer and a change of brought character. */
   async function attempts(raidId: string, now: Date) {
     clock(now);
-    const web = (await signUp(new Request('http://localhost', json({ response: 'tentative' })), params(raidId))).status;
+    const webRes = await signUp(new Request('http://localhost', json({ response: 'tentative' })), params(raidId));
+    const web = webRes.status;
     const bot = await applyDiscordAnswer(raidId, 'member', { kind: 'respond', response: 'tentative', reason: null });
     const character = await switchCharacter(new Request('http://localhost', json({ characterId: 'alt' })), params(raidId));
-    return { web, bot: bot.status, character: character.status, reasons: [bot.body && (bot.body as { reason?: string }).reason, (await character.json() as { error?: string }).error] };
+    return { web, bot: bot.status, character: character.status, reasons: [bot.body && (bot.body as { reason?: string }).reason, (await character.json() as { error?: string }).error], webReason: web === 200 ? null : (await webRes.json() as { error?: string }).error };
   }
 
   beforeAll(async () => {
@@ -104,13 +106,13 @@ describe.skipIf(process.env.OPEN_UNTIL_START_INTEGRATION !== '1')('OPEN_UNTIL_ST
   it('sign-ups: refused 5 minutes before the start with the setting off', async () => {
     const raid = await schedule(false);
     const got = await attempts(raid.id, new Date(raid.startsAt.getTime() - 5 * MINUTE));
-    expect(got).toMatchObject({ web: 409, bot: 409, character: 409, reasons: [REASONS.locked, REASONS.locked] });
+    expect(got).toMatchObject({ web: 409, bot: 409, character: 409, reasons: [REASONS.locked, RESPONSE_NOTES.locked], webReason: RESPONSE_NOTES.locked });
   });
 
   it.each([0, 1])('boundary: refused %i minute(s) after the start, before tick has marked the event locked', async (after) => {
     const raid = await schedule(true);
     const got = await attempts(raid.id, new Date(raid.startsAt.getTime() + after * MINUTE));
-    expect(got).toMatchObject({ web: 409, bot: 409, character: 409, reasons: [REASONS.locked, REASONS.locked] });
+    expect(got).toMatchObject({ web: 409, bot: 409, character: 409, reasons: [REASONS.locked, RESPONSE_NOTES.locked], webReason: RESPONSE_NOTES.locked });
     expect((await raidRow(raid.id)).status).toBe('SCHEDULED');
     expect((await db.signup.findFirstOrThrow({ where: { raidId: raid.id } })).characterId).toBe('main');
   });
@@ -136,8 +138,10 @@ describe.skipIf(process.env.OPEN_UNTIL_START_INTEGRATION !== '1')('OPEN_UNTIL_ST
     expect(moved.startsAt.getTime()).toBe(raid.startsAt.getTime() + 24 * 60 * MINUTE);
     expect(moved.locksAt).toEqual(moved.startsAt);
 
+    // Editing a locked raid whose new lock is still ahead reopens it (by design); an edit made after the lock time leaves it locked.
+    clock(new Date(moved.startsAt.getTime() + 30 * MINUTE));
     await db.raid.update({ where: { id: raid.id }, data: { status: 'LOCKED', lockedAt: new Date() } });
-    expect((await edit('2099-06-03')).status).toBe(200);
+    expect((await edit('2099-06-02')).status).toBe(200);
     const locked = await raidRow(raid.id);
     expect(locked.status).toBe('LOCKED');
     expect(locked.locksAt).toEqual(locked.startsAt);

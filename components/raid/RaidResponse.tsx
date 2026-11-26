@@ -6,12 +6,14 @@ import { useSignup } from '@/components/calendar/useSignup';
 import { useReservePrompt } from '@/components/loot/ReserveWindow';
 import { useViewerTimeZone } from '@/components/time/useViewerTimeZone';
 import { CONTROL, FIELD_LABEL, SegmentedControl, Toast, type ToastData } from '@/components/ui';
-import { CLASS_COLORS, type Role, type WowClass } from '@/lib/design/class-colors';
+import { CLASS_COLORS, type Role } from '@/lib/design/class-colors';
 import { responseToast, type RaidCard, type RaidResponse } from '@/lib/raids';
 import { signupsClosed } from '@/lib/raid-detail';
 import { SAVE_FAILED } from '@/content/calendar';
-import { RESPONSE_NOTES } from '@/content/raid';
+import { RESPONSE_NOTES, UNDER_60 } from '@/content/raid';
+import { isUnderRaidLevel } from '@/lib/roster-level';
 import { RESERVES } from '@/content/reserves';
+import { UnderLevelWindow, useCharacterQuestion, type QuestionCharacter } from './CharacterQuestion';
 
 const RESPONSE_OPTIONS = [
   { value: 'accept', label: 'Accept', tone: 'ok' },
@@ -19,12 +21,12 @@ const RESPONSE_OPTIONS = [
   { value: 'absent', label: 'Absent', tone: 'stop' },
 ] as const;
 
-type CharacterOption = { id: string; name: string; wowClass: WowClass; role: Role };
-
 type Props = {
   raid: RaidCard;
   viewer: { role: 'social' | 'member' | 'officer'; raidRole: Role | null };
-  characters: CharacterOption[];
+  characters: QuestionCharacter[];
+  /** The member's default character, or null for "ask me each time". */
+  defaultCharacterId: string | null;
   /** The server's current character choice, or null without a sign-up. */
   broughtId: string | null;
   past: boolean;
@@ -40,13 +42,15 @@ type Props = {
  * answer as text (SYNC-SPEC §7); a member off the roster sees that accepting benches them
  * and cannot decline, since a decline off the roster means nothing.
  */
-export function RaidResponseControl({ raid: initial, viewer, characters, broughtId, past, now }: Props) {
+export function RaidResponseControl({ raid: initial, viewer, characters, defaultCharacterId, broughtId, past, now }: Props) {
   const router = useRouter();
   const zone = useViewerTimeZone();
   const [toast, setToast] = useState<ToastData | null>(null);
   const [selectedId, setSelectedId] = useState(broughtId ?? '');
   const [selectedBroughtId, setSelectedBroughtId] = useState(broughtId);
   const [lockedBySwitch, setLockedBySwitch] = useState(false);
+  /** A switch to a character under level 60, waiting for the member's go-ahead. */
+  const [bringAsk, setBringAsk] = useState<QuestionCharacter | null>(null);
   // A router refresh supplies the saved choice as a new prop. Reset during render so the
   // browser never paints a stale local choice, while a pending local switch remains intact.
   if (broughtId !== selectedBroughtId) {
@@ -56,9 +60,9 @@ export function RaidResponseControl({ raid: initial, viewer, characters, brought
 
   const { afterAnswer, window: reserveWindow } = useReservePrompt(setToast);
   const onResult = useCallback(
-    (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void, undone: boolean) => {
+    (ok: boolean, raid: RaidCard, response: RaidResponse | null, undo: () => void, undone: boolean, error?: string) => {
       if (!ok) {
-        setToast({ tone: 'stop', title: SAVE_FAILED });
+        setToast({ tone: 'stop', title: error ?? SAVE_FAILED });
         return;
       }
       const copy = responseToast(raid, response, zone?.zone ?? null);
@@ -71,8 +75,9 @@ export function RaidResponseControl({ raid: initial, viewer, characters, brought
     },
     [zone, router, afterAnswer],
   );
-  const { raids, respond, switchCharacter, pending } = useSignup([initial], viewer.raidRole, onResult);
+  const { raids, respond, switchCharacter, pending, madeDefault } = useSignup([initial], viewer.raidRole, onResult, { characters, defaultId: defaultCharacterId });
   const raid = raids[0];
+  const { answer, question } = useCharacterQuestion(characters, madeDefault ?? defaultCharacterId, respond);
 
   if (viewer.role === 'social') return null;
   const closed = lockedBySwitch || signupsClosed(raid, past, new Date(now));
@@ -81,10 +86,19 @@ export function RaidResponseControl({ raid: initial, viewer, characters, brought
   const canChooseCharacter = characters.length > 1 && (raid.mine === 'accept' || raid.mine === 'tentative');
   const brought = characters.find((character) => character.id === selectedId) ?? characters.find((character) => character.id === broughtId);
 
-  async function chooseCharacter(characterId: string) {
+  function chooseCharacter(characterId: string) {
     if (!brought || characterId === brought.id) return;
     const character = characters.find((candidate) => candidate.id === characterId);
     if (!character) return;
+    if (isUnderRaidLevel(character.level)) {
+      setBringAsk(character);
+      return;
+    }
+    void switchTo(character);
+  }
+
+  async function switchTo(character: QuestionCharacter) {
+    const characterId = character.id;
     const previousId = selectedId;
     setSelectedId(characterId);
     const result = await switchCharacter(raid.id, character.id, character.role);
@@ -119,7 +133,7 @@ export function RaidResponseControl({ raid: initial, viewer, characters, brought
         </div>
       ) : (
         <>
-          <SegmentedControl label={`Your response to ${raid.name}`} value={raid.mine} onChange={(r) => respond(raid.id, r)} options={options} fill className="md:w-auto md:[&>button]:flex-none" />
+          <SegmentedControl label={`Your response to ${raid.name}`} value={raid.mine} onChange={(r) => answer(raid, r)} options={options} fill className="md:w-auto md:[&>button]:flex-none" />
           {canChooseCharacter && brought && (
             <div className="flex w-full flex-col gap-2 md:w-[220px]">
               <label htmlFor={`bringing-${raid.id}`} className={FIELD_LABEL}>{RESPONSE_NOTES.bringing}</label>
@@ -128,7 +142,7 @@ export function RaidResponseControl({ raid: initial, viewer, characters, brought
                 className={`${CONTROL} h-[46px] px-3`}
                 value={selectedId}
                 disabled={pending.has(raid.id)}
-                onChange={(event) => void chooseCharacter(event.target.value)}
+                onChange={(event) => chooseCharacter(event.target.value)}
               >
                 {characters.map((character) => <option key={character.id} value={character.id}>{character.name} · {CLASS_COLORS[character.wowClass].label}</option>)}
               </select>
@@ -137,6 +151,18 @@ export function RaidResponseControl({ raid: initial, viewer, characters, brought
           {offRoster && <p className="text-small text-fg-3">{RESPONSE_NOTES.offRoster}</p>}
         </>
       )}
+      {question}
+      <UnderLevelWindow
+        ask={bringAsk && bringAsk.level !== null && brought
+          ? { title: UNDER_60.bringTitle(bringAsk.name), body: UNDER_60.bringBody(bringAsk.name, bringAsk.level), cancel: UNDER_60.keep(brought.name), confirm: UNDER_60.bring(bringAsk.name) }
+          : null}
+        onCancel={() => setBringAsk(null)}
+        onConfirm={() => {
+          const character = bringAsk;
+          setBringAsk(null);
+          if (character) void switchTo(character);
+        }}
+      />
       {reserveWindow}
       <Toast toast={toast} onDismiss={() => setToast(null)} />
     </div>

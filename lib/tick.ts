@@ -10,11 +10,12 @@ import { applicationReminderDue, dueForClose, dueForLock, dueForPost, HOUR_MS, i
 import { lootEnabled } from '@/lib/flags';
 import { reserveLockMinutes, reservesLockAt } from '@/lib/loot-rules';
 import { DIGEST_ORDER, DIGEST_SELECT, digestKey, digestPayload, digestUsers, digestWindow } from '@/lib/interview-digest';
+import { refreshCharacterLevels } from '@/lib/character-level-refresh';
 import { reserveReminderDue, reserveReminderRecipients } from '@/lib/reserve-reminder';
 
 const RECONCILE_MARKER = 'tick:reconcile';
 /** DONE and FAILED jobs and idempotency keys older than this are trimmed by the hourly reconcile. */
-const RETENTION_DAYS = 14;
+export const RETENTION_DAYS = 14;
 
 export type TickCounts = {
   generated: number;
@@ -34,6 +35,7 @@ export type TickCounts = {
   interviewDigests: number;
   remindersQueued: number;
   reconciled: number;
+  levelsRefreshed: number;
 };
 
 /** Users on the roster (SYNC-SPEC §3): in the guild with rank RAIDER, TRIAL or OFFICER. Rank alone decides; a main is not required. */
@@ -95,7 +97,7 @@ function isUniqueViolation(error: unknown): boolean {
  * missed or doubled tick changes nothing but timing.
  */
 export async function runTick(now = new Date()): Promise<TickCounts> {
-  const counts: TickCounts = { generated: 0, rosterAdded: 0, rosterRemoved: 0, posted: 0, reminded: 0, reservesReminded: 0, locked: 0, closed: 0, trialsRaised: 0, interviewsReminded: 0, interviewsExpired: 0, interviewsHeadsUp: 0, interviewsLapsed: 0, interviewsDone: 0, interviewDigests: 0, remindersQueued: 0, reconciled: 0 };
+  const counts: TickCounts = { generated: 0, rosterAdded: 0, rosterRemoved: 0, posted: 0, reminded: 0, reservesReminded: 0, locked: 0, closed: 0, trialsRaised: 0, interviewsReminded: 0, interviewsExpired: 0, interviewsHeadsUp: 0, interviewsLapsed: 0, interviewsDone: 0, interviewDigests: 0, remindersQueued: 0, reconciled: 0, levelsRefreshed: 0 };
   const roster = await rosterUserIds();
 
   // 1. Generate instances for every active series.
@@ -334,6 +336,10 @@ export async function runTick(now = new Date()): Promise<TickCounts> {
     for (const a of apps) await enqueue('application.update', { applicationId: a.id, reconcile: true });
     counts.reconciled = raids.length + apps.length;
   }
+
+  // 16. Character levels: clear expired ones, look up a few due ones. Last, because it calls
+  // out to Blizzard and nothing above waits on it.
+  counts.levelsRefreshed = await refreshCharacterLevels(now);
 
   return counts;
 }

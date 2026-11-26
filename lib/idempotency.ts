@@ -34,6 +34,28 @@ function response(status: number, body: Record<string, unknown>, replay = false)
     : NextResponse.json(body, { status, headers });
 }
 
+/**
+ * A reply as stored for replay: without the character level fields (`level`, `underRaidLevel`),
+ * so a replay never keeps a level past Blizzard's 30-day limit, even when ticks stop (#566).
+ * The original response keeps them; a replay reads the level as unknown, which the bot tolerates
+ * (SYNC-SPEC §4). They sit on `character` (character switch) or `viewer.character` (sign-up).
+ */
+export function storable(body: Record<string, unknown>): Prisma.InputJsonValue {
+  const strip = (value: unknown): unknown => {
+    if (typeof value !== 'object' || value === null) return value;
+    const rest = { ...(value as Record<string, unknown>) };
+    delete rest.level;
+    delete rest.underRaidLevel;
+    return rest;
+  };
+  const viewer = body.viewer;
+  return {
+    ...body,
+    ...('character' in body ? { character: strip(body.character) } : {}),
+    ...(typeof viewer === 'object' && viewer !== null && 'character' in viewer ? { viewer: { ...viewer, character: strip((viewer as { character: unknown }).character) } } : {}),
+  } as Prisma.InputJsonValue;
+}
+
 export function reply(status: number, body: Record<string, unknown>): Reply {
   return { status, body };
 }
@@ -85,7 +107,7 @@ export async function withIdempotency(request: Request, handler: (complete: Comp
   const mine = { key, statusCode: CLAIMED, createdAt: claimed.claimedAt };
   const complete: Complete = async (tx, r) => {
     if (r.status >= 500) return r;
-    const done = await tx.botRequest.updateMany({ where: mine, data: { statusCode: r.status, body: r.body as Prisma.InputJsonValue } });
+    const done = await tx.botRequest.updateMany({ where: mine, data: { statusCode: r.status, body: storable(r.body) } });
     if (done.count !== 1) throw new Error(`Idempotency-Key ${key} is no longer claimed by this request.`);
     return r;
   };
@@ -99,6 +121,6 @@ export async function withIdempotency(request: Request, handler: (complete: Comp
   // Both match only a claim still open: after `complete` committed they change nothing, and
   // after its transaction rolled back they store or release as for any handler.
   if (r.status >= 500) await db.botRequest.deleteMany({ where: mine });
-  else await db.botRequest.updateMany({ where: mine, data: { statusCode: r.status, body: r.body as Prisma.InputJsonValue } });
+  else await db.botRequest.updateMany({ where: mine, data: { statusCode: r.status, body: storable(r.body) } });
   return response(r.status, r.body);
 }

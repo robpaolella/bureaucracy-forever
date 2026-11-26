@@ -209,3 +209,19 @@ it('complete throws, so the transaction rolls back, once another retry has taken
   await expect(withIdempotency(request('interaction'), handler)).rejects.toThrow('no longer claimed');
   expect(rows.get('interaction')).toMatchObject({ statusCode: 0, createdAt: new Date(0) });
 });
+
+it('stores a reply without character level fields but returns them the first time (#566)', async () => {
+  const switched = { character: { id: 'c', name: 'A B', level: 42, underRaidLevel: true }, removedReserves: [] };
+  const first = await withIdempotency(request('switch'), async () => reply(200, switched));
+  expect(await first.json()).toEqual(switched);
+  expect(rows.get('switch')?.body).toEqual({ character: { id: 'c', name: 'A B' }, removedReserves: [] });
+  const replay = await withIdempotency(request('switch'), vi.fn());
+  expect(await replay.json()).toEqual({ character: { id: 'c', name: 'A B' }, removedReserves: [] });
+
+  const answered = { raidId: 'r', viewer: { standing: 'ROSTER', character: { id: 'c', level: null, underRaidLevel: false }, characters: [{ id: 'c' }] }, counts: null };
+  await withIdempotency(request('respond'), async () => reply(200, answered));
+  expect(rows.get('respond')?.body).toEqual({ raidId: 'r', viewer: { standing: 'ROSTER', character: { id: 'c' }, characters: [{ id: 'c' }] }, counts: null });
+
+  await withIdempotency(request('none'), async () => reply(200, { viewer: null, character: null }));
+  expect(rows.get('none')?.body).toEqual({ viewer: null, character: null });
+});

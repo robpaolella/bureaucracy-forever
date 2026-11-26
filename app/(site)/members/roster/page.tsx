@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { RosterTable } from '@/components/roster/RosterTable';
 import type { MemberCharacter } from '@/components/roster/MemberCharacterDialog';
 import type { Rank } from '@/components/ui/Badges';
+import { freshLevel } from '@/lib/character-level';
 import { db } from '@/lib/db';
 import type { Role, WowClass } from '@/lib/design/class-colors';
 import type { RosterRow } from '@/lib/roster';
@@ -27,12 +28,12 @@ export default async function RosterPage() {
   const [users, viewer] = await Promise.all([
     db.user.findMany({
       where: { inGuild: true, role: { in: ['MEMBER', 'OFFICER'] } },
-      select: { id: true, discordName: true, rank: true, createdAt: true, characters: { orderBy: [{ isMain: 'desc' }, { name: 'asc' }], select: { id: true, isMain: true, name: true, class: true, spec: true, raidRole: true, attendance: true, joinedAt: true } } },
+      select: { id: true, discordName: true, rank: true, createdAt: true, characters: { orderBy: [{ isMain: 'desc' }, { name: 'asc' }], select: { id: true, isMain: true, name: true, class: true, spec: true, raidRole: true, attendance: true, joinedAt: true, level: true, levelCheckedAt: true } } },
       orderBy: { discordName: 'asc' },
     }),
     db.user.findUnique({
       where: { discordId: session.discordId },
-      select: { id: true, characters: { select: { id: true, name: true, class: true, spec: true, raidRole: true, isMain: true }, orderBy: [{ isMain: 'desc' }, { name: 'asc' }] } },
+      select: { id: true, defaultCharacterId: true, characters: { select: { id: true, name: true, class: true, spec: true, raidRole: true, isMain: true, level: true, levelCheckedAt: true }, orderBy: [{ isMain: 'desc' }, { name: 'asc' }] } },
     }),
   ]);
   const rows: RosterRow[] = users.map((u) => {
@@ -47,10 +48,12 @@ export default async function RosterPage() {
         wowClass: alt.class.toLowerCase() as WowClass,
         spec: alt.spec,
         role: alt.raidRole.toLowerCase() as Role,
+        level: freshLevel(alt),
       })) : [],
       wowClass: (c?.class.toLowerCase() as WowClass | undefined) ?? null,
       spec: c?.spec ?? null,
       role: (c?.raidRole.toLowerCase() as Role | undefined) ?? null,
+      level: c ? freshLevel(c) : null,
       rank: u.rank.toLowerCase() as Rank,
       attendance: c?.attendance ?? null,
       joinedAt: (c?.joinedAt ?? u.createdAt).toISOString(),
@@ -76,6 +79,8 @@ export default async function RosterPage() {
             spec: character.spec,
             role: character.raidRole.toLowerCase() as Role,
             isMain: character.isMain,
+            level: freshLevel(character),
+            isDefault: character.id === viewer.defaultCharacterId,
           })),
         } : undefined}
       />

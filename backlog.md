@@ -71,3 +71,4 @@
 - Consider a short DPS explainer (melee and ranged) for newcomers on the calendar and raid page; the #454 critique raised it, left for Robert.
 - Raid form (#455 critique): show a live "· N of SIZE" total in the Needed legend, like the template form, so the size rule shows before saving; needs the template size passed to the form.
 - Role inputs (#455 critique): when Tank, Healer and DPS don't add up, neither form marks the boxes `aria-invalid` with a Stop border, as DESIGN.md asks for invalid fields (baseline behaviour).
+- Levels: Blizzard's guild roster endpoint could refresh many characters in one call, a later speed-up for the tick's level step (#566).

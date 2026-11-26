@@ -1,6 +1,6 @@
 /**
  * Raid detail (SYNC-SPEC §9.5): the roster grouped by role with Answer and Via columns,
- * the bench, who has not answered, and who can be marked attended. Pure, so the grouping
+ * the bench, the No response and Absent lists, and who can be marked attended. Pure, so the grouping
  * and the attendance defaults are unit-tested instead of improvised in the page.
  */
 import { compositionRole, COMPOSITION_ROLES, type CompositionRole, type Role, type WowClass } from '@/lib/design/class-colors';
@@ -18,6 +18,8 @@ export type DetailRow = {
   wowClass: WowClass | null;
   spec: string | null;
   role: Role | null;
+  /** The brought character's fresh level; null is unknown. Raid page rows show it only under 60. */
+  level: number | null;
   standing: Standing;
   response: RaidResponse | null;
   attended: boolean | null;
@@ -39,23 +41,34 @@ export function compareRows(a: DetailRow, b: DetailRow): number {
   return byAnswer !== 0 ? byAnswer : a.name.localeCompare(b.name);
 }
 
-/** Roster rows by main role (melee and ranged together as DPS) in raid order; members without a main land last under `none`. Empty groups are dropped. */
+/**
+ * Signed-up roster rows (Accept or Tentative) by the role of the character each brings (melee and
+ * ranged together as DPS) in raid order. Tank, Healer and DPS always appear, even empty, so the page
+ * can say nobody has signed up; answered members without a character land last under `none`, which
+ * appears only when someone is in it.
+ */
 export function groupByRole(rows: DetailRow[]): RoleGroup[] {
   const groups: RoleGroup[] = [...COMPOSITION_ROLES, 'none' as const].map((role) => ({ role, rows: [] }));
-  for (const row of rows) groups.find((g) => g.role === (row.role ? compositionRole(row.role) : 'none'))!.rows.push(row);
+  for (const row of rows) {
+    if (row.response !== 'accept' && row.response !== 'tentative') continue;
+    groups.find((g) => g.role === (row.role ? compositionRole(row.role) : 'none'))!.rows.push(row);
+  }
   for (const g of groups) g.rows.sort(compareRows);
-  return groups.filter((g) => g.rows.length > 0);
+  return groups.filter((g) => g.role !== 'none' || g.rows.length > 0);
 }
 
-export type Split = { roster: DetailRow[]; bench: DetailRow[]; unanswered: DetailRow[] };
+export type Split = { roster: DetailRow[]; bench: DetailRow[]; noResponse: DetailRow[]; absent: DetailRow[] };
 
-/** Roster rows (answered or not), bench rows, and the roster rows still waiting on an answer. */
+const byName = (a: DetailRow, b: DetailRow) => a.name.localeCompare(b.name);
+
+/** Roster rows, bench rows, and the roster rows with no answer or an Absent answer (the two lists under the role groups). */
 export function splitStanding(rows: DetailRow[]): Split {
   const roster = rows.filter((r) => r.standing === 'ROSTER');
   return {
     roster,
     bench: rows.filter((r) => r.standing === 'BENCH').sort(compareRows),
-    unanswered: roster.filter((r) => r.response === null).sort((a, b) => a.name.localeCompare(b.name)),
+    noResponse: roster.filter((r) => r.response === null).sort(byName),
+    absent: roster.filter((r) => r.response === 'absent').sort(byName),
   };
 }
 

@@ -148,10 +148,10 @@ describe.skipIf(process.env.SIGNUP_CHARACTER_INTEGRATION !== '1')('sign-up chara
     const member = await user('roster'), empty = await user('roster-empty', false);
     await db.user.updateMany({ where: { id: { in: [member.id, empty.id] } }, data: { inGuild: true, rank: 'RAIDER' } });
     state.discordId = 'officer'; state.role = 'officer';
-    const result = await POST(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ name: 'Scheduled', date: '2099-06-01', time: '20:00', durationMin: 180, requirements: { tank: 1, healer: 1, melee: 0, ranged: 0 } }) }));
+    const template = await db.raidTemplate.create({ data: { name: 'Sample', short: 'S', size: 10, requirements: {} } });
+    const result = await POST(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ templateId: template.id, date: '2099-06-01', time: '20:00', durationMin: 180, requirements: { tank: 2, healer: 2, melee: 3, ranged: 3 } }) }));
     expect(result.status).toBe(201);
     const scheduled = (await result.json()).id;
-    const template = await db.raidTemplate.create({ data: { name: 'Sample', short: 'S', size: 10, requirements: {} } });
     const series = await db.raidSeries.create({ data: { templateId: template.id, weekday: 2, startTime: '20:00', durationMin: 180, horizonWeeks: 1, createdById: 'officer' } });
     expect(await generateInstances(new Date('2099-05-01'), [member.id, empty.id], series.id)).toBeGreaterThan(0);
     const generated = await db.raid.findFirstOrThrow({ where: { seriesId: series.id } });

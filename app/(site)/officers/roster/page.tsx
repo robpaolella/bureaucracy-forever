@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { RosterEditor, type EditorMember } from '@/components/roster/RosterEditor';
 import type { Rank } from '@/components/ui/Badges';
+import { freshLevel } from '@/lib/character-level';
 import { db } from '@/lib/db';
 import type { Role, WowClass } from '@/lib/design/class-colors';
 import { getSession } from '@/lib/session';
@@ -22,7 +23,7 @@ export default async function RosterEditorPage() {
 
   const users = await db.user.findMany({
     where: { inGuild: true, role: { in: ['MEMBER', 'OFFICER'] } },
-    select: { id: true, discordName: true, rank: true, characters: { orderBy: [{ isMain: 'desc' }, { name: 'asc' }], select: { id: true, name: true, class: true, spec: true, raidRole: true } } },
+    select: { id: true, discordName: true, rank: true, characters: { orderBy: [{ isMain: 'desc' }, { name: 'asc' }], select: { id: true, name: true, class: true, spec: true, raidRole: true, level: true, levelCheckedAt: true } } },
     orderBy: { discordName: 'asc' },
   });
   const members: EditorMember[] = users
@@ -32,8 +33,8 @@ export default async function RosterEditorPage() {
         userId: u.id,
         discordName: u.discordName,
         rank: u.rank.toLowerCase() as Rank,
-        main: c ? { id: c.id, name: c.name, wowClass: c.class.toLowerCase() as WowClass, spec: c.spec, role: c.raidRole.toLowerCase() as Role, rank: u.rank.toLowerCase() as Rank } : null,
-        alts: u.characters.slice(1).map((alt) => ({ id: alt.id, name: alt.name, wowClass: alt.class.toLowerCase() as WowClass, spec: alt.spec, role: alt.raidRole.toLowerCase() as Role, rank: u.rank.toLowerCase() as Rank })),
+        main: c ? { id: c.id, name: c.name, wowClass: c.class.toLowerCase() as WowClass, spec: c.spec, role: c.raidRole.toLowerCase() as Role, rank: u.rank.toLowerCase() as Rank, level: freshLevel(c) } : null,
+        alts: u.characters.slice(1).map((alt) => ({ id: alt.id, name: alt.name, wowClass: alt.class.toLowerCase() as WowClass, spec: alt.spec, role: alt.raidRole.toLowerCase() as Role, rank: u.rank.toLowerCase() as Rank, level: freshLevel(alt) })),
       };
     })
     .sort((a, b) => a.discordName.localeCompare(b.discordName));
